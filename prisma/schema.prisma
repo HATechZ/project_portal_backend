@@ -1,0 +1,1481 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ActorRoleCode {
+  system_admin
+  prime_consultant
+  ccr_coordinator
+  division_lead
+  division_member
+  tms_manager
+  tms_drawing
+  tms_checking
+  tms_approval
+  client_owner
+
+  @@map("actor_role_code")
+}
+
+enum WorkspaceTypeCode {
+  BID
+  PROJECT
+
+  @@map("workspace_type_code")
+}
+
+enum ProjectStatusCode {
+  DRAFT
+  BIDDING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+
+  @@map("project_status_code")
+}
+
+enum WorkRequestStatusCode {
+  CREATED
+  DIVISION_NOTIFIED
+  INFO_REQUESTED_FROM_MARKETING
+  INFO_REQUESTED_FROM_CLIENT
+  CLIENT_INFO_PROVIDED
+  MARKETING_INFO_PROVIDED
+  LEADER_ASSIGNED
+  MEMBER_REVIEW
+  MEMBER_INFO_REQUESTED
+  PM_LEAD_RESPONDED
+  PM_MEMBER_SUBMITTED
+  PM_REWORK_REQUESTED
+  FORWARDED_TO_TMS
+  ENGINEERING_REVISION_REQUESTED
+  TMS_MEMBER_INFO_REQUESTED
+  TMS_ASSIGNED
+  DRAWING_IN_PROGRESS
+  CHECKING_REVIEW
+  APPROVAL_REVIEW
+  ENGINEERING_LEAD_REVIEW
+  FINAL_SUBMITTED_TO_MARKETING
+  FINAL_SUBMITTED_TO_CLIENT
+  CLIENT_REVISION_REQUESTED
+  RETURNED_TO_DIVISION
+  DIVISION_MEMBER_APPROVED
+  DIVISION_MANAGER_APPROVED
+  FORWARDED_TO_CCR
+  HML_LISTED
+  REJECTED
+
+  @@map("work_request_status_code")
+}
+
+enum WorkflowActionCode {
+  ADD_COMPANY
+  ADD_DIVISION
+  ADD_TEAM
+  ADD_MEMBER
+  ADD_PROJECT
+  ADD_BID
+  ADD_CLIENT_DOCUMENT
+  ADD_WORK_REQUEST_DOCUMENT
+  ADD_WORK_REQUEST
+  ADD_WORK_REQUEST_NOTE
+  REQUEST_WORKFLOW_INFO
+  RESPOND_WORKFLOW_INFO
+  REQUEST_INFO_FROM_MARKETING
+  MARKETING_RETURN_TO_PM
+  MARKETING_ESCALATE_TO_CLIENT
+  CLIENT_PROVIDE_INFO
+  MEMBER_REQUEST_INFO
+  PM_LEAD_RESPOND_TO_MEMBER
+  PM_MEMBER_SUBMIT
+  PM_RETURN_TO_MEMBER
+  ASSIGN_LEADER
+  ASSIGN_MEMBER
+  FORWARD_TO_TMS
+  ASSIGN_TMS_CHAIN
+  SUBMIT_DRAWING
+  REVIEW_CHECKING_APPROVE
+  REVIEW_CHECKING_REJECT
+  REVIEW_APPROVAL_APPROVE
+  REVIEW_APPROVAL_REJECT
+  ENGINEERING_REQUEST_PM_REVISION
+  TMS_MEMBER_REQUEST_LEAD
+  TMS_LEAD_RESPOND_TO_MEMBER
+  ENGINEERING_SUBMIT_TO_MARKETING
+  MARKETING_SUBMIT_TO_CLIENT
+  MARKETING_REQUEST_ENGINEERING_REVISION
+  MARKETING_ROUTE_CLIENT_REVISION_TO_TMS
+  MARKETING_SUBMIT_CLIENT_REVISION
+  ENGINEERING_REQUEST_TMS_REVISION
+  CLIENT_REQUEST_REVISION
+  MARKETING_SEND_CLIENT_REVISION_TO_PM
+  CLIENT_ACCEPT_FINAL
+  CLIENT_REJECT_FINAL
+  ORIGIN_MEMBER_APPROVE
+  ORIGIN_MEMBER_REJECT
+  ORIGIN_MANAGER_APPROVE
+  FORWARD_TO_CCR
+  SEND_BACKWARD
+  LIST_FINAL_DOCUMENT
+  DECIDE_BID_OUTCOME
+  REQUEST_ARCHIVED_BID_REVIEW
+  UPDATE_SETTINGS
+
+  @@map("workflow_action_code")
+}
+
+enum WorkPriorityCode {
+  High
+  Medium
+  Low
+
+  @@map("work_priority_code")
+}
+
+enum AttachmentSourceTypeCode {
+  TEXT
+  FILE
+  TEXT_AND_FILE
+  METADATA
+
+  @@map("attachment_source_type_code")
+}
+
+enum AttachmentFileGroupCode {
+  PRIMARY
+  WORKFLOW
+
+  @@map("attachment_file_group_code")
+}
+
+enum DocumentGroupCode {
+  MARKETING
+  ENGINEERING
+  CUSTOM
+
+  @@map("document_group_code")
+}
+
+enum InfoRequestStatusCode {
+  OPEN
+  RESPONDED
+  CANCELLED
+  SUPERSEDED
+
+  @@map("info_request_status_code")
+}
+
+enum RevisionRequestStatusCode {
+  OPEN
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("revision_request_status_code")
+}
+
+enum DecisionResultCode {
+  APPROVED
+  REJECTED
+  ACCEPTED
+  DECLINED
+  REVISION_REQUESTED
+  RETURNED
+
+  @@map("decision_result_code")
+}
+
+enum BidOutcomeCode {
+  WIN
+  LOSE
+
+  @@map("bid_outcome_code")
+}
+
+enum NotificationKindCode {
+  PROJECT
+  REQUEST
+  SYSTEM
+
+  @@map("notification_kind_code")
+}
+
+enum NotificationTargetViewCode {
+  focus
+  details
+
+  @@map("notification_target_view_code")
+}
+
+enum DocumentLinkTypeCode {
+  INITIAL_UPLOAD
+  WORKFLOW_UPLOAD
+  FINAL_PACKAGE
+  CLIENT_REVISION
+  REVISION_RESPONSE
+  REGISTRY_LISTED
+
+  @@map("document_link_type_code")
+}
+
+enum FolderTypeCode {
+  ROOT
+  CATEGORY
+  DATE
+  DATE_REVISION
+  CUSTOM
+
+  @@map("folder_type_code")
+}
+
+enum OptionTypeCode {
+  POL
+  POD
+  CARGO_CODE
+  VESSEL_CODE
+  PROJECT_INFO_CATEGORY
+  WORK_REQUEST_TYPE
+  DOCUMENT_CATEGORY
+  ATTACHMENT_CATEGORY
+
+  @@map("option_type_code")
+}
+
+enum AssignmentTypeCode {
+  PM_LEADER
+  PM_MEMBER
+  TMS_MANAGER
+  TMS_DRAWING
+  TMS_CHECKING
+  TMS_APPROVAL
+
+  @@map("assignment_type_code")
+}
+
+enum AuditEntityTypeCode {
+  PROJECT
+  WORK_REQUEST
+  DOCUMENT
+  TEAM
+  MEMBER
+  CLIENT
+  COMPANY
+  SETTING
+  NOTIFICATION
+
+  @@map("audit_entity_type_code")
+}
+
+model User {
+  id           String    @id @map("id") @db.Uuid
+  fullName     String    @map("full_name") @db.VarChar(160)
+  email        String    @unique @map("email") @db.VarChar(255)
+  passwordHash String?   @map("password_hash") @db.VarChar(255)
+  avatarUrl    String?   @map("avatar_url") @db.Text
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamp(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  userRolesByUserId           UserRole[]           @relation("UserRolesUserIdUsers")
+  userRolesByAssignedByUserId UserRole[]           @relation("UserRolesAssignedByUserIdUsers")
+  actorProfilesByUserId       ActorProfile[]       @relation("ActorProfilesUserIdUsers")
+  authSessionsByUserId        AuthSession[]        @relation("AuthSessionsUserIdUsers")
+  passwordResetTokensByUserId PasswordResetToken[] @relation("PasswordResetTokensUserIdUsers")
+  membersByUserId             Member[]             @relation("MembersUserIdUsers")
+  clientContactsByUserId      ClientContact[]      @relation("ClientContactsUserIdUsers")
+
+  @@map("users")
+}
+
+model Role {
+  id           String        @id @map("id") @db.Uuid
+  code         ActorRoleCode @unique @map("code")
+  name         String        @map("name") @db.VarChar(120)
+  description  String?       @map("description") @db.Text
+  isSystemRole Boolean       @default(true) @map("is_system_role")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+
+  userRolesByRoleId                              UserRole[]                     @relation("UserRolesRoleIdRoles")
+  actorProfilesByRoleId                          ActorProfile[]                 @relation("ActorProfilesRoleIdRoles")
+  workflowTransitionsByFromRoleId                WorkflowTransition[]           @relation("WorkflowTransitionsFromRoleIdRoles")
+  workflowTransitionsByTargetRoleId              WorkflowTransition[]           @relation("WorkflowTransitionsTargetRoleIdRoles")
+  workflowActionRolePermissionsByRoleId          WorkflowActionRolePermission[] @relation("WorkflowActionRolePermissionsRoleIdRoles")
+  workflowInfoRequestsByRequestedByRoleId        WorkflowInfoRequest[]          @relation("WorkflowInfoRequestsRequestedByRoleIdRoles")
+  workflowInfoRequestsByTargetRoleId             WorkflowInfoRequest[]          @relation("WorkflowInfoRequestsTargetRoleIdRoles")
+  workRequestRevisionRequestsByRequestedToRoleId WorkRequestRevisionRequest[]   @relation("WorkRequestRevisionRequestsRequestedToRoleIdRoles")
+
+  @@map("roles")
+}
+
+model UserRole {
+  id               String    @id @map("id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  roleId           String    @map("role_id") @db.Uuid
+  assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
+  assignedAt       DateTime  @default(now()) @map("assigned_at") @db.Timestamp(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamp(6)
+
+  user           User  @relation("UserRolesUserIdUsers", fields: [userId], references: [id])
+  role           Role  @relation("UserRolesRoleIdRoles", fields: [roleId], references: [id])
+  assignedByUser User? @relation("UserRolesAssignedByUserIdUsers", fields: [assignedByUserId], references: [id])
+
+  @@index([userId, roleId, revokedAt])
+  @@map("user_roles")
+}
+
+model ActorProfile {
+  id              String   @id @map("id") @db.Uuid
+  userId          String?  @map("user_id") @db.Uuid
+  roleId          String   @map("role_id") @db.Uuid
+  memberId        String?  @map("member_id") @db.Uuid
+  clientContactId String?  @map("client_contact_id") @db.Uuid
+  label           String   @map("label") @db.VarChar(180)
+  isDefault       Boolean  @default(false) @map("is_default")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user                                               User?                           @relation("ActorProfilesUserIdUsers", fields: [userId], references: [id])
+  role                                               Role                            @relation("ActorProfilesRoleIdRoles", fields: [roleId], references: [id])
+  member                                             Member?                         @relation("ActorProfilesMemberIdMembers", fields: [memberId], references: [id])
+  clientContact                                      ClientContact?                  @relation("ActorProfilesClientContactIdClientContacts", fields: [clientContactId], references: [id])
+  projectsByCreatedByActorId                         Project[]                       @relation("ProjectsCreatedByActorIdActorProfiles")
+  projectStatusEventsByChangedByActorId              ProjectStatusEvent[]            @relation("ProjectStatusEventsChangedByActorIdActorProfiles")
+  projectCredentialDeliveriesBySentByActorId         ProjectCredentialDelivery[]     @relation("ProjectCredentialDeliveriesSentByActorIdActorProfiles")
+  bidOutcomeEventsByDecidedByActorId                 BidOutcomeEvent[]               @relation("BidOutcomeEventsDecidedByActorIdActorProfiles")
+  projectConversionEventsByConvertedByActorId        ProjectConversionEvent[]        @relation("ProjectConversionEventsConvertedByActorIdActorProfiles")
+  archivedBidReviewRequestsByRequestedByActorId      ArchivedBidReviewRequest[]      @relation("ArchivedBidReviewRequestsRequestedByActorIdActorProfiles")
+  documentsByCreatedByActorId                        Document[]                      @relation("DocumentsCreatedByActorIdActorProfiles")
+  documentVersionsByUploadedByActorId                DocumentVersion[]               @relation("DocumentVersionsUploadedByActorIdActorProfiles")
+  documentVersionLinksByLinkedByActorId              DocumentVersionLink[]           @relation("DocumentVersionLinksLinkedByActorIdActorProfiles")
+  workRequestsByCreatedByActorId                     WorkRequest[]                   @relation("WorkRequestsCreatedByActorIdActorProfiles")
+  workRequestAssignmentsByAssignedByActorId          WorkRequestAssignment[]         @relation("WorkRequestAssignmentsAssignedByActorIdActorProfiles")
+  workRequestAuditLogsByPerformedByActorId           WorkRequestAuditLog[]           @relation("WorkRequestAuditLogsPerformedByActorIdActorProfiles")
+  workRequestNotesByCreatedByActorId                 WorkRequestNote[]               @relation("WorkRequestNotesCreatedByActorIdActorProfiles")
+  workflowInfoRequestsByRequestedByActorId           WorkflowInfoRequest[]           @relation("WorkflowInfoRequestsRequestedByActorIdActorProfiles")
+  workflowInfoResponsesByRespondedByActorId          WorkflowInfoResponse[]          @relation("WorkflowInfoResponsesRespondedByActorIdActorProfiles")
+  workRequestRevisionRequestsByRequestedByActorId    WorkRequestRevisionRequest[]    @relation("WorkRequestRevisionRequestsRequestedByActorIdActorProfiles")
+  workRequestRevisionDocumentsByAttachedByActorId    WorkRequestRevisionDocument[]   @relation("WorkRequestRevisionDocumentsAttachedByActorIdActorProfiles")
+  workRequestRevisionSubmissionsBySubmittedByActorId WorkRequestRevisionSubmission[] @relation("WorkRequestRevisionSubmissionsSubmittedByActorIdActorProfiles")
+  workRequestDecisionsByDecidedByActorId             WorkRequestDecision[]           @relation("WorkRequestDecisionsDecidedByActorIdActorProfiles")
+  registryDocumentsByListedByActorId                 RegistryDocument[]              @relation("RegistryDocumentsListedByActorIdActorProfiles")
+  registryDocumentsByRemovedByActorId                RegistryDocument[]              @relation("RegistryDocumentsRemovedByActorIdActorProfiles")
+  notificationsByTriggeredByActorId                  Notification[]                  @relation("NotificationsTriggeredByActorIdActorProfiles")
+  notificationRecipientsByActorId                    NotificationRecipient[]         @relation("NotificationRecipientsActorIdActorProfiles")
+  systemAuditLogsByPerformedByActorId                SystemAuditLog[]                @relation("SystemAuditLogsPerformedByActorIdActorProfiles")
+
+  @@map("actor_profiles")
+}
+
+model AuthSession {
+  id               String    @id @map("id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash") @db.VarChar(255)
+  ipAddress        String?   @map("ip_address") @db.VarChar(80)
+  userAgent        String?   @map("user_agent") @db.Text
+  expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamp(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User @relation("AuthSessionsUserIdUsers", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @map("id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamp(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamp(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User @relation("PasswordResetTokensUserIdUsers", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model CompanyType {
+  id          String  @id @map("id") @db.Uuid
+  name        String  @unique @map("name") @db.VarChar(100)
+  description String? @map("description") @db.Text
+
+  companiesByCompanyTypeId Company[] @relation("CompaniesCompanyTypeIdCompanyTypes")
+
+  @@map("company_types")
+}
+
+model Company {
+  id            String   @id @map("id") @db.Uuid
+  name          String   @map("name") @db.VarChar(180)
+  abbr          String   @map("abbr") @db.VarChar(30)
+  companyTypeId String?  @map("company_type_id") @db.Uuid
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  companyType          CompanyType? @relation("CompaniesCompanyTypeIdCompanyTypes", fields: [companyTypeId], references: [id])
+  divisionsByCompanyId Division[]   @relation("DivisionsCompanyIdCompanies")
+  membersByCompanyId   Member[]     @relation("MembersCompanyIdCompanies")
+  teamsByCompanyId     Team[]       @relation("TeamsCompanyIdCompanies")
+  clientsByCompanyId   Client[]     @relation("ClientsCompanyIdCompanies")
+
+  @@unique([abbr])
+  @@index([name])
+  @@map("companies")
+}
+
+model DivisionType {
+  id          String  @id @map("id") @db.Uuid
+  name        String  @unique @map("name") @db.VarChar(100)
+  description String? @map("description") @db.Text
+
+  divisionsByDivisionTypeId Division[] @relation("DivisionsDivisionTypeIdDivisionTypes")
+
+  @@map("division_types")
+}
+
+model Division {
+  id             String   @id @map("id") @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  name           String   @map("name") @db.VarChar(180)
+  abbr           String   @map("abbr") @db.VarChar(30)
+  divisionTypeId String?  @map("division_type_id") @db.Uuid
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  company                          Company       @relation("DivisionsCompanyIdCompanies", fields: [companyId], references: [id])
+  divisionType                     DivisionType? @relation("DivisionsDivisionTypeIdDivisionTypes", fields: [divisionTypeId], references: [id])
+  membersByDivisionId              Member[]      @relation("MembersDivisionIdDivisions")
+  teamsByDivisionId                Team[]        @relation("TeamsDivisionIdDivisions")
+  projectsByOriginDivisionId       Project[]     @relation("ProjectsOriginDivisionIdDivisions")
+  workRequestsByAssignedDivisionId WorkRequest[] @relation("WorkRequestsAssignedDivisionIdDivisions")
+  workRequestsByOriginDivisionId   WorkRequest[] @relation("WorkRequestsOriginDivisionIdDivisions")
+
+  @@unique([companyId, abbr])
+  @@index([companyId, name])
+  @@map("divisions")
+}
+
+model Member {
+  id         String   @id @map("id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  divisionId String   @map("division_id") @db.Uuid
+  name       String   @map("name") @db.VarChar(160)
+  email      String   @unique @map("email") @db.VarChar(255)
+  roleTitle  String   @map("role_title") @db.VarChar(140)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  actorProfilesByMemberId                          ActorProfile[]               @relation("ActorProfilesMemberIdMembers")
+  user                                             User?                        @relation("MembersUserIdUsers", fields: [userId], references: [id])
+  company                                          Company                      @relation("MembersCompanyIdCompanies", fields: [companyId], references: [id])
+  division                                         Division                     @relation("MembersDivisionIdDivisions", fields: [divisionId], references: [id])
+  teamsByLeadMemberId                              Team[]                       @relation("TeamsLeadMemberIdMembers")
+  teamMembersByMemberId                            TeamMember[]                 @relation("TeamMembersMemberIdMembers")
+  workRequestAssignmentsByMemberId                 WorkRequestAssignment[]      @relation("WorkRequestAssignmentsMemberIdMembers")
+  workflowInfoRequestsByRequestedByMemberId        WorkflowInfoRequest[]        @relation("WorkflowInfoRequestsRequestedByMemberIdMembers")
+  workflowInfoRequestsByTargetMemberId             WorkflowInfoRequest[]        @relation("WorkflowInfoRequestsTargetMemberIdMembers")
+  workRequestRevisionRequestsByRequestedToMemberId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRequestedToMemberIdMembers")
+
+  @@index([companyId])
+  @@index([divisionId])
+  @@map("members")
+}
+
+model Team {
+  id           String   @id @map("id") @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  divisionId   String   @map("division_id") @db.Uuid
+  name         String   @map("name") @db.VarChar(180)
+  leadMemberId String?  @map("lead_member_id") @db.Uuid
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  company             Company      @relation("TeamsCompanyIdCompanies", fields: [companyId], references: [id])
+  division            Division     @relation("TeamsDivisionIdDivisions", fields: [divisionId], references: [id])
+  leadMember          Member?      @relation("TeamsLeadMemberIdMembers", fields: [leadMemberId], references: [id])
+  teamMembersByTeamId TeamMember[] @relation("TeamMembersTeamIdTeams")
+
+  @@unique([divisionId, name])
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String    @id @map("id") @db.Uuid
+  teamId   String    @map("team_id") @db.Uuid
+  memberId String    @map("member_id") @db.Uuid
+  teamRole String?   @map("team_role") @db.VarChar(100)
+  joinedAt DateTime  @default(now()) @map("joined_at") @db.Timestamp(6)
+  leftAt   DateTime? @map("left_at") @db.Timestamp(6)
+
+  team   Team   @relation("TeamMembersTeamIdTeams", fields: [teamId], references: [id])
+  member Member @relation("TeamMembersMemberIdMembers", fields: [memberId], references: [id])
+
+  @@index([teamId, memberId, leftAt])
+  @@map("team_members")
+}
+
+model Client {
+  id        String   @id @map("id") @db.Uuid
+  companyId String?  @map("company_id") @db.Uuid
+  name      String   @map("name") @db.VarChar(180)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  company                  Company?        @relation("ClientsCompanyIdCompanies", fields: [companyId], references: [id])
+  clientContactsByClientId ClientContact[] @relation("ClientContactsClientIdClients")
+  projectsByClientId       Project[]       @relation("ProjectsClientIdClients")
+
+  @@index([name])
+  @@map("clients")
+}
+
+model ClientContact {
+  id          String   @id @map("id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  name        String   @map("name") @db.VarChar(160)
+  email       String   @map("email") @db.VarChar(255)
+  designation String?  @map("designation") @db.VarChar(140)
+  phone       String?  @map("phone") @db.VarChar(60)
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  actorProfilesByClientContactId               ActorProfile[]              @relation("ActorProfilesClientContactIdClientContacts")
+  user                                         User?                       @relation("ClientContactsUserIdUsers", fields: [userId], references: [id])
+  client                                       Client                      @relation("ClientContactsClientIdClients", fields: [clientId], references: [id])
+  projectCredentialDeliveriesByClientContactId ProjectCredentialDelivery[] @relation("ProjectCredentialDeliveriesClientContactIdClientContacts")
+  workflowInfoRequestsByTargetClientContactId  WorkflowInfoRequest[]       @relation("WorkflowInfoRequestsTargetClientContactIdClientContacts")
+
+  @@unique([clientId, email])
+  @@index([email])
+  @@map("client_contacts")
+}
+
+model PortalConfig {
+  id              String   @id @map("id") @db.Uuid
+  portalName      String   @map("portal_name") @db.VarChar(180)
+  defaultTimezone String   @default("Asia/Dhaka") @map("default_timezone") @db.VarChar(80)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@map("portal_configs")
+}
+
+model OptionType {
+  id          String         @id @map("id") @db.Uuid
+  code        OptionTypeCode @unique @map("code")
+  name        String         @map("name") @db.VarChar(120)
+  description String?        @map("description") @db.Text
+  isActive    Boolean        @default(true) @map("is_active")
+
+  optionValuesByOptionTypeId OptionValue[] @relation("OptionValuesOptionTypeIdOptionTypes")
+
+  @@map("option_types")
+}
+
+model OptionValue {
+  id           String   @id @map("id") @db.Uuid
+  optionTypeId String   @map("option_type_id") @db.Uuid
+  name         String   @map("name") @db.VarChar(180)
+  code         String?  @map("code") @db.VarChar(40)
+  sortOrder    Int      @default(0) @map("sort_order")
+  isDefault    Boolean  @default(false) @map("is_default")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  optionType                     OptionType  @relation("OptionValuesOptionTypeIdOptionTypes", fields: [optionTypeId], references: [id])
+  bidDetailsByPolOptionId        BidDetail[] @relation("BidDetailsPolOptionIdOptionValues")
+  bidDetailsByPodOptionId        BidDetail[] @relation("BidDetailsPodOptionIdOptionValues")
+  bidDetailsByCargoCodeOptionId  BidDetail[] @relation("BidDetailsCargoCodeOptionIdOptionValues")
+  bidDetailsByVesselCodeOptionId BidDetail[] @relation("BidDetailsVesselCodeOptionIdOptionValues")
+
+  @@unique([optionTypeId, name])
+  @@index([optionTypeId, code])
+  @@map("option_values")
+}
+
+model DocumentCodeOption {
+  id            String            @id @map("id") @db.Uuid
+  documentGroup DocumentGroupCode @map("document_group")
+  code          String            @map("code") @db.VarChar(20)
+  name          String            @map("name") @db.VarChar(180)
+  description   String?           @map("description") @db.Text
+  sortOrder     Int               @default(0) @map("sort_order")
+  isActive      Boolean           @default(true) @map("is_active")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime          @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  documentsByDocumentCodeOptionId Document[] @relation("DocumentsDocumentCodeOptionIdDocumentCodeOptions")
+
+  @@unique([documentGroup, code])
+  @@index([documentGroup, name])
+  @@map("document_code_options")
+}
+
+model WorkspaceType {
+  id   String            @id @map("id") @db.Uuid
+  code WorkspaceTypeCode @unique @map("code")
+  name String            @map("name") @db.VarChar(80)
+
+  projectsByWorkspaceTypeId                    Project[]                @relation("ProjectsWorkspaceTypeIdWorkspaceTypes")
+  projectConversionEventsByFromWorkspaceTypeId ProjectConversionEvent[] @relation("ProjectConversionEventsFromWorkspaceTypeIdWorkspaceTypes")
+  projectConversionEventsByToWorkspaceTypeId   ProjectConversionEvent[] @relation("ProjectConversionEventsToWorkspaceTypeIdWorkspaceTypes")
+
+  @@map("workspace_types")
+}
+
+model ProjectStatus {
+  id         String            @id @map("id") @db.Uuid
+  code       ProjectStatusCode @unique @map("code")
+  name       String            @map("name") @db.VarChar(100)
+  sortOrder  Int               @default(0) @map("sort_order")
+  isTerminal Boolean           @default(false) @map("is_terminal")
+
+  projectStatusEventsByFromStatusId ProjectStatusEvent[] @relation("ProjectStatusEventsFromStatusIdProjectStatuses")
+  projectStatusEventsByToStatusId   ProjectStatusEvent[] @relation("ProjectStatusEventsToStatusIdProjectStatuses")
+
+  @@map("project_statuses")
+}
+
+model SourceChannel {
+  id          String  @id @map("id") @db.Uuid
+  name        String  @unique @map("name") @db.VarChar(120)
+  description String? @map("description") @db.Text
+  isActive    Boolean @default(true) @map("is_active")
+
+  projectsBySourceChannelId Project[] @relation("ProjectsSourceChannelIdSourceChannels")
+
+  @@map("source_channels")
+}
+
+model Project {
+  id               String   @id @map("id") @db.Uuid
+  code             String   @unique @map("code") @db.VarChar(60)
+  name             String   @map("name") @db.VarChar(220)
+  workspaceTypeId  String   @map("workspace_type_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
+  originDivisionId String   @map("origin_division_id") @db.Uuid
+  sourceChannelId  String?  @map("source_channel_id") @db.Uuid
+  createdByActorId String?  @map("created_by_actor_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspaceType                          WorkspaceType               @relation("ProjectsWorkspaceTypeIdWorkspaceTypes", fields: [workspaceTypeId], references: [id])
+  client                                 Client                      @relation("ProjectsClientIdClients", fields: [clientId], references: [id])
+  originDivision                         Division                    @relation("ProjectsOriginDivisionIdDivisions", fields: [originDivisionId], references: [id])
+  sourceChannel                          SourceChannel?              @relation("ProjectsSourceChannelIdSourceChannels", fields: [sourceChannelId], references: [id])
+  createdByActor                         ActorProfile?               @relation("ProjectsCreatedByActorIdActorProfiles", fields: [createdByActorId], references: [id])
+  projectStatusEventsByProjectId         ProjectStatusEvent[]        @relation("ProjectStatusEventsProjectIdProjects")
+  bidDetailsByProjectId                  BidDetail?                  @relation("BidDetailsProjectIdProjects")
+  projectCredentialDeliveriesByProjectId ProjectCredentialDelivery[] @relation("ProjectCredentialDeliveriesProjectIdProjects")
+  bidOutcomeEventsByProjectId            BidOutcomeEvent[]           @relation("BidOutcomeEventsProjectIdProjects")
+  projectConversionEventsByProjectId     ProjectConversionEvent[]    @relation("ProjectConversionEventsProjectIdProjects")
+  archivedBidReviewRequestsByProjectId   ArchivedBidReviewRequest[]  @relation("ArchivedBidReviewRequestsProjectIdProjects")
+  documentsByProjectId                   Document[]                  @relation("DocumentsProjectIdProjects")
+  documentFoldersByProjectId             DocumentFolder[]            @relation("DocumentFoldersProjectIdProjects")
+  workRequestsByProjectId                WorkRequest[]               @relation("WorkRequestsProjectIdProjects")
+  registryDocumentsByProjectId           RegistryDocument[]          @relation("RegistryDocumentsProjectIdProjects")
+  notificationsByProjectId               Notification[]              @relation("NotificationsProjectIdProjects")
+
+  @@index([workspaceTypeId])
+  @@index([clientId])
+  @@index([originDivisionId])
+  @@index([createdAt])
+  @@map("projects")
+}
+
+model ProjectStatusEvent {
+  id               String   @id @map("id") @db.Uuid
+  projectId        String   @map("project_id") @db.Uuid
+  fromStatusId     String?  @map("from_status_id") @db.Uuid
+  toStatusId       String   @map("to_status_id") @db.Uuid
+  changedByActorId String?  @map("changed_by_actor_id") @db.Uuid
+  reason           String?  @map("reason") @db.Text
+  occurredAt       DateTime @default(now()) @map("occurred_at") @db.Timestamp(6)
+
+  project        Project        @relation("ProjectStatusEventsProjectIdProjects", fields: [projectId], references: [id])
+  fromStatus     ProjectStatus? @relation("ProjectStatusEventsFromStatusIdProjectStatuses", fields: [fromStatusId], references: [id])
+  toStatus       ProjectStatus  @relation("ProjectStatusEventsToStatusIdProjectStatuses", fields: [toStatusId], references: [id])
+  changedByActor ActorProfile?  @relation("ProjectStatusEventsChangedByActorIdActorProfiles", fields: [changedByActorId], references: [id])
+
+  @@index([projectId, occurredAt])
+  @@index([toStatusId])
+  @@map("project_status_events")
+}
+
+model BidDetail {
+  id                 String   @id @map("id") @db.Uuid
+  projectId          String   @unique @map("project_id") @db.Uuid
+  biddingNumber      String   @map("bidding_number") @db.VarChar(60)
+  projectName        String   @map("project_name") @db.VarChar(220)
+  polOptionId        String?  @map("pol_option_id") @db.Uuid
+  podOptionId        String?  @map("pod_option_id") @db.Uuid
+  projectCode        String   @map("project_code") @db.VarChar(40)
+  cargoName          String   @map("cargo_name") @db.VarChar(180)
+  cargoCodeOptionId  String?  @map("cargo_code_option_id") @db.Uuid
+  vesselName         String   @map("vessel_name") @db.VarChar(180)
+  vesselCodeOptionId String?  @map("vessel_code_option_id") @db.Uuid
+  shipmentNumber     String   @map("shipment_number") @db.VarChar(10)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  project          Project      @relation("BidDetailsProjectIdProjects", fields: [projectId], references: [id])
+  polOption        OptionValue? @relation("BidDetailsPolOptionIdOptionValues", fields: [polOptionId], references: [id])
+  podOption        OptionValue? @relation("BidDetailsPodOptionIdOptionValues", fields: [podOptionId], references: [id])
+  cargoCodeOption  OptionValue? @relation("BidDetailsCargoCodeOptionIdOptionValues", fields: [cargoCodeOptionId], references: [id])
+  vesselCodeOption OptionValue? @relation("BidDetailsVesselCodeOptionIdOptionValues", fields: [vesselCodeOptionId], references: [id])
+
+  @@index([biddingNumber])
+  @@index([shipmentNumber])
+  @@map("bid_details")
+}
+
+model ProjectCredentialDelivery {
+  id              String   @id @map("id") @db.Uuid
+  projectId       String   @map("project_id") @db.Uuid
+  clientContactId String?  @map("client_contact_id") @db.Uuid
+  sentByActorId   String?  @map("sent_by_actor_id") @db.Uuid
+  sentToEmail     String   @map("sent_to_email") @db.VarChar(255)
+  sentAt          DateTime @default(now()) @map("sent_at") @db.Timestamp(6)
+  deliveryStatus  String   @default("SENT") @map("delivery_status") @db.VarChar(80)
+  failureReason   String?  @map("failure_reason") @db.Text
+
+  project       Project        @relation("ProjectCredentialDeliveriesProjectIdProjects", fields: [projectId], references: [id])
+  clientContact ClientContact? @relation("ProjectCredentialDeliveriesClientContactIdClientContacts", fields: [clientContactId], references: [id])
+  sentByActor   ActorProfile?  @relation("ProjectCredentialDeliveriesSentByActorIdActorProfiles", fields: [sentByActorId], references: [id])
+
+  @@index([projectId])
+  @@index([sentAt])
+  @@map("project_credential_deliveries")
+}
+
+model BidOutcomeEvent {
+  id                  String         @id @map("id") @db.Uuid
+  projectId           String         @map("project_id") @db.Uuid
+  outcome             BidOutcomeCode @map("outcome")
+  previousProjectCode String?        @map("previous_project_code") @db.VarChar(60)
+  newProjectCode      String?        @map("new_project_code") @db.VarChar(60)
+  decidedByActorId    String         @map("decided_by_actor_id") @db.Uuid
+  decidedAt           DateTime       @default(now()) @map("decided_at") @db.Timestamp(6)
+  note                String?        @map("note") @db.Text
+
+  project        Project      @relation("BidOutcomeEventsProjectIdProjects", fields: [projectId], references: [id])
+  decidedByActor ActorProfile @relation("BidOutcomeEventsDecidedByActorIdActorProfiles", fields: [decidedByActorId], references: [id])
+
+  @@index([projectId, decidedAt])
+  @@index([outcome])
+  @@map("bid_outcome_events")
+}
+
+model ProjectConversionEvent {
+  id                  String   @id @map("id") @db.Uuid
+  projectId           String   @map("project_id") @db.Uuid
+  fromWorkspaceTypeId String   @map("from_workspace_type_id") @db.Uuid
+  toWorkspaceTypeId   String   @map("to_workspace_type_id") @db.Uuid
+  fromCode            String   @map("from_code") @db.VarChar(60)
+  toCode              String   @map("to_code") @db.VarChar(60)
+  convertedByActorId  String   @map("converted_by_actor_id") @db.Uuid
+  convertedAt         DateTime @default(now()) @map("converted_at") @db.Timestamp(6)
+  note                String?  @map("note") @db.Text
+
+  project           Project       @relation("ProjectConversionEventsProjectIdProjects", fields: [projectId], references: [id])
+  fromWorkspaceType WorkspaceType @relation("ProjectConversionEventsFromWorkspaceTypeIdWorkspaceTypes", fields: [fromWorkspaceTypeId], references: [id])
+  toWorkspaceType   WorkspaceType @relation("ProjectConversionEventsToWorkspaceTypeIdWorkspaceTypes", fields: [toWorkspaceTypeId], references: [id])
+  convertedByActor  ActorProfile  @relation("ProjectConversionEventsConvertedByActorIdActorProfiles", fields: [convertedByActorId], references: [id])
+
+  @@index([projectId, convertedAt])
+  @@map("project_conversion_events")
+}
+
+model ArchivedBidReviewRequest {
+  id                    String   @id @map("id") @db.Uuid
+  projectId             String   @map("project_id") @db.Uuid
+  requestedByActorId    String   @map("requested_by_actor_id") @db.Uuid
+  note                  String?  @map("note") @db.Text
+  requestedAt           DateTime @default(now()) @map("requested_at") @db.Timestamp(6)
+  restoredWorkRequestId String?  @map("restored_work_request_id") @db.Uuid
+
+  project             Project      @relation("ArchivedBidReviewRequestsProjectIdProjects", fields: [projectId], references: [id])
+  requestedByActor    ActorProfile @relation("ArchivedBidReviewRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId], references: [id])
+  restoredWorkRequest WorkRequest? @relation("ArchivedBidReviewRequestsRestoredWorkRequestIdWorkRequests", fields: [restoredWorkRequestId], references: [id])
+
+  @@index([projectId, requestedAt])
+  @@map("archived_bid_review_requests")
+}
+
+model DocumentCategory {
+  id          String  @id @map("id") @db.Uuid
+  name        String  @map("name") @db.VarChar(160)
+  code        String? @map("code") @db.VarChar(40)
+  description String? @map("description") @db.Text
+  isActive    Boolean @default(true) @map("is_active")
+
+  documentsByDocumentCategoryId       Document[]         @relation("DocumentsDocumentCategoryIdDocumentCategories")
+  registryDocumentsByListedCategoryId RegistryDocument[] @relation("RegistryDocumentsListedCategoryIdDocumentCategories")
+
+  @@unique([name])
+  @@index([code])
+  @@map("document_categories")
+}
+
+model AttachmentSourceType {
+  id   String                   @id @map("id") @db.Uuid
+  code AttachmentSourceTypeCode @unique @map("code")
+  name String                   @map("name") @db.VarChar(80)
+
+  documentVersionsBySourceTypeId DocumentVersion[] @relation("DocumentVersionsSourceTypeIdAttachmentSourceTypes")
+
+  @@map("attachment_source_types")
+}
+
+model AttachmentFileGroup {
+  id   String                  @id @map("id") @db.Uuid
+  code AttachmentFileGroupCode @unique @map("code")
+  name String                  @map("name") @db.VarChar(80)
+
+  documentsByFileGroupId Document[] @relation("DocumentsFileGroupIdAttachmentFileGroups")
+
+  @@map("attachment_file_groups")
+}
+
+model Document {
+  id                   String    @id @map("id") @db.Uuid
+  projectId            String    @map("project_id") @db.Uuid
+  workRequestId        String?   @map("work_request_id") @db.Uuid
+  documentCodeOptionId String?   @map("document_code_option_id") @db.Uuid
+  documentCategoryId   String?   @map("document_category_id") @db.Uuid
+  fileGroupId          String    @map("file_group_id") @db.Uuid
+  title                String    @map("title") @db.VarChar(260)
+  description          String?   @map("description") @db.Text
+  createdByActorId     String?   @map("created_by_actor_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  project                       Project             @relation("DocumentsProjectIdProjects", fields: [projectId], references: [id])
+  workRequest                   WorkRequest?        @relation("DocumentsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  documentCodeOption            DocumentCodeOption? @relation("DocumentsDocumentCodeOptionIdDocumentCodeOptions", fields: [documentCodeOptionId], references: [id])
+  documentCategory              DocumentCategory?   @relation("DocumentsDocumentCategoryIdDocumentCategories", fields: [documentCategoryId], references: [id])
+  fileGroup                     AttachmentFileGroup @relation("DocumentsFileGroupIdAttachmentFileGroups", fields: [fileGroupId], references: [id])
+  createdByActor                ActorProfile?       @relation("DocumentsCreatedByActorIdActorProfiles", fields: [createdByActorId], references: [id])
+  documentVersionsByDocumentId  DocumentVersion[]   @relation("DocumentVersionsDocumentIdDocuments")
+  registryDocumentsByDocumentId RegistryDocument[]  @relation("RegistryDocumentsDocumentIdDocuments")
+
+  @@index([projectId])
+  @@index([workRequestId])
+  @@index([documentCodeOptionId])
+  @@index([documentCategoryId])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id                    String    @id @map("id") @db.Uuid
+  documentId            String    @map("document_id") @db.Uuid
+  versionNumber         Int       @map("version_number")
+  versionKey            String?   @map("version_key") @db.VarChar(260)
+  sourceTypeId          String    @map("source_type_id") @db.Uuid
+  workflowStageStatusId String?   @map("workflow_stage_status_id") @db.Uuid
+  originalFileName      String?   @map("original_file_name") @db.VarChar(260)
+  generatedFileName     String?   @map("generated_file_name") @db.VarChar(260)
+  fileExtension         String?   @map("file_extension") @db.VarChar(20)
+  mimeType              String?   @map("mime_type") @db.VarChar(120)
+  fileSizeBytes         BigInt?   @map("file_size_bytes")
+  storageBucket         String?   @map("storage_bucket") @db.VarChar(120)
+  storageKey            String?   @map("storage_key") @db.Text
+  storageUrl            String?   @map("storage_url") @db.Text
+  textContent           String?   @map("text_content") @db.Text
+  note                  String?   @map("note") @db.Text
+  isRevisionUpload      Boolean   @default(false) @map("is_revision_upload")
+  revisionCode          String?   @map("revision_code") @db.VarChar(20)
+  uploadedByActorId     String    @map("uploaded_by_actor_id") @db.Uuid
+  uploadedAt            DateTime  @default(now()) @map("uploaded_at") @db.Timestamp(6)
+  deletedAt             DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  document                                                  Document                                @relation("DocumentVersionsDocumentIdDocuments", fields: [documentId], references: [id])
+  sourceType                                                AttachmentSourceType                    @relation("DocumentVersionsSourceTypeIdAttachmentSourceTypes", fields: [sourceTypeId], references: [id])
+  workflowStageStatus                                       WorkflowStatus?                         @relation("DocumentVersionsWorkflowStageStatusIdWorkflowStatuses", fields: [workflowStageStatusId], references: [id])
+  uploadedByActor                                           ActorProfile                            @relation("DocumentVersionsUploadedByActorIdActorProfiles", fields: [uploadedByActorId], references: [id])
+  documentVersionFolderLocationsByDocumentVersionId         DocumentVersionFolderLocation[]         @relation("DocumentVersionFolderLocationsDocumentVersionIdDocumentVersions")
+  documentVersionLinksByDocumentVersionId                   DocumentVersionLink[]                   @relation("DocumentVersionLinksDocumentVersionIdDocumentVersions")
+  workRequestAuditAttachmentsByDocumentVersionId            WorkRequestAuditAttachment[]            @relation("WorkRequestAuditAttachmentsDocumentVersionIdDocumentVersions")
+  workRequestRevisionDocumentsByDocumentVersionId           WorkRequestRevisionDocument[]           @relation("WorkRequestRevisionDocumentsDocumentVersionIdDocumentVersions")
+  workRequestRevisionSubmissionDocumentsByDocumentVersionId WorkRequestRevisionSubmissionDocument[] @relation("WorkRequestRevisionSubmissionDocumentsDocumentVersionIdDocumentVersions")
+  registryDocumentsByListedDocumentVersionId                RegistryDocument[]                      @relation("RegistryDocumentsListedDocumentVersionIdDocumentVersions")
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, uploadedAt])
+  @@index([workflowStageStatusId])
+  @@index([isRevisionUpload])
+  @@map("document_versions")
+}
+
+model DocumentFolder {
+  id             String         @id @map("id") @db.Uuid
+  projectId      String         @map("project_id") @db.Uuid
+  parentFolderId String?        @map("parent_folder_id") @db.Uuid
+  folderType     FolderTypeCode @map("folder_type")
+  folderName     String         @map("folder_name") @db.VarChar(260)
+  sortOrder      Int            @default(0) @map("sort_order")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project                                  Project                         @relation("DocumentFoldersProjectIdProjects", fields: [projectId], references: [id])
+  parentFolder                             DocumentFolder?                 @relation("DocumentFoldersParentFolderIdDocumentFolders", fields: [parentFolderId], references: [id])
+  documentFoldersByParentFolderId          DocumentFolder[]                @relation("DocumentFoldersParentFolderIdDocumentFolders")
+  documentVersionFolderLocationsByFolderId DocumentVersionFolderLocation[] @relation("DocumentVersionFolderLocationsFolderIdDocumentFolders")
+
+  @@unique([projectId, parentFolderId, folderName])
+  @@map("document_folders")
+}
+
+model DocumentVersionFolderLocation {
+  id                String   @id @map("id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  folderId          String   @map("folder_id") @db.Uuid
+  folderPath        String?  @map("folder_path") @db.Text
+  linkedAt          DateTime @default(now()) @map("linked_at") @db.Timestamp(6)
+
+  documentVersion DocumentVersion @relation("DocumentVersionFolderLocationsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
+  folder          DocumentFolder  @relation("DocumentVersionFolderLocationsFolderIdDocumentFolders", fields: [folderId], references: [id])
+
+  @@unique([documentVersionId, folderId])
+  @@map("document_version_folder_locations")
+}
+
+model DocumentVersionLink {
+  id                String               @id @map("id") @db.Uuid
+  workRequestId     String               @map("work_request_id") @db.Uuid
+  documentVersionId String               @map("document_version_id") @db.Uuid
+  linkType          DocumentLinkTypeCode @map("link_type")
+  linkedByActorId   String?              @map("linked_by_actor_id") @db.Uuid
+  linkedAt          DateTime             @default(now()) @map("linked_at") @db.Timestamp(6)
+
+  workRequest     WorkRequest     @relation("DocumentVersionLinksWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  documentVersion DocumentVersion @relation("DocumentVersionLinksDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
+  linkedByActor   ActorProfile?   @relation("DocumentVersionLinksLinkedByActorIdActorProfiles", fields: [linkedByActorId], references: [id])
+
+  @@unique([workRequestId, documentVersionId, linkType])
+  @@index([linkType])
+  @@map("document_version_links")
+}
+
+model WorkRequestCategory {
+  id          String  @id @map("id") @db.Uuid
+  name        String  @unique @map("name") @db.VarChar(160)
+  description String? @map("description") @db.Text
+  isActive    Boolean @default(true) @map("is_active")
+
+  workRequestsByCategoryId WorkRequest[] @relation("WorkRequestsCategoryIdWorkRequestCategories")
+
+  @@map("work_request_categories")
+}
+
+model WorkPrioritie {
+  id        String           @id @map("id") @db.Uuid
+  code      WorkPriorityCode @unique @map("code")
+  name      String           @map("name") @db.VarChar(80)
+  sortOrder Int              @default(0) @map("sort_order")
+
+  workRequestsByPriorityId WorkRequest[] @relation("WorkRequestsPriorityIdWorkPriorities")
+
+  @@map("work_priorities")
+}
+
+model WorkRequestAttachmentCategory {
+  id          String  @id @map("id") @db.Uuid
+  name        String  @unique @map("name") @db.VarChar(160)
+  description String? @map("description") @db.Text
+  isActive    Boolean @default(true) @map("is_active")
+
+  workRequestsByAttachmentCategoryId WorkRequest[] @relation("WorkRequestsAttachmentCategoryIdWorkRequestAttachmentCategories")
+
+  @@map("work_request_attachment_categories")
+}
+
+model WorkflowStatus {
+  id          String                @id @map("id") @db.Uuid
+  code        WorkRequestStatusCode @unique @map("code")
+  name        String                @map("name") @db.VarChar(180)
+  description String?               @map("description") @db.Text
+  sortOrder   Int                   @default(0) @map("sort_order")
+  isTerminal  Boolean               @default(false) @map("is_terminal")
+
+  documentVersionsByWorkflowStageStatusId        DocumentVersion[]            @relation("DocumentVersionsWorkflowStageStatusIdWorkflowStatuses")
+  workflowTransitionsByFromStatusId              WorkflowTransition[]         @relation("WorkflowTransitionsFromStatusIdWorkflowStatuses")
+  workflowTransitionsByToStatusId                WorkflowTransition[]         @relation("WorkflowTransitionsToStatusIdWorkflowStatuses")
+  workRequestAuditLogsByFromStatusId             WorkRequestAuditLog[]        @relation("WorkRequestAuditLogsFromStatusIdWorkflowStatuses")
+  workRequestAuditLogsByToStatusId               WorkRequestAuditLog[]        @relation("WorkRequestAuditLogsToStatusIdWorkflowStatuses")
+  workflowInfoRequestsByStatusAtRequestId        WorkflowInfoRequest[]        @relation("WorkflowInfoRequestsStatusAtRequestIdWorkflowStatuses")
+  workRequestRevisionRequestsByStatusAtRequestId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsStatusAtRequestIdWorkflowStatuses")
+  workRequestDecisionsByFromStatusId             WorkRequestDecision[]        @relation("WorkRequestDecisionsFromStatusIdWorkflowStatuses")
+  workRequestDecisionsByToStatusId               WorkRequestDecision[]        @relation("WorkRequestDecisionsToStatusIdWorkflowStatuses")
+
+  @@map("workflow_statuses")
+}
+
+model WorkflowActionDefinition {
+  id                  String             @id @map("id") @db.Uuid
+  code                WorkflowActionCode @unique @map("code")
+  name                String             @map("name") @db.VarChar(180)
+  description         String?            @map("description") @db.Text
+  isUserVisible       Boolean            @default(true) @map("is_user_visible")
+  isRevisionAction    Boolean            @default(false) @map("is_revision_action")
+  isInfoRequestAction Boolean            @default(false) @map("is_info_request_action")
+  isAssignmentAction  Boolean            @default(false) @map("is_assignment_action")
+  isTerminalAction    Boolean            @default(false) @map("is_terminal_action")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workflowTransitionsByActionId               WorkflowTransition[]           @relation("WorkflowTransitionsActionIdWorkflowActionDefinitions")
+  workflowActionRolePermissionsByActionId     WorkflowActionRolePermission[] @relation("WorkflowActionRolePermissionsActionIdWorkflowActionDefinitions")
+  workRequestAuditLogsByActionId              WorkRequestAuditLog[]          @relation("WorkRequestAuditLogsActionIdWorkflowActionDefinitions")
+  workRequestRevisionRequestsBySourceActionId WorkRequestRevisionRequest[]   @relation("WorkRequestRevisionRequestsSourceActionIdWorkflowActionDefinitions")
+  workRequestDecisionsByActionId              WorkRequestDecision[]          @relation("WorkRequestDecisionsActionIdWorkflowActionDefinitions")
+  systemAuditLogsByActionId                   SystemAuditLog[]               @relation("SystemAuditLogsActionIdWorkflowActionDefinitions")
+
+  @@map("workflow_action_definitions")
+}
+
+model WorkflowTransition {
+  id                   String  @id @map("id") @db.Uuid
+  actionId             String  @map("action_id") @db.Uuid
+  fromStatusId         String? @map("from_status_id") @db.Uuid
+  toStatusId           String  @map("to_status_id") @db.Uuid
+  fromRoleId           String? @map("from_role_id") @db.Uuid
+  targetRoleId         String? @map("target_role_id") @db.Uuid
+  requiresAssignment   Boolean @default(false) @map("requires_assignment")
+  isBackwardTransition Boolean @default(false) @map("is_backward_transition")
+  isActive             Boolean @default(true) @map("is_active")
+  sortOrder            Int     @default(0) @map("sort_order")
+
+  action     WorkflowActionDefinition @relation("WorkflowTransitionsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
+  fromStatus WorkflowStatus?          @relation("WorkflowTransitionsFromStatusIdWorkflowStatuses", fields: [fromStatusId], references: [id])
+  toStatus   WorkflowStatus           @relation("WorkflowTransitionsToStatusIdWorkflowStatuses", fields: [toStatusId], references: [id])
+  fromRole   Role?                    @relation("WorkflowTransitionsFromRoleIdRoles", fields: [fromRoleId], references: [id])
+  targetRole Role?                    @relation("WorkflowTransitionsTargetRoleIdRoles", fields: [targetRoleId], references: [id])
+
+  @@index([actionId, fromStatusId, toStatusId])
+  @@index([fromRoleId])
+  @@map("workflow_transitions")
+}
+
+model WorkflowActionRolePermission {
+  id        String   @id @map("id") @db.Uuid
+  actionId  String   @map("action_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  allowed   Boolean  @default(true) @map("allowed")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  action WorkflowActionDefinition @relation("WorkflowActionRolePermissionsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
+  role   Role                     @relation("WorkflowActionRolePermissionsRoleIdRoles", fields: [roleId], references: [id])
+
+  @@unique([actionId, roleId])
+  @@map("workflow_action_role_permissions")
+}
+
+model WorkRequest {
+  id                     String    @id @map("id") @db.Uuid
+  code                   String    @unique @map("code") @db.VarChar(80)
+  projectId              String    @map("project_id") @db.Uuid
+  title                  String    @map("title") @db.VarChar(260)
+  categoryId             String    @map("category_id") @db.Uuid
+  priorityId             String    @map("priority_id") @db.Uuid
+  attachmentCategoryId   String?   @map("attachment_category_id") @db.Uuid
+  requestedDocumentTitle String?   @map("requested_document_title") @db.VarChar(260)
+  notes                  String?   @map("notes") @db.Text
+  assignedDivisionId     String    @map("assigned_division_id") @db.Uuid
+  originDivisionId       String    @map("origin_division_id") @db.Uuid
+  createdByActorId       String?   @map("created_by_actor_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt              DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  archivedBidReviewRequestsByRestoredWorkRequestId ArchivedBidReviewRequest[]     @relation("ArchivedBidReviewRequestsRestoredWorkRequestIdWorkRequests")
+  documentsByWorkRequestId                         Document[]                     @relation("DocumentsWorkRequestIdWorkRequests")
+  documentVersionLinksByWorkRequestId              DocumentVersionLink[]          @relation("DocumentVersionLinksWorkRequestIdWorkRequests")
+  project                                          Project                        @relation("WorkRequestsProjectIdProjects", fields: [projectId], references: [id])
+  category                                         WorkRequestCategory            @relation("WorkRequestsCategoryIdWorkRequestCategories", fields: [categoryId], references: [id])
+  priority                                         WorkPrioritie                  @relation("WorkRequestsPriorityIdWorkPriorities", fields: [priorityId], references: [id])
+  attachmentCategory                               WorkRequestAttachmentCategory? @relation("WorkRequestsAttachmentCategoryIdWorkRequestAttachmentCategories", fields: [attachmentCategoryId], references: [id])
+  assignedDivision                                 Division                       @relation("WorkRequestsAssignedDivisionIdDivisions", fields: [assignedDivisionId], references: [id])
+  originDivision                                   Division                       @relation("WorkRequestsOriginDivisionIdDivisions", fields: [originDivisionId], references: [id])
+  createdByActor                                   ActorProfile?                  @relation("WorkRequestsCreatedByActorIdActorProfiles", fields: [createdByActorId], references: [id])
+  workRequestAssignmentsByWorkRequestId            WorkRequestAssignment[]        @relation("WorkRequestAssignmentsWorkRequestIdWorkRequests")
+  workRequestAuditLogsByWorkRequestId              WorkRequestAuditLog[]          @relation("WorkRequestAuditLogsWorkRequestIdWorkRequests")
+  workRequestNotesByWorkRequestId                  WorkRequestNote[]              @relation("WorkRequestNotesWorkRequestIdWorkRequests")
+  workflowInfoRequestsByWorkRequestId              WorkflowInfoRequest[]          @relation("WorkflowInfoRequestsWorkRequestIdWorkRequests")
+  workRequestRevisionRequestsByWorkRequestId       WorkRequestRevisionRequest[]   @relation("WorkRequestRevisionRequestsWorkRequestIdWorkRequests")
+  workRequestDecisionsByWorkRequestId              WorkRequestDecision[]          @relation("WorkRequestDecisionsWorkRequestIdWorkRequests")
+  registryDocumentsByWorkRequestId                 RegistryDocument[]             @relation("RegistryDocumentsWorkRequestIdWorkRequests")
+  notificationsByWorkRequestId                     Notification[]                 @relation("NotificationsWorkRequestIdWorkRequests")
+
+  @@index([projectId])
+  @@index([assignedDivisionId])
+  @@index([originDivisionId])
+  @@index([createdAt])
+  @@map("work_requests")
+}
+
+model WorkRequestAssignment {
+  id                String             @id @map("id") @db.Uuid
+  workRequestId     String             @map("work_request_id") @db.Uuid
+  assignmentType    AssignmentTypeCode @map("assignment_type")
+  memberId          String             @map("member_id") @db.Uuid
+  assignedByActorId String?            @map("assigned_by_actor_id") @db.Uuid
+  assignedAt        DateTime           @default(now()) @map("assigned_at") @db.Timestamp(6)
+  unassignedAt      DateTime?          @map("unassigned_at") @db.Timestamp(6)
+  note              String?            @map("note") @db.Text
+
+  workRequest     WorkRequest   @relation("WorkRequestAssignmentsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  member          Member        @relation("WorkRequestAssignmentsMemberIdMembers", fields: [memberId], references: [id])
+  assignedByActor ActorProfile? @relation("WorkRequestAssignmentsAssignedByActorIdActorProfiles", fields: [assignedByActorId], references: [id])
+
+  @@index([workRequestId, assignmentType, unassignedAt])
+  @@index([memberId])
+  @@map("work_request_assignments")
+}
+
+model WorkRequestAuditLog {
+  id                 String   @id @map("id") @db.Uuid
+  workRequestId      String   @map("work_request_id") @db.Uuid
+  actionId           String?  @map("action_id") @db.Uuid
+  fromStatusId       String?  @map("from_status_id") @db.Uuid
+  toStatusId         String?  @map("to_status_id") @db.Uuid
+  performedByActorId String?  @map("performed_by_actor_id") @db.Uuid
+  performedByLabel   String?  @map("performed_by_label") @db.VarChar(180)
+  fromLabel          String?  @map("from_label") @db.VarChar(180)
+  toLabel            String?  @map("to_label") @db.VarChar(180)
+  actionText         String   @map("action_text") @db.Text
+  note               String?  @map("note") @db.Text
+  occurredAt         DateTime @default(now()) @map("occurred_at") @db.Timestamp(6)
+
+  workRequest                             WorkRequest                  @relation("WorkRequestAuditLogsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  action                                  WorkflowActionDefinition?    @relation("WorkRequestAuditLogsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
+  fromStatus                              WorkflowStatus?              @relation("WorkRequestAuditLogsFromStatusIdWorkflowStatuses", fields: [fromStatusId], references: [id])
+  toStatus                                WorkflowStatus?              @relation("WorkRequestAuditLogsToStatusIdWorkflowStatuses", fields: [toStatusId], references: [id])
+  performedByActor                        ActorProfile?                @relation("WorkRequestAuditLogsPerformedByActorIdActorProfiles", fields: [performedByActorId], references: [id])
+  workRequestNotesByAuditLogId            WorkRequestNote[]            @relation("WorkRequestNotesAuditLogIdWorkRequestAuditLogs")
+  workRequestAuditAttachmentsByAuditLogId WorkRequestAuditAttachment[] @relation("WorkRequestAuditAttachmentsAuditLogIdWorkRequestAuditLogs")
+  notificationsByAuditLogId               Notification[]               @relation("NotificationsAuditLogIdWorkRequestAuditLogs")
+
+  @@index([workRequestId, occurredAt])
+  @@index([actionId])
+  @@index([toStatusId])
+  @@index([performedByActorId])
+  @@map("work_request_audit_logs")
+}
+
+model WorkRequestNote {
+  id               String   @id @map("id") @db.Uuid
+  workRequestId    String   @map("work_request_id") @db.Uuid
+  auditLogId       String?  @map("audit_log_id") @db.Uuid
+  note             String   @map("note") @db.Text
+  createdByActorId String   @map("created_by_actor_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workRequest    WorkRequest          @relation("WorkRequestNotesWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  auditLog       WorkRequestAuditLog? @relation("WorkRequestNotesAuditLogIdWorkRequestAuditLogs", fields: [auditLogId], references: [id])
+  createdByActor ActorProfile         @relation("WorkRequestNotesCreatedByActorIdActorProfiles", fields: [createdByActorId], references: [id])
+
+  @@index([workRequestId, createdAt])
+  @@map("work_request_notes")
+}
+
+model WorkRequestAuditAttachment {
+  id                String   @id @map("id") @db.Uuid
+  auditLogId        String   @map("audit_log_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  attachedAt        DateTime @default(now()) @map("attached_at") @db.Timestamp(6)
+
+  auditLog        WorkRequestAuditLog @relation("WorkRequestAuditAttachmentsAuditLogIdWorkRequestAuditLogs", fields: [auditLogId], references: [id])
+  documentVersion DocumentVersion     @relation("WorkRequestAuditAttachmentsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
+
+  @@unique([auditLogId, documentVersionId])
+  @@map("work_request_audit_attachments")
+}
+
+model InfoRequestStatus {
+  id   String                @id @map("id") @db.Uuid
+  code InfoRequestStatusCode @unique @map("code")
+  name String                @map("name") @db.VarChar(120)
+
+  workflowInfoRequestsByInfoRequestStatusId WorkflowInfoRequest[] @relation("WorkflowInfoRequestsInfoRequestStatusIdInfoRequestStatuses")
+
+  @@map("info_request_statuses")
+}
+
+model WorkflowInfoRequest {
+  id                    String    @id @map("id") @db.Uuid
+  workRequestId         String    @map("work_request_id") @db.Uuid
+  parentInfoRequestId   String?   @map("parent_info_request_id") @db.Uuid
+  requestedByActorId    String    @map("requested_by_actor_id") @db.Uuid
+  requestedByMemberId   String?   @map("requested_by_member_id") @db.Uuid
+  requestedByRoleId     String    @map("requested_by_role_id") @db.Uuid
+  targetLabel           String    @map("target_label") @db.VarChar(180)
+  targetRoleId          String?   @map("target_role_id") @db.Uuid
+  targetMemberId        String?   @map("target_member_id") @db.Uuid
+  targetClientContactId String?   @map("target_client_contact_id") @db.Uuid
+  statusAtRequestId     String    @map("status_at_request_id") @db.Uuid
+  infoRequestStatusId   String    @map("info_request_status_id") @db.Uuid
+  note                  String?   @map("note") @db.Text
+  requestedAt           DateTime  @default(now()) @map("requested_at") @db.Timestamp(6)
+  closedAt              DateTime? @map("closed_at") @db.Timestamp(6)
+
+  workRequest                               WorkRequest            @relation("WorkflowInfoRequestsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  parentInfoRequest                         WorkflowInfoRequest?   @relation("WorkflowInfoRequestsParentInfoRequestIdWorkflowInfoRequests", fields: [parentInfoRequestId], references: [id])
+  workflowInfoRequestsByParentInfoRequestId WorkflowInfoRequest[]  @relation("WorkflowInfoRequestsParentInfoRequestIdWorkflowInfoRequests")
+  requestedByActor                          ActorProfile           @relation("WorkflowInfoRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId], references: [id])
+  requestedByMember                         Member?                @relation("WorkflowInfoRequestsRequestedByMemberIdMembers", fields: [requestedByMemberId], references: [id])
+  requestedByRole                           Role                   @relation("WorkflowInfoRequestsRequestedByRoleIdRoles", fields: [requestedByRoleId], references: [id])
+  targetRole                                Role?                  @relation("WorkflowInfoRequestsTargetRoleIdRoles", fields: [targetRoleId], references: [id])
+  targetMember                              Member?                @relation("WorkflowInfoRequestsTargetMemberIdMembers", fields: [targetMemberId], references: [id])
+  targetClientContact                       ClientContact?         @relation("WorkflowInfoRequestsTargetClientContactIdClientContacts", fields: [targetClientContactId], references: [id])
+  statusAtRequest                           WorkflowStatus         @relation("WorkflowInfoRequestsStatusAtRequestIdWorkflowStatuses", fields: [statusAtRequestId], references: [id])
+  infoRequestStatus                         InfoRequestStatus      @relation("WorkflowInfoRequestsInfoRequestStatusIdInfoRequestStatuses", fields: [infoRequestStatusId], references: [id])
+  workflowInfoResponsesByInfoRequestId      WorkflowInfoResponse[] @relation("WorkflowInfoResponsesInfoRequestIdWorkflowInfoRequests")
+
+  @@index([workRequestId, infoRequestStatusId])
+  @@index([targetRoleId])
+  @@index([targetMemberId])
+  @@index([targetClientContactId])
+  @@map("workflow_info_requests")
+}
+
+model WorkflowInfoResponse {
+  id                 String   @id @map("id") @db.Uuid
+  infoRequestId      String   @map("info_request_id") @db.Uuid
+  respondedByActorId String   @map("responded_by_actor_id") @db.Uuid
+  responseNote       String?  @map("response_note") @db.Text
+  respondedAt        DateTime @default(now()) @map("responded_at") @db.Timestamp(6)
+
+  infoRequest      WorkflowInfoRequest @relation("WorkflowInfoResponsesInfoRequestIdWorkflowInfoRequests", fields: [infoRequestId], references: [id])
+  respondedByActor ActorProfile        @relation("WorkflowInfoResponsesRespondedByActorIdActorProfiles", fields: [respondedByActorId], references: [id])
+
+  @@index([infoRequestId])
+  @@index([respondedByActorId])
+  @@map("workflow_info_responses")
+}
+
+model RevisionRequestStatus {
+  id   String                    @id @map("id") @db.Uuid
+  code RevisionRequestStatusCode @unique @map("code")
+  name String                    @map("name") @db.VarChar(120)
+
+  workRequestRevisionRequestsByRevisionStatusId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRevisionStatusIdRevisionRequestStatuses")
+
+  @@map("revision_request_statuses")
+}
+
+model WorkRequestRevisionRequest {
+  id                  String    @id @map("id") @db.Uuid
+  workRequestId       String    @map("work_request_id") @db.Uuid
+  sourceActionId      String?   @map("source_action_id") @db.Uuid
+  requestedByActorId  String    @map("requested_by_actor_id") @db.Uuid
+  requestedToRoleId   String?   @map("requested_to_role_id") @db.Uuid
+  requestedToMemberId String?   @map("requested_to_member_id") @db.Uuid
+  statusAtRequestId   String?   @map("status_at_request_id") @db.Uuid
+  revisionStatusId    String    @map("revision_status_id") @db.Uuid
+  revisionCode        String?   @map("revision_code") @db.VarChar(20)
+  note                String?   @map("note") @db.Text
+  requestedAt         DateTime  @default(now()) @map("requested_at") @db.Timestamp(6)
+  closedAt            DateTime? @map("closed_at") @db.Timestamp(6)
+
+  workRequest                                       WorkRequest                     @relation("WorkRequestRevisionRequestsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  sourceAction                                      WorkflowActionDefinition?       @relation("WorkRequestRevisionRequestsSourceActionIdWorkflowActionDefinitions", fields: [sourceActionId], references: [id])
+  requestedByActor                                  ActorProfile                    @relation("WorkRequestRevisionRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId], references: [id])
+  requestedToRole                                   Role?                           @relation("WorkRequestRevisionRequestsRequestedToRoleIdRoles", fields: [requestedToRoleId], references: [id])
+  requestedToMember                                 Member?                         @relation("WorkRequestRevisionRequestsRequestedToMemberIdMembers", fields: [requestedToMemberId], references: [id])
+  statusAtRequest                                   WorkflowStatus?                 @relation("WorkRequestRevisionRequestsStatusAtRequestIdWorkflowStatuses", fields: [statusAtRequestId], references: [id])
+  revisionStatus                                    RevisionRequestStatus           @relation("WorkRequestRevisionRequestsRevisionStatusIdRevisionRequestStatuses", fields: [revisionStatusId], references: [id])
+  workRequestRevisionDocumentsByRevisionRequestId   WorkRequestRevisionDocument[]   @relation("WorkRequestRevisionDocumentsRevisionRequestIdWorkRequestRevisionRequests")
+  workRequestRevisionSubmissionsByRevisionRequestId WorkRequestRevisionSubmission[] @relation("WorkRequestRevisionSubmissionsRevisionRequestIdWorkRequestRevisionRequests")
+
+  @@index([workRequestId, requestedAt])
+  @@index([revisionStatusId])
+  @@map("work_request_revision_requests")
+}
+
+model WorkRequestRevisionDocument {
+  id                String   @id @map("id") @db.Uuid
+  revisionRequestId String   @map("revision_request_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  attachedByActorId String?  @map("attached_by_actor_id") @db.Uuid
+  attachedAt        DateTime @default(now()) @map("attached_at") @db.Timestamp(6)
+
+  revisionRequest WorkRequestRevisionRequest @relation("WorkRequestRevisionDocumentsRevisionRequestIdWorkRequestRevisionRequests", fields: [revisionRequestId], references: [id])
+  documentVersion DocumentVersion            @relation("WorkRequestRevisionDocumentsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
+  attachedByActor ActorProfile?              @relation("WorkRequestRevisionDocumentsAttachedByActorIdActorProfiles", fields: [attachedByActorId], references: [id])
+
+  @@unique([revisionRequestId, documentVersionId])
+  @@map("work_request_revision_documents")
+}
+
+model WorkRequestRevisionSubmission {
+  id                 String   @id @map("id") @db.Uuid
+  revisionRequestId  String   @map("revision_request_id") @db.Uuid
+  submittedByActorId String   @map("submitted_by_actor_id") @db.Uuid
+  submissionNote     String?  @map("submission_note") @db.Text
+  submittedAt        DateTime @default(now()) @map("submitted_at") @db.Timestamp(6)
+
+  revisionRequest                                              WorkRequestRevisionRequest              @relation("WorkRequestRevisionSubmissionsRevisionRequestIdWorkRequestRevisionRequests", fields: [revisionRequestId], references: [id])
+  submittedByActor                                             ActorProfile                            @relation("WorkRequestRevisionSubmissionsSubmittedByActorIdActorProfiles", fields: [submittedByActorId], references: [id])
+  workRequestRevisionSubmissionDocumentsByRevisionSubmissionId WorkRequestRevisionSubmissionDocument[] @relation("WorkRequestRevisionSubmissionDocumentsRevisionSubmissionIdWorkRequestRevisionSubmissions")
+
+  @@index([revisionRequestId, submittedAt])
+  @@map("work_request_revision_submissions")
+}
+
+model WorkRequestRevisionSubmissionDocument {
+  id                   String   @id @map("id") @db.Uuid
+  revisionSubmissionId String   @map("revision_submission_id") @db.Uuid
+  documentVersionId    String   @map("document_version_id") @db.Uuid
+  attachedAt           DateTime @default(now()) @map("attached_at") @db.Timestamp(6)
+
+  revisionSubmission WorkRequestRevisionSubmission @relation("WorkRequestRevisionSubmissionDocumentsRevisionSubmissionIdWorkRequestRevisionSubmissions", fields: [revisionSubmissionId], references: [id])
+  documentVersion    DocumentVersion               @relation("WorkRequestRevisionSubmissionDocumentsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
+
+  @@unique([revisionSubmissionId, documentVersionId])
+  @@map("work_request_revision_submission_documents")
+}
+
+model DecisionResult {
+  id   String             @id @map("id") @db.Uuid
+  code DecisionResultCode @unique @map("code")
+  name String             @map("name") @db.VarChar(120)
+
+  workRequestDecisionsByDecisionResultId WorkRequestDecision[] @relation("WorkRequestDecisionsDecisionResultIdDecisionResults")
+
+  @@map("decision_results")
+}
+
+model WorkRequestDecision {
+  id               String   @id @map("id") @db.Uuid
+  workRequestId    String   @map("work_request_id") @db.Uuid
+  actionId         String   @map("action_id") @db.Uuid
+  decisionResultId String   @map("decision_result_id") @db.Uuid
+  decidedByActorId String   @map("decided_by_actor_id") @db.Uuid
+  fromStatusId     String?  @map("from_status_id") @db.Uuid
+  toStatusId       String?  @map("to_status_id") @db.Uuid
+  note             String?  @map("note") @db.Text
+  decidedAt        DateTime @default(now()) @map("decided_at") @db.Timestamp(6)
+
+  workRequest    WorkRequest              @relation("WorkRequestDecisionsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  action         WorkflowActionDefinition @relation("WorkRequestDecisionsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
+  decisionResult DecisionResult           @relation("WorkRequestDecisionsDecisionResultIdDecisionResults", fields: [decisionResultId], references: [id])
+  decidedByActor ActorProfile             @relation("WorkRequestDecisionsDecidedByActorIdActorProfiles", fields: [decidedByActorId], references: [id])
+  fromStatus     WorkflowStatus?          @relation("WorkRequestDecisionsFromStatusIdWorkflowStatuses", fields: [fromStatusId], references: [id])
+  toStatus       WorkflowStatus?          @relation("WorkRequestDecisionsToStatusIdWorkflowStatuses", fields: [toStatusId], references: [id])
+
+  @@index([workRequestId, decidedAt])
+  @@index([decisionResultId])
+  @@map("work_request_decisions")
+}
+
+model RegistryDocument {
+  id                      String    @id @map("id") @db.Uuid
+  projectId               String    @map("project_id") @db.Uuid
+  workRequestId           String    @map("work_request_id") @db.Uuid
+  documentId              String?   @map("document_id") @db.Uuid
+  listedDocumentVersionId String?   @map("listed_document_version_id") @db.Uuid
+  listedCategoryId        String?   @map("listed_category_id") @db.Uuid
+  listedByActorId         String    @map("listed_by_actor_id") @db.Uuid
+  listedAt                DateTime  @default(now()) @map("listed_at") @db.Timestamp(6)
+  registryNote            String?   @map("registry_note") @db.Text
+  removedAt               DateTime? @map("removed_at") @db.Timestamp(6)
+  removedByActorId        String?   @map("removed_by_actor_id") @db.Uuid
+
+  project               Project           @relation("RegistryDocumentsProjectIdProjects", fields: [projectId], references: [id])
+  workRequest           WorkRequest       @relation("RegistryDocumentsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  document              Document?         @relation("RegistryDocumentsDocumentIdDocuments", fields: [documentId], references: [id])
+  listedDocumentVersion DocumentVersion?  @relation("RegistryDocumentsListedDocumentVersionIdDocumentVersions", fields: [listedDocumentVersionId], references: [id])
+  listedCategory        DocumentCategory? @relation("RegistryDocumentsListedCategoryIdDocumentCategories", fields: [listedCategoryId], references: [id])
+  listedByActor         ActorProfile      @relation("RegistryDocumentsListedByActorIdActorProfiles", fields: [listedByActorId], references: [id])
+  removedByActor        ActorProfile?     @relation("RegistryDocumentsRemovedByActorIdActorProfiles", fields: [removedByActorId], references: [id])
+
+  @@index([projectId])
+  @@index([workRequestId])
+  @@index([listedAt])
+  @@map("registry_documents")
+}
+
+model Notification {
+  id                 String                      @id @map("id") @db.Uuid
+  notificationKind   NotificationKindCode        @map("notification_kind")
+  projectId          String?                     @map("project_id") @db.Uuid
+  workRequestId      String?                     @map("work_request_id") @db.Uuid
+  auditLogId         String?                     @map("audit_log_id") @db.Uuid
+  title              String                      @map("title") @db.VarChar(260)
+  subtitle           String?                     @map("subtitle") @db.VarChar(260)
+  roleMessage        String?                     @map("role_message") @db.VarChar(260)
+  targetView         NotificationTargetViewCode? @map("target_view")
+  triggeredByActorId String?                     @map("triggered_by_actor_id") @db.Uuid
+  triggeredByLabel   String?                     @map("triggered_by_label") @db.VarChar(180)
+  triggeredAt        DateTime                    @default(now()) @map("triggered_at") @db.Timestamp(6)
+  expiresAt          DateTime?                   @map("expires_at") @db.Timestamp(6)
+
+  project                                Project?                @relation("NotificationsProjectIdProjects", fields: [projectId], references: [id])
+  workRequest                            WorkRequest?            @relation("NotificationsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
+  auditLog                               WorkRequestAuditLog?    @relation("NotificationsAuditLogIdWorkRequestAuditLogs", fields: [auditLogId], references: [id])
+  triggeredByActor                       ActorProfile?           @relation("NotificationsTriggeredByActorIdActorProfiles", fields: [triggeredByActorId], references: [id])
+  notificationRecipientsByNotificationId NotificationRecipient[] @relation("NotificationRecipientsNotificationIdNotifications")
+
+  @@index([projectId])
+  @@index([workRequestId])
+  @@index([triggeredAt])
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  id             String    @id @map("id") @db.Uuid
+  notificationId String    @map("notification_id") @db.Uuid
+  actorId        String    @map("actor_id") @db.Uuid
+  deliveredAt    DateTime  @default(now()) @map("delivered_at") @db.Timestamp(6)
+  readAt         DateTime? @map("read_at") @db.Timestamp(6)
+  openedAt       DateTime? @map("opened_at") @db.Timestamp(6)
+  dismissedAt    DateTime? @map("dismissed_at") @db.Timestamp(6)
+
+  notification Notification @relation("NotificationRecipientsNotificationIdNotifications", fields: [notificationId], references: [id])
+  actor        ActorProfile @relation("NotificationRecipientsActorIdActorProfiles", fields: [actorId], references: [id])
+
+  @@unique([notificationId, actorId])
+  @@index([actorId, readAt])
+  @@map("notification_recipients")
+}
+
+model SystemAuditLog {
+  id                 String              @id @map("id") @db.Uuid
+  entityType         AuditEntityTypeCode @map("entity_type")
+  entityId           String              @map("entity_id") @db.Uuid
+  actionId           String?             @map("action_id") @db.Uuid
+  performedByActorId String?             @map("performed_by_actor_id") @db.Uuid
+  summary            String              @map("summary") @db.Text
+  beforeData         Json?               @map("before_data") @db.JsonB
+  afterData          Json?               @map("after_data") @db.JsonB
+  occurredAt         DateTime            @default(now()) @map("occurred_at") @db.Timestamp(6)
+
+  action           WorkflowActionDefinition? @relation("SystemAuditLogsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
+  performedByActor ActorProfile?             @relation("SystemAuditLogsPerformedByActorIdActorProfiles", fields: [performedByActorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([performedByActorId])
+  @@index([occurredAt])
+  @@map("system_audit_logs")
+}
