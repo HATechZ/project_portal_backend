@@ -7,7 +7,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { RedisStore } from 'connect-redis';
 import session from 'express-session';
-import passport from 'passport';
 import { createClient, RedisClientType } from 'redis';
 import { AppConfiguration } from '../../config/configuration';
 
@@ -47,8 +46,6 @@ export class SessionService implements OnModuleInit, OnApplicationShutdown {
           maxAge: this.config.get('session.maxAgeMs', { infer: true }),
         },
       }),
-      passport.initialize(),
-      passport.session(),
     );
   }
 
