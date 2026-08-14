@@ -20,23 +20,51 @@ Swagger.
 3. Copy `.env.example` to `.env` and replace `DATABASE_URL` with the complete
    connection string from your Neon dashboard.
 
-4. Start the development server:
+4. Start Redis in Docker:
+
+   ```bash
+   yarn services:up
+   ```
+
+5. Start the NestJS development server directly on the host:
 
    ```bash
    yarn start:dev
    ```
 
-The start command generates Prisma Client, applies pending migrations, and then
-connects the application to Neon. Swagger UI is available at
+Docker Compose runs infrastructure services only; it does not build or run the
+NestJS application. Redis is exposed only on `127.0.0.1:6379`, matching
+`REDIS_URL=redis://127.0.0.1:6379` in `.env.example`. This loopback-only binding
+keeps Redis unavailable through the machine's external network interfaces.
+
+The NestJS start command generates Prisma Client, applies pending migrations,
+and then connects the application to Neon and Redis. Swagger UI is available at
 `http://localhost:3000/api/docs`.
+
+To stop the infrastructure services without deleting their persisted data:
+
+```bash
+yarn services:down
+```
 
 ## User endpoints
 
-- `POST /users`
-- `GET /users`
-- `GET /users/:id`
-- `PATCH /users/:id`
-- `DELETE /users/:id`
+- `POST /api/v1/users`
+- `GET /api/v1/users`
+- `GET /api/v1/users/:id`
+- `PATCH /api/v1/users/:id`
+- `DELETE /api/v1/users/:id`
+
+User passwords must contain 6–8 characters and are stored only as bcrypt hashes.
+
+## Authentication endpoints
+
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+
+Authentication uses an HTTP-only session cookie backed by local Redis. Set a
+strong `SESSION_SECRET` outside development.
 
 ## Database commands
 
@@ -146,4 +174,5 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
 # Project_Portal_backend
