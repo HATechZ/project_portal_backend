@@ -6,6 +6,7 @@ export interface SeedContext {
     email: string;
     fullName: string;
     password: string;
+    tenantId: string;
   };
 }
 

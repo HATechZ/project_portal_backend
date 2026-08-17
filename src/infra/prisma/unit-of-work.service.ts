@@ -14,7 +14,7 @@ export class UnitOfWorkService {
   constructor(private readonly prisma: PrismaService) {}
 
   get client(): PrismaExecutor {
-    return this.storage.getStore() ?? this.prisma;
+    return this.storage.getStore() ?? this.prisma.scoped;
   }
   get inTransaction(): boolean {
     return this.storage.getStore() !== undefined;
@@ -30,7 +30,7 @@ export class UnitOfWorkService {
   ): Promise<T> {
     const current = this.storage.getStore();
     if (current) return work(current);
-    return this.prisma.$transaction(
+    return this.prisma.scoped.$transaction(
       (transaction) => this.storage.run(transaction, () => work(transaction)),
       {
         maxWait: options?.maxWait ?? 5000,

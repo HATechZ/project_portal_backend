@@ -14,6 +14,7 @@ import {
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ActiveUser } from './decorators/active-user.decorator';
@@ -21,9 +22,12 @@ import { LoginDto } from './dtos';
 import { AuthenticatedGuard } from './guards/authenticated.guard';
 import type { SessionUser } from './repositories';
 import { AuthService } from './auth.service';
+import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 
 @ApiTags('auth')
+@ApiSecurity('tenant')
 @Controller('auth')
+@UseGuards(TenantContextGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

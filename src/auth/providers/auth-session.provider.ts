@@ -8,6 +8,7 @@ import { AuthHashingProvider } from './auth-hashing.provider';
 declare module 'express-session' {
   interface SessionData {
     userId?: string;
+    tenantId?: string;
   }
 }
 
@@ -31,6 +32,7 @@ export class AuthSessionProvider {
 
     await this.regenerate(request);
     request.session.userId = credentials.id;
+    request.session.tenantId = credentials.tenantId;
     await this.save(request);
     return this.repository.recordLogin(credentials.id);
   }

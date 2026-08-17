@@ -20,6 +20,10 @@ export class OpenApiModule {
         .setDescription('Project Portal workflow management API')
         .setVersion('1.0')
         .addBearerAuth()
+        .addApiKey(
+          { type: 'apiKey', in: 'header', name: 'x-tenant-id' },
+          'tenant',
+        )
         .build(),
     );
     document.components ??= {};

@@ -21,15 +21,19 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { CreateUserDto, UpdateUserDto } from './dtos';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { AuthenticatedGuard } from '../auth/guards/authenticated.guard';
 import { SystemAdminGuard } from '../auth/guards/system-admin.guard';
 import { UserService } from './user.service';
+import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 
 @ApiTags('users')
+@ApiSecurity('tenant')
 @Controller('users')
+@UseGuards(TenantContextGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 

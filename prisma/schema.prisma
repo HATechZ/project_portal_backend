@@ -273,10 +273,73 @@ enum AuditEntityTypeCode {
   @@map("audit_entity_type_code")
 }
 
+model Tenant {
+  id        String   @id @map("id") @db.Uuid
+  name      String   @map("name") @db.VarChar(180)
+  slug      String   @unique @map("slug") @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  users                                  User[]
+  userRoles                              UserRole[]
+  actorProfiles                          ActorProfile[]
+  authSessions                           AuthSession[]
+  passwordResetTokens                    PasswordResetToken[]
+  companies                              Company[]
+  divisions                              Division[]
+  members                                Member[]
+  teams                                  Team[]
+  teamMembers                            TeamMember[]
+  clients                                Client[]
+  clientContacts                         ClientContact[]
+  portalConfigs                          PortalConfig[]
+  optionValues                           OptionValue[]
+  documentCodeOptions                    DocumentCodeOption[]
+  sourceChannels                         SourceChannel[]
+  projects                               Project[]
+  projectStatusEvents                    ProjectStatusEvent[]
+  bidDetails                             BidDetail[]
+  projectCredentialDeliveries            ProjectCredentialDelivery[]
+  bidOutcomeEvents                       BidOutcomeEvent[]
+  projectConversionEvents                ProjectConversionEvent[]
+  archivedBidReviewRequests              ArchivedBidReviewRequest[]
+  documentCategories                     DocumentCategory[]
+  documents                              Document[]
+  documentVersions                       DocumentVersion[]
+  documentFolders                        DocumentFolder[]
+  documentVersionFolderLocations         DocumentVersionFolderLocation[]
+  documentVersionLinks                   DocumentVersionLink[]
+  workRequestCategories                  WorkRequestCategory[]
+  workRequestAttachmentCategories        WorkRequestAttachmentCategory[]
+  workflowTransitions                    WorkflowTransition[]
+  workflowActionRolePermissions          WorkflowActionRolePermission[]
+  workRequests                           WorkRequest[]
+  workRequestAssignments                 WorkRequestAssignment[]
+  workRequestAuditLogs                   WorkRequestAuditLog[]
+  workRequestNotes                       WorkRequestNote[]
+  workRequestAuditAttachments            WorkRequestAuditAttachment[]
+  workflowInfoRequests                   WorkflowInfoRequest[]
+  workflowInfoResponses                  WorkflowInfoResponse[]
+  workRequestRevisionRequests            WorkRequestRevisionRequest[]
+  workRequestRevisionDocuments           WorkRequestRevisionDocument[]
+  workRequestRevisionSubmissions         WorkRequestRevisionSubmission[]
+  workRequestRevisionSubmissionDocuments WorkRequestRevisionSubmissionDocument[]
+  workRequestDecisions                   WorkRequestDecision[]
+  registryDocuments                      RegistryDocument[]
+  notifications                          Notification[]
+  notificationRecipients                 NotificationRecipient[]
+  systemAuditLogs                        SystemAuditLog[]
+
+  @@map("tenants")
+}
+
 model User {
+  tenantId     String    @map("tenant_id") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id           String    @id @map("id") @db.Uuid
   fullName     String    @map("full_name") @db.VarChar(160)
-  email        String    @unique @map("email") @db.VarChar(255)
+  email        String    @map("email") @db.VarChar(255)
   passwordHash String?   @map("password_hash") @db.VarChar(255)
   avatarUrl    String?   @map("avatar_url") @db.Text
   isActive     Boolean   @default(true) @map("is_active")
@@ -292,6 +355,8 @@ model User {
   membersByUserId             Member[]             @relation("MembersUserIdUsers")
   clientContactsByUserId      ClientContact[]      @relation("ClientContactsUserIdUsers")
 
+  @@unique([tenantId, email])
+  @@index([tenantId])
   @@map("users")
 }
 
@@ -316,6 +381,8 @@ model Role {
 }
 
 model UserRole {
+  tenantId         String    @map("tenant_id") @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id               String    @id @map("id") @db.Uuid
   userId           String    @map("user_id") @db.Uuid
   roleId           String    @map("role_id") @db.Uuid
@@ -328,10 +395,13 @@ model UserRole {
   assignedByUser User? @relation("UserRolesAssignedByUserIdUsers", fields: [assignedByUserId], references: [id])
 
   @@index([userId, roleId, revokedAt])
+  @@index([tenantId])
   @@map("user_roles")
 }
 
 model ActorProfile {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id              String   @id @map("id") @db.Uuid
   userId          String?  @map("user_id") @db.Uuid
   roleId          String   @map("role_id") @db.Uuid
@@ -371,10 +441,13 @@ model ActorProfile {
   notificationRecipientsByActorId                    NotificationRecipient[]         @relation("NotificationRecipientsActorIdActorProfiles")
   systemAuditLogsByPerformedByActorId                SystemAuditLog[]                @relation("SystemAuditLogsPerformedByActorIdActorProfiles")
 
+  @@index([tenantId])
   @@map("actor_profiles")
 }
 
 model AuthSession {
+  tenantId         String    @map("tenant_id") @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id               String    @id @map("id") @db.Uuid
   userId           String    @map("user_id") @db.Uuid
   refreshTokenHash String    @map("refresh_token_hash") @db.VarChar(255)
@@ -388,20 +461,25 @@ model AuthSession {
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([tenantId])
   @@map("auth_sessions")
 }
 
 model PasswordResetToken {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id        String    @id @map("id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
-  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  tokenHash String    @map("token_hash") @db.VarChar(255)
   expiresAt DateTime  @map("expires_at") @db.Timestamp(6)
   usedAt    DateTime? @map("used_at") @db.Timestamp(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
 
   user User @relation("PasswordResetTokensUserIdUsers", fields: [userId], references: [id])
 
+  @@unique([tenantId, tokenHash])
   @@index([userId])
+  @@index([tenantId])
   @@map("password_reset_tokens")
 }
 
@@ -416,6 +494,8 @@ model CompanyType {
 }
 
 model Company {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id            String   @id @map("id") @db.Uuid
   name          String   @map("name") @db.VarChar(180)
   abbr          String   @map("abbr") @db.VarChar(30)
@@ -430,8 +510,9 @@ model Company {
   teamsByCompanyId     Team[]       @relation("TeamsCompanyIdCompanies")
   clientsByCompanyId   Client[]     @relation("ClientsCompanyIdCompanies")
 
-  @@unique([abbr])
+  @@unique([tenantId, abbr])
   @@index([name])
+  @@index([tenantId])
   @@map("companies")
 }
 
@@ -446,6 +527,8 @@ model DivisionType {
 }
 
 model Division {
+  tenantId       String   @map("tenant_id") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id             String   @id @map("id") @db.Uuid
   companyId      String   @map("company_id") @db.Uuid
   name           String   @map("name") @db.VarChar(180)
@@ -463,18 +546,21 @@ model Division {
   workRequestsByAssignedDivisionId WorkRequest[] @relation("WorkRequestsAssignedDivisionIdDivisions")
   workRequestsByOriginDivisionId   WorkRequest[] @relation("WorkRequestsOriginDivisionIdDivisions")
 
-  @@unique([companyId, abbr])
+  @@unique([tenantId, companyId, abbr])
   @@index([companyId, name])
+  @@index([tenantId])
   @@map("divisions")
 }
 
 model Member {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id         String   @id @map("id") @db.Uuid
   userId     String?  @map("user_id") @db.Uuid
   companyId  String   @map("company_id") @db.Uuid
   divisionId String   @map("division_id") @db.Uuid
   name       String   @map("name") @db.VarChar(160)
-  email      String   @unique @map("email") @db.VarChar(255)
+  email      String   @map("email") @db.VarChar(255)
   roleTitle  String   @map("role_title") @db.VarChar(140)
   isActive   Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
@@ -491,12 +577,16 @@ model Member {
   workflowInfoRequestsByTargetMemberId             WorkflowInfoRequest[]        @relation("WorkflowInfoRequestsTargetMemberIdMembers")
   workRequestRevisionRequestsByRequestedToMemberId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRequestedToMemberIdMembers")
 
+  @@unique([tenantId, email])
   @@index([companyId])
   @@index([divisionId])
+  @@index([tenantId])
   @@map("members")
 }
 
 model Team {
+  tenantId     String   @map("tenant_id") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id           String   @id @map("id") @db.Uuid
   companyId    String   @map("company_id") @db.Uuid
   divisionId   String   @map("division_id") @db.Uuid
@@ -511,11 +601,14 @@ model Team {
   leadMember          Member?      @relation("TeamsLeadMemberIdMembers", fields: [leadMemberId], references: [id])
   teamMembersByTeamId TeamMember[] @relation("TeamMembersTeamIdTeams")
 
-  @@unique([divisionId, name])
+  @@unique([tenantId, divisionId, name])
+  @@index([tenantId])
   @@map("teams")
 }
 
 model TeamMember {
+  tenantId String    @map("tenant_id") @db.Uuid
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id       String    @id @map("id") @db.Uuid
   teamId   String    @map("team_id") @db.Uuid
   memberId String    @map("member_id") @db.Uuid
@@ -527,10 +620,13 @@ model TeamMember {
   member Member @relation("TeamMembersMemberIdMembers", fields: [memberId], references: [id])
 
   @@index([teamId, memberId, leftAt])
+  @@index([tenantId])
   @@map("team_members")
 }
 
 model Client {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id        String   @id @map("id") @db.Uuid
   companyId String?  @map("company_id") @db.Uuid
   name      String   @map("name") @db.VarChar(180)
@@ -543,10 +639,13 @@ model Client {
   projectsByClientId       Project[]       @relation("ProjectsClientIdClients")
 
   @@index([name])
+  @@index([tenantId])
   @@map("clients")
 }
 
 model ClientContact {
+  tenantId    String   @map("tenant_id") @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id          String   @id @map("id") @db.Uuid
   userId      String?  @map("user_id") @db.Uuid
   clientId    String   @map("client_id") @db.Uuid
@@ -565,18 +664,22 @@ model ClientContact {
   projectCredentialDeliveriesByClientContactId ProjectCredentialDelivery[] @relation("ProjectCredentialDeliveriesClientContactIdClientContacts")
   workflowInfoRequestsByTargetClientContactId  WorkflowInfoRequest[]       @relation("WorkflowInfoRequestsTargetClientContactIdClientContacts")
 
-  @@unique([clientId, email])
+  @@unique([tenantId, clientId, email])
   @@index([email])
+  @@index([tenantId])
   @@map("client_contacts")
 }
 
 model PortalConfig {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id              String   @id @map("id") @db.Uuid
   portalName      String   @map("portal_name") @db.VarChar(180)
   defaultTimezone String   @default("Asia/Dhaka") @map("default_timezone") @db.VarChar(80)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
+  @@index([tenantId])
   @@map("portal_configs")
 }
 
@@ -593,6 +696,8 @@ model OptionType {
 }
 
 model OptionValue {
+  tenantId     String   @map("tenant_id") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id           String   @id @map("id") @db.Uuid
   optionTypeId String   @map("option_type_id") @db.Uuid
   name         String   @map("name") @db.VarChar(180)
@@ -609,12 +714,15 @@ model OptionValue {
   bidDetailsByCargoCodeOptionId  BidDetail[] @relation("BidDetailsCargoCodeOptionIdOptionValues")
   bidDetailsByVesselCodeOptionId BidDetail[] @relation("BidDetailsVesselCodeOptionIdOptionValues")
 
-  @@unique([optionTypeId, name])
+  @@unique([tenantId, optionTypeId, name])
   @@index([optionTypeId, code])
+  @@index([tenantId])
   @@map("option_values")
 }
 
 model DocumentCodeOption {
+  tenantId      String            @map("tenant_id") @db.Uuid
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id            String            @id @map("id") @db.Uuid
   documentGroup DocumentGroupCode @map("document_group")
   code          String            @map("code") @db.VarChar(20)
@@ -627,8 +735,9 @@ model DocumentCodeOption {
 
   documentsByDocumentCodeOptionId Document[] @relation("DocumentsDocumentCodeOptionIdDocumentCodeOptions")
 
-  @@unique([documentGroup, code])
+  @@unique([tenantId, documentGroup, code])
   @@index([documentGroup, name])
+  @@index([tenantId])
   @@map("document_code_options")
 }
 
@@ -658,19 +767,25 @@ model ProjectStatus {
 }
 
 model SourceChannel {
+  tenantId    String  @map("tenant_id") @db.Uuid
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id          String  @id @map("id") @db.Uuid
-  name        String  @unique @map("name") @db.VarChar(120)
+  name        String  @map("name") @db.VarChar(120)
   description String? @map("description") @db.Text
   isActive    Boolean @default(true) @map("is_active")
 
   projectsBySourceChannelId Project[] @relation("ProjectsSourceChannelIdSourceChannels")
 
+  @@unique([tenantId, name])
+  @@index([tenantId])
   @@map("source_channels")
 }
 
 model Project {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id               String   @id @map("id") @db.Uuid
-  code             String   @unique @map("code") @db.VarChar(60)
+  code             String   @map("code") @db.VarChar(60)
   name             String   @map("name") @db.VarChar(220)
   workspaceTypeId  String   @map("workspace_type_id") @db.Uuid
   clientId         String   @map("client_id") @db.Uuid
@@ -697,14 +812,18 @@ model Project {
   registryDocumentsByProjectId           RegistryDocument[]          @relation("RegistryDocumentsProjectIdProjects")
   notificationsByProjectId               Notification[]              @relation("NotificationsProjectIdProjects")
 
+  @@unique([tenantId, code])
   @@index([workspaceTypeId])
   @@index([clientId])
   @@index([originDivisionId])
   @@index([createdAt])
+  @@index([tenantId])
   @@map("projects")
 }
 
 model ProjectStatusEvent {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id               String   @id @map("id") @db.Uuid
   projectId        String   @map("project_id") @db.Uuid
   fromStatusId     String?  @map("from_status_id") @db.Uuid
@@ -720,10 +839,13 @@ model ProjectStatusEvent {
 
   @@index([projectId, occurredAt])
   @@index([toStatusId])
+  @@index([tenantId])
   @@map("project_status_events")
 }
 
 model BidDetail {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                 String   @id @map("id") @db.Uuid
   projectId          String   @unique @map("project_id") @db.Uuid
   biddingNumber      String   @map("bidding_number") @db.VarChar(60)
@@ -747,10 +869,13 @@ model BidDetail {
 
   @@index([biddingNumber])
   @@index([shipmentNumber])
+  @@index([tenantId])
   @@map("bid_details")
 }
 
 model ProjectCredentialDelivery {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id              String   @id @map("id") @db.Uuid
   projectId       String   @map("project_id") @db.Uuid
   clientContactId String?  @map("client_contact_id") @db.Uuid
@@ -766,10 +891,13 @@ model ProjectCredentialDelivery {
 
   @@index([projectId])
   @@index([sentAt])
+  @@index([tenantId])
   @@map("project_credential_deliveries")
 }
 
 model BidOutcomeEvent {
+  tenantId            String         @map("tenant_id") @db.Uuid
+  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                  String         @id @map("id") @db.Uuid
   projectId           String         @map("project_id") @db.Uuid
   outcome             BidOutcomeCode @map("outcome")
@@ -784,30 +912,35 @@ model BidOutcomeEvent {
 
   @@index([projectId, decidedAt])
   @@index([outcome])
+  @@index([tenantId])
   @@map("bid_outcome_events")
 }
 
 model ProjectConversionEvent {
-  id                  String   @id @map("id") @db.Uuid
-  projectId           String   @map("project_id") @db.Uuid
-  fromWorkspaceTypeId String   @map("from_workspace_type_id") @db.Uuid
-  toWorkspaceTypeId   String   @map("to_workspace_type_id") @db.Uuid
-  fromCode            String   @map("from_code") @db.VarChar(60)
-  toCode              String   @map("to_code") @db.VarChar(60)
-  convertedByActorId  String   @map("converted_by_actor_id") @db.Uuid
-  convertedAt         DateTime @default(now()) @map("converted_at") @db.Timestamp(6)
-  note                String?  @map("note") @db.Text
-
-  project           Project       @relation("ProjectConversionEventsProjectIdProjects", fields: [projectId], references: [id])
-  fromWorkspaceType WorkspaceType @relation("ProjectConversionEventsFromWorkspaceTypeIdWorkspaceTypes", fields: [fromWorkspaceTypeId], references: [id])
-  toWorkspaceType   WorkspaceType @relation("ProjectConversionEventsToWorkspaceTypeIdWorkspaceTypes", fields: [toWorkspaceTypeId], references: [id])
-  convertedByActor  ActorProfile  @relation("ProjectConversionEventsConvertedByActorIdActorProfiles", fields: [convertedByActorId], references: [id])
+  tenantId            String        @map("tenant_id") @db.Uuid
+  tenant              Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  id                  String        @id @map("id") @db.Uuid
+  projectId           String        @map("project_id") @db.Uuid
+  fromWorkspaceTypeId String        @map("from_workspace_type_id") @db.Uuid
+  toWorkspaceTypeId   String        @map("to_workspace_type_id") @db.Uuid
+  fromCode            String        @map("from_code") @db.VarChar(60)
+  toCode              String        @map("to_code") @db.VarChar(60)
+  convertedByActorId  String        @map("converted_by_actor_id") @db.Uuid
+  convertedAt         DateTime      @default(now()) @map("converted_at") @db.Timestamp(6)
+  note                String?       @map("note") @db.Text
+  project             Project       @relation("ProjectConversionEventsProjectIdProjects", fields: [projectId], references: [id])
+  fromWorkspaceType   WorkspaceType @relation("ProjectConversionEventsFromWorkspaceTypeIdWorkspaceTypes", fields: [fromWorkspaceTypeId], references: [id])
+  toWorkspaceType     WorkspaceType @relation("ProjectConversionEventsToWorkspaceTypeIdWorkspaceTypes", fields: [toWorkspaceTypeId], references: [id])
+  convertedByActor    ActorProfile  @relation("ProjectConversionEventsConvertedByActorIdActorProfiles", fields: [convertedByActorId], references: [id])
 
   @@index([projectId, convertedAt])
+  @@index([tenantId])
   @@map("project_conversion_events")
 }
 
 model ArchivedBidReviewRequest {
+  tenantId              String   @map("tenant_id") @db.Uuid
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                    String   @id @map("id") @db.Uuid
   projectId             String   @map("project_id") @db.Uuid
   requestedByActorId    String   @map("requested_by_actor_id") @db.Uuid
@@ -820,10 +953,13 @@ model ArchivedBidReviewRequest {
   restoredWorkRequest WorkRequest? @relation("ArchivedBidReviewRequestsRestoredWorkRequestIdWorkRequests", fields: [restoredWorkRequestId], references: [id])
 
   @@index([projectId, requestedAt])
+  @@index([tenantId])
   @@map("archived_bid_review_requests")
 }
 
 model DocumentCategory {
+  tenantId    String  @map("tenant_id") @db.Uuid
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id          String  @id @map("id") @db.Uuid
   name        String  @map("name") @db.VarChar(160)
   code        String? @map("code") @db.VarChar(40)
@@ -833,8 +969,9 @@ model DocumentCategory {
   documentsByDocumentCategoryId       Document[]         @relation("DocumentsDocumentCategoryIdDocumentCategories")
   registryDocumentsByListedCategoryId RegistryDocument[] @relation("RegistryDocumentsListedCategoryIdDocumentCategories")
 
-  @@unique([name])
+  @@unique([tenantId, name])
   @@index([code])
+  @@index([tenantId])
   @@map("document_categories")
 }
 
@@ -859,6 +996,8 @@ model AttachmentFileGroup {
 }
 
 model Document {
+  tenantId             String    @map("tenant_id") @db.Uuid
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                   String    @id @map("id") @db.Uuid
   projectId            String    @map("project_id") @db.Uuid
   workRequestId        String?   @map("work_request_id") @db.Uuid
@@ -885,10 +1024,13 @@ model Document {
   @@index([workRequestId])
   @@index([documentCodeOptionId])
   @@index([documentCategoryId])
+  @@index([tenantId])
   @@map("documents")
 }
 
 model DocumentVersion {
+  tenantId              String    @map("tenant_id") @db.Uuid
+  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                    String    @id @map("id") @db.Uuid
   documentId            String    @map("document_id") @db.Uuid
   versionNumber         Int       @map("version_number")
@@ -922,14 +1064,17 @@ model DocumentVersion {
   workRequestRevisionSubmissionDocumentsByDocumentVersionId WorkRequestRevisionSubmissionDocument[] @relation("WorkRequestRevisionSubmissionDocumentsDocumentVersionIdDocumentVersions")
   registryDocumentsByListedDocumentVersionId                RegistryDocument[]                      @relation("RegistryDocumentsListedDocumentVersionIdDocumentVersions")
 
-  @@unique([documentId, versionNumber])
+  @@unique([tenantId, documentId, versionNumber])
   @@index([documentId, uploadedAt])
   @@index([workflowStageStatusId])
   @@index([isRevisionUpload])
+  @@index([tenantId])
   @@map("document_versions")
 }
 
 model DocumentFolder {
+  tenantId       String         @map("tenant_id") @db.Uuid
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id             String         @id @map("id") @db.Uuid
   projectId      String         @map("project_id") @db.Uuid
   parentFolderId String?        @map("parent_folder_id") @db.Uuid
@@ -943,11 +1088,14 @@ model DocumentFolder {
   documentFoldersByParentFolderId          DocumentFolder[]                @relation("DocumentFoldersParentFolderIdDocumentFolders")
   documentVersionFolderLocationsByFolderId DocumentVersionFolderLocation[] @relation("DocumentVersionFolderLocationsFolderIdDocumentFolders")
 
-  @@unique([projectId, parentFolderId, folderName])
+  @@unique([tenantId, projectId, parentFolderId, folderName])
+  @@index([tenantId])
   @@map("document_folders")
 }
 
 model DocumentVersionFolderLocation {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                String   @id @map("id") @db.Uuid
   documentVersionId String   @map("document_version_id") @db.Uuid
   folderId          String   @map("folder_id") @db.Uuid
@@ -957,11 +1105,14 @@ model DocumentVersionFolderLocation {
   documentVersion DocumentVersion @relation("DocumentVersionFolderLocationsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
   folder          DocumentFolder  @relation("DocumentVersionFolderLocationsFolderIdDocumentFolders", fields: [folderId], references: [id])
 
-  @@unique([documentVersionId, folderId])
+  @@unique([tenantId, documentVersionId, folderId])
+  @@index([tenantId])
   @@map("document_version_folder_locations")
 }
 
 model DocumentVersionLink {
+  tenantId          String               @map("tenant_id") @db.Uuid
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                String               @id @map("id") @db.Uuid
   workRequestId     String               @map("work_request_id") @db.Uuid
   documentVersionId String               @map("document_version_id") @db.Uuid
@@ -973,19 +1124,24 @@ model DocumentVersionLink {
   documentVersion DocumentVersion @relation("DocumentVersionLinksDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
   linkedByActor   ActorProfile?   @relation("DocumentVersionLinksLinkedByActorIdActorProfiles", fields: [linkedByActorId], references: [id])
 
-  @@unique([workRequestId, documentVersionId, linkType])
+  @@unique([tenantId, workRequestId, documentVersionId, linkType])
   @@index([linkType])
+  @@index([tenantId])
   @@map("document_version_links")
 }
 
 model WorkRequestCategory {
+  tenantId    String  @map("tenant_id") @db.Uuid
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id          String  @id @map("id") @db.Uuid
-  name        String  @unique @map("name") @db.VarChar(160)
+  name        String  @map("name") @db.VarChar(160)
   description String? @map("description") @db.Text
   isActive    Boolean @default(true) @map("is_active")
 
   workRequestsByCategoryId WorkRequest[] @relation("WorkRequestsCategoryIdWorkRequestCategories")
 
+  @@unique([tenantId, name])
+  @@index([tenantId])
   @@map("work_request_categories")
 }
 
@@ -1001,13 +1157,17 @@ model WorkPrioritie {
 }
 
 model WorkRequestAttachmentCategory {
+  tenantId    String  @map("tenant_id") @db.Uuid
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id          String  @id @map("id") @db.Uuid
-  name        String  @unique @map("name") @db.VarChar(160)
+  name        String  @map("name") @db.VarChar(160)
   description String? @map("description") @db.Text
   isActive    Boolean @default(true) @map("is_active")
 
   workRequestsByAttachmentCategoryId WorkRequest[] @relation("WorkRequestsAttachmentCategoryIdWorkRequestAttachmentCategories")
 
+  @@unique([tenantId, name])
+  @@index([tenantId])
   @@map("work_request_attachment_categories")
 }
 
@@ -1055,6 +1215,8 @@ model WorkflowActionDefinition {
 }
 
 model WorkflowTransition {
+  tenantId             String  @map("tenant_id") @db.Uuid
+  tenant               Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                   String  @id @map("id") @db.Uuid
   actionId             String  @map("action_id") @db.Uuid
   fromStatusId         String? @map("from_status_id") @db.Uuid
@@ -1074,10 +1236,13 @@ model WorkflowTransition {
 
   @@index([actionId, fromStatusId, toStatusId])
   @@index([fromRoleId])
+  @@index([tenantId])
   @@map("workflow_transitions")
 }
 
 model WorkflowActionRolePermission {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id        String   @id @map("id") @db.Uuid
   actionId  String   @map("action_id") @db.Uuid
   roleId    String   @map("role_id") @db.Uuid
@@ -1087,13 +1252,16 @@ model WorkflowActionRolePermission {
   action WorkflowActionDefinition @relation("WorkflowActionRolePermissionsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
   role   Role                     @relation("WorkflowActionRolePermissionsRoleIdRoles", fields: [roleId], references: [id])
 
-  @@unique([actionId, roleId])
+  @@unique([tenantId, actionId, roleId])
+  @@index([tenantId])
   @@map("workflow_action_role_permissions")
 }
 
 model WorkRequest {
+  tenantId               String    @map("tenant_id") @db.Uuid
+  tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                     String    @id @map("id") @db.Uuid
-  code                   String    @unique @map("code") @db.VarChar(80)
+  code                   String    @map("code") @db.VarChar(80)
   projectId              String    @map("project_id") @db.Uuid
   title                  String    @map("title") @db.VarChar(260)
   categoryId             String    @map("category_id") @db.Uuid
@@ -1127,14 +1295,18 @@ model WorkRequest {
   registryDocumentsByWorkRequestId                 RegistryDocument[]             @relation("RegistryDocumentsWorkRequestIdWorkRequests")
   notificationsByWorkRequestId                     Notification[]                 @relation("NotificationsWorkRequestIdWorkRequests")
 
+  @@unique([tenantId, code])
   @@index([projectId])
   @@index([assignedDivisionId])
   @@index([originDivisionId])
   @@index([createdAt])
+  @@index([tenantId])
   @@map("work_requests")
 }
 
 model WorkRequestAssignment {
+  tenantId          String             @map("tenant_id") @db.Uuid
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                String             @id @map("id") @db.Uuid
   workRequestId     String             @map("work_request_id") @db.Uuid
   assignmentType    AssignmentTypeCode @map("assignment_type")
@@ -1150,10 +1322,13 @@ model WorkRequestAssignment {
 
   @@index([workRequestId, assignmentType, unassignedAt])
   @@index([memberId])
+  @@index([tenantId])
   @@map("work_request_assignments")
 }
 
 model WorkRequestAuditLog {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                 String   @id @map("id") @db.Uuid
   workRequestId      String   @map("work_request_id") @db.Uuid
   actionId           String?  @map("action_id") @db.Uuid
@@ -1180,10 +1355,13 @@ model WorkRequestAuditLog {
   @@index([actionId])
   @@index([toStatusId])
   @@index([performedByActorId])
+  @@index([tenantId])
   @@map("work_request_audit_logs")
 }
 
 model WorkRequestNote {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id               String   @id @map("id") @db.Uuid
   workRequestId    String   @map("work_request_id") @db.Uuid
   auditLogId       String?  @map("audit_log_id") @db.Uuid
@@ -1196,10 +1374,13 @@ model WorkRequestNote {
   createdByActor ActorProfile         @relation("WorkRequestNotesCreatedByActorIdActorProfiles", fields: [createdByActorId], references: [id])
 
   @@index([workRequestId, createdAt])
+  @@index([tenantId])
   @@map("work_request_notes")
 }
 
 model WorkRequestAuditAttachment {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                String   @id @map("id") @db.Uuid
   auditLogId        String   @map("audit_log_id") @db.Uuid
   documentVersionId String   @map("document_version_id") @db.Uuid
@@ -1208,7 +1389,8 @@ model WorkRequestAuditAttachment {
   auditLog        WorkRequestAuditLog @relation("WorkRequestAuditAttachmentsAuditLogIdWorkRequestAuditLogs", fields: [auditLogId], references: [id])
   documentVersion DocumentVersion     @relation("WorkRequestAuditAttachmentsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
 
-  @@unique([auditLogId, documentVersionId])
+  @@unique([tenantId, auditLogId, documentVersionId])
+  @@index([tenantId])
   @@map("work_request_audit_attachments")
 }
 
@@ -1223,6 +1405,8 @@ model InfoRequestStatus {
 }
 
 model WorkflowInfoRequest {
+  tenantId              String    @map("tenant_id") @db.Uuid
+  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                    String    @id @map("id") @db.Uuid
   workRequestId         String    @map("work_request_id") @db.Uuid
   parentInfoRequestId   String?   @map("parent_info_request_id") @db.Uuid
@@ -1256,10 +1440,13 @@ model WorkflowInfoRequest {
   @@index([targetRoleId])
   @@index([targetMemberId])
   @@index([targetClientContactId])
+  @@index([tenantId])
   @@map("workflow_info_requests")
 }
 
 model WorkflowInfoResponse {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                 String   @id @map("id") @db.Uuid
   infoRequestId      String   @map("info_request_id") @db.Uuid
   respondedByActorId String   @map("responded_by_actor_id") @db.Uuid
@@ -1271,6 +1458,7 @@ model WorkflowInfoResponse {
 
   @@index([infoRequestId])
   @@index([respondedByActorId])
+  @@index([tenantId])
   @@map("workflow_info_responses")
 }
 
@@ -1285,6 +1473,8 @@ model RevisionRequestStatus {
 }
 
 model WorkRequestRevisionRequest {
+  tenantId            String    @map("tenant_id") @db.Uuid
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                  String    @id @map("id") @db.Uuid
   workRequestId       String    @map("work_request_id") @db.Uuid
   sourceActionId      String?   @map("source_action_id") @db.Uuid
@@ -1310,10 +1500,13 @@ model WorkRequestRevisionRequest {
 
   @@index([workRequestId, requestedAt])
   @@index([revisionStatusId])
+  @@index([tenantId])
   @@map("work_request_revision_requests")
 }
 
 model WorkRequestRevisionDocument {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                String   @id @map("id") @db.Uuid
   revisionRequestId String   @map("revision_request_id") @db.Uuid
   documentVersionId String   @map("document_version_id") @db.Uuid
@@ -1324,11 +1517,14 @@ model WorkRequestRevisionDocument {
   documentVersion DocumentVersion            @relation("WorkRequestRevisionDocumentsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
   attachedByActor ActorProfile?              @relation("WorkRequestRevisionDocumentsAttachedByActorIdActorProfiles", fields: [attachedByActorId], references: [id])
 
-  @@unique([revisionRequestId, documentVersionId])
+  @@unique([tenantId, revisionRequestId, documentVersionId])
+  @@index([tenantId])
   @@map("work_request_revision_documents")
 }
 
 model WorkRequestRevisionSubmission {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                 String   @id @map("id") @db.Uuid
   revisionRequestId  String   @map("revision_request_id") @db.Uuid
   submittedByActorId String   @map("submitted_by_actor_id") @db.Uuid
@@ -1340,10 +1536,13 @@ model WorkRequestRevisionSubmission {
   workRequestRevisionSubmissionDocumentsByRevisionSubmissionId WorkRequestRevisionSubmissionDocument[] @relation("WorkRequestRevisionSubmissionDocumentsRevisionSubmissionIdWorkRequestRevisionSubmissions")
 
   @@index([revisionRequestId, submittedAt])
+  @@index([tenantId])
   @@map("work_request_revision_submissions")
 }
 
 model WorkRequestRevisionSubmissionDocument {
+  tenantId             String   @map("tenant_id") @db.Uuid
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                   String   @id @map("id") @db.Uuid
   revisionSubmissionId String   @map("revision_submission_id") @db.Uuid
   documentVersionId    String   @map("document_version_id") @db.Uuid
@@ -1352,7 +1551,8 @@ model WorkRequestRevisionSubmissionDocument {
   revisionSubmission WorkRequestRevisionSubmission @relation("WorkRequestRevisionSubmissionDocumentsRevisionSubmissionIdWorkRequestRevisionSubmissions", fields: [revisionSubmissionId], references: [id])
   documentVersion    DocumentVersion               @relation("WorkRequestRevisionSubmissionDocumentsDocumentVersionIdDocumentVersions", fields: [documentVersionId], references: [id])
 
-  @@unique([revisionSubmissionId, documentVersionId])
+  @@unique([tenantId, revisionSubmissionId, documentVersionId])
+  @@index([tenantId])
   @@map("work_request_revision_submission_documents")
 }
 
@@ -1367,6 +1567,8 @@ model DecisionResult {
 }
 
 model WorkRequestDecision {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id               String   @id @map("id") @db.Uuid
   workRequestId    String   @map("work_request_id") @db.Uuid
   actionId         String   @map("action_id") @db.Uuid
@@ -1386,10 +1588,13 @@ model WorkRequestDecision {
 
   @@index([workRequestId, decidedAt])
   @@index([decisionResultId])
+  @@index([tenantId])
   @@map("work_request_decisions")
 }
 
 model RegistryDocument {
+  tenantId                String    @map("tenant_id") @db.Uuid
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                      String    @id @map("id") @db.Uuid
   projectId               String    @map("project_id") @db.Uuid
   workRequestId           String    @map("work_request_id") @db.Uuid
@@ -1413,10 +1618,13 @@ model RegistryDocument {
   @@index([projectId])
   @@index([workRequestId])
   @@index([listedAt])
+  @@index([tenantId])
   @@map("registry_documents")
 }
 
 model Notification {
+  tenantId           String                      @map("tenant_id") @db.Uuid
+  tenant             Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                 String                      @id @map("id") @db.Uuid
   notificationKind   NotificationKindCode        @map("notification_kind")
   projectId          String?                     @map("project_id") @db.Uuid
@@ -1440,10 +1648,13 @@ model Notification {
   @@index([projectId])
   @@index([workRequestId])
   @@index([triggeredAt])
+  @@index([tenantId])
   @@map("notifications")
 }
 
 model NotificationRecipient {
+  tenantId       String    @map("tenant_id") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id             String    @id @map("id") @db.Uuid
   notificationId String    @map("notification_id") @db.Uuid
   actorId        String    @map("actor_id") @db.Uuid
@@ -1455,12 +1666,15 @@ model NotificationRecipient {
   notification Notification @relation("NotificationRecipientsNotificationIdNotifications", fields: [notificationId], references: [id])
   actor        ActorProfile @relation("NotificationRecipientsActorIdActorProfiles", fields: [actorId], references: [id])
 
-  @@unique([notificationId, actorId])
+  @@unique([tenantId, notificationId, actorId])
   @@index([actorId, readAt])
+  @@index([tenantId])
   @@map("notification_recipients")
 }
 
 model SystemAuditLog {
+  tenantId           String              @map("tenant_id") @db.Uuid
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   id                 String              @id @map("id") @db.Uuid
   entityType         AuditEntityTypeCode @map("entity_type")
   entityId           String              @map("entity_id") @db.Uuid
@@ -1477,5 +1691,6 @@ model SystemAuditLog {
   @@index([entityType, entityId])
   @@index([performedByActorId])
   @@index([occurredAt])
+  @@index([tenantId])
   @@map("system_audit_logs")
 }
