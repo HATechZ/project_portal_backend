@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
-import { LoginDto, RegisterDto } from './dtos';
+import { LoginDto } from './dtos';
 import { AuthSessionProvider } from './providers';
 import { SessionUser } from './repositories';
 
@@ -10,10 +10,6 @@ export class AuthService {
 
   login(request: Request, input: LoginDto): Promise<SessionUser> {
     return this.sessionProvider.login(request, input);
-  }
-
-  register(request: Request, input: RegisterDto): Promise<SessionUser> {
-    return this.sessionProvider.register(request, input);
   }
 
   logout(request: Request): Promise<void> {

@@ -1,12 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import 'express-session';
-import { Prisma } from '../../generated/prisma/client';
-import { LoginDto, RegisterDto } from '../dtos';
+import { LoginDto } from '../dtos';
 import { AuthSessionRepository, SessionUser } from '../repositories';
 import { AuthHashingProvider } from './auth-hashing.provider';
 
@@ -38,32 +33,6 @@ export class AuthSessionProvider {
     request.session.userId = credentials.id;
     await this.save(request);
     return this.repository.recordLogin(credentials.id);
-  }
-
-  async register(
-    request: Request,
-    { fullName, email, password, avatarUrl }: RegisterDto,
-  ): Promise<SessionUser> {
-    try {
-      const user = await this.repository.createUser({
-        fullName,
-        email,
-        avatarUrl,
-        passwordHash: await this.hashingProvider.hash(password),
-      });
-      await this.regenerate(request);
-      request.session.userId = user.id;
-      await this.save(request);
-      return user;
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('A user with this email already exists');
-      }
-      throw error;
-    }
   }
 
   findActiveUser(id: string): Promise<SessionUser | null> {

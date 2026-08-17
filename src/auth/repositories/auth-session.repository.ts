@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
@@ -44,13 +43,6 @@ export class AuthSessionRepository {
   findActiveUser(id: string): Promise<SessionUser | null> {
     return this.prisma.user.findFirst({
       where: { id, isActive: true },
-      select: sessionUserSelect,
-    });
-  }
-
-  createUser(data: Omit<Prisma.UserCreateInput, 'id'>): Promise<SessionUser> {
-    return this.prisma.user.create({
-      data: { id: randomUUID(), ...data },
       select: sessionUserSelect,
     });
   }

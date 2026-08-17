@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthenticatedGuard } from './guards/authenticated.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { SystemAdminGuard } from './guards/system-admin.guard';
 import { AuthHashingProvider, AuthSessionProvider } from './providers';
 import { AuthSessionRepository } from './repositories';
 
@@ -15,7 +16,14 @@ import { AuthSessionRepository } from './repositories';
     AuthSessionRepository,
     AuthenticatedGuard,
     PermissionsGuard,
+    SystemAdminGuard,
   ],
-  exports: [AuthHashingProvider, AuthenticatedGuard, PermissionsGuard],
+  exports: [
+    AuthHashingProvider,
+    AuthSessionProvider,
+    AuthenticatedGuard,
+    PermissionsGuard,
+    SystemAdminGuard,
+  ],
 })
 export class AuthModule {}

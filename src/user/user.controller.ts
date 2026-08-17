@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -21,6 +22,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CreateUserDto, UpdateUserDto } from './dtos';
+import { AuthenticatedGuard } from '../auth/guards/authenticated.guard';
+import { SystemAdminGuard } from '../auth/guards/system-admin.guard';
 import { UserService } from './user.service';
 
 @ApiTags('users')
@@ -29,6 +32,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @UseGuards(AuthenticatedGuard, SystemAdminGuard)
   @ApiOperation({ summary: 'Create a user' })
   @ApiCreatedResponse({ description: 'User created' })
   @ApiConflictResponse({ description: 'Email is already in use' })
