@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CreateUserDto, UpdateUserDto } from './dtos';
+import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { AuthenticatedGuard } from '../auth/guards/authenticated.guard';
 import { SystemAdminGuard } from '../auth/guards/system-admin.guard';
 import { UserService } from './user.service';
@@ -44,8 +46,8 @@ export class UserController {
   @Get()
   @ApiOperation({ summary: 'List all users' })
   @ApiOkResponse({ description: 'Users returned' })
-  findAll() {
-    return this.userService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.userService.findAll(query);
   }
 
   @Get(':id')

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { PaginationArgs } from '../../common/pagination/paginate';
 
 export const publicUserSelect = {
   id: true,
@@ -29,11 +30,17 @@ export class UserRepository {
     });
   }
 
-  findAll(): Promise<PublicUser[]> {
+  findAll({ skip, take }: PaginationArgs): Promise<PublicUser[]> {
     return this.prisma.user.findMany({
       orderBy: { id: 'asc' },
+      skip,
+      take,
       select: publicUserSelect,
     });
+  }
+
+  count(): Promise<number> {
+    return this.prisma.user.count();
   }
 
   findById(id: string): Promise<PublicUser | null> {

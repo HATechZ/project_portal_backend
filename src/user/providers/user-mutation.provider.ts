@@ -10,7 +10,7 @@ import { CreateUserDto, UpdateUserDto } from '../dtos';
 import { PublicUser, UserRepository } from '../repositories';
 
 @Injectable()
-export class UserCreateProvider {
+export class UserMutationProvider {
   constructor(
     private readonly repository: UserRepository,
     private readonly hashingProvider: AuthHashingProvider,
@@ -32,16 +32,6 @@ export class UserCreateProvider {
     } catch (error) {
       this.handlePersistenceError(error);
     }
-  }
-
-  findAll(): Promise<PublicUser[]> {
-    return this.repository.findAll();
-  }
-
-  async findOne(id: string): Promise<PublicUser> {
-    const user = await this.repository.findById(id);
-    if (!user) throw new NotFoundException(`User with ID ${id} was not found`);
-    return user;
   }
 
   async update(
