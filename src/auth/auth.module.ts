@@ -1,23 +1,29 @@
 import { Module } from '@nestjs/common';
-import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { GetCurrentUserHandler } from './handlers/get-current-user.handler';
-import { LoginHandler } from './handlers/login.handler';
-import { LogoutHandler } from './handlers/logout.handler';
-import { LocalStrategy } from './strategies/local.strategy';
-import { SessionSerializer } from './strategies/session.serializer';
+import { AuthenticatedGuard } from './guards/authenticated.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { SystemAdminGuard } from './guards/system-admin.guard';
+import { AuthHashingProvider, AuthSessionProvider } from './providers';
+import { AuthSessionRepository } from './repositories';
 
 @Module({
-  imports: [PassportModule.register({ session: true })],
   controllers: [AuthController],
   providers: [
     AuthService,
-    LocalStrategy,
-    SessionSerializer,
-    LoginHandler,
-    LogoutHandler,
-    GetCurrentUserHandler,
+    AuthSessionProvider,
+    AuthHashingProvider,
+    AuthSessionRepository,
+    AuthenticatedGuard,
+    PermissionsGuard,
+    SystemAdminGuard,
+  ],
+  exports: [
+    AuthHashingProvider,
+    AuthSessionProvider,
+    AuthenticatedGuard,
+    PermissionsGuard,
+    SystemAdminGuard,
   ],
 })
 export class AuthModule {}

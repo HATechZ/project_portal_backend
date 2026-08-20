@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { CqrsModule } from '@nestjs/cqrs';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
@@ -11,7 +10,7 @@ import { MailWorkersModule } from './infra/mail/mail-workers.module';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { ThrottlerModule } from './infra/throttler/throttler.module';
-import { UsersModule } from './users/users.module';
+import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { SessionModule } from './infra/session/session.module';
 
@@ -23,7 +22,6 @@ import { SessionModule } from './infra/session/session.module';
       load: [configuration],
       validationSchema: environmentSchema,
     }),
-    CqrsModule.forRoot(),
     OpenApiModule.register(),
     PrismaModule,
     RedisModule,
@@ -31,7 +29,7 @@ import { SessionModule } from './infra/session/session.module';
     ThrottlerModule,
     MailModule,
     MailWorkersModule,
-    UsersModule,
+    UserModule,
     AuthModule,
   ],
   controllers: [AppController],

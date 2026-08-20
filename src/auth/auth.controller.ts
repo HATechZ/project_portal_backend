@@ -8,62 +8,48 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
-  ApiBody,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { Request } from 'express';
-import { UserEntity } from '../users/entities/user.entity';
-import { AuthUser } from './auth-user.type';
-import { LoginCommand } from './commands/login.command';
-import { LogoutCommand } from './commands/logout.command';
-import { LoginDto } from './dto/login.dto';
-import { LocalAuthGuard } from './guards/local-auth.guard';
-import { SessionAuthGuard } from './guards/session-auth.guard';
-import { GetCurrentUserQuery } from './queries/get-current-user.query';
-
-type AuthenticatedRequest = Request & { user: AuthUser };
+import type { Request } from 'express';
+import { ActiveUser } from './decorators/active-user.decorator';
+import { LoginDto } from './dtos';
+import { AuthenticatedGuard } from './guards/authenticated.guard';
+import type { SessionUser } from './repositories';
+import { AuthService } from './auth.service';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly commandBus: CommandBus,
-    private readonly queryBus: QueryBus,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(LocalAuthGuard)
   @ApiOperation({ summary: 'Log in and create a session' })
-  @ApiBody({ type: LoginDto })
-  @ApiOkResponse({ type: UserEntity })
+  @ApiOkResponse({ description: 'Authenticated user' })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
-  login(@Body() _dto: LoginDto, @Req() request: AuthenticatedRequest) {
-    return this.commandBus.execute(new LoginCommand(request, request.user));
+  login(@Req() request: Request, @Body() input: LoginDto) {
+    return this.authService.login(request, input);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(AuthenticatedGuard)
   @ApiOperation({ summary: 'Log out and destroy the session' })
   @ApiNoContentResponse({ description: 'Logged out' })
-  @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  logout(@Req() request: AuthenticatedRequest) {
-    return this.commandBus.execute(new LogoutCommand(request));
+  logout(@Req() request: Request) {
+    return this.authService.logout(request);
   }
 
   @Get('me')
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(AuthenticatedGuard)
   @ApiOperation({ summary: 'Get the authenticated user' })
-  @ApiOkResponse({ type: UserEntity })
-  @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  me(@Req() request: AuthenticatedRequest) {
-    return this.queryBus.execute(new GetCurrentUserQuery(request.user));
+  @ApiOkResponse({ description: 'Authenticated user' })
+  me(@ActiveUser() user: SessionUser) {
+    return this.authService.currentUser(user);
   }
 }
