@@ -13,7 +13,6 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
   ApiSecurity,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -23,11 +22,18 @@ import { AuthenticatedGuard } from './guards/authenticated.guard';
 import type { SessionUser } from './repositories';
 import { AuthService } from './auth.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
+import {
+  ApiStandardBadRequestResponse,
+  ApiStandardForbiddenResponse,
+  ApiStandardUnauthorizedResponse,
+} from '../common/decorators/api-standard-response.decorator';
 
 @ApiTags('auth')
 @ApiSecurity('tenant')
 @Controller('auth')
 @UseGuards(TenantContextGuard)
+@ApiStandardBadRequestResponse()
+@ApiStandardForbiddenResponse()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -35,7 +41,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log in and create a session' })
   @ApiOkResponse({ description: 'Authenticated user' })
-  @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
+  @ApiStandardUnauthorizedResponse('Invalid email or password')
   login(@Req() request: Request, @Body() input: LoginDto) {
     return this.authService.login(request, input);
   }
@@ -45,6 +51,7 @@ export class AuthController {
   @UseGuards(AuthenticatedGuard)
   @ApiOperation({ summary: 'Log out and destroy the session' })
   @ApiNoContentResponse({ description: 'Logged out' })
+  @ApiStandardUnauthorizedResponse()
   logout(@Req() request: Request) {
     return this.authService.logout(request);
   }
@@ -53,6 +60,7 @@ export class AuthController {
   @UseGuards(AuthenticatedGuard)
   @ApiOperation({ summary: 'Get the authenticated user' })
   @ApiOkResponse({ description: 'Authenticated user' })
+  @ApiStandardUnauthorizedResponse()
   me(@ActiveUser() user: SessionUser) {
     return this.authService.currentUser(user);
   }
