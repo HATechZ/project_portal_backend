@@ -8,9 +8,12 @@ export const adminSeeder: Seeder = {
   async run({ prisma, admin }) {
     const passwordHash = await hash(admin.password, 12);
     const user = await prisma.user.upsert({
-      where: { email: admin.email },
+      where: {
+        tenantId_email: { tenantId: admin.tenantId, email: admin.email },
+      },
       create: {
         id: ADMIN_IDS.user,
+        tenantId: admin.tenantId,
         email: admin.email,
         fullName: admin.fullName,
         passwordHash,
@@ -32,16 +35,23 @@ export const adminSeeder: Seeder = {
       where: { id: ADMIN_IDS.userRole },
       create: {
         id: ADMIN_IDS.userRole,
+        tenantId: admin.tenantId,
         userId: user.id,
         roleId,
         assignedByUserId: user.id,
       },
-      update: { userId: user.id, roleId, revokedAt: null },
+      update: {
+        tenantId: admin.tenantId,
+        userId: user.id,
+        roleId,
+        revokedAt: null,
+      },
     });
     await prisma.actorProfile.upsert({
       where: { id: ADMIN_IDS.actorProfile },
       create: {
         id: ADMIN_IDS.actorProfile,
+        tenantId: admin.tenantId,
         userId: user.id,
         roleId,
         label: admin.fullName,
@@ -49,6 +59,7 @@ export const adminSeeder: Seeder = {
         isActive: true,
       },
       update: {
+        tenantId: admin.tenantId,
         userId: user.id,
         roleId,
         label: admin.fullName,

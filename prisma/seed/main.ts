@@ -7,8 +7,11 @@ import { rolesSeeder } from './seeders/roles.seeder';
 import { workflowStatusesSeeder } from './seeders/workflow-statuses.seeder';
 import { workspaceTypesSeeder } from './seeders/workspace-types.seeder';
 import { Seeder } from './types';
+import { tenantSeeder } from './seeders/tenant.seeder';
+import { DEFAULT_TENANT_ID } from './data/tenants.data';
 
 const seeders: Seeder[] = [
+  tenantSeeder,
   rolesSeeder,
   workspaceTypesSeeder,
   projectStatusesSeeder,
@@ -27,6 +30,7 @@ function adminConfig() {
     email: process.env.SEED_ADMIN_EMAIL ?? 'admin@project-portal.local',
     fullName: process.env.SEED_ADMIN_FULL_NAME ?? 'System Administrator',
     password,
+    tenantId: process.env.SEED_TENANT_ID ?? DEFAULT_TENANT_ID,
   };
 }
 

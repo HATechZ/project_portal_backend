@@ -1,6 +1,6 @@
-import { PrismaClient } from '../../generated/prisma/client';
+import { TenantPrismaClient } from './tenant-prisma.extension';
 
 export type PrismaTransactionClient = Parameters<
-  Parameters<PrismaClient['$transaction']>[0]
+  Parameters<TenantPrismaClient['$transaction']>[0]
 >[0];
-export type PrismaExecutor = PrismaClient | PrismaTransactionClient;
+export type PrismaExecutor = TenantPrismaClient | PrismaTransactionClient;

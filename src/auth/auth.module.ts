@@ -6,6 +6,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
 import { SystemAdminGuard } from './guards/system-admin.guard';
 import { AuthHashingProvider, AuthSessionProvider } from './providers';
 import { AuthSessionRepository } from './repositories';
+import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 
 @Module({
   controllers: [AuthController],
@@ -17,6 +18,7 @@ import { AuthSessionRepository } from './repositories';
     AuthenticatedGuard,
     PermissionsGuard,
     SystemAdminGuard,
+    TenantContextGuard,
   ],
   exports: [
     AuthHashingProvider,

@@ -24,8 +24,8 @@ export class UserMutationProvider {
   }: CreateUserDto): Promise<PublicUser> {
     try {
       return await this.repository.create({
-        fullName,
-        email,
+        fullName: fullName.trim(),
+        email: this.normalizeEmail(email),
         avatarUrl,
         passwordHash: await this.hashingProvider.hash(password),
       });
@@ -36,21 +36,23 @@ export class UserMutationProvider {
 
   async update(
     id: string,
-    { fullName, email, password, avatarUrl }: UpdateUserDto,
+    { fullName, email, password, avatarUrl, isActive }: UpdateUserDto,
   ): Promise<PublicUser> {
     if (
       fullName === undefined &&
       email === undefined &&
       password === undefined &&
-      avatarUrl === undefined
+      avatarUrl === undefined &&
+      isActive === undefined
     ) {
       throw new BadRequestException('At least one field is required');
     }
     try {
       return await this.repository.update(id, {
-        ...(fullName !== undefined ? { fullName } : {}),
-        ...(email !== undefined ? { email } : {}),
+        ...(fullName !== undefined ? { fullName: fullName.trim() } : {}),
+        ...(email !== undefined ? { email: this.normalizeEmail(email) } : {}),
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(isActive !== undefined ? { isActive } : {}),
         ...(password !== undefined
           ? { passwordHash: await this.hashingProvider.hash(password) }
           : {}),
@@ -76,7 +78,16 @@ export class UserMutationProvider {
       if (error.code === 'P2025' && id !== undefined) {
         throw new NotFoundException(`User with ID ${id} was not found`);
       }
+      if (error.code === 'P2003' && id !== undefined) {
+        throw new ConflictException(
+          'This user is referenced by other records and cannot be deleted',
+        );
+      }
     }
     throw error;
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
   }
 }

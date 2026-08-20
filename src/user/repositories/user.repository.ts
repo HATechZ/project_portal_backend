@@ -23,15 +23,20 @@ export type PublicUser = Prisma.UserGetPayload<{
 export class UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Omit<Prisma.UserCreateInput, 'id'>): Promise<PublicUser> {
-    return this.prisma.user.create({
-      data: { id: randomUUID(), ...data },
+  create(
+    data: Omit<Prisma.UserUncheckedCreateInput, 'id' | 'tenantId'>,
+  ): Promise<PublicUser> {
+    return this.prisma.scoped.user.create({
+      data: {
+        id: randomUUID(),
+        ...data,
+      } as unknown as Prisma.UserUncheckedCreateInput,
       select: publicUserSelect,
     });
   }
 
   findAll({ skip, take }: PaginationArgs): Promise<PublicUser[]> {
-    return this.prisma.user.findMany({
+    return this.prisma.scoped.user.findMany({
       orderBy: { id: 'asc' },
       skip,
       take,
@@ -40,18 +45,18 @@ export class UserRepository {
   }
 
   count(): Promise<number> {
-    return this.prisma.user.count();
+    return this.prisma.scoped.user.count();
   }
 
   findById(id: string): Promise<PublicUser | null> {
-    return this.prisma.user.findUnique({
+    return this.prisma.scoped.user.findUnique({
       where: { id },
       select: publicUserSelect,
     });
   }
 
   update(id: string, data: Prisma.UserUpdateInput): Promise<PublicUser> {
-    return this.prisma.user.update({
+    return this.prisma.scoped.user.update({
       where: { id },
       data: { ...data, updatedAt: new Date() },
       select: publicUserSelect,
@@ -59,6 +64,6 @@ export class UserRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.user.delete({ where: { id } });
+    await this.prisma.scoped.user.delete({ where: { id } });
   }
 }
