@@ -33,18 +33,16 @@ import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 @ApiTags('users')
 @ApiSecurity('tenant')
 @Controller('users')
-@UseGuards(TenantContextGuard)
+@UseGuards(TenantContextGuard, AuthenticatedGuard, SystemAdminGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  @UseGuards(AuthenticatedGuard, SystemAdminGuard)
   @ApiOperation({ summary: 'Create a user' })
   @ApiCreatedResponse({ description: 'User created' })
   @ApiConflictResponse({ description: 'Email is already in use' })
   create(@Body() input: CreateUserDto) {
-    const { fullName, email, password, avatarUrl } = input;
-    return this.userService.create({ fullName, email, password, avatarUrl });
+    return this.userService.create(input);
   }
 
   @Get()
@@ -70,13 +68,7 @@ export class UserController {
   @ApiNotFoundResponse({ description: 'User was not found' })
   @ApiConflictResponse({ description: 'Email is already in use' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() input: UpdateUserDto) {
-    const { fullName, email, password, avatarUrl } = input;
-    return this.userService.update(id, {
-      fullName,
-      email,
-      password,
-      avatarUrl,
-    });
+    return this.userService.update(id, input);
   }
 
   @Delete(':id')
