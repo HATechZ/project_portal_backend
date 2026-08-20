@@ -16,6 +16,7 @@ export interface AppConfiguration {
   };
   database: { url: string };
   redis: { url: string; keyPrefix: string };
+  session: { secret: string; maxAgeMs: number };
   throttler: { ttlMs: number; limit: number };
   mail: {
     host: string;
@@ -46,12 +47,16 @@ export default function configuration(): AppConfiguration {
       url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
       keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'project-portal:',
     },
+    session: {
+      secret: process.env.SESSION_SECRET ?? 'change-this-session-secret',
+      maxAgeMs: Number(process.env.SESSION_MAX_AGE_MS ?? 86400000),
+    },
     throttler: {
       ttlMs: Number(process.env.THROTTLE_TTL_MS ?? 60000),
       limit: Number(process.env.THROTTLE_LIMIT ?? 100),
     },
     mail: {
-      host: process.env.SMTP_HOST ?? 'localhost',
+      host: process.env.SMTP_HOST ?? '127.0.0.1',
       port: Number(process.env.SMTP_PORT ?? 1025),
       secure: process.env.SMTP_SECURE === 'true',
       user: process.env.SMTP_USER || undefined,

@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { hash } from 'bcryptjs';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -15,8 +16,14 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto) {
     try {
+      const { password, ...userData } = createUserDto;
       return await this.prisma.user.create({
-        data: { id: randomUUID(), ...createUserDto },
+        data: {
+          id: randomUUID(),
+          ...userData,
+          passwordHash: await hash(password, 12),
+        },
+        select: this.publicUserSelect,
       });
     } catch (error) {
       this.handleKnownError(error);
@@ -24,11 +31,17 @@ export class UsersService {
   }
 
   findAll() {
-    return this.prisma.user.findMany({ orderBy: { id: 'asc' } });
+    return this.prisma.user.findMany({
+      orderBy: { id: 'asc' },
+      select: this.publicUserSelect,
+    });
   }
 
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: this.publicUserSelect,
+    });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} was not found`);
@@ -39,9 +52,14 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     try {
+      const { password, ...userData } = updateUserDto;
       return await this.prisma.user.update({
         where: { id },
-        data: updateUserDto,
+        data: {
+          ...userData,
+          ...(password ? { passwordHash: await hash(password, 12) } : {}),
+        },
+        select: this.publicUserSelect,
       });
     } catch (error) {
       this.handleKnownError(error, id);
@@ -69,4 +87,15 @@ export class UsersService {
 
     throw error;
   }
+
+  private readonly publicUserSelect = {
+    id: true,
+    fullName: true,
+    email: true,
+    avatarUrl: true,
+    isActive: true,
+    lastLoginAt: true,
+    createdAt: true,
+    updatedAt: true,
+  } satisfies Prisma.UserSelect;
 }

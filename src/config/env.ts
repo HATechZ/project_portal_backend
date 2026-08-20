@@ -10,6 +10,8 @@ export interface EnvironmentVariables {
   DATABASE_URL: string;
   REDIS_URL: string;
   REDIS_KEY_PREFIX: string;
+  SESSION_SECRET: string;
+  SESSION_MAX_AGE_MS: number;
   THROTTLE_TTL_MS: number;
   THROTTLE_LIMIT: number;
   SMTP_HOST: string;
@@ -30,6 +32,8 @@ export const env = {
   databaseUrl: 'DATABASE_URL',
   redisUrl: 'REDIS_URL',
   redisKeyPrefix: 'REDIS_KEY_PREFIX',
+  sessionSecret: 'SESSION_SECRET',
+  sessionMaxAgeMs: 'SESSION_MAX_AGE_MS',
   throttleTtlMs: 'THROTTLE_TTL_MS',
   throttleLimit: 'THROTTLE_LIMIT',
   smtpHost: 'SMTP_HOST',

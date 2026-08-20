@@ -12,6 +12,8 @@ import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { ThrottlerModule } from './infra/throttler/throttler.module';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { SessionModule } from './infra/session/session.module';
 
 @Module({
   imports: [
@@ -25,10 +27,12 @@ import { UsersModule } from './users/users.module';
     OpenApiModule.register(),
     PrismaModule,
     RedisModule,
+    SessionModule,
     ThrottlerModule,
     MailModule,
     MailWorkersModule,
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
