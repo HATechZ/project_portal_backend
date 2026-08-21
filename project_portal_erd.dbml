@@ -18,7 +18,6 @@ Project Project_Portal_Workflow_Management_ERD {
 
 Enum actor_role_code {
   system_admin
-  prime_consultant
   ccr_coordinator
   division_lead
   division_member
@@ -114,7 +113,6 @@ Enum workflow_action_code {
   MARKETING_SUBMIT_CLIENT_REVISION
   ENGINEERING_REQUEST_TMS_REVISION
   CLIENT_REQUEST_REVISION
-  MARKETING_SEND_CLIENT_REVISION_TO_PM
   CLIENT_ACCEPT_FINAL
   CLIENT_REJECT_FINAL
   ORIGIN_MEMBER_APPROVE

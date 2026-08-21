@@ -5,10 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import {
-  ActorRoleCode,
-  WorkflowActionCode,
-} from '../../generated/prisma/client';
+import { WorkflowActionCode } from '../../generated/prisma/client';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { SessionUser } from '../repositories';
 
@@ -27,9 +24,6 @@ export class PermissionsGuard implements CanActivate {
       .switchToHttp()
       .getRequest<{ user?: SessionUser }>().user;
     const roles = user?.userRolesByUserId.map(({ role }) => role) ?? [];
-    if (roles.some(({ code }) => code === ActorRoleCode.system_admin))
-      return true;
-
     const granted = new Set(
       roles.flatMap(({ workflowActionRolePermissionsByRoleId }) =>
         workflowActionRolePermissionsByRoleId.map(({ action }) => action.code),

@@ -9,6 +9,7 @@ import { workspaceTypesSeeder } from './seeders/workspace-types.seeder';
 import { Seeder } from './types';
 import { tenantSeeder } from './seeders/tenant.seeder';
 import { DEFAULT_TENANT_ID } from './data/tenants.data';
+import { permissionsSeeder } from './seeders/permissions.seeder';
 
 const seeders: Seeder[] = [
   tenantSeeder,
@@ -16,6 +17,7 @@ const seeders: Seeder[] = [
   workspaceTypesSeeder,
   projectStatusesSeeder,
   workflowStatusesSeeder,
+  permissionsSeeder,
   adminSeeder,
 ];
 

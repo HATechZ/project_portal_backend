@@ -2,7 +2,6 @@ import { ActorRoleCode } from '../../../src/generated/prisma/client';
 
 export const ROLE_IDS: Record<ActorRoleCode, string> = {
   system_admin: '10000000-0000-4000-8000-000000000001',
-  prime_consultant: '10000000-0000-4000-8000-000000000002',
   ccr_coordinator: '10000000-0000-4000-8000-000000000003',
   division_lead: '10000000-0000-4000-8000-000000000004',
   division_member: '10000000-0000-4000-8000-000000000005',
@@ -18,11 +17,6 @@ export const roles = [
     code: ActorRoleCode.system_admin,
     name: 'System Administrator',
     description: 'Full system administration access.',
-  },
-  {
-    code: ActorRoleCode.prime_consultant,
-    name: 'Prime Consultant',
-    description: 'Prime consultant project access.',
   },
   {
     code: ActorRoleCode.ccr_coordinator,

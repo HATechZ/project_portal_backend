@@ -9,6 +9,7 @@ import { RedisStore } from 'connect-redis';
 import session from 'express-session';
 import { createClient, RedisClientType } from 'redis';
 import { AppConfiguration } from '../../config/configuration';
+import { SESSION_COOKIE_NAME } from './session.constants';
 
 @Injectable()
 export class SessionService implements OnModuleInit, OnApplicationShutdown {
@@ -36,7 +37,7 @@ export class SessionService implements OnModuleInit, OnApplicationShutdown {
       session({
         store: this.store,
         secret: this.config.get('session.secret', { infer: true }),
-        name: 'project_portal.sid',
+        name: SESSION_COOKIE_NAME,
         resave: false,
         saveUninitialized: false,
         cookie: {

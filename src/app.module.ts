@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { SessionModule } from './infra/session/session.module';
 import { TenantContextMiddleware } from './common/tenant/tenant-context.middleware';
 import { TenantContextGuard } from './common/tenant/tenant-context.guard';
+import { RolePermissionModule } from './role-permission/role-permission.module';
 
 @Module({
   imports: [
@@ -33,12 +34,13 @@ import { TenantContextGuard } from './common/tenant/tenant-context.guard';
     MailWorkersModule,
     UserModule,
     AuthModule,
+    RolePermissionModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantContextGuard],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(TenantContextMiddleware).forRoutes('*');
+    consumer.apply(TenantContextMiddleware).forRoutes('{*path}');
   }
 }

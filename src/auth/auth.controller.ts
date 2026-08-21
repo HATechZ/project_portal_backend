@@ -29,7 +29,6 @@ import {
 } from '../common/decorators/api-standard-response.decorator';
 
 @ApiTags('auth')
-@ApiSecurity('tenant')
 @Controller('auth')
 @UseGuards(TenantContextGuard)
 @ApiStandardBadRequestResponse()
@@ -39,6 +38,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiSecurity('tenant')
   @ApiOperation({ summary: 'Log in and create a session' })
   @ApiOkResponse({ description: 'Authenticated user' })
   @ApiStandardUnauthorizedResponse('Invalid email or password')
@@ -49,6 +49,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthenticatedGuard)
+  @ApiSecurity('session')
   @ApiOperation({ summary: 'Log out and destroy the session' })
   @ApiNoContentResponse({ description: 'Logged out' })
   @ApiStandardUnauthorizedResponse()
@@ -58,6 +59,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthenticatedGuard)
+  @ApiSecurity('session')
   @ApiOperation({ summary: 'Get the authenticated user' })
   @ApiOkResponse({ description: 'Authenticated user' })
   @ApiStandardUnauthorizedResponse()

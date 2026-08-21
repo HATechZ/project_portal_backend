@@ -27,6 +27,22 @@ function responseSchema<TModel extends Type<unknown>>(model: TModel) {
   };
 }
 
+function arrayResponseSchema<TModel extends Type<unknown>>(model: TModel) {
+  return {
+    allOf: [
+      { $ref: getSchemaPath(ApiResponseDto) },
+      {
+        properties: {
+          data: {
+            type: 'array',
+            items: { $ref: getSchemaPath(model) },
+          },
+        },
+      },
+    ],
+  };
+}
+
 export function ApiStandardOkResponse<TModel extends Type<unknown>>(
   model: TModel,
   description = 'Request successful',
@@ -44,6 +60,16 @@ export function ApiStandardCreatedResponse<TModel extends Type<unknown>>(
   return applyDecorators(
     ApiExtraModels(ApiResponseDto, model),
     ApiCreatedResponse({ description, schema: responseSchema(model) }),
+  );
+}
+
+export function ApiStandardArrayResponse<TModel extends Type<unknown>>(
+  model: TModel,
+  description = 'Request successful',
+) {
+  return applyDecorators(
+    ApiExtraModels(ApiResponseDto, model),
+    ApiOkResponse({ description, schema: arrayResponseSchema(model) }),
   );
 }
 

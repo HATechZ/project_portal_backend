@@ -4,6 +4,47 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { AppConfiguration } from '../../config/configuration';
 import { sharedSchemas } from './shared-schemas';
+import { SESSION_COOKIE_NAME } from '../../infra/session/session.constants';
+
+function serializeForScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e');
+}
+
+export function generateDocsHtml(jsonPath: string): string {
+  const configuration = {
+    url: jsonPath,
+    withDefaultFonts: true,
+    showSidebar: true,
+    persistAuth: true,
+  };
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Project Portal API Documentation</title>
+    <style>
+      body { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="api-reference"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script>
+      var configuration = ${serializeForScript(configuration)};
+      configuration.customFetch = function (input, init) {
+        return window.fetch(input, Object.assign({}, init, {
+          credentials: 'include'
+        }));
+      };
+      Scalar.createApiReference('#api-reference', configuration);
+    </script>
+  </body>
+</html>`;
+}
 
 @Module({})
 export class OpenApiModule {
@@ -22,7 +63,11 @@ export class OpenApiModule {
         .setTitle('Project Portal API')
         .setDescription('Project Portal workflow management API')
         .setVersion('1.0')
-        .addBearerAuth()
+        .addCookieAuth(
+          SESSION_COOKIE_NAME,
+          { type: 'apiKey', in: 'cookie' },
+          'session',
+        )
         .addApiKey(
           { type: 'apiKey', in: 'header', name: 'x-tenant-id' },
           'tenant',
@@ -45,7 +90,7 @@ export class OpenApiModule {
     document: OpenAPIObject,
   ): void {
     const httpAdapter = app.getHttpAdapter();
-    const docsHtml = this.generateDocsHtml(jsonPath);
+    const docsHtml = generateDocsHtml(jsonPath);
 
     httpAdapter.get(docsPath, (_request: unknown, response: unknown) => {
       (response as { type: (value: string) => void }).type('text/html');
@@ -55,50 +100,5 @@ export class OpenApiModule {
     httpAdapter.get(jsonPath, (_request: unknown, response: unknown) => {
       (response as { json: (body: OpenAPIObject) => void }).json(document);
     });
-  }
-
-  private static generateDocsHtml(jsonPath: string): string {
-    const configuration = {
-      withDefaultFonts: true,
-      showSidebar: true,
-      persistAuth: true,
-      preferredSecurityScheme: 'bearer',
-    };
-
-    return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Project Portal API Documentation</title>
-    <style>
-      body { margin: 0; }
-    </style>
-  </head>
-  <body>
-    <script id="api-reference" data-url="${this.escapeHtml(jsonPath)}"></script>
-    <script>
-      var configuration = ${this.serializeForScript(configuration)};
-      document.getElementById('api-reference').dataset.configuration =
-        JSON.stringify(configuration);
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-  </body>
-</html>`;
-  }
-
-  private static serializeForScript(value: unknown): string {
-    return JSON.stringify(value)
-      .replace(/</g, '\\u003c')
-      .replace(/>/g, '\\u003e');
-  }
-
-  private static escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 }

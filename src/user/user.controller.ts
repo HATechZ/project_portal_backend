@@ -37,7 +37,7 @@ import { UserService } from './user.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 
 @ApiTags('users')
-@ApiSecurity('tenant')
+@ApiSecurity('session')
 @Controller('users')
 @UseGuards(TenantContextGuard, AuthenticatedGuard, SystemAdminGuard)
 @ApiStandardBadRequestResponse()
