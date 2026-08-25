@@ -22,8 +22,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ActiveUser } from '../auth/decorators/active-user.decorator';
-import { AuthenticatedGuard } from '../auth/guards/authenticated.guard';
-import { SystemAdminGuard } from '../auth/guards/system-admin.guard';
+import { AccessTokenGuard } from '../auth/guards/access-token/access-token.guard';
+import { AuthenticationGuard } from '../auth/guards/authentication/authentication.guard';
+import { SystemAdminGuard } from '../auth/guards/permissions/system-admin.guard';
 import type { SessionUser } from '../auth/repositories';
 import {
   ApiStandardBadRequestResponse,
@@ -49,7 +50,12 @@ import { RolePermissionService } from './role-permission.service';
 @ApiTags('role & permission')
 @ApiSecurity({ bearer: [], tenant: [] })
 @Controller()
-@UseGuards(TenantContextGuard, AuthenticatedGuard, SystemAdminGuard)
+@UseGuards(
+  TenantContextGuard,
+  AccessTokenGuard,
+  AuthenticationGuard,
+  SystemAdminGuard,
+)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse('System administrator access required')

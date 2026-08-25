@@ -5,25 +5,27 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Request } from 'express';
-import { AuthTokenProvider } from '../providers';
-import { SessionActor, SessionUser } from '../repositories';
-import { RequestContext } from '../../common/context/request-context';
+import { RequestContext } from '../../../common/context/request-context';
+import { AuthTokenProvider } from '../../providers';
+import { SessionActor, SessionUser } from '../../repositories';
+import { AccessTokenRequest } from '../access-token/access-token.guard';
 
-export type AuthenticatedRequest = Request & {
+export type AuthenticationRequest = AccessTokenRequest & {
   user?: SessionUser;
   actor?: SessionActor;
   authSessionId?: string;
 };
 
 @Injectable()
-export class AuthenticatedGuard implements CanActivate {
+export class AuthenticationGuard implements CanActivate {
   constructor(private readonly tokenProvider: AuthTokenProvider) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token = this.bearerToken(request);
-    const payload = await this.tokenProvider.verifyAccessToken(token);
+    const request = context.switchToHttp().getRequest<AuthenticationRequest>();
+    const payload = request.accessTokenPayload;
+    if (!payload) {
+      throw new UnauthorizedException('Access token validation is required');
+    }
     if (payload.tenantId !== RequestContext.requireTenantId()) {
       throw new UnauthorizedException(
         'Access token is not valid for this tenant',
@@ -48,14 +50,5 @@ export class AuthenticatedGuard implements CanActivate {
     request.actor = actor;
     request.authSessionId = payload.sid;
     return true;
-  }
-
-  private bearerToken(request: Request): string {
-    const authorization = request.headers.authorization;
-    const match = authorization?.match(/^\s*Bearer\s+(\S+)\s*$/i);
-    if (!match) {
-      throw new UnauthorizedException('Bearer access token required');
-    }
-    return match[1];
   }
 }

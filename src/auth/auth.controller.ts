@@ -27,8 +27,11 @@ import {
   RefreshTokenDto,
   ResetPasswordDto,
 } from './dtos';
-import { AuthenticatedGuard } from './guards/authenticated.guard';
-import type { AuthenticatedRequest } from './guards/authenticated.guard';
+import { AccessTokenGuard } from './guards/access-token/access-token.guard';
+import {
+  AuthenticationGuard,
+  type AuthenticationRequest,
+} from './guards/authentication/authentication.guard';
 import type { SessionUser } from './repositories';
 import { AuthService } from './auth.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
@@ -100,18 +103,18 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AccessTokenGuard, AuthenticationGuard)
   @ApiSecurity({ bearer: [], tenant: [] })
   @ApiOperation({ summary: 'Log out and revoke the current token session' })
   @ApiNoContentResponse({ description: 'Logged out' })
   @ResponseMessage('Logout successful')
   @ApiStandardUnauthorizedResponse()
-  logout(@Req() request: AuthenticatedRequest) {
+  logout(@Req() request: AuthenticationRequest) {
     return this.authService.logout(request.authSessionId!);
   }
 
   @Get('me')
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AccessTokenGuard, AuthenticationGuard)
   @ApiSecurity({ bearer: [], tenant: [] })
   @ApiOperation({ summary: 'Get the authenticated user' })
   @ApiStandardOkResponse(AuthUserResponseDto, 'Authenticated user returned')

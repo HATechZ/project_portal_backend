@@ -31,8 +31,9 @@ import {
 } from '../common/decorators/api-standard-response.decorator';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
-import { AuthenticatedGuard } from '../auth/guards/authenticated.guard';
-import { SystemAdminGuard } from '../auth/guards/system-admin.guard';
+import { AccessTokenGuard } from '../auth/guards/access-token/access-token.guard';
+import { AuthenticationGuard } from '../auth/guards/authentication/authentication.guard';
+import { SystemAdminGuard } from '../auth/guards/permissions/system-admin.guard';
 import { UserService } from './user.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
@@ -40,7 +41,12 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 @ApiTags('user')
 @ApiSecurity({ bearer: [], tenant: [] })
 @Controller('user')
-@UseGuards(TenantContextGuard, AuthenticatedGuard, SystemAdminGuard)
+@UseGuards(
+  TenantContextGuard,
+  AccessTokenGuard,
+  AuthenticationGuard,
+  SystemAdminGuard,
+)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse('System administrator access required')

@@ -5,9 +5,9 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { WorkflowActionCode } from '../../generated/prisma/client';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { SessionActor } from '../repositories';
+import { WorkflowActionCode } from '../../../generated/prisma/client';
+import { PERMISSIONS_KEY } from '../../decorators/permissions.decorator';
+import { SessionActor } from '../../repositories';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
