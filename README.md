@@ -49,22 +49,64 @@ yarn services:down
 
 ## User endpoints
 
-- `POST /api/v1/users`
-- `GET /api/v1/users`
-- `GET /api/v1/users/:id`
-- `PATCH /api/v1/users/:id`
-- `DELETE /api/v1/users/:id`
+- `POST /api/v1/user`
+- `GET /api/v1/user`
+- `GET /api/v1/user/:id`
+- `PATCH /api/v1/user/:id`
+- `DELETE /api/v1/user/:id`
 
 User passwords must contain 6–8 characters and are stored only as bcrypt hashes.
+
+## Role and permission endpoints
+
+- `GET /api/v1/role`
+- `GET /api/v1/role/:id`
+- `PUT /api/v1/role/:id/permission`
+- `GET /api/v1/permission`
+- `GET /api/v1/permission/:id`
+- `GET /api/v1/user/:userId/role`
+- `POST /api/v1/user/:userId/role`
+- `DELETE /api/v1/user/:userId/role/:roleId`
 
 ## Authentication endpoints
 
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 
-Authentication uses an HTTP-only session cookie backed by local Redis. Set a
-strong `SESSION_SECRET` outside development.
+Authentication uses short-lived HS256 access JWTs and rotating opaque refresh
+tokens. Send the access token as `Authorization: Bearer <token>` and continue
+to send `x-tenant-id` on tenant-scoped requests. Refresh tokens are stored only
+as SHA-256 hashes and can be revoked through logout. Set a unique, random
+`JWT_SECRET` of at least 32 characters in every deployed environment.
+
+Successful login responses expose a stable public user contract with flat role
+and permission arrays; database relation names are never returned:
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": "50000000-0000-4000-8000-000000000001",
+      "fullName": "System Administrator",
+      "email": "admin@project-portal.local",
+      "avatarUrl": null,
+      "roles": ["system_admin"],
+      "permissions": ["ADD_COMPANY", "ADD_DIVISION"]
+    },
+    "tokens": {
+      "accessToken": "...",
+      "refreshToken": "...",
+      "tokenType": "Bearer",
+      "expiresIn": 900
+    }
+  },
+  "timestamp": "2026-08-24T04:43:01.258Z"
+}
+```
 
 ## Database commands
 

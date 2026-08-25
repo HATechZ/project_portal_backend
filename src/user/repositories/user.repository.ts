@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma } from '../../generated/prisma/client';
+import { ActorRoleCode, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PaginationArgs } from '../../common/pagination/paginate';
+import { RequestContext } from '../../common/context/request-context';
 
 export const publicUserSelect = {
   id: true,
@@ -55,12 +56,63 @@ export class UserRepository {
     });
   }
 
-  update(id: string, data: Prisma.UserUpdateInput): Promise<PublicUser> {
-    return this.prisma.scoped.user.update({
-      where: { id },
-      data: { ...data, updatedAt: new Date() },
-      select: publicUserSelect,
-    });
+  update(
+    id: string,
+    data: Prisma.UserUpdateInput,
+    security: { deactivating: boolean; passwordChanged: boolean },
+  ): Promise<PublicUser | null> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.prisma.unscoped.$transaction(
+      async (transaction) => {
+        if (security.deactivating) {
+          const targetIsSystemAdmin = await transaction.user.findFirst({
+            where: {
+              tenantId,
+              id,
+              isActive: true,
+              userRolesByUserId: {
+                some: {
+                  tenantId,
+                  revokedAt: null,
+                  role: { code: ActorRoleCode.system_admin },
+                },
+              },
+            },
+            select: { id: true },
+          });
+          if (targetIsSystemAdmin) {
+            const activeSystemAdministrators = await transaction.user.count({
+              where: {
+                tenantId,
+                isActive: true,
+                userRolesByUserId: {
+                  some: {
+                    tenantId,
+                    revokedAt: null,
+                    role: { code: ActorRoleCode.system_admin },
+                  },
+                },
+              },
+            });
+            if (activeSystemAdministrators <= 1) return null;
+          }
+        }
+
+        const user = await transaction.user.update({
+          where: { id, tenantId },
+          data: { ...data, updatedAt: new Date() },
+          select: publicUserSelect,
+        });
+        if (security.passwordChanged || security.deactivating) {
+          await transaction.authSession.updateMany({
+            where: { tenantId, userId: id, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
+        return user;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async delete(id: string): Promise<void> {

@@ -48,15 +48,28 @@ export class UserMutationProvider {
       throw new BadRequestException('At least one field is required');
     }
     try {
-      return await this.repository.update(id, {
-        ...(fullName !== undefined ? { fullName: fullName.trim() } : {}),
-        ...(email !== undefined ? { email: this.normalizeEmail(email) } : {}),
-        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
-        ...(isActive !== undefined ? { isActive } : {}),
-        ...(password !== undefined
-          ? { passwordHash: await this.hashingProvider.hash(password) }
-          : {}),
-      });
+      const updated = await this.repository.update(
+        id,
+        {
+          ...(fullName !== undefined ? { fullName: fullName.trim() } : {}),
+          ...(email !== undefined ? { email: this.normalizeEmail(email) } : {}),
+          ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+          ...(isActive !== undefined ? { isActive } : {}),
+          ...(password !== undefined
+            ? { passwordHash: await this.hashingProvider.hash(password) }
+            : {}),
+        },
+        {
+          deactivating: isActive === false,
+          passwordChanged: password !== undefined,
+        },
+      );
+      if (!updated) {
+        throw new ConflictException(
+          'The tenant must retain at least one active system administrator',
+        );
+      }
+      return updated;
     } catch (error) {
       this.handlePersistenceError(error, id);
     }
@@ -81,6 +94,11 @@ export class UserMutationProvider {
       if (error.code === 'P2003' && id !== undefined) {
         throw new ConflictException(
           'This user is referenced by other records and cannot be deleted',
+        );
+      }
+      if (error.code === 'P2034') {
+        throw new ConflictException(
+          'The user changed concurrently; retry the request',
         );
       }
     }

@@ -10,8 +10,14 @@ export interface EnvironmentVariables {
   DATABASE_URL: string;
   REDIS_URL: string;
   REDIS_KEY_PREFIX: string;
-  SESSION_SECRET: string;
-  SESSION_MAX_AGE_MS: number;
+  JWT_SECRET: string;
+  JWT_ISSUER: string;
+  JWT_AUDIENCE: string;
+  JWT_ACCESS_TTL_SECONDS: number;
+  JWT_REFRESH_TTL_SECONDS: number;
+  JWT_SESSION_ABSOLUTE_TTL_SECONDS: number;
+  PASSWORD_RESET_TTL_SECONDS: number;
+  PASSWORD_RESET_URL: string;
   THROTTLE_TTL_MS: number;
   THROTTLE_LIMIT: number;
   SMTP_HOST: string;
@@ -32,8 +38,14 @@ export const env = {
   databaseUrl: 'DATABASE_URL',
   redisUrl: 'REDIS_URL',
   redisKeyPrefix: 'REDIS_KEY_PREFIX',
-  sessionSecret: 'SESSION_SECRET',
-  sessionMaxAgeMs: 'SESSION_MAX_AGE_MS',
+  jwtSecret: 'JWT_SECRET',
+  jwtIssuer: 'JWT_ISSUER',
+  jwtAudience: 'JWT_AUDIENCE',
+  jwtAccessTtlSeconds: 'JWT_ACCESS_TTL_SECONDS',
+  jwtRefreshTtlSeconds: 'JWT_REFRESH_TTL_SECONDS',
+  jwtSessionAbsoluteTtlSeconds: 'JWT_SESSION_ABSOLUTE_TTL_SECONDS',
+  passwordResetTtlSeconds: 'PASSWORD_RESET_TTL_SECONDS',
+  passwordResetUrl: 'PASSWORD_RESET_URL',
   throttleTtlMs: 'THROTTLE_TTL_MS',
   throttleLimit: 'THROTTLE_LIMIT',
   smtpHost: 'SMTP_HOST',

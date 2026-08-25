@@ -12,7 +12,6 @@ import { RedisModule } from './infra/redis/redis.module';
 import { ThrottlerModule } from './infra/throttler/throttler.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { SessionModule } from './infra/session/session.module';
 import { TenantContextMiddleware } from './common/tenant/tenant-context.middleware';
 import { TenantContextGuard } from './common/tenant/tenant-context.guard';
 import { RolePermissionModule } from './role-permission/role-permission.module';
@@ -28,7 +27,6 @@ import { RolePermissionModule } from './role-permission/role-permission.module';
     OpenApiModule.register(),
     PrismaModule,
     RedisModule,
-    SessionModule,
     ThrottlerModule,
     MailModule,
     MailWorkersModule,

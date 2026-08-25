@@ -5,6 +5,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'UserRole',
   'ActorProfile',
   'AuthSession',
+  'AuthSessionConsumedRefreshToken',
   'PasswordResetToken',
   'Company',
   'Division',

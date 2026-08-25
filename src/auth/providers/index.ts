@@ -1,2 +1,3 @@
 export * from './auth-hashing.provider';
-export * from './auth-session.provider';
+export * from './auth-token.provider';
+export * from './auth-response.mapper';

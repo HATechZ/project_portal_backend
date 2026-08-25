@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { WorkflowActionCode } from '../../generated/prisma/client';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { SessionUser } from '../repositories';
+import { SessionActor } from '../repositories';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -20,14 +20,13 @@ export class PermissionsGuard implements CanActivate {
     );
     if (!required?.length) return true;
 
-    const user = context
+    const actor = context
       .switchToHttp()
-      .getRequest<{ user?: SessionUser }>().user;
-    const roles = user?.userRolesByUserId.map(({ role }) => role) ?? [];
+      .getRequest<{ actor?: SessionActor }>().actor;
     const granted = new Set(
-      roles.flatMap(({ workflowActionRolePermissionsByRoleId }) =>
-        workflowActionRolePermissionsByRoleId.map(({ action }) => action.code),
-      ),
+      actor?.role.workflowActionRolePermissionsByRoleId.map(
+        ({ action }) => action.code,
+      ) ?? [],
     );
     if (!required.every((permission) => granted.has(permission))) {
       throw new ForbiddenException('Insufficient permissions');

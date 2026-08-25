@@ -1,4 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/prisma/client';
@@ -13,6 +18,7 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  private readonly logger = new Logger(PrismaService.name);
   private readonly tenantClient: TenantPrismaClient;
 
   constructor(config: ConfigService<AppConfiguration, true>) {
@@ -33,9 +39,21 @@ export class PrismaService
   }
 
   async onModuleInit(): Promise<void> {
-    await this.$connect();
+    try {
+      await this.$connect();
+      await this.$queryRaw`SELECT 1`;
+      this.logger.log('Database connection established (Prisma/PostgreSQL)');
+    } catch (error) {
+      this.logger.error(
+        'Database connection failed',
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
   }
+
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+    this.logger.log('Database connection closed');
   }
 }

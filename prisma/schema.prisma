@@ -444,23 +444,42 @@ model ActorProfile {
 }
 
 model AuthSession {
-  tenantId         String    @map("tenant_id") @db.Uuid
-  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  id               String    @id @map("id") @db.Uuid
-  userId           String    @map("user_id") @db.Uuid
-  refreshTokenHash String    @map("refresh_token_hash") @db.VarChar(255)
-  ipAddress        String?   @map("ip_address") @db.VarChar(80)
-  userAgent        String?   @map("user_agent") @db.Text
-  expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
-  revokedAt        DateTime? @map("revoked_at") @db.Timestamp(6)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  tenantId                 String    @map("tenant_id") @db.Uuid
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  id                       String    @id @map("id") @db.Uuid
+  userId                   String    @map("user_id") @db.Uuid
+  refreshTokenHash         String    @map("refresh_token_hash") @db.VarChar(255)
+  previousRefreshTokenHash String?   @map("previous_refresh_token_hash") @db.VarChar(255)
+  ipAddress                String?   @map("ip_address") @db.VarChar(80)
+  userAgent                String?   @map("user_agent") @db.Text
+  expiresAt                DateTime  @map("expires_at") @db.Timestamp(6)
+  absoluteExpiresAt        DateTime  @map("absolute_expires_at") @db.Timestamp(6)
+  revokedAt                DateTime? @map("revoked_at") @db.Timestamp(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
 
-  user User @relation("AuthSessionsUserIdUsers", fields: [userId], references: [id])
+  user                  User                              @relation("AuthSessionsUserIdUsers", fields: [userId], references: [id])
+  consumedRefreshTokens AuthSessionConsumedRefreshToken[]
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([previousRefreshTokenHash])
   @@index([tenantId])
   @@map("auth_sessions")
+}
+
+model AuthSessionConsumedRefreshToken {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  id         String   @id @map("id") @db.Uuid
+  sessionId  String   @map("session_id") @db.Uuid
+  tokenHash  String   @map("token_hash") @db.VarChar(255)
+  consumedAt DateTime @default(now()) @map("consumed_at") @db.Timestamp(6)
+
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, tokenHash])
+  @@index([sessionId])
+  @@index([tenantId])
+  @@map("auth_session_consumed_refresh_tokens")
 }
 
 model PasswordResetToken {

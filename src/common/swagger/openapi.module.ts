@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { AppConfiguration } from '../../config/configuration';
 import { sharedSchemas } from './shared-schemas';
-import { SESSION_COOKIE_NAME } from '../../infra/session/session.constants';
 
 function serializeForScript(value: unknown): string {
   return JSON.stringify(value)
@@ -35,11 +34,6 @@ export function generateDocsHtml(jsonPath: string): string {
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
     <script>
       var configuration = ${serializeForScript(configuration)};
-      configuration.customFetch = function (input, init) {
-        return window.fetch(input, Object.assign({}, init, {
-          credentials: 'include'
-        }));
-      };
       Scalar.createApiReference('#api-reference', configuration);
     </script>
   </body>
@@ -63,10 +57,9 @@ export class OpenApiModule {
         .setTitle('Project Portal API')
         .setDescription('Project Portal workflow management API')
         .setVersion('1.0')
-        .addCookieAuth(
-          SESSION_COOKIE_NAME,
-          { type: 'apiKey', in: 'cookie' },
-          'session',
+        .addBearerAuth(
+          { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+          'bearer',
         )
         .addApiKey(
           { type: 'apiKey', in: 'header', name: 'x-tenant-id' },

@@ -15,14 +15,29 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
     .uri({ scheme: ['redis', 'rediss'] })
     .default('redis://127.0.0.1:6379'),
   REDIS_KEY_PREFIX: Joi.string().default('project-portal:'),
-  SESSION_SECRET: Joi.string()
-    .min(16)
+  JWT_SECRET: Joi.string()
+    .min(32)
     .when('NODE_ENV', {
       is: 'production',
       then: Joi.required(),
-      otherwise: Joi.string().default('change-this-session-secret'),
+      otherwise: Joi.string().default('development-only-jwt-secret-change-me'),
     }),
-  SESSION_MAX_AGE_MS: Joi.number().integer().min(60000).default(86400000),
+  JWT_ISSUER: Joi.string().default('project-portal-api'),
+  JWT_AUDIENCE: Joi.string().default('project-portal-client'),
+  JWT_ACCESS_TTL_SECONDS: Joi.number().integer().min(60).default(900),
+  JWT_REFRESH_TTL_SECONDS: Joi.number().integer().min(300).default(2592000),
+  JWT_SESSION_ABSOLUTE_TTL_SECONDS: Joi.number()
+    .integer()
+    .min(Joi.ref('JWT_REFRESH_TTL_SECONDS'))
+    .default(7776000),
+  PASSWORD_RESET_TTL_SECONDS: Joi.number()
+    .integer()
+    .min(300)
+    .max(3600)
+    .default(1800),
+  PASSWORD_RESET_URL: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .default('http://localhost:3000/reset-password'),
   THROTTLE_TTL_MS: Joi.number().integer().min(1000).default(60000),
   THROTTLE_LIMIT: Joi.number().integer().min(1).default(100),
   SMTP_HOST: Joi.string().hostname().default('127.0.0.1'),

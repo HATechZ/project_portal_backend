@@ -16,7 +16,16 @@ export interface AppConfiguration {
   };
   database: { url: string };
   redis: { url: string; keyPrefix: string };
-  session: { secret: string; maxAgeMs: number };
+  jwt: {
+    secret: string;
+    issuer: string;
+    audience: string;
+    accessTtlSeconds: number;
+    refreshTtlSeconds: number;
+    sessionAbsoluteTtlSeconds: number;
+    passwordResetTtlSeconds: number;
+    passwordResetUrl: string;
+  };
   throttler: { ttlMs: number; limit: number };
   mail: {
     host: string;
@@ -47,9 +56,21 @@ export default function configuration(): AppConfiguration {
       url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
       keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'project-portal:',
     },
-    session: {
-      secret: process.env.SESSION_SECRET ?? 'change-this-session-secret',
-      maxAgeMs: Number(process.env.SESSION_MAX_AGE_MS ?? 86400000),
+    jwt: {
+      secret: process.env.JWT_SECRET ?? 'development-only-jwt-secret-change-me',
+      issuer: process.env.JWT_ISSUER ?? 'project-portal-api',
+      audience: process.env.JWT_AUDIENCE ?? 'project-portal-client',
+      accessTtlSeconds: Number(process.env.JWT_ACCESS_TTL_SECONDS ?? 900),
+      refreshTtlSeconds: Number(process.env.JWT_REFRESH_TTL_SECONDS ?? 2592000),
+      sessionAbsoluteTtlSeconds: Number(
+        process.env.JWT_SESSION_ABSOLUTE_TTL_SECONDS ?? 7776000,
+      ),
+      passwordResetTtlSeconds: Number(
+        process.env.PASSWORD_RESET_TTL_SECONDS ?? 1800,
+      ),
+      passwordResetUrl:
+        process.env.PASSWORD_RESET_URL ??
+        'http://localhost:3000/reset-password',
     },
     throttler: {
       ttlMs: Number(process.env.THROTTLE_TTL_MS ?? 60000),

@@ -35,10 +35,11 @@ import { AuthenticatedGuard } from '../auth/guards/authenticated.guard';
 import { SystemAdminGuard } from '../auth/guards/system-admin.guard';
 import { UserService } from './user.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 
-@ApiTags('users')
-@ApiSecurity('session')
-@Controller('users')
+@ApiTags('user')
+@ApiSecurity({ bearer: [], tenant: [] })
+@Controller('user')
 @UseGuards(TenantContextGuard, AuthenticatedGuard, SystemAdminGuard)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
@@ -47,6 +48,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @ResponseMessage('User created successfully')
   @ApiOperation({ summary: 'Create a user' })
   @ApiStandardCreatedResponse(UserResponseDto, 'User created')
   @ApiStandardConflictResponse(
@@ -58,6 +60,7 @@ export class UserController {
   }
 
   @Get()
+  @ResponseMessage('Users returned successfully')
   @ApiOperation({ summary: 'List all users' })
   @ApiPaginatedResponse(UserResponseDto)
   findAll(@Query() query: PaginationQueryDto) {
@@ -65,6 +68,7 @@ export class UserController {
   }
 
   @Get(':id')
+  @ResponseMessage('User returned successfully')
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiStandardOkResponse(UserResponseDto, 'User returned')
@@ -77,6 +81,7 @@ export class UserController {
   }
 
   @Patch(':id')
+  @ResponseMessage('User updated successfully')
   @ApiOperation({ summary: 'Update a user' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiStandardOkResponse(UserResponseDto, 'User updated')
@@ -93,6 +98,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @ResponseMessage('User deleted successfully')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a user' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })

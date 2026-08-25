@@ -21,6 +21,11 @@ export const RequestContext = {
   actorId(): string | undefined {
     return requestContextStorage.getStore()?.actorId;
   },
+  setActorId(actorId: string): void {
+    const context = requestContextStorage.getStore();
+    if (!context) throw new Error('Request context is required');
+    context.actorId = actorId;
+  },
   tenantId(): string | undefined {
     return requestContextStorage.getStore()?.tenantId;
   },

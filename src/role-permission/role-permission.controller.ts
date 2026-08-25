@@ -36,6 +36,7 @@ import {
   ApiStandardUnauthorizedResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import {
   AssignUserRoleDto,
   PermissionResponseDto,
@@ -45,8 +46,8 @@ import {
 } from './dtos';
 import { RolePermissionService } from './role-permission.service';
 
-@ApiTags('roles & permissions')
-@ApiSecurity('session')
+@ApiTags('role & permission')
+@ApiSecurity({ bearer: [], tenant: [] })
 @Controller()
 @UseGuards(TenantContextGuard, AuthenticatedGuard, SystemAdminGuard)
 @ApiStandardBadRequestResponse()
@@ -55,14 +56,16 @@ import { RolePermissionService } from './role-permission.service';
 export class RolePermissionController {
   constructor(private readonly service: RolePermissionService) {}
 
-  @Get('roles')
+  @Get('role')
+  @ResponseMessage('Roles returned successfully')
   @ApiOperation({ summary: 'List roles with their tenant permission grants' })
   @ApiStandardArrayResponse(RoleResponseDto)
   findRoles() {
     return this.service.findRoles();
   }
 
-  @Get('roles/:id')
+  @Get('role/:id')
+  @ResponseMessage('Role returned successfully')
   @ApiOperation({ summary: 'Get a role with its tenant permission grants' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiStandardOkResponse(RoleResponseDto)
@@ -71,7 +74,8 @@ export class RolePermissionController {
     return this.service.findRole(id);
   }
 
-  @Put('roles/:id/permissions')
+  @Put('role/:id/permission')
+  @ResponseMessage('Role permissions updated successfully')
   @ApiOperation({
     summary: 'Replace the complete permission set for a role in this tenant',
     description:
@@ -86,7 +90,8 @@ export class RolePermissionController {
     return this.service.setRolePermissions(id, input);
   }
 
-  @Get('permissions')
+  @Get('permission')
+  @ResponseMessage('Permissions returned successfully')
   @ApiOperation({
     summary: 'List UI-visible workflow permission definitions',
   })
@@ -95,7 +100,8 @@ export class RolePermissionController {
     return this.service.findPermissions();
   }
 
-  @Get('permissions/:id')
+  @Get('permission/:id')
+  @ResponseMessage('Permission returned successfully')
   @ApiOperation({ summary: 'Get a workflow permission definition' })
   @ApiStandardOkResponse(PermissionResponseDto)
   @ApiStandardNotFoundResponse('Permission was not found')
@@ -103,7 +109,8 @@ export class RolePermissionController {
     return this.service.findPermission(id);
   }
 
-  @Get('users/:userId/roles')
+  @Get('user/:userId/role')
+  @ResponseMessage('User roles returned successfully')
   @ApiOperation({ summary: "List a user's role assignments" })
   @ApiQuery({ name: 'includeRevoked', required: false, type: Boolean })
   @ApiStandardArrayResponse(UserRoleAssignmentResponseDto)
@@ -116,7 +123,8 @@ export class RolePermissionController {
     return this.service.findUserRoles(userId, includeRevoked);
   }
 
-  @Post('users/:userId/roles')
+  @Post('user/:userId/role')
+  @ResponseMessage('Role assigned successfully')
   @ApiOperation({ summary: 'Assign a role to a user' })
   @ApiStandardCreatedResponse(UserRoleAssignmentResponseDto, 'Role assigned')
   @ApiStandardNotFoundResponse('User or role was not found')
@@ -129,7 +137,8 @@ export class RolePermissionController {
     return this.service.assignUserRole(userId, input, activeUser.id);
   }
 
-  @Delete('users/:userId/roles/:roleId')
+  @Delete('user/:userId/role/:roleId')
+  @ResponseMessage('Role revoked successfully')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke an active role assignment' })
   @ApiNoContentResponse({ description: 'Role revoked' })
