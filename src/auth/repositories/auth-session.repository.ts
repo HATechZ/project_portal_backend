@@ -50,6 +50,47 @@ const sessionActorSelect = (tenantId: string) =>
         },
       },
     },
+    member: {
+      select: {
+        id: true,
+        companyId: true,
+        divisionId: true,
+        isActive: true,
+        company: {
+          select: {
+            id: true,
+            isActive: true,
+          },
+        },
+        division: {
+          select: {
+            id: true,
+            companyId: true,
+            isActive: true,
+          },
+        },
+      },
+    },
+    clientContact: {
+      select: {
+        id: true,
+        clientId: true,
+        isActive: true,
+        client: {
+          select: {
+            id: true,
+            companyId: true,
+            isActive: true,
+            company: {
+              select: {
+                id: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+    },
   }) satisfies Prisma.ActorProfileSelect;
 export type SessionActor = Prisma.ActorProfileGetPayload<{
   select: ReturnType<typeof sessionActorSelect>;

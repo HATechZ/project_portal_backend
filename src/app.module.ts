@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { TenantContextMiddleware } from './common/tenant/tenant-context.middleware';
 import { TenantContextGuard } from './common/tenant/tenant-context.guard';
 import { RolePermissionModule } from './role-permission/role-permission.module';
+import { CompanyModule } from './company/company.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RolePermissionModule } from './role-permission/role-permission.module';
     UserModule,
     AuthModule,
     RolePermissionModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantContextGuard],
