@@ -26,8 +26,8 @@ Swagger.
    yarn start:dev
    ```
 
-The start command generates Prisma Client, applies pending migrations, and then
-connects the application to Neon. Swagger UI is available at
+The start command generates Prisma Client and connects the application to Neon. It does
+**not** apply migrations — run those explicitly (see below). Swagger UI is available at
 `http://localhost:3000/api/docs`.
 
 ## User endpoints
@@ -38,13 +38,20 @@ connects the application to Neon. Swagger UI is available at
 - `PATCH /users/:id`
 - `DELETE /users/:id`
 
-## Database commands
+## Database commands — owner only
+
+These mutate the database and are **not** run by AI agents
+(see [`specs/rules/08-database.md`](specs/rules/08-database.md)).
 
 ```bash
-yarn db:setup
-yarn prisma:migrate --name <migration-name>
+yarn db:setup                              # generate + apply pending migrations
+yarn prisma:migrate --name <migration-name> # after editing the DBML and regenerating
+yarn prisma:deploy                          # apply pending migrations — the deploy step
 yarn prisma:studio
 ```
+
+Deploys must run `yarn prisma:deploy` before starting the process; it is no longer part of
+`prestart`.
 
 ---
 
