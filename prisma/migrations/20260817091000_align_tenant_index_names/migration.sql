@@ -1,0 +1,21 @@
+-- RenameIndex
+ALTER INDEX "document_folders_tenant_id_project_id_parent_folder_id_folder_n" RENAME TO "document_folders_tenant_id_project_id_parent_folder_id_fold_key";
+
+-- RenameIndex
+ALTER INDEX "document_version_folder_locations_tenant_id_document_version_id" RENAME TO "document_version_folder_locations_tenant_id_document_versio_key";
+
+-- RenameIndex
+ALTER INDEX "document_version_links_tenant_id_work_request_id_document_versi" RENAME TO "document_version_links_tenant_id_work_request_id_document_v_key";
+
+-- RenameIndex
+ALTER INDEX "work_request_audit_attachments_tenant_id_audit_log_id_document_" RENAME TO "work_request_audit_attachments_tenant_id_audit_log_id_docum_key";
+
+-- RenameIndex
+ALTER INDEX "work_request_revision_documents_tenant_id_revision_request_id_d" RENAME TO "work_request_revision_documents_tenant_id_revision_request__key";
+
+-- RenameIndex
+ALTER INDEX "work_request_revision_submission_documents_tenant_id_revision_s" RENAME TO "work_request_revision_submission_documents_tenant_id_revisi_key";
+
+-- RenameIndex
+ALTER INDEX "workflow_action_role_permissions_tenant_id_action_id_role_id_ke" RENAME TO "workflow_action_role_permissions_tenant_id_action_id_role_i_key";
+

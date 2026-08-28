@@ -37,12 +37,18 @@ directory exists, so this table cannot silently rot.
 | File | Spec |
 |---|---|
 | `src/common/swagger/openapi.module.ts` | `specs/00-platform-core` |
+| `src/common/security/security.module.ts` | `specs/02.1-messaging` |
+| `src/infra/crypto/crypto.module.ts` | `specs/02.1-messaging` |
 | `src/infra/prisma/prisma.module.ts` | `specs/01-persistence` |
 | `src/infra/redis/redis.module.ts` | `specs/02-infrastructure` |
 | `src/infra/throttler/throttler.module.ts` | `specs/02-infrastructure` |
 | `src/infra/mail/mail.module.ts` | `specs/02-infrastructure` |
 | `src/infra/mail/mail-workers.module.ts` | `specs/02-infrastructure` |
-| `src/users/users.module.ts` | `specs/03-identity-and-access` |
+| `src/infra/messaging/messaging.module.ts` | `specs/02.1-messaging` |
+| `src/user/user.module.ts` | `specs/03-identity-and-access` |
+| `src/auth/auth.module.ts` | `specs/03-identity-and-access` |
+| `src/role-permission/role-permission.module.ts` | `specs/03-identity-and-access` |
+| `src/company/company.module.ts` | `specs/04-organization` |
 
 `src/app.module.ts` is the composition root and is exempt — it registers modules but owns no
 domain surface of its own.

@@ -1,12 +1,34 @@
-import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationShutdown,
+  OnModuleInit,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 import { JsonRedisCacheCodec, RedisCacheCodec } from './redis-cache-codec';
 import { REDIS_CLIENT, REDIS_DEFAULT_TTL_SECONDS } from './redis.constants';
 
 @Injectable()
-export class RedisService implements OnApplicationShutdown {
+export class RedisService implements OnModuleInit, OnApplicationShutdown {
+  private readonly logger = new Logger(RedisService.name);
   private readonly jsonCodec = new JsonRedisCacheCodec<unknown>();
   constructor(@Inject(REDIS_CLIENT) readonly client: Redis) {}
+
+  async onModuleInit(): Promise<void> {
+    try {
+      if (this.client.status === 'wait') await this.client.connect();
+      await this.client.ping();
+      this.logger.log('Redis connection established');
+    } catch (error) {
+      this.logger.error(
+        'Redis connection failed',
+        error instanceof Error ? error.stack : String(error),
+      );
+      this.client.disconnect();
+      throw error;
+    }
+  }
 
   async get<T>(
     key: string,
@@ -39,6 +61,9 @@ export class RedisService implements OnApplicationShutdown {
     return value;
   }
   async onApplicationShutdown(): Promise<void> {
-    if (this.client.status !== 'end') await this.client.quit();
+    if (this.client.status !== 'end') {
+      await this.client.quit();
+      this.logger.log('Redis connection closed');
+    }
   }
 }

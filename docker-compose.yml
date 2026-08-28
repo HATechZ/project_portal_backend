@@ -26,6 +26,38 @@ services:
       start_period: 5s
     stop_grace_period: 10s
 
+  # Domain event broker (specs/02.1-messaging). Nothing connects to it yet —
+  # the RabbitMQ transport is Phase 7, deferred until a second consumer exists.
+  # Running it locally now means that phase is a config change, not a setup day.
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    container_name: project-portal-rabbitmq
+    restart: unless-stopped
+    ports:
+      # 5672 AMQP, 15672 management UI (http://127.0.0.1:15672)
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      # Local development only. The built-in `guest` account is refused for any
+      # connection that is not from the container's own loopback, so a named
+      # user is required as soon as the app runs on the host.
+      RABBITMQ_DEFAULT_USER: portal
+      RABBITMQ_DEFAULT_PASS: portal
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Broker boot is slow compared to Redis; without this the container is
+      # reported unhealthy before it has finished starting.
+      start_period: 30s
+    stop_grace_period: 30s
+
 volumes:
   redis-data:
     name: project-portal-redis-data
+  rabbitmq-data:
+    name: project-portal-rabbitmq-data

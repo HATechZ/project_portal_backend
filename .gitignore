@@ -46,6 +46,8 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+Project_Portal_documentation.pdf
+project_portal_erd.dbml
 
 # Runtime data
 pids

@@ -11,6 +11,10 @@ Redis-backed rate limiter, and an outbound mail pipeline on BullMQ. Two organizi
 2. **Rate limiting is shared state.** An in-memory throttler multiplies the effective limit by
    the instance count; the Lua-script storage makes the configured limit the actual limit.
 
+> **Messaging lives in [`../02.1-messaging/`](../02.1-messaging/SPEC.md)** — the domain event
+> pipeline builds on this module's ports-and-adapters idiom but is greenfield, so it is specced
+> separately rather than reopening this retro-spec.
+
 ## User stories
 
 | | As a | I want | So that |

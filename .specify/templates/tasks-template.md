@@ -28,6 +28,20 @@
   - [ ] Lint and build clean
         VERIFY: yarn lint && yarn build
 
+- [ ] **Phase N: Module boundaries ([Art. XI](../rules/10-messaging.md))**
+  > This module talks to others only by publishing events. Delete the consumer rows if it
+  > publishes but consumes nothing; never delete the first two.
+  - [ ] This module imports no other feature module
+        VERIFY: test $(grep -rlE "from '\.\.?/(\.\./)?(auth|user|company|role-permission)/" src/[module] --include=*.ts | wc -l) -eq 0
+  - [ ] Its events carry no framework, ORM, or transport types
+        VERIFY: ! grep -rqE "generated/prisma|@nestjs/|amqplib|bullmq" src/contracts/events/[module]/
+  - [ ] It publishes through the outbox, never the transport
+        VERIFY: ! grep -rq "EVENT_TRANSPORT" src/[module]/
+  - [ ] Its consumers restore tenant context before persisting
+        VERIFY: test $(for f in $(find src/[module] -name "*.handler.ts" 2>/dev/null); do grep -q "RequestContext\|EventHandlerBase" $f || echo $f; done | wc -l) -eq 0
+  - [ ] Its consumers never advance the workflow
+        VERIFY: test $(grep -rlE "WorkflowTransition|applyTransition" src/[module] --include=*.handler.ts 2>/dev/null | wc -l) -eq 0
+
 - [ ] **Phase N: SOLID conformance ([Art. X](../rules/09-solid.md))**
   > Scoped to this module. The repo-wide equivalents live in `specs/00-platform-core/tasks.md`;
   > the full catalogue is in the article. Keep both — these fail earlier and name the module.

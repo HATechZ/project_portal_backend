@@ -8,7 +8,6 @@ import { AppConfiguration } from './configuration';
 import { HttpExceptionFilter } from '../common/exceptions/http-exception.filter';
 import { EtagInterceptor } from '../common/interceptors/etag.interceptor';
 import { RequestIdInterceptor } from '../common/interceptors/request-id.interceptior';
-import { ResponseInterceptor } from '../common/interceptors/response.interceptor';
 import { OpenApiModule } from '../common/swagger/openapi.module';
 
 export function configureApplication(app: INestApplication): void {
@@ -32,10 +31,6 @@ export function configureApplication(app: INestApplication): void {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(
-    new RequestIdInterceptor(),
-    new EtagInterceptor(),
-    new ResponseInterceptor(),
-  );
+  app.useGlobalInterceptors(new RequestIdInterceptor(), new EtagInterceptor());
   OpenApiModule.setup(app);
 }

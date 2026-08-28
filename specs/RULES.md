@@ -20,7 +20,7 @@ feature module: every `*.module.ts` must be registered in [`PLACEHOLDERS.md`](PL
 task does not verify it. Assertions are static — `grep`, `test`, `yarn lint`, `yarn build`.
 Never write one needing a database, Redis, or the network.
 
-## The ten non-negotiables
+## The eleven non-negotiables
 
 1. No code under `src/` for a module with no `SPEC.md`.
 2. **Never run a database-mutating command** (`prisma migrate*`, `db push`, `db seed`,
@@ -38,6 +38,9 @@ Never write one needing a database, Redis, or the network.
    `src/infra/` name no concrete infrastructure. → [`rules/09-solid.md`](rules/09-solid.md)
 9. Role grants are revoked by timestamp, never deleted.
 10. Record progress in `INDEX.md` and nowhere else.
+11. **Feature modules never import each other** — they publish events. Publish through the
+    outbox inside the producer's transaction, never to the transport directly; a broker write
+    in a transaction is a dual write. → [`rules/10-messaging.md`](rules/10-messaging.md)
 
 ## Read only what you need
 
@@ -50,6 +53,8 @@ Never write one needing a database, Redis, or the network.
 | Write a `VERIFY:` line | [`rules/02-proof.md`](rules/02-proof.md) |
 | Write code in `src/` | [`rules/06-standards.md`](rules/06-standards.md) |
 | Add a class, or refactor one | [`rules/09-solid.md`](rules/09-solid.md) — layering law + assertion catalogue |
+| Publish an event, or write a consumer | [`rules/10-messaging.md`](rules/10-messaging.md) |
+| Import across feature modules | [`rules/10-messaging.md`](rules/10-messaging.md) — don't; publish instead |
 | Start or finish a module | [`rules/01-lifecycle.md`](rules/01-lifecycle.md) + `.specify/templates/` |
 | Draft a Gate 1 contract | [`rules/03-contracts.md`](rules/03-contracts.md) |
 | Run the Gate 5 walkthrough | [`rules/05-walkthrough.md`](rules/05-walkthrough.md) |
