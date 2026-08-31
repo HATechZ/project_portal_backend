@@ -35,6 +35,28 @@ application code.
 | `prisma/migrations/**` | Applied history — a hand-edited migration diverges from the database |
 | `scripts/dbml-to-prisma.cjs` | Changing the generator changes the schema it emits |
 
+## The database-architect subagent
+
+Schema design, data-model changes, technology selection, and reshape work are delegated to
+the `database-architect` subagent (installed for Claude at `.claude/agents/`, Gemini at
+`.gemini/agents/`, Codex at `.codex/agents/`).
+
+It is the **one exception** to this article. When invoked for schema work it may:
+
+- edit `project_portal_workflow_management_erd.dbml`,
+- run `node scripts/dbml-to-prisma.cjs`,
+- run `prisma migrate dev` against a **development** database.
+
+It still must **not** run `prisma migrate deploy`, `prisma migrate reset`, `prisma db push`,
+`db seed`, or `db execute` against a shared or production database, and it must report
+exactly which tables, columns, and migrations it changed so the owner can review before
+deploying.
+
+Every other agent — and Claude / Codex / Antigravity acting **outside** this subagent —
+remains fully bound by the prohibitions above. On Claude, a `UserPromptSubmit` hook
+(`scripts/db-prompt-guard.mjs`) posts a non-blocking reminder to route database-shaped
+prompts here.
+
 ## When a schema change is needed
 
 Propose it; do not perform it.

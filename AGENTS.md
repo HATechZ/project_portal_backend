@@ -46,11 +46,13 @@ yarn verify:sdd:strict        # also fail on ticked tasks with no VERIFY: line
 > rather than build time; that file is Claude-specific and you can ignore it. Nothing about
 > the rule is Claude-only — only the earlier feedback is.
 
-Codex has no skills or subagents. Rules tagged `[CLAUDE]` do not apply to you — follow the
-`[ALL]` equivalent stated alongside each one:
+Codex has one project subagent — `database-architect` (`.codex/agents/database-architect.toml`),
+referenced by name for schema design / reshape (Art. IX). No skills. Rules tagged `[CLAUDE]`
+do not apply to you — follow the `[ALL]` equivalent stated alongside each one:
 
 | Rule | Your equivalent |
 |---|---|
 | [Art. IV](specs/rules/04-vault.md) — `om` MCP vault sync | If the server is not connected, **skip vault sync entirely**. Do not hand-write vault files — that creates a second, diverging log. Record the decision in the module's `SPEC.md`. |
 | [Art. V](specs/rules/05-walkthrough.md) — Gate 5 walkthrough | Start the server and exercise each endpoint with `curl`. Record method, path, status, envelope shape, and `x-request-id` as PASS/FAIL in `walkthrough.md`. |
 | [Art. VI.10](specs/rules/06-standards.md) — Context7 MCP | Read the installed package's types under `node_modules` and the version in `package.json`. Never rely on recall — Prisma 7's driver-adapter setup differs from every Prisma 5 tutorial. |
+| [Art. IX](specs/rules/08-database.md) — schema design / reshape | Spawn the `database-architect` agent by name. It is the one path exempt from the Art. IX file/migrate lock (dev-time DBML + `dbml-to-prisma.cjs` + `prisma migrate dev` only). The `.claude/settings.json` prompt hook is Claude-only; you rely on naming the agent plus this row. |

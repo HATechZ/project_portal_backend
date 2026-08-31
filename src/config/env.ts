@@ -31,6 +31,8 @@ export interface EnvironmentVariables {
   MESSAGING_RELAY_ENABLED: boolean;
   MESSAGING_RELAY_INTERVAL_MS: number;
   MESSAGING_RELAY_BATCH_SIZE: number;
+  MESSAGING_TRANSPORT: 'in-process' | 'rabbitmq';
+  RABBITMQ_URL: string;
 }
 
 export const env = {
@@ -62,4 +64,6 @@ export const env = {
   messagingRelayEnabled: 'MESSAGING_RELAY_ENABLED',
   messagingRelayIntervalMs: 'MESSAGING_RELAY_INTERVAL_MS',
   messagingRelayBatchSize: 'MESSAGING_RELAY_BATCH_SIZE',
+  messagingTransport: 'MESSAGING_TRANSPORT',
+  rabbitmqUrl: 'RABBITMQ_URL',
 } as const satisfies Record<string, keyof EnvironmentVariables>;

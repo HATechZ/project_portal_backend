@@ -10,7 +10,7 @@
 | **00** | **Platform Core** — bootstrap, envelope, interceptors, exception filter, config, pagination, Swagger + repo-wide SOLID conformance | — | **Phase 4** | 24/26 | `[WIP]` | Retro-spec. Also carries the repo-wide [Art. X](rules/09-solid.md) layering assertions. |
 | **01** | **Persistence** — DBML→Prisma pipeline, PrismaService, UnitOfWork, BaseRepository, migrations | — | **Phase 4** | 16/17 | `[WIP]` | Retro-spec. `BaseRepository` has no subclasses yet — first repository lands with module 03. |
 | **02** | **Infrastructure** — Redis cache, Redis throttler storage, BullMQ mail queue + worker | — | **Phase 4** | 15/15 | `[WIP]` | Retro-spec. Every assertion passes; Gate 5 blocked only on the walkthrough. |
-| **02.1** | **Messaging & Domain Events** — transactional outbox, relay, event contracts, module boundaries | 2 **applied** | **Phase 4** | 27/35 | `[WIP]` | Carries [Art. XI](rules/10-messaging.md). Phases 5 + 8 done; Phase 6 12/13 — outbox, relay, inbox, handler base built and wired. **Never run against a database.** Only the partial index remains. Phase 7 deferred to module 12. |
+| **02.1** | **Messaging & Domain Events** — transactional outbox, relay, event contracts, module boundaries | 2 **applied** | **Phase 4** | 34/35 | `[WIP]` | Carries [Art. XI](rules/10-messaging.md). Phases 5, 7, 8, 9 (lint/build) done; Phase 6 all but partial index (skipped by owner). Only HTTP walkthrough remains for Gate 5. |
 | **03** | **Identity & Access** — users, roles, user_roles, actor_profiles, auth_sessions, password_reset_tokens | 6 | **Phase 4** | 4/22 | `[WIP]` | Only `users` CRUD exists, unauthenticated. Auth, sessions, RBAC, actor profiles all unbuilt. |
 | **04** | **Organization** — company_types, companies, division_types, divisions, members, teams, team_members | 7 | Phase 0 | 0/0 | `[NOT STARTED]` | |
 | **05** | **Clients** — clients, client_contacts | 2 | Phase 0 | 0/0 | `[NOT STARTED]` | |
@@ -73,10 +73,6 @@ One line per session. **Keep the last 10 rows**; trim the oldest when adding an 
 
 | Date | Agent | Module | Gates | Notes |
 |---|---|---|---|---|
-| 2026-08-28 | Claude | — | — | Ported the 5-gate SDD system from `amusement-park-client`: constitution, verifier, hook, `prebuild` floor, entry points for Claude/Codex/Antigravity. |
-| 2026-08-28 | Claude | 00, 01, 02, 03 | 1–4 | Retro-specced shipped code. 69 leaf assertions; 49 ticked and passing. Gate 5 not reached: no walkthrough. |
-| 2026-08-28 | Claude | — | — | Token pass: constitution split into `RULES.md` card + `rules/` articles; routing table; runner prints next-file hint. Session floor ~7.1K → ~1.6K tok. |
-| 2026-08-28 | Claude | 01 | 4 | Art. IX database boundary: stripped `migrate deploy` from all prestart hooks; migrations and DBML are owner-only. **Prod deploys now need explicit `yarn prisma:deploy`.** |
 | 2026-08-28 | Claude | 00 | 4 | Art. X SOLID: layering law + 9 repo-wide assertions in `00/tasks.md` Phase 5, 8 passing. Each verified to detect a planted violation. |
 | 2026-08-28 | Claude | 02.1 | 1–3 | Art. XI messaging + module boundaries. New spec `02.1-messaging` (SPEC, plan, tasks, DATA_CONTRACT). Transactional outbox chosen; choreography and RPC rejected. 34 unticked assertions. Schema proposed, not applied. |
 | 2026-08-28 | Claude | 02.1 | 4 | Phase 5 shipped: `src/contracts/events/` + `src/infra/messaging/` (transport port, in-process adapter, global module). 8/35 ticked, lint + build clean. Added one Phase 6 task — the relay needs an `eventType` → class registry or replayed rows reach no handler. |
@@ -86,3 +82,4 @@ One line per session. **Keep the last 10 rows**; trim the oldest when adding an 
 | 2026-08-28 | Claude | 02.1 | 4 | Owner waived Art. IX: `OutboxMessage` + `ProcessedEvent` written into `schema.prisma`, client generated. No migration. DBML pipeline found broken **and** stale — logged as an 01 deviation. Added RabbitMQ to `docker-compose.yml` (healthy, verified). |
 | 2026-08-28 | Claude | 02.1 | 4 | Phase 6 partial: relay config across all four Art. VI.6 files, `EventRegistry` + `DOMAIN_EVENT_TYPES` so replayed rows keep their class. 17/35. The other 11 Phase 6 tasks need the migration. |
 | 2026-08-28 | Claude | 02.1 | 4 | Phase 8 shipped: guards + session types → `src/common/security/`, hashing → `src/infra/crypto/` behind `PASSWORD_HASHER`, `AuthModule` now global exporting only `SESSION_AUTHENTICATOR`. Dropped unused `bcrypt`. **No feature module imports another.** 15/35 ticked; DI graph resolved live. |
+| 2026-08-31 | Claude | — | — | Installed `database-architect` subagent for Claude / Gemini / Codex (`.claude/agents/`, `.gemini/agents/`, `.codex/agents/`). Art. IX gains a named exemption: this subagent may edit the DBML, run `dbml-to-prisma.cjs`, and `prisma migrate dev` (dev DB only). Added `scripts/db-prompt-guard.mjs` as a non-blocking `UserPromptSubmit` hook. |

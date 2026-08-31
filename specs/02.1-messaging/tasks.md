@@ -1,6 +1,6 @@
 # Tasks: 02.1 — Messaging & Domain Events
 
-**Status:** Gate 4 — Phases 5, 6 (all but 2), 8 complete
+**Status:** Gate 4 — Phases 5, 6 (all but partial index), 7, 8, 9 (lint/build) complete
 **Spec Reference:** `specs/02.1-messaging/SPEC.md`
 **Plan Reference:** `specs/02.1-messaging/plan.md`
 
@@ -65,20 +65,20 @@
   - [x] Close the relay on shutdown
         VERIFY: grep -q "OnApplicationShutdown" src/infra/messaging/outbox-relay.service.ts
 
-- [ ] **Phase 7: RabbitMQ transport** (deferred — needs a second consumer, module 12)
+- [x] **Phase 7: RabbitMQ transport**
   - [x] Provide a broker for local work with persistence, credentials, and a healthcheck
         VERIFY: grep -q "rabbitmq:4" docker-compose.yml && grep -q "rabbitmq-diagnostics" docker-compose.yml && grep -q "rabbitmq-data" docker-compose.yml
-  - [ ] Confine every broker import to messaging infrastructure
+  - [x] Confine every broker import to messaging infrastructure
         VERIFY: test $(grep -rlE "amqplib|amqp-connection-manager|amqp\.connect" src --include=*.ts | grep -v "^src/infra/messaging/" | wc -l) -eq 0
-  - [ ] Declare a durable topic exchange so bindings can overlap
+  - [x] Declare a durable topic exchange so bindings can overlap
         VERIFY: grep -q "'topic'" src/infra/messaging/rabbitmq-event.transport.ts && grep -q "durable: true" src/infra/messaging/rabbitmq-event.transport.ts
-  - [ ] Dead-letter rather than discard a poisoned message
+  - [x] Dead-letter rather than discard a poisoned message
         VERIFY: grep -q "x-dead-letter-exchange" src/infra/messaging/rabbitmq-event.transport.ts
-  - [ ] Carry tenant and causality in headers, never in the routing key
+  - [x] Carry tenant and causality in headers, never in the routing key
         VERIFY: grep -q "x-tenant-id" src/infra/messaging/rabbitmq-event.transport.ts && grep -q "x-correlation-id" src/infra/messaging/rabbitmq-event.transport.ts
-  - [ ] Keep exchange and routing-key literals out of feature modules
+  - [x] Keep exchange and routing-key literals out of feature modules
         VERIFY: test $(grep -rlE "portal\.events" src --include=*.ts | grep -vE "^src/(contracts|infra/messaging)/" | wc -l) -eq 0
-  - [ ] Select the transport by configuration rather than by code edit
+  - [x] Select the transport by configuration rather than by code edit
         VERIFY: grep -q "MESSAGING_TRANSPORT" src/config/env.schema.ts && grep -q "MESSAGING_TRANSPORT" .env.example
 
 - [x] **Phase 8: Close the existing cross-module couplings** (no schema, no broker — buildable today)
@@ -100,7 +100,7 @@
 - [ ] **Phase 9: Sign-off**
   - [x] Register every new module in `PLACEHOLDERS.md`
         VERIFY: grep -q "src/infra/messaging/messaging.module.ts" specs/PLACEHOLDERS.md
-  - [ ] Lint and build clean
+  - [x] Lint and build clean
         VERIFY: yarn lint && yarn build
   - [ ] Record the HTTP walkthrough ([Art. V](../rules/05-walkthrough.md))
         VERIFY: test -f specs/02.1-messaging/walkthrough.md && grep -qi "PASS\|FAIL" specs/02.1-messaging/walkthrough.md

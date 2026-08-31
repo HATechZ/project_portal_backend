@@ -1,5 +1,7 @@
 import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
+import type { AppConfiguration } from '../../config/configuration';
 import { EventRegistry } from './event-registry';
 import { EVENT_TRANSPORT } from './event-transport.port';
 import { InboxRepository } from './inbox.repository';
@@ -8,6 +10,7 @@ import { EVENT_REGISTRY } from './messaging.constants';
 import { OutboxRelayService } from './outbox-relay.service';
 import { OutboxRepository } from './outbox.repository';
 import { OutboxService } from './outbox.service';
+import { RabbitMqEventTransport } from './rabbitmq-event.transport';
 
 /**
  * Global so any module can raise an event without importing a messaging module
@@ -19,6 +22,10 @@ import { OutboxService } from './outbox.service';
  *
  * `CqrsModule` is re-exported so feature modules can declare `@EventsHandler`
  * classes without depending on `@nestjs/cqrs` registration themselves.
+ *
+ * Transport selection: MESSAGING_TRANSPORT=rabbitmq switches to the broker
+ * adapter; the default is in-process. RabbitMqEventTransport is always
+ * registered so NestJS manages its lifecycle — it connects only when enabled.
  */
 @Global()
 @Module({
@@ -26,12 +33,24 @@ import { OutboxService } from './outbox.service';
   providers: [
     EventRegistry,
     InProcessEventTransport,
+    RabbitMqEventTransport,
     OutboxRepository,
     OutboxService,
     InboxRepository,
     OutboxRelayService,
     { provide: EVENT_REGISTRY, useExisting: EventRegistry },
-    { provide: EVENT_TRANSPORT, useExisting: InProcessEventTransport },
+    {
+      provide: EVENT_TRANSPORT,
+      inject: [ConfigService, InProcessEventTransport, RabbitMqEventTransport],
+      useFactory: (
+        config: ConfigService<AppConfiguration>,
+        inProcess: InProcessEventTransport,
+        rabbitmq: RabbitMqEventTransport,
+      ) =>
+        config.get('messaging.transport', { infer: true }) === 'rabbitmq'
+          ? rabbitmq
+          : inProcess,
+    },
   ],
   exports: [CqrsModule, EVENT_REGISTRY, OutboxService, InboxRepository],
 })

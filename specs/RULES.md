@@ -27,6 +27,7 @@ Never write one needing a database, Redis, or the network.
    `studio`, `yarn db:setup`) and **never edit** the DBML, `prisma/schema.prisma`, or
    `prisma/migrations/`. Propose schema changes in `DATA_CONTRACT.md` and stop.
    `prisma generate` is allowed — it never contacts the database.
+   **Exception:** the `database-architect` subagent may do schema and dev-migration work.
    → [`rules/08-database.md`](rules/08-database.md)
 3. Import Prisma from `src/generated/prisma`, never `@prisma/client`.
 4. Never build the response envelope in a controller.
@@ -49,6 +50,7 @@ Never write one needing a database, Redis, or the network.
 | Implement a ticked task | that module's `tasks.md` |
 | Add or change an endpoint | that module's `API_CONTRACT.md` |
 | Touch the schema or a query | that module's `DATA_CONTRACT.md` |
+| Design, reshape, or choose a schema / data model | delegate to the **`database-architect`** subagent → [`rules/08-database.md`](rules/08-database.md) |
 | Run any Prisma command | [`rules/08-database.md`](rules/08-database.md) **first** |
 | Write a `VERIFY:` line | [`rules/02-proof.md`](rules/02-proof.md) |
 | Write code in `src/` | [`rules/06-standards.md`](rules/06-standards.md) |
@@ -78,3 +80,7 @@ yarn verify:sdd:strict        # also fail on ticked tasks with no VERIFY: line
 `yarn build` runs the SDD lint first and fails if any task is ticked without a `VERIFY:` line.
 That gate binds every agent. Claude Code additionally blocks at tick time via a `PostToolUse`
 hook — same rule, earlier feedback.
+
+Claude Code also runs `scripts/db-prompt-guard.mjs` on `UserPromptSubmit`: a prompt mentioning
+schema / database / migration / Prisma gets a **non-blocking** nudge to route the work through
+the `database-architect` subagent. It never blocks a turn.

@@ -43,6 +43,8 @@ yarn verify:sdd:strict        # also fail on ticked tasks with no VERIFY: line
 > **The Gate 5 hook is active for you.** `.claude/settings.json` runs
 > `node scripts/verify-sdd.mjs --hook` after every `Write`/`Edit`. Tick a task in a
 > `tasks.md` without a `VERIFY:` line and the edit is blocked (exit 2) until you add one.
+> A second hook, `node scripts/db-prompt-guard.mjs` on `UserPromptSubmit`, injects a
+> **non-blocking** nudge toward the `database-architect` subagent on database-shaped prompts.
 
 Rules tagged `[CLAUDE]` in the card apply to you in full:
 
@@ -51,6 +53,9 @@ Rules tagged `[CLAUDE]` in the card apply to you in full:
 | [Art. IV](specs/rules/04-vault.md) — vault sync | `om` MCP tools (`record_work`, `remember`). **Skip entirely if the server is not connected** — do not hand-write vault files. |
 | [Art. V](specs/rules/05-walkthrough.md) — Gate 5 walkthrough | Browser tools against `/api/docs`, or `curl` via Bash. Record PASS/FAIL in `walkthrough.md`. |
 | [Art. VI.10](specs/rules/06-standards.md) — library API verification | Context7 MCP: `resolve-library-id` → `query-docs`. Mandatory before writing against NestJS 11 / Prisma 7 / BullMQ. |
+| [Art. IX](specs/rules/08-database.md) — schema design / reshape | The `database-architect` subagent (Task tool). Art. IX exempts it for dev-time DBML edits + `node scripts/dbml-to-prisma.cjs` + `prisma migrate dev`. Never let it run `prisma migrate deploy`. |
 
-There are no project subagents or skills in this repo. Use the built-in ones as you would
-anywhere.
+**Project subagent:** `database-architect` (`.claude/agents/database-architect.md`) —
+schema design and reshape, per [Art. IX](specs/rules/08-database.md). It auto-delegates on
+database / schema / migration prompts, and the `UserPromptSubmit` hook nudges you toward it.
+No project skills beyond the two under `.claude/skills/`.
