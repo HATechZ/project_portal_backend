@@ -72,29 +72,59 @@ for (const match of source.matchAll(tablePattern)) {
 }
 
 const refs = [];
-for (const match of source.matchAll(/^Ref:\s+(\w+)\.(\w+)\s*([><-])\s*(\w+)\.(\w+)/gm)) {
-  refs.push({ fromTable: match[1], fromField: match[2], kind: match[3], toTable: match[4], toField: match[5] });
+for (const match of source.matchAll(/^Ref(?:\s+(\w+))?:\s+(\w+)\.(\w+)\s*([><-])\s*(\w+)\.(\w+)(?:\s+\[([^\]]+)\])?/gm)) {
+  const settings = new Map();
+  for (const setting of (match[7] ?? '').split(',')) {
+    const parsed = setting.trim().match(/^(delete|update):\s*(cascade|restrict|set null|no action)$/i);
+    if (parsed) settings.set(parsed[1].toLowerCase(), parsed[2].toLowerCase());
+  }
+  refs.push({
+    name: match[1], fromTable: match[2], fromField: match[3], kind: match[4],
+    toTable: match[5], toField: match[6], onDelete: settings.get('delete'),
+    onUpdate: settings.get('update'),
+  });
+}
+
+function prismaReferentialAction(action) {
+  return ({ cascade: 'Cascade', restrict: 'Restrict', 'set null': 'SetNull', 'no action': 'NoAction' })[action];
 }
 
 for (const ref of refs) {
   const from = tables.get(ref.fromTable);
   const to = tables.get(ref.toTable);
   if (!from || !to) throw new Error(`Invalid ref ${JSON.stringify(ref)}`);
-  const relationName = pascal(`${ref.fromTable}_${ref.fromField}_${ref.toTable}`);
+  const usesPrismaDefaultRelationName =
+    ref.toTable === 'tenants' ||
+    (ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions');
+  const relationName = ref.name ?? (usesPrismaDefaultRelationName ? undefined : pascal(`${ref.fromTable}_${ref.fromField}_${ref.toTable}`));
   const fk = from.columns.find((column) => column.name === ref.fromField);
   if (!fk) throw new Error(`Missing FK ${ref.fromTable}.${ref.fromField}`);
   let forwardName = camel(ref.fromField.replace(/_id$/, ''));
   if (from.columns.some((column) => camel(column.name) === forwardName)) forwardName += 'Relation';
   const usedForward = new Set(from.relations.map((relation) => relation.field));
   while (usedForward.has(forwardName)) forwardName += 'Relation';
+  const relationArguments = [
+    `fields: [${camel(ref.fromField)}]`,
+    `references: [${camel(ref.toField)}]`,
+  ];
+  if (ref.onDelete) relationArguments.push(`onDelete: ${prismaReferentialAction(ref.onDelete)}`);
+  if (ref.onUpdate) relationArguments.push(`onUpdate: ${prismaReferentialAction(ref.onUpdate)}`);
+  const relationPrefix = relationName ? `"${relationName}", ` : '';
   from.relations.push({
     field: forwardName, type: modelName(ref.toTable), optional: !fk.required,
-    annotation: `@relation("${relationName}", fields: [${camel(ref.fromField)}], references: [${camel(ref.toField)}])`,
+    annotation: `@relation(${relationPrefix}${relationArguments.join(', ')})`,
   });
-  let reverseName = `${camel(ref.fromTable)}By${pascal(ref.fromField)}`;
+  let reverseName = ref.toTable === 'tenants'
+    ? camel(ref.fromTable)
+    : ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions'
+      ? 'consumedRefreshTokens'
+      : `${camel(ref.fromTable)}By${pascal(ref.fromField)}`;
   const usedReverse = new Set(to.relations.map((relation) => relation.field));
   while (usedReverse.has(reverseName)) reverseName += 'Relation';
-  to.relations.push({ field: reverseName, type: modelName(ref.fromTable), optional: ref.kind === '-', list: ref.kind !== '-', annotation: `@relation("${relationName}")` });
+  to.relations.push({
+    field: reverseName, type: modelName(ref.fromTable), optional: ref.kind === '-', list: ref.kind !== '-',
+    annotation: relationName ? `@relation("${relationName}")` : '',
+  });
 }
 
 function prismaType(type) {
@@ -148,7 +178,9 @@ for (const table of tables.values()) {
   }
   if (table.relations.length) {
     out.push('');
-    for (const relation of table.relations) out.push(`  ${relation.field} ${relation.type}${relation.list ? '[]' : relation.optional ? '?' : ''} ${relation.annotation}`);
+    for (const relation of table.relations) {
+      out.push(`  ${relation.field} ${relation.type}${relation.list ? '[]' : relation.optional ? '?' : ''} ${relation.annotation}`.trimEnd());
+    }
   }
   const scalarUnique = new Set(table.columns.filter((column) => column.unique).map((column) => column.name));
   for (const index of table.indexes) {
@@ -158,5 +190,6 @@ for (const table of tables.values()) {
   out.push(`  @@map("${table.name}")`, '}', '');
 }
 
+while (out.at(-1) === '') out.pop();
 fs.writeFileSync('prisma/schema.prisma', `${out.join('\n')}\n`);
 console.log(`Generated ${tables.size} models, ${enums.size} enums, and ${refs.length} relations.`);

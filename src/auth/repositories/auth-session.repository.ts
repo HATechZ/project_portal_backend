@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
-import { PrismaService } from '../../infra/prisma/prisma.service';
+import { BaseRepository } from '../../infra/prisma/base.repository';
+import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { RequestContext } from '../../common/context/request-context';
 import {
   SessionActor,
@@ -24,17 +25,21 @@ export interface CreateAuthSessionInput {
 }
 
 @Injectable()
-export class AuthSessionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export class AuthSessionRepository extends BaseRepository {
+  constructor(unitOfWork: UnitOfWorkService) {
+    super(unitOfWork);
+  }
 
   findCredentials(email: string): Promise<UserCredentials | null> {
-    return this.prisma.scoped.user.findFirst({ where: { email } });
+    return this.transaction((db) => db.user.findFirst({ where: { email } }));
   }
 
   findActiveCredentials(email: string): Promise<UserCredentials | null> {
-    return this.prisma.scoped.user.findFirst({
-      where: { email, isActive: true, passwordHash: { not: null } },
-    });
+    return this.transaction((db) =>
+      db.user.findFirst({
+        where: { email, isActive: true, passwordHash: { not: null } },
+      }),
+    );
   }
 
   async replacePasswordResetToken(
@@ -43,7 +48,7 @@ export class AuthSessionRepository {
     expiresAt: Date,
   ): Promise<void> {
     const tenantId = RequestContext.requireTenantId();
-    await this.prisma.unscoped.$transaction(async (transaction) => {
+    await this.transaction(async (transaction) => {
       await transaction.passwordResetToken.updateMany({
         where: { tenantId, userId, usedAt: null },
         data: { usedAt: new Date() },
@@ -65,7 +70,7 @@ export class AuthSessionRepository {
     passwordHash: string,
   ): Promise<boolean> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.unscoped.$transaction(async (transaction) => {
+    return this.transaction(async (transaction) => {
       const token = await transaction.passwordResetToken.findFirst({
         where: {
           tenantId,
@@ -105,82 +110,94 @@ export class AuthSessionRepository {
 
   findActiveUser(id: string): Promise<SessionUser | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.user.findFirst({
-      where: { id, isActive: true },
-      select: sessionUserSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.user.findFirst({
+        where: { id, isActive: true },
+        select: sessionUserSelect(tenantId),
+      }),
+    );
   }
 
   findActiveActor(userId: string): Promise<SessionActor | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.actorProfile.findFirst({
-      where: {
-        userId,
-        isActive: true,
-        role: {
-          userRolesByRoleId: {
-            some: { tenantId, userId, revokedAt: null },
+    return this.transaction((db) =>
+      db.actorProfile.findFirst({
+        where: {
+          userId,
+          isActive: true,
+          role: {
+            userRolesByRoleId: {
+              some: { tenantId, userId, revokedAt: null },
+            },
           },
         },
-      },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-      select: sessionActorSelect(tenantId),
-    });
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+        select: sessionActorSelect(tenantId),
+      }),
+    );
   }
 
   recordLogin(id: string): Promise<SessionUser> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.user.update({
-      where: { id },
-      data: { lastLoginAt: new Date() },
-      select: sessionUserSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.user.update({
+        where: { id },
+        data: { lastLoginAt: new Date() },
+        select: sessionUserSelect(tenantId),
+      }),
+    );
   }
 
   createSession(data: CreateAuthSessionInput) {
-    return this.prisma.scoped.authSession.create({
-      data: data as Prisma.AuthSessionUncheckedCreateInput,
-    });
+    return this.transaction((db) =>
+      db.authSession.create({
+        data: data as Prisma.AuthSessionUncheckedCreateInput,
+      }),
+    );
   }
 
   findValidSessionByTokenHash(refreshTokenHash: string) {
-    return this.prisma.scoped.authSession.findFirst({
-      where: {
-        refreshTokenHash,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-        absoluteExpiresAt: { gt: new Date() },
-      },
-    });
+    return this.transaction((db) =>
+      db.authSession.findFirst({
+        where: {
+          refreshTokenHash,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          absoluteExpiresAt: { gt: new Date() },
+        },
+      }),
+    );
   }
 
   async findSessionByConsumedTokenHash(tokenHash: string) {
-    const previous = await this.prisma.scoped.authSession.findFirst({
-      where: { previousRefreshTokenHash: tokenHash, revokedAt: null },
-      select: { id: true },
-    });
-    if (previous) return previous;
-
-    const consumed =
-      await this.prisma.scoped.authSessionConsumedRefreshToken.findFirst({
+    return this.transaction(async (db) => {
+      const previous = await db.authSession.findFirst({
+        where: { previousRefreshTokenHash: tokenHash, revokedAt: null },
+        select: { id: true },
+      });
+      if (previous) return previous;
+      const consumed = await db.authSessionConsumedRefreshToken.findFirst({
         where: { tokenHash, session: { revokedAt: null } },
         select: { sessionId: true },
       });
-    return consumed ? { id: consumed.sessionId } : null;
+      return consumed ? { id: consumed.sessionId } : null;
+    });
   }
 
   async isSessionActive(id: string, userId: string): Promise<boolean> {
-    const session = await this.prisma.scoped.authSession.findFirst({
-      where: {
-        id,
-        userId,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-        absoluteExpiresAt: { gt: new Date() },
-      },
-      select: { id: true },
+    return this.transaction(async (db) => {
+      const session = await db.authSession.findFirst({
+        where: {
+          id,
+          userId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          absoluteExpiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      });
+      return session !== null;
     });
-    return session !== null;
   }
 
   async rotateSession(
@@ -196,7 +213,7 @@ export class AuthSessionRepository {
     >,
   ): Promise<boolean> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.unscoped.$transaction(async (transaction) => {
+    return this.transaction(async (transaction) => {
       const result = await transaction.authSession.updateMany({
         where: {
           tenantId,
@@ -223,9 +240,11 @@ export class AuthSessionRepository {
   }
 
   async revokeSession(id: string): Promise<void> {
-    await this.prisma.scoped.authSession.updateMany({
-      where: { id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    await this.transaction((db) =>
+      db.authSession.updateMany({
+        where: { id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    );
   }
 }

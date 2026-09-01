@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { ActorRoleCode, Prisma } from '../../generated/prisma/client';
-import { PrismaService } from '../../infra/prisma/prisma.service';
+import { BaseRepository } from '../../infra/prisma/base.repository';
+import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { PaginationArgs } from '../../common/pagination/paginate';
 import { RequestContext } from '../../common/context/request-context';
 
@@ -21,39 +22,44 @@ export type PublicUser = Prisma.UserGetPayload<{
 }>;
 
 @Injectable()
-export class UserRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export class UserRepository extends BaseRepository {
+  constructor(unitOfWork: UnitOfWorkService) {
+    super(unitOfWork);
+  }
 
   create(
     data: Omit<Prisma.UserUncheckedCreateInput, 'id' | 'tenantId'>,
   ): Promise<PublicUser> {
-    return this.prisma.scoped.user.create({
-      data: {
-        id: randomUUID(),
-        ...data,
-      } as unknown as Prisma.UserUncheckedCreateInput,
-      select: publicUserSelect,
-    });
+    return this.transaction((db) =>
+      db.user.create({
+        data: {
+          id: randomUUID(),
+          ...data,
+        } as unknown as Prisma.UserUncheckedCreateInput,
+        select: publicUserSelect,
+      }),
+    );
   }
 
   findAll({ skip, take }: PaginationArgs): Promise<PublicUser[]> {
-    return this.prisma.scoped.user.findMany({
-      orderBy: { id: 'asc' },
-      skip,
-      take,
-      select: publicUserSelect,
-    });
+    return this.transaction((db) =>
+      db.user.findMany({
+        orderBy: { id: 'asc' },
+        skip,
+        take,
+        select: publicUserSelect,
+      }),
+    );
   }
 
   count(): Promise<number> {
-    return this.prisma.scoped.user.count();
+    return this.transaction((db) => db.user.count());
   }
 
   findById(id: string): Promise<PublicUser | null> {
-    return this.prisma.scoped.user.findUnique({
-      where: { id },
-      select: publicUserSelect,
-    });
+    return this.transaction((db) =>
+      db.user.findUnique({ where: { id }, select: publicUserSelect }),
+    );
   }
 
   update(
@@ -62,7 +68,7 @@ export class UserRepository {
     security: { deactivating: boolean; passwordChanged: boolean },
   ): Promise<PublicUser | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.unscoped.$transaction(
+    return this.transaction(
       async (transaction) => {
         if (security.deactivating) {
           const targetIsSystemAdmin = await transaction.user.findFirst({
@@ -116,6 +122,6 @@ export class UserRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.scoped.user.delete({ where: { id } });
+    await this.transaction((db) => db.user.delete({ where: { id } }));
   }
 }

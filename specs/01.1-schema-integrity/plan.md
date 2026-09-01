@@ -1,6 +1,6 @@
 # Technical Plan: 01.1 — Schema Integrity & Tenant Isolation
 
-**Status:** Draft (Gate 2)
+**Status:** Gate 3 · destructive Phases 8–12 decision-gated
 **Related Spec:** `specs/01.1-schema-integrity/SPEC.md`
 **Contracts:** `DATA_CONTRACT.md`
 
@@ -12,15 +12,15 @@ controllers and DTOs.
 
 ## 1. Preconditions
 
-Two things must be settled before Phase 6. Neither is this module's to decide.
+The two original preconditions were resolved by the owner on 2026-09-01.
 
 | # | Blocker | Who resolves | Why it blocks |
 |---|---|---|---|
-| P-1 | The DBML is deleted from the working tree and the `HEAD` copy is stale (module 01 deviation). Running `dbml-to-prisma.cjs` would drop `OutboxMessage` / `ProcessedEvent` and revert migration `20260821000000`. | Owner | Every phase from 7 on edits the schema. If the generator is the path, it must produce today's schema first. If `schema.prisma` is now the source of truth, Art. IX §"Files agents do not edit" needs amending to say so. |
-| P-2 | Does `workflow_transitions.target_role_id` vary by status pair, or only by action? | Owner / module 09 | Decides whether Phase 9 splits routing into its own table or drops only `from_role_id`. |
+| P-1 | Reconstruct the missing DBML against the legitimate current Prisma schema and migration history, preserving `OutboxMessage`, `ProcessedEvent`, and `20260821000000`. DBML remains authoritative. | `database-architect` | Resolved; reconstruction precedes schema reshaping. |
+| P-2 | Keep nullable `target_role_id` on `workflow_transitions`; do not split action-global routing in 01.1. | Owner | Resolved; Phase 9 drops only `from_role_id` and adds transition uniqueness. |
 
-**Phase 5 is not blocked by either.** It is pure application code and ships today — which is
-why it is first.
+Unrelated destructive Phase 8–12 redesigns are not implicitly approved by these decisions;
+each continues through its own requirements and decision gate.
 
 ---
 
@@ -66,16 +66,16 @@ return this.prisma.scoped.$transaction(async (transaction) => {
 rollback, and safe under connection pooling. A literal `SET LOCAL` cannot take a bind
 parameter; `set_config` can, which is the difference that matters here.
 
-**Reads outside a transaction are the open edge.** `UnitOfWorkService.client` falls back to
-`this.prisma.scoped` when no transaction is open, and that path sets no GUC — so under Phase 6
-every non-transactional read returns zero rows. Two options, and the owner picks:
+**Resolved read strategy (2026-09-01): universal repository units of work.** Every public
+repository operation, including a single read, calls `UnitOfWorkService.execute`. Nested calls
+join the ambient transaction. The unit of work runs parameterized `set_config` as its first
+statement and only then exposes the transaction client through AsyncLocalStorage.
 
-- **(a)** Route every read through `execute()`, making the unit of work universal.
-- **(b)** Extend the Prisma client with a `$allOperations` hook that wraps non-transactional
-  calls in an implicit transaction carrying the GUC.
-
-(b) is less invasive and keeps repository code unchanged; (a) is simpler to reason about.
-`tasks.md` asserts the GUC is set in `unit-of-work.service.ts` and stays neutral on which.
+`UnitOfWorkService.client` no longer falls back to the root scoped client. Access without an
+active unit of work throws before Prisma receives a query. This makes the GUC requirement
+structural rather than dependent on each caller remembering to open a transaction. The
+outbox and inbox repositories use the same helper, so they still join a producer/consumer
+transaction when one exists.
 
 ---
 
@@ -86,8 +86,8 @@ Nine migrations. The order is not preference — each edge below is a hard depen
 ```
 P5  parity script + guard cache        (no migration)
      │
-P6  roles → RLS enable → policies      ← must be one migration; policies without
-     │                                   the relay role break the outbox
+P6  pre-provisioned roles → grants + RLS policies  ← one migration; role credentials
+     │                                               stay outside schema history
      ├──────────────┬──────────────┐
 P7  composite FK   P8  drop derived  P12 lookup collapse + hygiene
      │              │
@@ -101,10 +101,14 @@ P10 people + user_accounts + backfill  ← touches every FK into users
 P11 actor_profiles kind + constraints  ← needs P10's person_id to exist
 ```
 
+`document_version_folder_locations.folder_path` is not part of Phase 8 removal. It remains a
+materialized logical-path cache, with synchronization/rebuild behavior owned by module 08.
+
 Three constraints worth stating plainly:
 
-1. **Phase 6 is one migration.** Enabling RLS and creating the privileged role in separate
-   migrations leaves a window where the relay reads nothing.
+1. **Phase 6 is one migration.** Runtime roles and credentials are pre-provisioned outside
+   schema history. The migration atomically validates them, applies audited grants, enables
+   RLS, and creates policies, so there is no applied state where the relay lacks access.
 2. **Phase 12 must precede nothing.** Dropping `workspace_types` fails while `projects.workspace_type_id`
    still references it, so each collapse is `ALTER TABLE ... ADD COLUMN enum` → backfill →
    `DROP CONSTRAINT` → `DROP TABLE`, in that order, per table.
@@ -138,7 +142,7 @@ module never invokes it.
 | `actor_profiles_kind_target` violated | Prisma `P0001` / raw check violation | needs a `mapPrismaException` entry — **new**, see below |
 | `actor_profiles_one_default` violated | Prisma `P2002` | already central; add the index name to the constraint→message map |
 | Duplicate workflow transition | Prisma `P2002` | same map |
-| RLS returns zero rows for a missing GUC | Not an error — an empty result | This is the failure mode to watch in the walkthrough, because it is silent to the ORM |
+| RLS evaluates with a missing GUC | PostgreSQL error from `current_setting` | Intentional fail-closed behavior; the walkthrough must confirm the request fails rather than returning an empty success |
 
 `mapPrismaException` currently keys P2002 on literal index names from `prisma/migrations/`
 (module 00's work). Phases 9, 11 and 12 each add an index name, and Phase 11 adds the first

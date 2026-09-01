@@ -28,15 +28,17 @@ export class InboxRepository extends BaseRepository {
    */
   async claim(eventId: string, consumer: string): Promise<boolean> {
     try {
-      await this.db.processedEvent.create({
-        // `tenantId` comes from the extension, restored by `EventHandlerBase`
-        // before this runs. See `OutboxRepository` for why the cast is needed.
-        data: {
-          id: randomUUID(),
-          eventId,
-          consumer,
-        } as Prisma.ProcessedEventUncheckedCreateInput,
-      });
+      await this.transaction((db) =>
+        db.processedEvent.create({
+          // `tenantId` comes from the extension, restored by `EventHandlerBase`
+          // before this runs. See `OutboxRepository` for why the cast is needed.
+          data: {
+            id: randomUUID(),
+            eventId,
+            consumer,
+          } as Prisma.ProcessedEventUncheckedCreateInput,
+        }),
+      );
       return true;
     } catch (error) {
       if (

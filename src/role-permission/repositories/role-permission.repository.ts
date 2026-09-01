@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, WorkflowActionCode } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
-import { PrismaService } from '../../infra/prisma/prisma.service';
+import { BaseRepository } from '../../infra/prisma/base.repository';
+import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 
 const permissionSelect = {
   id: true,
@@ -53,45 +54,54 @@ export type UserRoleAssignment = Prisma.UserRoleGetPayload<{
 }>;
 
 @Injectable()
-export class RolePermissionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export class RolePermissionRepository extends BaseRepository {
+  constructor(unitOfWork: UnitOfWorkService) {
+    super(unitOfWork);
+  }
 
   findRoles(): Promise<RoleRecord[]> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.role.findMany({
-      orderBy: { name: 'asc' },
-      select: roleSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.role.findMany({
+        orderBy: { name: 'asc' },
+        select: roleSelect(tenantId),
+      }),
+    );
   }
 
   findRole(id: string): Promise<RoleRecord | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.role.findUnique({
-      where: { id },
-      select: roleSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.role.findUnique({ where: { id }, select: roleSelect(tenantId) }),
+    );
   }
 
   findPermissions(): Promise<PermissionRecord[]> {
-    return this.prisma.workflowActionDefinition.findMany({
-      orderBy: { code: 'asc' },
-      select: permissionSelect,
-    });
+    return this.transaction((db) =>
+      db.workflowActionDefinition.findMany({
+        orderBy: { code: 'asc' },
+        select: permissionSelect,
+      }),
+    );
   }
 
   findVisiblePermissions(): Promise<PermissionRecord[]> {
-    return this.prisma.workflowActionDefinition.findMany({
-      where: { isUserVisible: true },
-      orderBy: { code: 'asc' },
-      select: permissionSelect,
-    });
+    return this.transaction((db) =>
+      db.workflowActionDefinition.findMany({
+        where: { isUserVisible: true },
+        orderBy: { code: 'asc' },
+        select: permissionSelect,
+      }),
+    );
   }
 
   findPermission(id: string): Promise<PermissionRecord | null> {
-    return this.prisma.workflowActionDefinition.findUnique({
-      where: { id },
-      select: permissionSelect,
-    });
+    return this.transaction((db) =>
+      db.workflowActionDefinition.findUnique({
+        where: { id },
+        select: permissionSelect,
+      }),
+    );
   }
 
   async replaceRolePermissions(
@@ -99,7 +109,7 @@ export class RolePermissionRepository {
     permissionCodes: WorkflowActionCode[],
   ): Promise<RoleRecord> {
     const tenantId = RequestContext.requireTenantId();
-    await this.prisma.$transaction(async (transaction) => {
+    return this.transaction(async (transaction) => {
       const actions = await transaction.workflowActionDefinition.findMany({
         where: { code: { in: permissionCodes } },
         select: { id: true },
@@ -123,18 +133,17 @@ export class RolePermissionRepository {
           update: { allowed: true },
         });
       }
-    });
-    return this.prisma.role.findUniqueOrThrow({
-      where: { id: roleId },
-      select: roleSelect(tenantId),
+      return transaction.role.findUniqueOrThrow({
+        where: { id: roleId },
+        select: roleSelect(tenantId),
+      });
     });
   }
 
   findUser(id: string): Promise<{ id: string } | null> {
-    return this.prisma.scoped.user.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+    return this.transaction((db) =>
+      db.user.findUnique({ where: { id }, select: { id: true } }),
+    );
   }
 
   findUserRoles(
@@ -142,11 +151,13 @@ export class RolePermissionRepository {
     includeRevoked = false,
   ): Promise<UserRoleAssignment[]> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.userRole.findMany({
-      where: { userId, ...(includeRevoked ? {} : { revokedAt: null }) },
-      orderBy: { assignedAt: 'desc' },
-      select: assignmentSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.userRole.findMany({
+        where: { userId, ...(includeRevoked ? {} : { revokedAt: null }) },
+        orderBy: { assignedAt: 'desc' },
+        select: assignmentSelect(tenantId),
+      }),
+    );
   }
 
   findActiveAssignment(
@@ -154,10 +165,12 @@ export class RolePermissionRepository {
     roleId: string,
   ): Promise<UserRoleAssignment | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.userRole.findFirst({
-      where: { userId, roleId, revokedAt: null },
-      select: assignmentSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.userRole.findFirst({
+        where: { userId, roleId, revokedAt: null },
+        select: assignmentSelect(tenantId),
+      }),
+    );
   }
 
   createAssignment(
@@ -166,15 +179,17 @@ export class RolePermissionRepository {
     assignedByUserId: string,
   ): Promise<UserRoleAssignment> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.userRole.create({
-      data: {
-        id: randomUUID(),
-        userId,
-        roleId,
-        assignedByUserId,
-      } as Prisma.UserRoleUncheckedCreateInput,
-      select: assignmentSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.userRole.create({
+        data: {
+          id: randomUUID(),
+          userId,
+          roleId,
+          assignedByUserId,
+        } as Prisma.UserRoleUncheckedCreateInput,
+        select: assignmentSelect(tenantId),
+      }),
+    );
   }
 
   revokeAssignment(
@@ -183,7 +198,7 @@ export class RolePermissionRepository {
     preserveLastAssignment: boolean,
   ): Promise<boolean> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.$transaction(
+    return this.transaction(
       async (transaction) => {
         if (preserveLastAssignment) {
           const activeAssignments = await transaction.userRole.count({

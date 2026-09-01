@@ -1,17 +1,17 @@
 # Data Contract: 01.1 — Schema Integrity & Tenant Isolation
 
-This module owns no table. It changes 52 of them, plus three new ones and five dropped.
+This module owns no table. RLS protects 52 tenant-bearing tables plus the `tenants` root;
+later decision-gated phases propose three new tables and five dropped tables.
 
 Governed by [Art. IX](../rules/08-database.md): **everything below is proposed, not applied.**
 No agent outside the `database-architect` subagent may edit `prisma/schema.prisma`, the DBML,
 or `prisma/migrations/`. Every task in `tasks.md` stays unticked, and its `VERIFY:` line fails,
 until the owner applies the change — that is the intended state, not a defect.
 
-**Precondition.** The DBML is deleted from the working tree and the `HEAD` copy is stale
-(module 01's open deviation). Running `dbml-to-prisma.cjs` today would drop `OutboxMessage`
-and `ProcessedEvent` and revert migration `20260821000000`. Either the DBML is restored first,
-or the owner decides `prisma/schema.prisma` is the source of truth and Art. IX is amended to
-say so. **Nothing in this contract can be applied until that is settled.**
+**Resolved precondition (owner decision, 2026-09-01).** Reconstruct the deleted DBML against
+the legitimate current `prisma/schema.prisma` and applied migration history, including
+`OutboxMessage`, `ProcessedEvent`, and migration `20260821000000`. DBML remains the sole
+authoritative source and generation remains DBML → `dbml-to-prisma.cjs` → Prisma schema.
 
 ---
 
@@ -19,7 +19,7 @@ say so. **Nothing in this contract can be applied until that is settled.**
 
 | Change | Tables | Phase |
 |---|---|---|
-| RLS enabled + isolation policy | 52 | 6 |
+| RLS enabled + isolation policy | 53 (52 scoped children + tenant root) | 6 |
 | Composite tenant-carrying FK | 5 chains | 7 |
 | Derived column dropped | 6 columns across 4 tables | 8 |
 | Join dependency decomposed | `workflow_transitions` | 9 |
@@ -34,7 +34,9 @@ say so. **Nothing in this contract can be applied until that is settled.**
 ### 2.1 Row-level security (Phase 6)
 
 Prisma has no syntax for RLS. All of it lives in the migration by hand, for each of the 52
-models listed in `src/common/tenant/tenant.constants.ts`:
+models listed in `src/common/tenant/tenant.constants.ts`, plus the `tenants` scope root. The
+root exposes only `tenants.id = current_setting('app.tenant_id')::uuid`, because current code
+uses it only to validate activation for the tenant already present in request context:
 
 ```sql
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
@@ -48,17 +50,27 @@ GUC sees every tenant's rows. Without them it raises, and a forgotten `SET LOCAL
 at the first query instead of leaking silently. This is the single most important line in the
 module.
 
-Two roles, because the relay legitimately reads across tenants:
+**Missing-GUC contract:** a scoped query without `app.tenant_id` is an error. It does not
+return zero rows. Application repositories therefore never execute against the root scoped
+client: every public repository operation enters `UnitOfWorkService.execute`, which sets the
+transaction-local GUC before invoking repository work. Direct repository-client access with
+no active unit of work throws before a query can be issued.
+
+Two pre-provisioned login roles are required because the relay legitimately reads across
+tenants. Credentials are deployment secrets and are never created or altered by a migration:
 
 ```sql
-CREATE ROLE app_user  NOBYPASSRLS;
-CREATE ROLE app_relay BYPASSRLS;
+CREATE ROLE app_user LOGIN NOSUPERUSER NOCREATEROLE NOBYPASSRLS;
+CREATE ROLE app_relay LOGIN NOSUPERUSER NOCREATEROLE BYPASSRLS;
 ```
 
 `DATABASE_URL` connects as `app_user` and backs `prisma.scoped`. A new
-`DATABASE_URL_PRIVILEGED` connects as `app_relay` and backs `prisma.unscoped` — which today is
-the same client the app uses. Table owners are exempt from their own RLS, so the migration role
-must not be either of these.
+`DATABASE_URL` connects as `app_user` and backs `prisma.scoped`.
+`DATABASE_URL_PRIVILEGED` connects as `app_relay` and backs the distinct `prisma.unscoped`
+client used only by the outbox relay. Table owners are exempt from their own RLS, so the
+migration role must not be either runtime identity. The migration validates pre-provisioned
+role attributes and membership separation, but it does not manage roles, passwords, or
+authentication cutover.
 
 ### 2.2 Composite foreign keys (Phase 7)
 
@@ -96,11 +108,9 @@ request's project structurally unable to disagree.
 | `bid_details` | `project_name` | `project.name` | drifts on rename |
 | `bid_details` | `project_code` | `project.code` | drifts on rename |
 | `actor_profiles` | `label` | `person.full_name` + `role.name` | stale after rename |
-| `document_version_folder_locations` | `folder_path` | folder ancestry | stale after a folder move |
 
-`folder_path` is the one defensible keep — as a materialized path it saves a recursive walk.
-If the owner keeps it, it moves to §5 as a declared cache and gains a rebuild-on-move job in
-module 08. The default in `tasks.md` is to drop it.
+`document_version_folder_locations.folder_path` is retained by owner decision as an
+intentional materialized logical-path cache; see §5. It is not a physical object-storage key.
 
 ### 2.4 `workflow_transitions` (Phase 9)
 
@@ -111,13 +121,12 @@ all** — two rows may claim the same action from the same status leads to diffe
 |---|---|
 | dropped | `from_role_id` — eligibility already lives in `workflow_action_role_permissions` |
 | added | `@@unique([tenantId, actionId, fromStatusId])` |
-| conditional | `target_role_id` moves to `workflow_transition_routing` **only if** routing does not vary by status pair |
+| retained | nullable `target_role_id` remains transition-level routing |
 
-**Open question for the owner.** Does `target_role_id` vary by `(from_status, to_status)`, or
-only by action? If only by action, the table has a genuine join dependency and routing splits
-out. If it varies by status pair, keep the column and drop only `from_role_id`. The schema
-cannot answer this; the workflow spec (module 09) can. `tasks.md` Phase 9 asserts the
-unconditional half only.
+Owner decision (2026-09-01): transition routing coexists with assignment/member/client/
+requester-dependent dynamic routing. Keep nullable `target_role_id` on the transition and
+drop only `from_role_id`. Module 09 may revisit a specific relation only if its workflow
+contract later proves that relation is truly action-global.
 
 ### 2.5 Identity (Phase 10)
 
@@ -257,3 +266,4 @@ Not every repetition is a defect. These stay, and a reshape that "normalizes" th
 | `*_events`, `*_audit_logs` | Append-only logs are supposed to carry redundant context; that is what makes them readable after the referenced rows change. |
 | `outbox_messages`, `processed_events` | Shape dictated by the delivery protocol (Art. XI), not by normal form. Out of scope entirely. |
 | `bid_details.cargo_name` beside `cargo_code_option_id` | The free-text name is the instance; the option is its classification. Different facts. |
+| `document_version_folder_locations.folder_path` | Materialized logical-path cache for list/read performance. `document_folders.parent_folder_id` is authoritative; module 08 owns synchronization and rebuild behavior after supported rename/move operations. It is separate from physical object-storage `storage_key`. |

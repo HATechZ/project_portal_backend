@@ -8,7 +8,8 @@ export abstract class BaseRepository {
   }
   protected transaction<T>(
     work: (db: PrismaExecutor) => Promise<T>,
+    options?: Parameters<UnitOfWorkService['execute']>[1],
   ): Promise<T> {
-    return this.unitOfWork.execute((transaction) => work(transaction));
+    return this.unitOfWork.execute((transaction) => work(transaction), options);
   }
 }

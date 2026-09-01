@@ -7,7 +7,7 @@
   "packageManager": "yarn@1.22.22",
   "license": "UNLICENSED",
   "scripts": {
-    "prebuild": "node scripts/verify-sdd.mjs --lint",
+    "prebuild": "node scripts/verify-sdd.mjs --lint && node scripts/verify-tenant-scope.mjs",
     "build": "nest build",
     "postinstall": "prisma generate",
     "verify:sdd": "node scripts/verify-sdd.mjs",
@@ -16,7 +16,6 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prestart": "prisma generate",
     "start": "nest start",
-    "prestart:dev": "prisma generate",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "prestart:prod": "prisma generate",

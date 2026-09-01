@@ -14,7 +14,7 @@ export interface AppConfiguration {
     apiPrefix: string;
     corsOrigins: string[];
   };
-  database: { url: string };
+  database: { url: string; privilegedUrl: string };
   redis: { url: string; keyPrefix: string };
   jwt: {
     secret: string;
@@ -58,7 +58,10 @@ export default function configuration(): AppConfiguration {
         .map((value) => value.trim())
         .filter(Boolean),
     },
-    database: { url: process.env.DATABASE_URL ?? '' },
+    database: {
+      url: process.env.DATABASE_URL ?? '',
+      privilegedUrl: process.env.DATABASE_URL_PRIVILEGED ?? '',
+    },
     redis: {
       url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
       keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'project-portal:',

@@ -19,22 +19,24 @@ export class OutboxRepository extends BaseRepository {
   }
 
   async enqueue(event: DomainEventEnvelope): Promise<void> {
-    await this.db.outboxMessage.create({
-      // `tenantId` is absent on purpose: the tenant extension injects it at
-      // query time from `RequestContext`, so a producer cannot name another
-      // tenant even by accident. TypeScript cannot see that, hence the cast —
-      // the same trade `AuthSessionRepository` makes.
-      data: {
-        // The event id is the row id. One identity end to end, so a consumer
-        // dedupes on the same value the producer minted.
-        id: event.eventId,
-        eventType: event.eventType,
-        routingKey: event.routingKey,
-        payload: event.payload as Prisma.InputJsonObject,
-        actorId: event.actorId ?? null,
-        correlationId: event.correlationId ?? null,
-        occurredAt: new Date(event.occurredAt),
-      } as Prisma.OutboxMessageUncheckedCreateInput,
-    });
+    await this.transaction((db) =>
+      db.outboxMessage.create({
+        // `tenantId` is absent on purpose: the tenant extension injects it at
+        // query time from `RequestContext`, so a producer cannot name another
+        // tenant even by accident. TypeScript cannot see that, hence the cast —
+        // the same trade `AuthSessionRepository` makes.
+        data: {
+          // The event id is the row id. One identity end to end, so a consumer
+          // dedupes on the same value the producer minted.
+          id: event.eventId,
+          eventType: event.eventType,
+          routingKey: event.routingKey,
+          payload: event.payload as Prisma.InputJsonObject,
+          actorId: event.actorId ?? null,
+          correlationId: event.correlationId ?? null,
+          occurredAt: new Date(event.occurredAt),
+        } as Prisma.OutboxMessageUncheckedCreateInput,
+      }),
+    );
   }
 }

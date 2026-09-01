@@ -38,6 +38,7 @@ directory exists, so this table cannot silently rot.
 |---|---|
 | `src/common/swagger/openapi.module.ts` | `specs/00-platform-core` |
 | `src/common/security/security.module.ts` | `specs/02.1-messaging` |
+| `src/common/tenant/tenant.module.ts` | `specs/01.1-schema-integrity` |
 | `src/infra/crypto/crypto.module.ts` | `specs/02.1-messaging` |
 | `src/infra/prisma/prisma.module.ts` | `specs/01-persistence` |
 | `src/infra/redis/redis.module.ts` | `specs/02-infrastructure` |

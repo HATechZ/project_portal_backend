@@ -24,6 +24,11 @@ const UNIQUE_CONSTRAINT_MESSAGES: Record<string, string> = {
   user_roles_active_tenant_user_role_key: 'The user already has this role',
   processed_events_tenant_id_event_id_consumer_key:
     'This event has already been processed by this consumer',
+  workflow_transitions_tenant_id_action_id_from_status_id_key:
+    'A transition already exists for this action and source status',
+  actor_profiles_one_default: 'This person already has a default actor profile',
+  actor_profiles_kind_target:
+    'The actor kind must match exactly one actor profile target',
 };
 
 /**

@@ -15,7 +15,7 @@ import { ThrottlerModule } from './infra/throttler/throttler.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { TenantContextMiddleware } from './common/tenant/tenant-context.middleware';
-import { TenantContextGuard } from './common/tenant/tenant-context.guard';
+import { TenantModule } from './common/tenant/tenant.module';
 import { SecurityModule } from './common/security/security.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
 import { CompanyModule } from './company/company.module';
@@ -34,6 +34,7 @@ import { CompanyModule } from './company/company.module';
     ThrottlerModule,
     CryptoModule,
     SecurityModule,
+    TenantModule,
     MessagingModule,
     MailModule,
     MailWorkersModule,
@@ -43,7 +44,7 @@ import { CompanyModule } from './company/company.module';
     CompanyModule,
   ],
   controllers: [AppController],
-  providers: [AppService, TenantContextGuard],
+  providers: [AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

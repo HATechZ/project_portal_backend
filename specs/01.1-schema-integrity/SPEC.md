@@ -1,6 +1,6 @@
 # SPEC: 01.1 — Schema Integrity & Tenant Isolation
 
-**Status:** Draft (Gate 1) · **Tables:** — (owns none; reshapes 52)
+**Status:** Gate 3 · destructive Phases 8–12 decision-gated · **Tables:** — (owns none; reshapes 52)
 **Contracts:** `DATA_CONTRACT.md` · **Law:** [Art. IX](../rules/08-database.md)
 
 Tenant isolation currently rests on exactly one layer: a Prisma client extension written in
@@ -74,7 +74,7 @@ does not.
 | # | Rule | Enforced by |
 |---|---|---|
 | DR-01 | A row's `tenant_id` equals the `tenant_id` of every row it references | composite FK (Phase 7) on the guarded chains; RLS elsewhere |
-| DR-02 | A connection with no tenant GUC set reads nothing from a scoped table | RLS policy — no `IS NULL` escape |
+| DR-02 | A scoped query with no tenant GUC set fails with a PostgreSQL error | RLS policy uses `current_setting('app.tenant_id')` without `missing_ok` |
 | DR-03 | Only the relay's role may read across tenants | separate `BYPASSRLS` database role |
 | DR-04 | `TENANT_SCOPED_MODELS` equals the set of models declaring `tenantId` | `scripts/verify-tenant-scope.mjs` in `prebuild` |
 | DR-05 | A person's name and email exist in exactly one table | `Person`; `Member` and `ClientContact` carry neither |
@@ -93,7 +93,7 @@ in the same migration as the policies, not after.
 
 | Condition | Effect |
 |---|---|
-| Code forgets `SET LOCAL app.tenant_id` | Scoped reads return zero rows. Loud and immediate, not a silent cross-tenant read. |
+| Code forgets `SET LOCAL app.tenant_id` | PostgreSQL raises at the first scoped query. The request fails loudly; it does not return an empty result or expose rows. |
 | Nested `connect` names a foreign-tenant id | On a guarded chain: FK violation → P2003 → 409. Elsewhere: RLS hides the row, so `connect` cannot resolve it. |
 | Direct `INSERT` names a known foreign-tenant UUID | Postgres runs FK validation as the table owner and **does not apply RLS to the referenced row** — only the composite key stops this. This is why Phase 7 exists at all. |
 | Relay runs with the app role instead of the privileged one | Reads zero unpublished rows across every tenant. Backlog grows visibly rather than draining wrongly. |
@@ -112,7 +112,7 @@ in the same migration as the policies, not after.
 - `[AC-E02]` WHEN a unit of work opens, it SHALL set `app.tenant_id` before any statement runs.
 - `[AC-E03]` WHEN a model declaring `tenantId` is added without updating `TENANT_SCOPED_MODELS`, `yarn build` SHALL fail.
 - `[AC-E04]` WHEN an `actor_profile` is written whose kind disagrees with its populated reference, the database SHALL reject it.
-- `[AC-S01]` WHILE no tenant GUC is set, a scoped table SHALL return no rows to the application role.
+- `[AC-S01]` WHILE no tenant GUC is set, a scoped query by the application role SHALL fail with a PostgreSQL error.
 - `[AC-S02]` WHILE the relay holds the privileged role, it SHALL continue to drain the outbox across every tenant.
 - `[AC-W01]` IF a second default actor profile is written for a person, THEN the database SHALL reject it.
 - `[AC-W02]` IF a workflow transition duplicates an existing `(tenant, action, from_status)`, THEN the database SHALL reject it.
@@ -122,6 +122,19 @@ in the same migration as the policies, not after.
 Which events these tables publish (each owning module) · the HTTP surface over `Person` (03 and
 05) · query tuning and index strategy beyond what the constraints require · moving to
 schema-per-tenant or database-per-tenant (rejected, see decision 4) · pruning and retention of
-`outbox_messages` (13) · the `folder_path` rebuild job if the owner keeps it as a cache rather
-than dropping it (08) · restoring the deleted DBML (module 01's open deviation, and a
-precondition for any of this — see `plan.md` §1).
+`outbox_messages` (13) · the `folder_path` synchronization/rebuild job (08).
+
+## Owner decisions (2026-09-01)
+
+- Reconstruct `project_portal_workflow_management_erd.dbml` from the legitimate current
+  Prisma schema and applied migration history. DBML remains authoritative and generation
+  remains DBML → Prisma; Prisma does not become a second source of truth.
+- Keep nullable `target_role_id` on each workflow transition. Do not introduce an
+  action-global routing table. `from_role_id` may be removed once role eligibility is fully
+  represented by `workflow_action_role_permissions`.
+- Retain `document_version_folder_locations.folder_path` as an intentional materialized
+  logical-path cache. `document_folders.parent_folder_id` is authoritative; module 08 owns
+  synchronization and rebuilding after supported hierarchy changes.
+- These decisions do not approve unrelated destructive Phase 8–12 redesigns. Identity,
+  actor-profile, lookup-collapse, and other destructive changes retain their own decision
+  and verification gates.

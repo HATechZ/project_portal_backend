@@ -11,6 +11,9 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
+  DATABASE_URL_PRIVILEGED: Joi.string()
+    .uri({ scheme: ['postgres', 'postgresql'] })
+    .required(),
   REDIS_URL: Joi.string()
     .uri({ scheme: ['redis', 'rediss'] })
     .default('redis://127.0.0.1:6379'),
