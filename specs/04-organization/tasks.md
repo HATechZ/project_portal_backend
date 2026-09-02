@@ -20,7 +20,7 @@
   - [x] Keep the controller free of persistence
         VERIFY: ! grep -qE "PrismaService|prisma\.|findMany|findUnique" src/company/company.controller.ts
   - [x] Scope company reads to the tenant while leaving reference data global
-        VERIFY: grep -q "prisma.scoped.company" src/company/repositories/company.repository.ts && grep -q "prisma.companyType" src/company/repositories/company.repository.ts
+        VERIFY: grep -q "extends BaseRepository" src/company/repositories/company.repository.ts && grep -q "db.company.findMany" src/company/repositories/company.repository.ts && grep -q "db.companyType.findMany" src/company/repositories/company.repository.ts && ! grep -q "unscoped" src/company/repositories/company.repository.ts
   - [x] Order by a total key so paging cannot repeat or skip a row
         VERIFY: test $(grep -c "{ name: 'asc' }, { id: 'asc' }" src/company/repositories/company.repository.ts) -eq 2
   - [x] Page through the platform helper rather than hand-rolled skip/take
@@ -44,10 +44,10 @@
   - [x] Turn an unknown company type into a 400 instead of a raw foreign key error
         VERIFY: grep -q "findCompanyType" src/company/providers/company-mutation.provider.ts && grep -q "P2003" src/company/providers/company-mutation.provider.ts
 
-- [ ] **Phase 3: Close the deviations**
-  - [ ] Route the repository through the unit of work so it can join a transaction
+- [ ] **Phase 3: Close the remaining deviations**
+  - [x] Route the repository through the unit of work so it can join a transaction
         VERIFY: grep -q "extends BaseRepository" src/company/repositories/company.repository.ts
-  - [ ] Stop injecting `PrismaService` into the repository (Art. X)
+  - [x] Stop injecting `PrismaService` into the repository (Art. X)
         VERIFY: ! grep -q "PrismaService" src/company/repositories/company.repository.ts
   - [ ] Delegate Prisma error translation to the global filter (Art. VI.4)
         VERIFY: ! grep -q "PrismaClientKnownRequestError" src/company/providers/company-mutation.provider.ts

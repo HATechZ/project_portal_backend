@@ -62,7 +62,7 @@
   - [ ] Revoke role grants by timestamp, never by delete (DR-02)
         VERIFY: grep -q "revokedAt" src/actor-profiles/actor-profiles.repository.ts && ! grep -q "userRole.delete" src/actor-profiles/actor-profiles.repository.ts
   - [ ] Enforce at most one default actor profile per user (DR-03)
-        VERIFY: grep -q "isDefault" src/actor-profiles/actor-profiles.service.ts && grep -q "transaction" src/actor-profiles/actor-profiles.service.ts
+        VERIFY: grep -q "isDefault" src/actor-profiles/actor-profiles.service.ts && grep -q "transaction" src/actor-profiles/actor-profiles.service.ts && grep -rq "actor_profiles_one_default_per_user" prisma/migrations/
 
 - [ ] **Phase 5: Sign-off**
   - [ ] Lint and build clean

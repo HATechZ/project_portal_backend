@@ -35,8 +35,9 @@ Never write one needing a database, Redis, or the network.
 6. `process.env` only in `src/config/configuration.ts`.
 7. Work request and project status are derived from the latest event row, never stored.
 8. **The layering law**: `controller → service → repository → this.db`. Each layer depends
-   only on the next; none skips or reaches back. Controllers run no queries; services outside
-   `src/infra/` name no concrete infrastructure. → [`rules/09-solid.md`](rules/09-solid.md)
+   only on the next; none skips or reaches back. Repository access requires an active unit of
+   work and fails closed without one. Controllers run no queries; services outside `src/infra/`
+   name no concrete infrastructure. → [`rules/09-solid.md`](rules/09-solid.md)
 9. Role grants are revoked by timestamp, never deleted.
 10. Record progress in `INDEX.md` and nowhere else.
 11. **Feature modules never import each other** — they publish events. Publish through the

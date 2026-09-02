@@ -31,12 +31,13 @@ both are unticked tasks rather than described as done.
 |---|---|---|
 | DR-01 | The actor profile is the unit of authorization and audit | schema FKs, review |
 | DR-02 | Role grants are revoked by `revoked_at`, never deleted | repository has no hard delete |
-| DR-03 | A user has at most one default actor profile | service check on `is_default` |
+| DR-03 | A non-null tenant/user has at most one default actor profile | partial unique index plus transactional service orchestration |
 | DR-04 | Refresh and reset tokens are stored hashed | `refresh_token_hash`, `token_hash` |
 | DR-05 | A reset token is single-use and expiring | `used_at` + `expires_at` checked together |
 | DR-06 | `email` is unique across users, case-insensitively | unique index + normalization on write |
 | DR-07 | An inactive user cannot authenticate | login path checks `is_active` |
 | DR-08 | A password hash is never serialized to a response | absent from `UserEntity` |
+| DR-09 | An actor profile targets neither or exactly one of Member and ClientContact, and any target belongs to the same tenant | CHECK plus tenant-qualified composite FKs |
 
 ## Failure modes
 

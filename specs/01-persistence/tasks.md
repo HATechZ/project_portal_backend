@@ -52,6 +52,6 @@
   - [x] Keep migration available as an explicit owner-run command
         VERIFY: grep -q '"prisma:deploy": "prisma migrate deploy"' package.json
 
-- [ ] **Phase 5: Adoption**
-  - [ ] Land the first `BaseRepository` subclass so the unit of work is exercised in anger
+- [x] **Phase 5: Adoption**
+  - [x] Land the first `BaseRepository` subclass so the unit of work is exercised in anger
         VERIFY: test $(grep -rl "extends BaseRepository" src --include=*.ts | wc -l) -ge 1

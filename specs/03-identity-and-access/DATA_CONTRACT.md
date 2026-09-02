@@ -54,10 +54,16 @@ DR-01, because a grant is an account-administration act rather than a workflow a
 |---|---|
 | `userId?` | nullable — a profile can exist before the login does |
 | `roleId` | required |
-| `memberId?` | set for staff actors (module 04) |
-| `clientContactId?` | set for client actors (module 05) |
+| `memberId?` | optional staff target; `(memberId, tenantId)` must identify one Member (module 04) |
+| `clientContactId?` | optional client target; `(clientContactId, tenantId)` must identify one ClientContact (module 05) |
 | `label` | `VarChar(180)`, human-readable |
-| `isDefault` / `isActive` | at most one default per user (DR-03, service-enforced) |
+| `isDefault` / `isActive` | at most one default for each non-null `(tenantId, userId)`, database-enforced |
+
+An ActorProfile may have neither business target (for example, a System Administrator) or
+exactly one of `memberId` and `clientContactId`; both populated is rejected by
+`actor_profiles_at_most_one_business_target`. The partial unique index
+`actor_profiles_one_default_per_user` enforces one default where both tenant and user are
+non-null.
 
 Referenced as `*_by_actor_id` from ~25 tables across modules 07–13. Its inverse relations are
 the longest list in the schema, all named `<table>By<Field>ActorProfiles`.
@@ -79,8 +85,8 @@ exist yet.
 
 | From | To | Module |
 |---|---|---|
-| `ActorProfile.memberId` | `members` | 04 |
-| `ActorProfile.clientContactId` | `client_contacts` | 05 |
+| `ActorProfile.(memberId, tenantId)` | `members.(id, tenantId)` | 04 |
+| `ActorProfile.(clientContactId, tenantId)` | `client_contacts.(id, tenantId)` | 05 |
 | `User.membersByUserId` | `members` | 04 |
 | `User.clientContactsByUserId` | `client_contacts` | 05 |
 | `Role` → `workflow_transitions`, `workflow_action_role_permissions` | | 09 |
@@ -98,8 +104,10 @@ None. This module stores what it knows. It reads no latest-event tables.
 
 ## 5. Migration impact
 
-All six tables exist in `20260812000000_init`. Implementing this module needs **no
-migration** unless a rule below forces one:
+All six tables exist in `20260812000000_init`. Module 01.1 subsequently added the
+tenant-qualified ActorProfile target FKs, the at-most-one-business-target CHECK, and the
+partial default-profile unique index. Further implementation needs no migration unless a rule
+below forces one:
 
 - Case-insensitive email uniqueness (DR-06) is not expressible in the current unique index. It
   is currently enforced by normalizing to lower case on write. Making it a database guarantee

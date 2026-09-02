@@ -60,11 +60,16 @@ repository will be copied from whatever pattern is in the repo.
 | Operation | Tables | Why |
 |---|---|---|
 | Sign in | `auth_sessions` + `users.lastLoginAt` | session and stamp must agree |
-| Set default profile | `actor_profiles` ×2 | clear the old default, set the new one (DR-03) |
+| Set default profile | `actor_profiles` ×2 | clear the old default, set the new one atomically; the partial unique index is the final DR-03 guarantee |
 | Grant role | `user_roles` (+ revoke prior grant of the same role) | avoid two live grants |
 | Consume reset | `password_reset_tokens.usedAt` + `users.passwordHash` | a used token with an unchanged password is worse than neither |
 
 Each opens `this.transaction(...)` in the service, and the repositories join it.
+
+ActorProfile creation may leave both business targets null, but must never populate both.
+Member and ClientContact targets are tenant-qualified: the profile tenant is carried into the
+relation and must match the target row. These are database guarantees introduced by Module
+01.1; service checks may improve messages but do not replace them.
 
 ---
 

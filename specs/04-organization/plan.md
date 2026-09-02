@@ -29,25 +29,25 @@ transaction boundary will go when writes stop being single-statement.
 ## 2. Read and write paths
 
 ```
-GET /company        controller → service → CompanyQueryProvider → paginate() → repository.scoped
-GET /company-type   controller → service → CompanyQueryProvider → repository.unscoped
+GET /company        controller → service → CompanyQueryProvider → paginate() → repository UnitOfWork
+GET /company-type   controller → service → CompanyQueryProvider → repository UnitOfWork
 POST /company       controller → service → CompanyMutationProvider
-                                              ├─ findCompanyType()  ← pre-flight, unscoped
-                                              └─ create()           ← scoped, app-generated id
+                                              ├─ findCompanyType()  ← pre-flight, app_user
+                                              └─ create()           ← tenant-scoped, app-generated id
 ```
 
-### The two clients, and why
+### One normal client, two data scopes
 
-`CompanyRepository` reaches for `prisma.scoped` for companies and plain `prisma.*` for company
-types. This is not an oversight:
+`CompanyRepository` extends `BaseRepository`; every method opens or joins the normal app-user
+UnitOfWork. Global reference data does not require the privileged relay client:
 
-| Table | `tenant_id`? | Client | Why |
+| Table | `tenant_id`? | Executor | Why |
 |---|---|---|---|
-| `companies` | yes | `prisma.scoped` | tenant extension injects the filter |
-| `company_types` | **no** | `prisma.companyType` | global reference data; a scoped read would filter on a column that does not exist |
+| `companies` | yes | ambient `app_user` transaction | tenant filtering and RLS apply |
+| `company_types` | **no** | ambient `app_user` transaction | global reference data has no tenant predicate or RLS policy |
 
-Any future reader who "fixes" the second one to `.scoped` will break company types entirely.
-That is the single most likely wrong change to this file.
+`PrismaService.unscoped` is the separate `app_relay` executor and is reserved for the approved
+cross-tenant outbox relay path, not Company or CompanyType access.
 
 ### The pre-flight check is not the guard
 
@@ -80,10 +80,13 @@ repository rework in Phase 3, not on its own.
 |---|---|---|
 | 1 | Reference reads, tenant-scoped company reads, pagination | shipped |
 | 2 | Guarded create with permission + uniqueness | shipped |
-| 3 | Close the deviations — `BaseRepository`, drop the local Prisma catch | **not started** |
+| 3 | Close the deviations — `BaseRepository` complete under 01.1; local Prisma catch remains | **in progress** |
 | 4 | Update / deactivate endpoints | not started |
 | 5 | Divisions, members, teams — the module's other 5 tables | not started |
 
-Phase 3 is the one worth doing next: it is entirely local to this module, needs no schema
-change, and removes the last reason this module cannot participate in a transaction with
-another.
+The UnitOfWork portion of Phase 3 was completed by Module 01.1. Its remaining local error and
+typing deviations are unrelated to 01.1 and remain open.
+
+Future Member and Team writes must carry a tenant, company, and division combination accepted
+by the Module 01.1 composite FKs. A pre-check may improve the error message, but the database
+constraint is authoritative. This is a future contract only, not implementation scope here.

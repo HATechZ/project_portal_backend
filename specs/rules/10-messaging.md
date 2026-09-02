@@ -61,6 +61,9 @@ Rules that follow:
 
 - `OutboxRepository` extends `BaseRepository` and writes through `this.db`, so it joins the
   ambient transaction. A repository that takes `PrismaService` here defeats the entire pattern.
+- Producer and consumer repositories use the normal `DATABASE_URL` / `app_user` unit-of-work
+  path. Only the relay may drain and stamp rows through the separate
+  `DATABASE_URL_PRIVILEGED` / `app_relay` client exposed as `PrismaService.unscoped`.
 - **Only `src/infra/messaging/` may talk to the transport.** No feature module imports
   `amqplib`, an exchange name, or a routing key literal.
 - Events are delivered **post-commit, always — including in-process.** A handler never runs
@@ -99,10 +102,11 @@ export class WorkRequestStatusChanged {
 
 Every consumer:
 
-1. **Restores tenant context first.** A consumer has no HTTP request, so
-   `RequestContext.requireTenantId()` is empty and the tenant Prisma extension is inert. Read
-   `tenantId` from the message and open a context before touching persistence. Skipping this
-   throws at best and reads across tenants at worst.
+1. **Restores tenant context, then opens the unit of work.** A consumer has no HTTP request, so
+   it must read `tenantId` from the message, open `RequestContext`, and enter
+   `UnitOfWorkService.execute(...)` before touching persistence. The root unit of work sets
+   transaction-local `app.tenant_id` before repository work. Skipping this fails closed; it
+   never grants cross-tenant access.
 2. **Is idempotent.** Delivery is at-least-once. Claim the event in `processed_events` inside
    the same transaction as the side effect; the `@@unique([tenantId, eventId, consumer])`
    violation *is* the dedupe. This is the one sanctioned place to catch a Prisma error locally
@@ -165,8 +169,8 @@ grep -q "extends BaseRepository" src/infra/messaging/outbox.repository.ts
 # The outbox repository does not take PrismaService
 ! grep -q "PrismaService" src/infra/messaging/outbox.repository.ts
 
-# Consumers restore tenant context before persisting
-test $(for f in $(find src -name "*.handler.ts" 2>/dev/null); do grep -q "RequestContext" $f || echo $f; done | wc -l) -eq 0
+# Consumers restore tenant context and enter the unit of work before persisting
+test $(for f in $(find src -name "*.handler.ts" 2>/dev/null); do grep -q "RequestContext" $f && grep -qE "unitOfWork\.execute|this\.transaction" $f || echo $f; done | wc -l) -eq 0
 
 # No consumer advances the workflow
 test $(grep -rlE "WorkflowTransition|advanceWorkflow|applyTransition" src --include=*.handler.ts 2>/dev/null | wc -l) -eq 0
