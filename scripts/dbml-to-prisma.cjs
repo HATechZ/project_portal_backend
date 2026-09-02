@@ -13,6 +13,7 @@ function pascal(value) {
 }
 
 function singular(value) {
+  if (value.endsWith('priorities')) return `${value.slice(0, -3)}y`;
   if (value.endsWith('statuses')) return value.slice(0, -2);
   if (value.endsWith('categories')) return `${value.slice(0, -3)}y`;
   if (value.endsWith('companies')) return `${value.slice(0, -3)}y`;
@@ -72,15 +73,27 @@ for (const match of source.matchAll(tablePattern)) {
 }
 
 const refs = [];
-for (const match of source.matchAll(/^Ref(?:\s+(\w+))?:\s+(\w+)\.(\w+)\s*([><-])\s*(\w+)\.(\w+)(?:\s+\[([^\]]+)\])?/gm)) {
+const refPattern = /^Ref(?:\s+(\w+))?:\s+(\([^\r\n]+\)|\w+\.\w+)\s*([><-])\s*(\([^\r\n]+\)|\w+\.\w+)(?:\s+\[([^\]]+)\])?/gm;
+function parseRefEndpoint(endpoint) {
+  const fields = endpoint.trim().replace(/^\(|\)$/g, '').split(',').map((field) => field.trim());
+  const parsed = fields.map((field) => field.match(/^(\w+)\.(\w+)$/));
+  if (parsed.some((field) => !field)) throw new Error(`Invalid ref endpoint ${endpoint}`);
+  const table = parsed[0][1];
+  if (parsed.some((field) => field[1] !== table)) throw new Error(`Mixed-table ref endpoint ${endpoint}`);
+  return { table, fields: parsed.map((field) => field[2]) };
+}
+for (const match of source.matchAll(refPattern)) {
+  const from = parseRefEndpoint(match[2]);
+  const to = parseRefEndpoint(match[4]);
+  if (from.fields.length !== to.fields.length) throw new Error(`Mismatched composite ref ${match[0]}`);
   const settings = new Map();
-  for (const setting of (match[7] ?? '').split(',')) {
+  for (const setting of (match[5] ?? '').split(',')) {
     const parsed = setting.trim().match(/^(delete|update):\s*(cascade|restrict|set null|no action)$/i);
     if (parsed) settings.set(parsed[1].toLowerCase(), parsed[2].toLowerCase());
   }
   refs.push({
-    name: match[1], fromTable: match[2], fromField: match[3], kind: match[4],
-    toTable: match[5], toField: match[6], onDelete: settings.get('delete'),
+    name: match[1], fromTable: from.table, fromFields: from.fields, kind: match[3],
+    toTable: to.table, toFields: to.fields, onDelete: settings.get('delete'),
     onUpdate: settings.get('update'),
   });
 }
@@ -96,29 +109,30 @@ for (const ref of refs) {
   const usesPrismaDefaultRelationName =
     ref.toTable === 'tenants' ||
     (ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions');
-  const relationName = ref.name ?? (usesPrismaDefaultRelationName ? undefined : pascal(`${ref.fromTable}_${ref.fromField}_${ref.toTable}`));
-  const fk = from.columns.find((column) => column.name === ref.fromField);
-  if (!fk) throw new Error(`Missing FK ${ref.fromTable}.${ref.fromField}`);
-  let forwardName = camel(ref.fromField.replace(/_id$/, ''));
+  const primaryFromField = ref.fromFields[0];
+  const relationName = ref.name ?? (usesPrismaDefaultRelationName ? undefined : pascal(`${ref.fromTable}_${primaryFromField}_${ref.toTable}`));
+  const foreignKeys = ref.fromFields.map((field) => from.columns.find((column) => column.name === field));
+  if (foreignKeys.some((field) => !field)) throw new Error(`Missing FK in ${ref.fromTable}.(${ref.fromFields.join(', ')})`);
+  let forwardName = camel(primaryFromField.replace(/_id$/, ''));
   if (from.columns.some((column) => camel(column.name) === forwardName)) forwardName += 'Relation';
   const usedForward = new Set(from.relations.map((relation) => relation.field));
   while (usedForward.has(forwardName)) forwardName += 'Relation';
   const relationArguments = [
-    `fields: [${camel(ref.fromField)}]`,
-    `references: [${camel(ref.toField)}]`,
+    `fields: [${ref.fromFields.map(camel).join(', ')}]`,
+    `references: [${ref.toFields.map(camel).join(', ')}]`,
   ];
   if (ref.onDelete) relationArguments.push(`onDelete: ${prismaReferentialAction(ref.onDelete)}`);
   if (ref.onUpdate) relationArguments.push(`onUpdate: ${prismaReferentialAction(ref.onUpdate)}`);
   const relationPrefix = relationName ? `"${relationName}", ` : '';
   from.relations.push({
-    field: forwardName, type: modelName(ref.toTable), optional: !fk.required,
+    field: forwardName, type: modelName(ref.toTable), optional: foreignKeys.some((field) => !field.required),
     annotation: `@relation(${relationPrefix}${relationArguments.join(', ')})`,
   });
   let reverseName = ref.toTable === 'tenants'
     ? camel(ref.fromTable)
     : ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions'
       ? 'consumedRefreshTokens'
-      : `${camel(ref.fromTable)}By${pascal(ref.fromField)}`;
+      : `${camel(ref.fromTable)}By${pascal(primaryFromField)}`;
   const usedReverse = new Set(to.relations.map((relation) => relation.field));
   while (usedReverse.has(reverseName)) reverseName += 'Relation';
   to.relations.push({

@@ -285,6 +285,9 @@ Table actor_profiles {
   created_at timestamp [not null, default: `now()`]
 
   indexes {
+    (id, tenant_id) [unique]
+    (member_id, tenant_id)
+    (client_contact_id, tenant_id)
     (tenant_id)
   }
 }
@@ -381,6 +384,8 @@ Table divisions {
   updated_at timestamp [not null, default: `now()`]
 
   indexes {
+    (id, tenant_id) [unique]
+    (id, tenant_id, company_id) [unique]
     (tenant_id, company_id, abbr) [unique]
     (company_id, name)
     (tenant_id)
@@ -401,9 +406,11 @@ Table members {
   updated_at timestamp [not null, default: `now()`]
 
   indexes {
+    (id, tenant_id) [unique]
     (tenant_id, email) [unique]
     (company_id)
     (division_id)
+    (division_id, tenant_id, company_id)
     (tenant_id)
   }
 }
@@ -421,6 +428,7 @@ Table teams {
 
   indexes {
     (tenant_id, division_id, name) [unique]
+    (division_id, tenant_id, company_id)
     (tenant_id)
   }
 }
@@ -470,6 +478,7 @@ Table client_contacts {
   updated_at timestamp [not null, default: `now()`]
 
   indexes {
+    (id, tenant_id) [unique]
     (tenant_id, client_id, email) [unique]
     (email)
     (tenant_id)
@@ -576,6 +585,7 @@ Table projects {
   updated_at timestamp [not null, default: `now()`]
 
   indexes {
+    (id, tenant_id) [unique]
     (tenant_id, code) [unique]
     (workspace_type_id)
     (client_id)
@@ -738,6 +748,9 @@ Table documents {
   deleted_at timestamp
 
   indexes {
+    (id, tenant_id) [unique]
+    (project_id, tenant_id)
+    (work_request_id, project_id)
     (project_id)
     (work_request_id)
     (document_code_option_id)
@@ -933,6 +946,11 @@ Table work_requests {
   deleted_at timestamp
 
   indexes {
+    (id, tenant_id) [unique]
+    (id, project_id) [unique]
+    (project_id, tenant_id)
+    (assigned_division_id, tenant_id)
+    (origin_division_id, tenant_id)
     (tenant_id, code) [unique]
     (project_id)
     (assigned_division_id)
@@ -1169,6 +1187,9 @@ Table registry_documents {
   removed_by_actor_id uuid
 
   indexes {
+    (project_id, tenant_id)
+    (work_request_id, tenant_id)
+    (document_id, tenant_id)
     (project_id)
     (work_request_id)
     (listed_at)
@@ -1193,6 +1214,7 @@ Table notifications {
   expires_at timestamp
 
   indexes {
+    (id, tenant_id) [unique]
     (project_id)
     (work_request_id)
     (triggered_at)
@@ -1211,6 +1233,8 @@ Table notification_recipients {
   dismissed_at timestamp
 
   indexes {
+    (notification_id, tenant_id)
+    (actor_id, tenant_id)
     (tenant_id, notification_id, actor_id) [unique]
     (actor_id, read_at)
     (tenant_id)
@@ -1279,8 +1303,8 @@ Ref: user_roles.assigned_by_user_id > users.id
 Ref: actor_profiles.tenant_id > tenants.id [delete: restrict]
 Ref: actor_profiles.user_id > users.id
 Ref: actor_profiles.role_id > roles.id
-Ref: actor_profiles.member_id > members.id
-Ref: actor_profiles.client_contact_id > client_contacts.id
+Ref: (actor_profiles.member_id, actor_profiles.tenant_id) > (members.id, members.tenant_id) [delete: set null, update: cascade]
+Ref: (actor_profiles.client_contact_id, actor_profiles.tenant_id) > (client_contacts.id, client_contacts.tenant_id) [delete: set null, update: cascade]
 Ref: auth_sessions.tenant_id > tenants.id [delete: restrict]
 Ref: auth_sessions.user_id > users.id
 Ref: auth_session_consumed_refresh_tokens.session_id > auth_sessions.id [delete: cascade]
@@ -1294,10 +1318,10 @@ Ref: divisions.division_type_id > division_types.id
 Ref: members.tenant_id > tenants.id [delete: restrict]
 Ref: members.user_id > users.id
 Ref: members.company_id > companies.id
-Ref: members.division_id > divisions.id
+Ref: (members.division_id, members.tenant_id, members.company_id) > (divisions.id, divisions.tenant_id, divisions.company_id)
 Ref: teams.tenant_id > tenants.id [delete: restrict]
 Ref: teams.company_id > companies.id
-Ref: teams.division_id > divisions.id
+Ref: (teams.division_id, teams.tenant_id, teams.company_id) > (divisions.id, divisions.tenant_id, divisions.company_id)
 Ref: teams.lead_member_id > members.id
 Ref: team_members.tenant_id > tenants.id [delete: restrict]
 Ref: team_members.team_id > teams.id
@@ -1347,8 +1371,8 @@ Ref: archived_bid_review_requests.requested_by_actor_id > actor_profiles.id
 Ref: archived_bid_review_requests.restored_work_request_id > work_requests.id
 Ref: document_categories.tenant_id > tenants.id [delete: restrict]
 Ref: documents.tenant_id > tenants.id [delete: restrict]
-Ref: documents.project_id > projects.id
-Ref: documents.work_request_id > work_requests.id
+Ref: (documents.project_id, documents.tenant_id) > (projects.id, projects.tenant_id) [delete: restrict, update: cascade]
+Ref: (documents.work_request_id, documents.project_id) > (work_requests.id, work_requests.project_id) [delete: set null, update: cascade]
 Ref: documents.document_code_option_id > document_code_options.id
 Ref: documents.document_category_id > document_categories.id
 Ref: documents.file_group_id > attachment_file_groups.id
@@ -1380,12 +1404,12 @@ Ref: workflow_action_role_permissions.tenant_id > tenants.id [delete: restrict]
 Ref: workflow_action_role_permissions.action_id > workflow_action_definitions.id
 Ref: workflow_action_role_permissions.role_id > roles.id
 Ref: work_requests.tenant_id > tenants.id [delete: restrict]
-Ref: work_requests.project_id > projects.id
+Ref: (work_requests.project_id, work_requests.tenant_id) > (projects.id, projects.tenant_id) [delete: restrict, update: cascade]
 Ref: work_requests.category_id > work_request_categories.id
 Ref: work_requests.priority_id > work_priorities.id
 Ref: work_requests.attachment_category_id > work_request_attachment_categories.id
-Ref: work_requests.assigned_division_id > divisions.id
-Ref: work_requests.origin_division_id > divisions.id
+Ref: (work_requests.assigned_division_id, work_requests.tenant_id) > (divisions.id, divisions.tenant_id) [delete: restrict, update: cascade]
+Ref: (work_requests.origin_division_id, work_requests.tenant_id) > (divisions.id, divisions.tenant_id) [delete: restrict, update: cascade]
 Ref: work_requests.created_by_actor_id > actor_profiles.id
 Ref: work_request_assignments.tenant_id > tenants.id [delete: restrict]
 Ref: work_request_assignments.work_request_id > work_requests.id
@@ -1444,9 +1468,9 @@ Ref: work_request_decisions.decided_by_actor_id > actor_profiles.id
 Ref: work_request_decisions.from_status_id > workflow_statuses.id
 Ref: work_request_decisions.to_status_id > workflow_statuses.id
 Ref: registry_documents.tenant_id > tenants.id [delete: restrict]
-Ref: registry_documents.project_id > projects.id
-Ref: registry_documents.work_request_id > work_requests.id
-Ref: registry_documents.document_id > documents.id
+Ref: (registry_documents.project_id, registry_documents.tenant_id) > (projects.id, projects.tenant_id) [delete: restrict, update: cascade]
+Ref: (registry_documents.work_request_id, registry_documents.tenant_id) > (work_requests.id, work_requests.tenant_id) [delete: restrict, update: cascade]
+Ref: (registry_documents.document_id, registry_documents.tenant_id) > (documents.id, documents.tenant_id) [delete: set null, update: cascade]
 Ref: registry_documents.listed_document_version_id > document_versions.id
 Ref: registry_documents.listed_category_id > document_categories.id
 Ref: registry_documents.listed_by_actor_id > actor_profiles.id
@@ -1457,8 +1481,8 @@ Ref: notifications.work_request_id > work_requests.id
 Ref: notifications.audit_log_id > work_request_audit_logs.id
 Ref: notifications.triggered_by_actor_id > actor_profiles.id
 Ref: notification_recipients.tenant_id > tenants.id [delete: restrict]
-Ref: notification_recipients.notification_id > notifications.id
-Ref: notification_recipients.actor_id > actor_profiles.id
+Ref: (notification_recipients.notification_id, notification_recipients.tenant_id) > (notifications.id, notifications.tenant_id) [delete: restrict, update: cascade]
+Ref: (notification_recipients.actor_id, notification_recipients.tenant_id) > (actor_profiles.id, actor_profiles.tenant_id) [delete: restrict, update: cascade]
 Ref: system_audit_logs.tenant_id > tenants.id [delete: restrict]
 Ref: system_audit_logs.action_id > workflow_action_definitions.id
 Ref: system_audit_logs.performed_by_actor_id > actor_profiles.id

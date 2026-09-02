@@ -6,6 +6,6 @@ import { TenantRepository } from './tenant.repository';
 @Global()
 @Module({
   providers: [TenantActivationService, TenantContextGuard, TenantRepository],
-  exports: [TenantContextGuard],
+  exports: [TenantActivationService, TenantContextGuard],
 })
 export class TenantModule {}

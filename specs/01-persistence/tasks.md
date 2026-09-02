@@ -27,20 +27,20 @@
 - [x] **Phase 2: Runtime client**
   - [x] Connect through the Prisma 7 pg driver adapter
         VERIFY: grep -q "PrismaPg" src/infra/prisma/prisma.service.ts && grep -q "@prisma/adapter-pg" package.json
-  - [x] Connect on module init and disconnect on destroy
-        VERIFY: grep -q "OnModuleInit" src/infra/prisma/prisma.service.ts && grep -q '\$disconnect()' src/infra/prisma/prisma.service.ts
-  - [x] Expose the client globally so feature modules need no import
-        VERIFY: grep -q "@Global()" src/infra/prisma/prisma.module.ts
+  - [x] Connect both runtime clients on module init and disconnect both on destroy
+        VERIFY: grep -q "OnModuleInit" src/infra/prisma/prisma.service.ts && grep -q 'privilegedClient.\$connect()' src/infra/prisma/prisma.service.ts && grep -q 'privilegedClient.\$disconnect()' src/infra/prisma/prisma.service.ts
+  - [x] Expose the persistence services globally so feature modules need no import
+        VERIFY: grep -q "@Global()" src/infra/prisma/prisma.module.ts && grep -q "UnitOfWorkService" src/infra/prisma/prisma.module.ts
 
 - [x] **Phase 3: Unit of work**
   - [x] Hold the active transaction in AsyncLocalStorage
         VERIFY: grep -q "AsyncLocalStorage" src/infra/prisma/unit-of-work.service.ts
   - [x] Join an outer transaction instead of nesting a second one
         VERIFY: grep -q "if (current) return work(current)" src/infra/prisma/unit-of-work.service.ts
-  - [x] Give repositories an executor that resolves to the ambient transaction
-        VERIFY: grep -q "protected get db" src/infra/prisma/base.repository.ts && grep -q "unitOfWork.client" src/infra/prisma/base.repository.ts
-  - [x] Bound transactions with a timeout rather than letting them hold connections
-        VERIFY: grep -q "timeout: options?.timeout ?? 15000" src/infra/prisma/unit-of-work.service.ts
+  - [x] Give repositories only the active ambient transaction and fail closed without one
+        VERIFY: grep -q "protected get db" src/infra/prisma/base.repository.ts && grep -q "unitOfWork.client" src/infra/prisma/base.repository.ts && grep -q "Repository access requires an active unit of work" src/infra/prisma/unit-of-work.service.ts
+  - [x] Open bounded scoped transactions and set the bound tenant GUC before repository work
+        VERIFY: grep -q "prisma.scoped.\$transaction" src/infra/prisma/unit-of-work.service.ts && grep -q "set_config('app.tenant_id', \${tenantId}, true)" src/infra/prisma/unit-of-work.service.ts && grep -q "timeout: options?.timeout ?? 15000" src/infra/prisma/unit-of-work.service.ts && node node_modules/jest/bin/jest.js --runInBand unit-of-work.service.spec.ts
 
 - [x] **Phase 4: Migrations**
   - [x] Generate the client before the process starts, without migrating

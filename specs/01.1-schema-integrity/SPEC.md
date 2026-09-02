@@ -1,140 +1,67 @@
 # SPEC: 01.1 — Schema Integrity & Tenant Isolation
 
-**Status:** Gate 3 · destructive Phases 8–12 decision-gated · **Tables:** — (owns none; reshapes 52)
-**Contracts:** `DATA_CONTRACT.md` · **Law:** [Art. IX](../rules/08-database.md)
+**Status:** Gate 5 · verified · **Tables:** owns none
+**Contract:** `DATA_CONTRACT.md` · **Law:** [Art. IX](../rules/08-database.md)
 
-Tenant isolation currently rests on exactly one layer: a Prisma client extension written in
-application code. It is well built — it fails closed, it covers all 52 scoped models, and the
-auth guard cross-checks the JWT tenant claim against the header so `x-tenant-id` is not
-blindly trusted. It is still one layer, and it has structural blind spots that no amount of
-care inside it can close.
+This module adds database-enforced tenant isolation and a small set of proven integrity
+constraints without redesigning Project Portal identities, workflow routing, document
+semantics, configurable reference data, or historical business snapshots.
 
-At the same time the schema carries a set of derived columns that let two rows contradict each
-other, identity duplicated across three tables, and an untyped polymorphic union on the
-highest-fan-in table in the model.
+## Organizing decisions
 
-This module addresses both, because they are the same problem stated twice: **invariants that
-live only in application code are invariants the database will happily let you violate.**
-
-It is a sibling of module 01, not part of it. Module 01 is a retro-spec of the persistence
-pipeline as shipped; this is a forward change to what that pipeline emits.
-
-## Why now, and not after module 06
-
-Modules 05–13 are Phase 0. Nine modules, 44 tables, zero repositories written. Every move
-below is a migration today; after those modules exist each one is a migration *plus* a rewrite
-of every repository, DTO, and entity that touched the old shape.
-
-The identity split (Phase 10) is the sharpest case. It changes `Member` and `ClientContact`,
-which modules 04 and 05 own and neither has been built. Doing it now costs one migration and
-a backfill. Doing it after module 05 ships costs that plus a rewrite of module 05.
-
-**This module must land before 06.** Its number places it there; its position in the index
-does not.
-
-## Five organizing decisions
-
-1. **Layers, not a rewrite.** The Prisma extension stays exactly as it is. RLS goes underneath
-   it and composite keys underneath that. Nothing here removes a working control; each move
-   adds a floor beneath one.
-2. **RLS first, composite keys second, and only where they earn it.** RLS is one migration and
-   covers three of the four blind spots because it sits below every client rather than inside
-   one. Composite foreign keys cost real ergonomics — wider indexes, noisier relation syntax,
-   care on optional and self-referencing relations — so they go on the five chains where a
-   cross-tenant row would be most damaging and hardest to notice, not on all 52.
-3. **A privileged role, not a permissive policy.** The outbox relay must read across tenants.
-   The tempting policy is `current_setting(...) IS NULL OR tenant_id = ...`, which makes "no
-   tenant set" mean "see everything" — that turns every forgotten `SET LOCAL` into a silent
-   full-table read. Instead the relay connects as a separate `BYPASSRLS` role and the app role
-   gets no escape hatch at all.
-4. **Shared-schema stays.** Nothing here moves toward schema-per-tenant or database-per-tenant.
-   Schema-per-tenant would break the relay's cross-tenant drain and multiply every migration by
-   tenant count; database-per-tenant is a contractual-isolation answer to a question nobody has
-   asked yet.
-5. **5NF is not the goal.** Every table has a single-column surrogate key, so by Date's theorem
-   (3NF plus simple candidate keys implies 5NF) the schema already qualifies. Run the analysis
-   on the natural keys instead and one relation — `workflow_transitions` — carries a genuine
-   join dependency. That one is Phase 9. The rest of this module is 3NF and constraint work,
-   and calling it 5NF work would be a category error.
-
-## User stories
-
-| | As a | I want | So that |
-|---|---|---|---|
-| US-01 | operator | a cross-tenant row to be impossible, not merely unwritten | isolation survives a bug in one code path |
-| US-02 | developer adding a model | the scoped-model list to fail the build when I forget it | a new table cannot be silently unscoped |
-| US-03 | developer | one home for a person's name and email | a rename cannot leave two records disagreeing |
-| US-04 | developer reading `actor_profiles` | the row to say which kind of actor it is | consuming code stops guessing from null patterns |
-| US-05 | workflow author | one row per action-and-source-status | the engine's next state is deterministic |
-| US-06 | operator | tenant activation checked without a query per request | the isolation layer is not also a latency tax |
-| US-07 | reviewer | every schema change proposed before it is applied | Art. IX holds through a reshape this wide |
+1. RLS sits below the existing tenant-aware Prisma layer and fails closed without a tenant GUC.
+2. Cross-tenant relay work uses a separate `BYPASSRLS` runtime role; the app role never does.
+3. Composite tenant FKs are limited to the approved Phase 7 chains.
+4. Intentional redundancy is retained when it represents affiliation, history, caching, or audit.
+5. Schema changes flow DBML → generator → Prisma → reviewed migration.
+6. Runtime configuration has only the app and relay connections. The provider/table-owner
+   connection is injected temporarily into a migration command/session and is never retained
+   by NestJS or checked at application startup.
 
 ## Domain rules
 
-| # | Rule | Enforced by |
-|---|---|---|
-| DR-01 | A row's `tenant_id` equals the `tenant_id` of every row it references | composite FK (Phase 7) on the guarded chains; RLS elsewhere |
-| DR-02 | A scoped query with no tenant GUC set fails with a PostgreSQL error | RLS policy uses `current_setting('app.tenant_id')` without `missing_ok` |
-| DR-03 | Only the relay's role may read across tenants | separate `BYPASSRLS` database role |
-| DR-04 | `TENANT_SCOPED_MODELS` equals the set of models declaring `tenantId` | `scripts/verify-tenant-scope.mjs` in `prebuild` |
-| DR-05 | A person's name and email exist in exactly one table | `Person`; `Member` and `ClientContact` carry neither |
-| DR-06 | An `actor_profile` references exactly one of member or client contact, matching its kind | `CHECK actor_profiles_kind_target` |
-| DR-07 | A person has at most one default actor profile | partial unique index `actor_profiles_one_default` |
-| DR-08 | A workflow transition is unique per `(tenant, action, from_status)` | `@@unique` on `workflow_transitions` |
-| DR-09 | Role eligibility for an action lives only in `workflow_action_role_permissions` | `from_role_id` dropped |
-| DR-10 | No column stores what another table already knows | Phase 8 drop list |
-| DR-11 | Agents propose schema changes; the owner or `database-architect` applies them | Art. IX |
-
-DR-02 is the one that will bite. Every existing code path assumes an unscoped read succeeds
-when no tenant is set — the relay depends on it. That is why Phase 6 lands the privileged role
-in the same migration as the policies, not after.
-
-## Failure modes
-
-| Condition | Effect |
+| ID | Rule |
 |---|---|
-| Code forgets `SET LOCAL app.tenant_id` | PostgreSQL raises at the first scoped query. The request fails loudly; it does not return an empty result or expose rows. |
-| Nested `connect` names a foreign-tenant id | On a guarded chain: FK violation → P2003 → 409. Elsewhere: RLS hides the row, so `connect` cannot resolve it. |
-| Direct `INSERT` names a known foreign-tenant UUID | Postgres runs FK validation as the table owner and **does not apply RLS to the referenced row** — only the composite key stops this. This is why Phase 7 exists at all. |
-| Relay runs with the app role instead of the privileged one | Reads zero unpublished rows across every tenant. Backlog grows visibly rather than draining wrongly. |
-| A new model gains `tenant_id`, the constants file is not updated | `prebuild` fails. Today: silently unscoped. |
-| Backfill leaves a member with no matching person | Migration's `NOT NULL` on `person_id` fails the migration. Nothing half-applied. |
-| Two members share one user account today | Backfill collapses them onto one `Person`; the `@@unique([tenantId, personId, divisionId])` catches a genuine duplicate affiliation. |
-| Lookup table collapsed while a FK still points at it | Migration fails on the dependent constraint. Order in `plan.md` §4 exists for this. |
+| DR-01 | Every guarded relationship carries and checks its tenant. |
+| DR-02 | A scoped query without `app.tenant_id` fails; absence never means cross-tenant access. |
+| DR-03 | Only `app_relay` may bypass RLS and only for its approved relay operations. |
+| DR-04 | `TENANT_SCOPED_MODELS` stays equal to the models declaring `tenantId`. |
+| DR-05 | `members.company_id` and `teams.company_id` remain explicit and must agree with their division's tenant/company. |
+| DR-06 | Bid project name/code remain historical Bid-era snapshots. |
+| DR-07 | `document_folders.parent_folder_id` is hierarchy authority; `folder_path` is a logical-path cache; `storage_key` is physical storage identity. |
+| DR-08 | Workflow action permissions are coarse eligibility; nullable transition roles and assignment/context checks remain routing inputs. |
+| DR-09 | Exact duplicate active transition configurations are forbidden with NULL-safe equality; inactive duplicates are allowed as history. |
+| DR-10 | User remains the login principal; Member and ClientContact retain independent business identity and optional User links. |
+| DR-11 | ActorProfile may have neither business target or exactly one, never both; a non-null tenant/user has at most one default profile. |
+| DR-12 | Existing lookup tables, `DocumentVersion.textContent`, and global tenant/Work Request code uniqueness remain intact. |
+| DR-13 | The generated Prisma model is `WorkPriority`, mapped to unchanged table `work_priorities`. |
 
-## EARS acceptance criteria
+## Acceptance criteria
 
-- `[AC-U01]` Every tenant-scoped table SHALL have row-level security enabled and an isolation policy.
-- `[AC-U02]` The application database role SHALL NOT be able to read a row belonging to another tenant.
-- `[AC-U03]` A person's name and email SHALL exist in exactly one table.
-- `[AC-U04]` No column SHALL store a value another table already holds, unless it is a deliberate point-in-time snapshot named in `DATA_CONTRACT.md` §5.
-- `[AC-E01]` WHEN a write names a foreign-tenant id on a guarded chain, the database SHALL reject it.
-- `[AC-E02]` WHEN a unit of work opens, it SHALL set `app.tenant_id` before any statement runs.
-- `[AC-E03]` WHEN a model declaring `tenantId` is added without updating `TENANT_SCOPED_MODELS`, `yarn build` SHALL fail.
-- `[AC-E04]` WHEN an `actor_profile` is written whose kind disagrees with its populated reference, the database SHALL reject it.
-- `[AC-S01]` WHILE no tenant GUC is set, a scoped query by the application role SHALL fail with a PostgreSQL error.
-- `[AC-S02]` WHILE the relay holds the privileged role, it SHALL continue to drain the outbox across every tenant.
-- `[AC-W01]` IF a second default actor profile is written for a person, THEN the database SHALL reject it.
-- `[AC-W02]` IF a workflow transition duplicates an existing `(tenant, action, from_status)`, THEN the database SHALL reject it.
+- `[AC-U01]` Every tenant-scoped table SHALL have RLS and its isolation policy.
+- `[AC-E01]` A guarded foreign-tenant write SHALL be rejected by a named composite FK.
+- `[AC-E02]` Member/team division, tenant, and company SHALL agree.
+- `[AC-E03]` A second exact active transition rule, including NULL role/status values, SHALL be rejected.
+- `[AC-E04]` An ActorProfile with both Member and ClientContact SHALL be rejected.
+- `[AC-W01]` A second default ActorProfile for a non-null `(tenant_id,user_id)` SHALL be rejected.
+- `[AC-S01]` Missing tenant context SHALL fail closed for `app_user`.
+- `[AC-S02]` The privileged relay SHALL continue authenticating separately as `app_relay`.
+- `[AC-C01]` Project Portal workflow permissions, assignment/object/context authorization, Request Info routing, client/member/requester routing, and Bid readiness SHALL remain unchanged.
+- `[AC-C02]` Prime Consultant and the removed PM client-revision route SHALL NOT be reintroduced.
+
+## Owner-approved retained architecture (2026-09-02)
+
+- Keep Member/Team company affiliation, Bid name/code snapshots, folder-path cache, storage key,
+  nullable transition roles, current identity architecture, ActorProfile label, all five lookup
+  tables, document text content, and non-reusable Work Request codes.
+- Reject Person/UserAccount, ActorKind, speculative Member tenure, blanket `@updatedAt`, lookup
+  collapse, and the unsafe `(tenant, action, from status)` transition uniqueness.
+- Phase 7 artifacts preserve the approved design; their named catalog verification must remain
+  green after deployment.
 
 ## Out of scope
 
-Which events these tables publish (each owning module) · the HTTP surface over `Person` (03 and
-05) · query tuning and index strategy beyond what the constraints require · moving to
-schema-per-tenant or database-per-tenant (rejected, see decision 4) · pruning and retention of
-`outbox_messages` (13) · the `folder_path` synchronization/rebuild job (08).
-
-## Owner decisions (2026-09-01)
-
-- Reconstruct `project_portal_workflow_management_erd.dbml` from the legitimate current
-  Prisma schema and applied migration history. DBML remains authoritative and generation
-  remains DBML → Prisma; Prisma does not become a second source of truth.
-- Keep nullable `target_role_id` on each workflow transition. Do not introduce an
-  action-global routing table. `from_role_id` may be removed once role eligibility is fully
-  represented by `workflow_action_role_permissions`.
-- Retain `document_version_folder_locations.folder_path` as an intentional materialized
-  logical-path cache. `document_folders.parent_folder_id` is authoritative; module 08 owns
-  synchronization and rebuilding after supported hierarchy changes.
-- These decisions do not approve unrelated destructive Phase 8–12 redesigns. Identity,
-  actor-profile, lookup-collapse, and other destructive changes retain their own decision
-  and verification gates.
+Endpoint redesign; new roles/actions; Prime Consultant; the removed PM revision action;
+folder-cache synchronization implementation (owned by module 08); document extraction/search
+redesign; configurable lookup conversion; historical Member tenure; database execution without
+a temporary provider/table-owner migration session.

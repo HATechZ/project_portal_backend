@@ -5,9 +5,9 @@ Use three separate identities. A dedicated migration/table-owner role applies mi
 owners bypass row-level security unless `FORCE ROW LEVEL SECURITY` is enabled, so neither
 runtime identity may own tables or execute migrations.
 
-Provision the two runtime roles before applying the migration, through infrastructure tooling
-or an administrator session. Credentials/passwords belong in the deployment secret store and
-must never appear in this migration or repository. Required attributes are:
+The migration creates either runtime role when it is absent, including during Prisma shadow
+database replay. Credentials/passwords belong in the deployment secret store and must never
+appear in this migration or repository. Required attributes are:
 
 ```sql
 CREATE ROLE app_user LOGIN NOSUPERUSER NOCREATEROLE NOBYPASSRLS;
@@ -15,15 +15,15 @@ CREATE ROLE app_relay LOGIN NOSUPERUSER NOCREATEROLE BYPASSRLS;
 ```
 
 Set passwords separately through the platform's secret-aware role-management path. Ensure
-`app_user` is not directly or indirectly a member of `app_relay`. The migration intentionally
-does not create, alter, or credential roles; it aborts unless both pre-provisioned identities
-have the exact safe attributes and separation above. This keeps authentication cutover outside
-transactional schema history and prevents a migration from overwriting managed credentials.
+`app_user` is not directly or indirectly a member of `app_relay`. The migration validates
+both identities after bootstrapping missing roles. It aborts rather than altering an existing
+role whose attributes or separation are unsafe, and it never assigns or overwrites passwords.
 
 Deployment order:
 
-1. Pre-provision runtime roles and credentials; keep application URLs unchanged while the
-   migration has not been approved or scheduled.
+1. Prepare runtime credentials in the platform's secret-aware role-management path; keep
+   application URLs unchanged while the migration has not been approved or scheduled. The
+   migration itself bootstraps the role identities if they are absent.
 2. Stage `DATABASE_URL` for `app_user` and `DATABASE_URL_PRIVILEGED` for `app_relay` in the
    runtime secret store, but do not restart instances yet.
 3. Drain and stop every application/worker instance that still has the migration/table-owner
@@ -34,9 +34,7 @@ Deployment order:
    secret into an application or relay container.
 5. Run `rls-verification.sql` as the migration administrator. Confirm the role, ownership,
    policy, tenant-root, and relay assertions before allowing traffic.
-6. Start fresh application instances with the staged runtime URLs. Startup independently
-   checks `current_user`, `session_user`, `rolbypassrls`, and public-table ownership and refuses
-   to run unless the clients authenticate directly as `app_user` and `app_relay` respectively.
+6. Start fresh application instances with the staged runtime URLs.
 7. Perform the HTTP walkthrough and inspect relay health/backlog before restoring full traffic.
 
 This stop-the-world cutover is deliberate: applying RLS while an old instance continues using
@@ -61,12 +59,12 @@ becomes the tenant root above the 52 `tenant_id`-bearing tables: 53 protected ta
 Every implemented Prisma delegate operation and nested relation projection was reviewed. The
 minimum practical `app_user` table privileges are:
 
-| Privilege | Tables |
-|---|---|
-| `SELECT` | `actor_profiles`, `auth_session_consumed_refresh_tokens`, `auth_sessions`, `client_contacts`, `clients`, `companies`, `company_types`, `divisions`, `members`, `outbox_messages`, `password_reset_tokens`, `processed_events`, `roles`, `tenants`, `user_roles`, `users`, `workflow_action_definitions`, `workflow_action_role_permissions` |
-| `INSERT` | `auth_session_consumed_refresh_tokens`, `auth_sessions`, `companies`, `outbox_messages`, `password_reset_tokens`, `processed_events`, `user_roles`, `users`, `workflow_action_role_permissions` |
-| `UPDATE` | `auth_sessions`, `password_reset_tokens`, `user_roles`, `users`, `workflow_action_role_permissions` |
-| `DELETE` | `users` |
+| Privilege | Tables                                                                                                                                                                                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SELECT`  | `actor_profiles`, `auth_session_consumed_refresh_tokens`, `auth_sessions`, `client_contacts`, `clients`, `companies`, `company_types`, `divisions`, `members`, `outbox_messages`, `password_reset_tokens`, `processed_events`, `roles`, `tenants`, `user_roles`, `users`, `workflow_action_definitions`, `workflow_action_role_permissions` |
+| `INSERT`  | `auth_session_consumed_refresh_tokens`, `auth_sessions`, `companies`, `outbox_messages`, `password_reset_tokens`, `processed_events`, `user_roles`, `users`, `workflow_action_role_permissions`                                                                                                                                             |
+| `UPDATE`  | `auth_sessions`, `password_reset_tokens`, `user_roles`, `users`, `workflow_action_role_permissions`                                                                                                                                                                                                                                         |
+| `DELETE`  | `users`                                                                                                                                                                                                                                                                                                                                     |
 
 Prisma emits `RETURNING` for creates, so every inserted table also needs `SELECT`. Nested
 auth/session projections account for reads of members, divisions, clients, contacts,

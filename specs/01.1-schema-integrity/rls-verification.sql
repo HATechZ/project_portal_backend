@@ -1,7 +1,8 @@
 -- Execute later with psql after the Phase 6 migration has been applied.
 -- This script is read-only and requires an existing outbox row owned by tenant_a.
--- Example:
---   psql "$DATABASE_URL_MIGRATION" \
+-- In a migration-only shell, temporarily set DATABASE_URL to the provider/table-owner
+-- connection. Do not load that value into the NestJS runtime environment. Then run:
+--   psql "$DATABASE_URL" \
 --     -v tenant_a=00000000-0000-4000-8000-000000000001 \
 --     -v tenant_b=00000000-0000-4000-8000-000000000002 \
 --     -v outbox_a=00000000-0000-4000-8000-000000000003 \

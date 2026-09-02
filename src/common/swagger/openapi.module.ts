@@ -5,6 +5,29 @@ import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { AppConfiguration } from '../../config/configuration';
 import { sharedSchemas } from './shared-schemas';
 
+const bearerAuthDescription =
+  'Paste only the raw accessToken JWT. Do not include "Bearer", "Authorization", the refreshToken, or tokenType; this API reference adds the Bearer prefix automatically.';
+
+export function buildOpenApiConfig() {
+  return new DocumentBuilder()
+    .setTitle('Project Portal API')
+    .setDescription(
+      'Project Portal workflow management API. For protected endpoints, authorize with the raw accessToken JWT; the API reference sends it as `Authorization: Bearer <accessToken>`.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: bearerAuthDescription,
+      },
+      'bearer',
+    )
+    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-tenant-id' }, 'tenant')
+    .build();
+}
+
 function serializeForScript(value: unknown): string {
   return JSON.stringify(value)
     .replace(/</g, '\\u003c')
@@ -51,22 +74,7 @@ export class OpenApiModule {
     const apiPrefix = config.get('app.apiPrefix', { infer: true });
     const docsPath = `/${apiPrefix}/docs`;
     const jsonPath = `/${apiPrefix}/docs-json`;
-    const document = SwaggerModule.createDocument(
-      app,
-      new DocumentBuilder()
-        .setTitle('Project Portal API')
-        .setDescription('Project Portal workflow management API')
-        .setVersion('1.0')
-        .addBearerAuth(
-          { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-          'bearer',
-        )
-        .addApiKey(
-          { type: 'apiKey', in: 'header', name: 'x-tenant-id' },
-          'tenant',
-        )
-        .build(),
-    );
+    const document = SwaggerModule.createDocument(app, buildOpenApiConfig());
     document.components ??= {};
     document.components.schemas = {
       ...document.components.schemas,

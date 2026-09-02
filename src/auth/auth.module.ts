@@ -6,7 +6,6 @@ import { AuthTokenProvider } from './providers';
 import { AuthPasswordResetProvider } from './providers/auth-password-reset.provider';
 import { AuthSessionRepository } from './repositories';
 import { SESSION_AUTHENTICATOR } from '../common/security/session-authenticator.port';
-import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { MailModule } from '../infra/mail/mail.module';
 
 /**
@@ -26,7 +25,6 @@ import { MailModule } from '../infra/mail/mail.module';
     AuthTokenProvider,
     AuthPasswordResetProvider,
     AuthSessionRepository,
-    TenantContextGuard,
     { provide: SESSION_AUTHENTICATOR, useExisting: AuthTokenProvider },
   ],
   exports: [SESSION_AUTHENTICATOR],

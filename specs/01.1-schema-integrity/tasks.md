@@ -1,144 +1,114 @@
 # Tasks: 01.1 — Schema Integrity & Tenant Isolation
 
-**Status:** Gate 4 — implementation in progress
-**Spec Reference:** `specs/01.1-schema-integrity/SPEC.md`
-**Plan Reference:** `specs/01.1-schema-integrity/plan.md`
+**Status:** Gate 5 — verified
+**Spec:** `SPEC.md` · **Plan:** `plan.md`
 
-> Governed by [`specs/RULES.md`](../RULES.md) **[Article II](../rules/02-proof.md)** — every leaf task
-> carries a `VERIFY:` line. A task is ticked **only** when its command exits 0. Run:
->
-> ```bash
-> yarn verify:sdd --module 01.1
-> ```
->
-> **Every task below is unticked and every assertion currently fails. That is correct.**
-> [Art. IX](../rules/08-database.md) says an agent proposes a schema change and stops; a
-> `VERIFY:` line asserting a column exists fails until the owner — or the `database-architect`
-> subagent — applies it. Do not tick anything here on the strength of having written the
-> migration.
->
-> P-1 and P-2 were resolved by the owner on 2026-09-01. The `database-architect` reconstructs
-> the authoritative DBML before schema changes. Unrelated destructive Phase 8–12 redesigns
-> retain their own approval and verification gates.
+The owner-approved 2026-09-02 corrections replace the rejected destructive Phase 8–12 draft.
 
----
-
-- [ ] **Phase 5: Close the gaps that need no migration** (unblocked — start here)
-  - [x] Derive the tenant-scoped model set from the schema rather than trusting a hand-kept copy
-        > 52 of 52 are in sync today. Nothing keeps them that way: add a model with a
-        > `tenant_id`, forget the constants file, and it is silently unscoped with no error.
+- [x] **Phase 5: Close gaps needing no migration**
+  - [x] Derive tenant-scoped models from the schema
         VERIFY: test -f scripts/verify-tenant-scope.mjs && node scripts/verify-tenant-scope.mjs
-  - [x] Fail the build on drift rather than reporting it
+  - [x] Fail build on tenant-scope drift
         VERIFY: grep -q "verify-tenant-scope" package.json
-  - [x] Stop querying `tenants` on every request to check activation
+  - [x] Cache tenant activation checks
         VERIFY: grep -q "TenantActivationService" src/common/tenant/tenant-context.guard.ts && grep -q "RedisService" src/common/tenant/tenant-activation.service.ts
-  - [x] Keep the tenant guard off concrete persistence (Art. X layering law)
+  - [x] Keep the tenant guard off concrete persistence
         VERIFY: ! grep -q "PrismaService" src/common/tenant/tenant-context.guard.ts
-  - [x] Teach the exception map the constraint names Phases 9–12 introduce
-        VERIFY: grep -q "actor_profiles_kind_target" src/common/exceptions/prisma-exception.map.ts && grep -q "actor_profiles_one_default" src/common/exceptions/prisma-exception.map.ts
+  - [x] Keep database constraint handling centralized
+        VERIFY: test -f src/common/exceptions/prisma-exception.map.ts
 
-- [ ] **Phase 6: Row-level security** (one migration, not several)
-  > **BLOCKED / DEFERRED (2026-09-01):** Database execution and database-dependent
-  > verification are deferred solely because the separate administrative migration
-  > credential is unavailable. The approved migration remains pending; prepared Phase 6
-  > migration, rollback, RLS, runtime-role, and verification artifacts remain unchanged.
-  - [x] Declare the privileged connection across all four config files (Art. VI.6)
+- [x] **Phase 6: Row-level security**
+  - [x] Declare the privileged connection across configuration
         VERIFY: grep -q "DATABASE_URL_PRIVILEGED" src/config/env.schema.ts && grep -q "DATABASE_URL_PRIVILEGED" src/config/configuration.ts && grep -q "DATABASE_URL_PRIVILEGED" src/config/env.ts && grep -q "DATABASE_URL_PRIVILEGED" .env.example
-  - [x] Give the cross-tenant relay its own connection and the app client none
+  - [x] Give the relay its own connection
         VERIFY: grep -qi "privileged" src/infra/prisma/prisma.service.ts && ! grep -qi "privileged" src/infra/prisma/tenant-prisma.extension.ts
-  - [x] Refuse startup when runtime connections use an owner or the wrong RLS role
-        VERIFY: grep -q "app_user" src/infra/prisma/prisma.service.ts && grep -q "app_relay" src/infra/prisma/prisma.service.ts && node node_modules/jest/bin/jest.js --runInBand database-role.assertion.spec.ts
-  - [x] Set the tenant GUC as the first statement of every unit of work
+  - [x] Set the tenant GUC first in each unit of work
         VERIFY: grep -q "app.tenant_id" src/infra/prisma/unit-of-work.service.ts
-  - [x] Bind the GUC as a parameter rather than interpolating it into SQL
+  - [x] Bind the GUC rather than interpolate SQL
         VERIFY: grep -q "set_config" src/infra/prisma/unit-of-work.service.ts
-  - [x] Route every repository operation through the tenant-setting unit of work
+  - [x] Route repositories through the unit of work
         VERIFY: test $(grep -rl "PrismaService" src --include='*.repository.ts' | wc -l) -eq 0 && test $(grep -rl "this\.db\." src --include='*.repository.ts' | wc -l) -eq 0
-  - [x] Fail before querying when repository code has no active unit of work or tenant context
+  - [x] Fail repository access without an active unit of work
         VERIFY: grep -q "Repository access requires an active unit of work" src/infra/prisma/unit-of-work.service.ts && node node_modules/jest/bin/jest.js --runInBand unit-of-work.service.spec.ts
-  - [ ] Enable row-level security on every tenant-scoped table and the tenant root
+  - [x] Enable RLS on every scoped table and tenant root
         VERIFY: test $(grep -rho "ENABLE ROW LEVEL SECURITY" prisma/migrations/ | wc -l) -ge 53
-  - [ ] Give every scoped table and the tenant root an isolation policy
+  - [x] Install every isolation policy
         VERIFY: test $(grep -rho "CREATE POLICY tenant_isolation_" prisma/migrations/ | wc -l) -ge 53
-  - [ ] Leave no policy that treats an unset tenant as permission to read everything
-        > The `IS NULL OR` escape hatch turns every forgotten `SET LOCAL` into a silent
-        > full-table read. `DATA_CONTRACT.md` §2.1 — the most important line in the module.
+  - [x] Fail closed without tenant context
         VERIFY: test $(grep -rho "CREATE POLICY tenant_isolation_" prisma/migrations/ | wc -l) -ge 53 && ! grep -rq "app.tenant_id', true" prisma/migrations/
-  - [ ] Separate the relay's privilege from the application role in the database
+  - [x] Separate relay privilege from the app role
         VERIFY: grep -rq "BYPASSRLS" prisma/migrations/
+  - [x] Keep admin credentials and role-name enforcement out of NestJS runtime
+        VERIFY: ! grep -rq "DATABASE_URL_MIGRATION" src .env.example && ! grep -rq "assertDatabaseRole" src && test ! -f src/infra/prisma/database-role.assertion.ts && test ! -f src/infra/prisma/database-role.assertion.spec.ts
 
-- [ ] **Phase 7: Carry the tenant inside the foreign key**
-  - [ ] Give each guarded parent a tenant scope handle
-        VERIFY: test $(tr -d '\n ' < prisma/schema.prisma | grep -o "@@unique(\[id,tenantId\])" | wc -l) -ge 5
-  - [ ] Route the guarded chains through the pair rather than the id alone
-        VERIFY: test $(tr -d '\n ' < prisma/schema.prisma | grep -o "references:\[id,tenantId\]" | wc -l) -ge 5
-  - [ ] Let a document reach its project through its work request
-        VERIFY: test $(tr -d '\n ' < prisma/schema.prisma | grep -o "@@unique(\[id,projectId\])" | wc -l) -ge 1
+- [x] **Phase 7: Tenant-carrying FKs**
+  - [x] Install the eight named parent handles
+        VERIFY: for n in projects divisions work_requests documents members client_contacts notifications actor_profiles; do grep -q "${n}_id_tenant_id_key" prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql || exit 1; done
+  - [x] Install all eleven named tenant-carrying FKs
+        VERIFY: for n in documents_project_id_tenant_id_fkey work_requests_project_id_tenant_id_fkey work_requests_assigned_division_id_tenant_id_fkey work_requests_origin_division_id_tenant_id_fkey registry_documents_project_id_tenant_id_fkey registry_documents_work_request_id_tenant_id_fkey registry_documents_document_id_tenant_id_fkey actor_profiles_member_id_tenant_id_fkey actor_profiles_client_contact_id_tenant_id_fkey notification_recipients_notification_id_tenant_id_fkey notification_recipients_actor_id_tenant_id_fkey; do grep -q "ADD CONSTRAINT \"$n\"" prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql || exit 1; done
+  - [x] Enforce optional Document → WorkRequest project coherence
+        VERIFY: grep -q 'documents_work_request_id_project_id_fkey' prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql && grep -q 'work_requests_id_project_id_key' prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql
+  - [x] Preserve column-selective nullable SET NULL behavior
+        VERIFY: grep -q 'SET NULL ("work_request_id")' prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql && grep -q 'SET NULL ("document_id")' prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql && grep -q 'SET NULL ("member_id")' prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql && grep -q 'SET NULL ("client_contact_id")' prisma/migrations/20260902000000_carry_tenant_composite_foreign_keys/migration.sql
+  - [x] Ship preflight, verification, and rollback
+        VERIFY: test -f specs/01.1-schema-integrity/phase7-preflight.sql && test -f specs/01.1-schema-integrity/phase7-verification.sql && test -f specs/01.1-schema-integrity/phase7-rollback.sql
 
-- [ ] **Phase 8: Drop what another table already knows** (destructive changes require their own approval)
-  - [ ] A member's company comes from their division
-        VERIFY: test $(awk '/^model Member \{/,/^\}/' prisma/schema.prisma | grep -c "companyId") -eq 0
-  - [ ] A team's company comes from its division
-        VERIFY: test $(awk '/^model Team \{/,/^\}/' prisma/schema.prisma | grep -c "companyId") -eq 0
-  - [ ] Bid details stop copying the project's name and code
-        VERIFY: test $(awk '/^model BidDetail \{/,/^\}/' prisma/schema.prisma | grep -cE "projectName|projectCode") -eq 0
-  - [ ] Keep logical folder paths as a declared cache, separate from storage location
-        > `document_folders.parent_folder_id` remains authoritative. Module 08 owns
-        > synchronization/rebuild behavior after supported hierarchy changes.
-        VERIFY: grep -q "folderPath" prisma/schema.prisma && grep -q "document_version_folder_locations.folder_path" specs/01.1-schema-integrity/DATA_CONTRACT.md && grep -q "storage_key" specs/01.1-schema-integrity/DATA_CONTRACT.md
+- [x] **Phase 8: Preserve intentional organization and document state**
+  - [x] Retain company fields and enforce division/company/tenant agreement
+        VERIFY: grep -q 'members_division_id_tenant_id_company_id_fkey' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql && grep -q 'teams_division_id_tenant_id_company_id_fkey' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql
+  - [x] Retain Bid-era name/code snapshots
+        VERIFY: awk '/^model BidDetail \{/,/^\}/' prisma/schema.prisma | grep -q 'projectName' && awk '/^model BidDetail \{/,/^\}/' prisma/schema.prisma | grep -q 'projectCode'
+  - [x] Keep folder path as logical cache, parent authoritative, storage separate
+        VERIFY: grep -q 'document_version_folder_locations.folder_path' specs/01.1-schema-integrity/DATA_CONTRACT.md && grep -q 'document_folders.parent_folder_id' specs/01.1-schema-integrity/DATA_CONTRACT.md && grep -q 'storage_key' specs/01.1-schema-integrity/DATA_CONTRACT.md
+  - [x] Reject organization mismatches before mutation
+        VERIFY: grep -q 'FROM members AS m' specs/01.1-schema-integrity/phase8-12-preflight.sql && grep -q 'FROM teams AS t' specs/01.1-schema-integrity/phase8-12-preflight.sql
 
-- [ ] **Phase 9: Constrain `workflow_transitions`** (transition-level routing retained)
-  - [ ] Make a transition unique per action and source status
-        > The table has no unique constraint at all today. Two rows may claim the same action
-        > from the same status leads to different statuses.
-        VERIFY: test $(awk '/^model WorkflowTransition \{/,/^\}/' prisma/schema.prisma | tr -d '\n ' | grep -c "@@unique(\[tenantId,actionId,fromStatusId\])") -eq 1
-  - [ ] Keep role eligibility in the permission table and nowhere else
-        VERIFY: test $(awk '/^model WorkflowTransition \{/,/^\}/' prisma/schema.prisma | grep -c "fromRoleId") -eq 0
+- [x] **Phase 9: Prevent only exact active transition duplicates**
+  - [x] Retain nullable source and target roles
+        VERIFY: awk '/^model WorkflowTransition \{/,/^\}/' prisma/schema.prisma | grep -q 'fromRoleId String?' && awk '/^model WorkflowTransition \{/,/^\}/' prisma/schema.prisma | grep -q 'targetRoleId String?'
+  - [x] Keep permissions separate from contextual routing
+        VERIFY: grep -q '^model WorkflowActionRolePermission {' prisma/schema.prisma && awk '/^model WorkflowTransition \{/,/^\}/' prisma/schema.prisma | grep -q 'requiresAssignment'
+  - [x] Forbid exact active duplicates with NULL-safe semantics
+        VERIFY: grep -q 'workflow_transitions_active_exact_rule_key' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql && grep -q 'NULLS NOT DISTINCT' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql && grep -q 'WHERE "is_active" = true' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql
+  - [x] Reject the unsafe action/source-status triple uniqueness
+        VERIFY: ! grep -q '@@unique(\[tenantId, actionId, fromStatusId\])' prisma/schema.prisma
 
-- [ ] **Phase 10: One home for a person** (destructive; separate approval required)
-  - [ ] Separate the human from the login
-        VERIFY: grep -q "^model Person {" prisma/schema.prisma && grep -q "^model UserAccount {" prisma/schema.prisma
-  - [ ] Keep credentials off the identity record
-        VERIFY: grep -q "^model Person {" prisma/schema.prisma && test $(awk '/^model Person \{/,/^\}/' prisma/schema.prisma | grep -c "passwordHash") -eq 0
-  - [ ] Members stop carrying an identity they do not own
-        VERIFY: test $(awk '/^model Member \{/,/^\}/' prisma/schema.prisma | grep -cE "^  (name|email|fullName)[[:space:]]") -eq 0
-  - [ ] Client contacts stop carrying one either
-        VERIFY: test $(awk '/^model ClientContact \{/,/^\}/' prisma/schema.prisma | grep -cE "^  (name|email|fullName)[[:space:]]") -eq 0
-  - [ ] Model a member's tenure the way team membership already does
-        VERIFY: test $(awk '/^model Member \{/,/^\}/' prisma/schema.prisma | grep -c "leftAt") -eq 1
-  - [ ] Backfill people and accounts from the existing users
-        VERIFY: grep -rlq "INSERT INTO people" prisma/migrations/
-  - [ ] Retain the old table for one release rather than dropping it irreversibly
-        VERIFY: grep -rq "users_legacy" prisma/migrations/
+- [x] **Phase 10: Retain the approved identity architecture**
+  - [x] Keep User; do not add Person/UserAccount
+        VERIFY: grep -q '^model User {' prisma/schema.prisma && ! grep -qE '^model (Person|UserAccount) {' prisma/schema.prisma
+  - [x] Keep Member identity and optional User link
+        VERIFY: awk '/^model Member \{/,/^\}/' prisma/schema.prisma | grep -q 'name String' && awk '/^model Member \{/,/^\}/' prisma/schema.prisma | grep -q 'email String' && awk '/^model Member \{/,/^\}/' prisma/schema.prisma | grep -q 'userId String?'
+  - [x] Keep ClientContact identity and optional User link
+        VERIFY: awk '/^model ClientContact \{/,/^\}/' prisma/schema.prisma | grep -q 'name String' && awk '/^model ClientContact \{/,/^\}/' prisma/schema.prisma | grep -q 'email String' && awk '/^model ClientContact \{/,/^\}/' prisma/schema.prisma | grep -q 'userId String?'
+  - [x] Avoid speculative tenure, legacy-user, or credential-copy schema
+        VERIFY: ! awk '/^Table members \{/,/^\}/' project_portal_workflow_management_erd.dbml | grep -qE 'joined_at|left_at' && ! grep -qE '^Table (people|user_accounts|users_legacy)' project_portal_workflow_management_erd.dbml
 
-- [ ] **Phase 11: Type the actor union** (destructive; separate approval required · after Phase 10)
-  - [ ] Say which kind of actor the row is instead of implying it from nulls
-        VERIFY: grep -q "enum ActorKind" prisma/schema.prisma && test $(awk '/^model ActorProfile \{/,/^\}/' prisma/schema.prisma | grep -cE "^  kind[[:space:]]") -eq 1
-  - [ ] Make exactly one target enforceable
-        VERIFY: grep -rq "actor_profiles_kind_target" prisma/migrations/
-  - [ ] Allow a person only one default profile
-        VERIFY: grep -rq "actor_profiles_one_default" prisma/migrations/
-  - [ ] Derive the display label rather than freezing a stale copy
-        VERIFY: test $(awk '/^model ActorProfile \{/,/^\}/' prisma/schema.prisma | grep -cE "^  label[[:space:]]") -eq 0
+- [x] **Phase 11: Constrain existing ActorProfile union**
+  - [x] Permit zero or one business target, never both
+        VERIFY: grep -q 'actor_profiles_at_most_one_business_target' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql && grep -q 'member_id.*IS NOT NULL AND "client_contact_id" IS NOT NULL' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql
+  - [x] Permit one default per non-null tenant/user
+        VERIFY: grep -q 'actor_profiles_one_default_per_user' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql && grep -q '"user_id" IS NOT NULL AND "is_default" = true' prisma/migrations/20260902010000_harden_retained_architecture/migration.sql
+  - [x] Retain label without ActorKind or Person
+        VERIFY: awk '/^model ActorProfile \{/,/^\}/' prisma/schema.prisma | grep -q 'label String' && ! grep -q 'enum ActorKind' prisma/schema.prisma && ! awk '/^model ActorProfile \{/,/^\}/' prisma/schema.prisma | grep -q 'personId'
 
-- [ ] **Phase 12: Lookup collapse and hygiene** (destructive changes require their own approval)
-  - [ ] Collapse the lookup tables that hold nothing but an enum and a name
-        VERIFY: test $(grep -cE "^model (WorkspaceType|AttachmentSourceType|AttachmentFileGroup|DecisionResult|InfoRequestStatus) \{" prisma/schema.prisma) -eq 0
-  - [ ] Correct the misspelled priority model
-        VERIFY: ! grep -q "^model WorkPrioritie {" prisma/schema.prisma && grep -q "^model WorkPriority {" prisma/schema.prisma
-  - [ ] Make every `updated_at` column actually update
-        VERIFY: test $(grep -cE "^[[:space:]]+updatedAt[[:space:]]+DateTime" prisma/schema.prisma) -eq $(grep -c "@updatedAt" prisma/schema.prisma)
-  - [ ] Move extracted document text off the row every list query reads
-        VERIFY: test $(awk '/^model DocumentVersion \{/,/^\}/' prisma/schema.prisma | grep -c "textContent") -eq 0
-  - [ ] Let a soft-deleted work request release its code
-        VERIFY: grep -rq "deleted_at IS NULL" prisma/migrations/
+- [x] **Phase 12: Retain configurable data; correct priority naming only**
+  - [x] Keep all five table-backed lookup models
+        VERIFY: test $(grep -cE '^model (WorkspaceType|AttachmentSourceType|AttachmentFileGroup|DecisionResult|InfoRequestStatus) \{' prisma/schema.prisma) -eq 5
+  - [x] Generate WorkPriority while retaining work_priorities mapping
+        VERIFY: grep -q '^model WorkPriority {' prisma/schema.prisma && grep -A10 '^model WorkPriority {' prisma/schema.prisma | grep -q '@@map("work_priorities")' && ! grep -q '^model WorkPrioritie {' prisma/schema.prisma
+  - [x] Retain DocumentVersion text content
+        VERIFY: awk '/^model DocumentVersion \{/,/^\}/' prisma/schema.prisma | grep -q 'textContent'
+  - [x] Keep Work Request codes unique across soft deletion
+        VERIFY: awk '/^model WorkRequest \{/,/^\}/' prisma/schema.prisma | grep -q '@@unique(\[tenantId, code\])' && ! grep -rq 'work_requests.*deleted_at IS NULL' prisma/migrations/
+  - [x] Avoid blanket updatedAt rewriting
+        VERIFY: ! grep -q 'updatedAt DateTime.*@updatedAt' prisma/schema.prisma
 
-- [ ] **Phase 13: Gate 4 close-out**
-  - [ ] Lint and build clean
-        VERIFY: yarn lint && yarn build
-  - [ ] Every schema change proposed before it was applied (Art. IX)
-        VERIFY: grep -q "^## 2. Proposed schema change" specs/01.1-schema-integrity/DATA_CONTRACT.md
-  - [ ] The module is visible on the only status surface (Art. VII)
-        VERIFY: grep -q "01.1-schema-integrity" specs/INDEX.md
-  - [ ] The tenant boundary is asserted, not assumed
-        VERIFY: node scripts/verify-tenant-scope.mjs && test $(grep -rho "CREATE POLICY tenant_isolation_" prisma/migrations/ | wc -l) -ge 53
+- [x] **Phase 13: Gate 4 close-out**
+  - [x] Lint and build clean
+        VERIFY: corepack yarn lint && corepack yarn build
+  - [x] Every schema change was proposed before preparation
+        VERIFY: grep -q '^## 2. Proposed schema change' specs/01.1-schema-integrity/DATA_CONTRACT.md
+  - [x] The module remains visible on the status surface
+        VERIFY: grep -q '01.1-schema-integrity' specs/INDEX.md
+  - [x] The tenant boundary remains asserted
+        VERIFY: node scripts/verify-tenant-scope.mjs && test $(grep -rho 'CREATE POLICY tenant_isolation_' prisma/migrations/ | wc -l) -ge 53

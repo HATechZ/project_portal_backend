@@ -24,7 +24,7 @@ How this codebase gets a schema and how it writes. Two load-bearing decisions:
 |---|---|---|
 | DR-01 | `schema.prisma` is generated output, never hand-edited | `dbml-to-prisma.cjs` overwrites it wholesale |
 | DR-02 | The client is imported from `src/generated/prisma` | generator `output` + review |
-| DR-03 | The connection string is never in the schema | `prisma.config.ts` + `PrismaService` |
+| DR-03 | Connection strings are never in the schema; normal repositories use `app_user`, while only the relay uses the separate `app_relay` client | `prisma.config.ts` + `PrismaService` |
 | DR-04 | Ids are application-generated UUIDs at insert time | no `@default(uuid())` in the schema |
 | DR-05 | A transaction inside a transaction joins rather than nests | `UnitOfWorkService.execute` |
 | DR-06 | Migrations are applied before the process serves traffic | `prestart*` scripts |
@@ -46,8 +46,8 @@ Mapping lives in module 00; this module only guarantees the errors arrive there 
 - `[AC-U01]` The schema SHALL be reproducible from the DBML by one command.
 - `[AC-U02]` Repositories SHALL read their executor from the unit of work, not a captured client.
 - `[AC-E01]` WHEN a transaction opens inside an existing one, the system SHALL reuse the outer one.
-- `[AC-E02]` WHEN the application starts, the system SHALL connect the client during module init.
-- `[AC-S01]` WHILE no transaction is active, repository reads SHALL go through `PrismaService`.
+- `[AC-E02]` WHEN the application starts, the system SHALL connect the normal application and separate privileged relay clients during module init.
+- `[AC-S01]` WHILE no unit of work is active, direct repository executor access SHALL fail rather than fall back to a root client.
 - `[AC-W01]` IF the database is unreachable at boot, THEN the process SHALL fail loudly rather than serve traffic.
 - `[AC-W02]` IF a transaction exceeds its timeout, THEN it SHALL roll back rather than hold connections.
 

@@ -16,10 +16,10 @@ prisma.config.ts                  # CLI datasource + migrations path
 scripts/dbml-to-prisma.cjs        # DBML → schema.prisma
 src/infra/prisma/
 ├── prisma.module.ts              # @Global — feature modules do not import it
-├── prisma.service.ts             # PrismaClient + PrismaPg adapter, connect/disconnect
+├── prisma.service.ts             # separate app_user/scoped and app_relay/unscoped clients
 ├── unit-of-work.service.ts       # AsyncLocalStorage transaction store
 ├── base.repository.ts            # this.db + this.transaction
-└── prisma-executor.type.ts       # PrismaClient | TransactionClient
+└── prisma-executor.type.ts       # TenantPrismaClient | TransactionClient
 ```
 
 `PrismaModule` is `@Global()`. This is why `UsersModule` has an empty `imports` array — and
@@ -35,12 +35,12 @@ Repository.db
      └─► UnitOfWorkService.client
               │
               ├─ AsyncLocalStorage has a transaction?  ──► that transaction client
-              └─ otherwise                             ──► PrismaService
+              └─ otherwise                             ──► throw (fail closed)
 ```
 
-`PrismaExecutor = PrismaClient | PrismaTransactionClient`. The transaction client type is
-derived from `PrismaClient['$transaction']` rather than named directly, so it survives Prisma
-version bumps that rename the interactive-transaction type.
+`PrismaExecutor = TenantPrismaClient | PrismaTransactionClient`. The transaction client type is
+derived from the scoped client's `$transaction` callback rather than named directly, so it
+survives Prisma version bumps that rename the interactive-transaction type.
 
 Note the narrowing: a transaction client has no `$transaction`, `$connect`, or `$on`. Code
 written against `this.db` must stay inside the query surface both types share.
@@ -48,6 +48,12 @@ written against `this.db` must stay inside the query surface both types share.
 ---
 
 ## 3. Transaction composition
+
+A root `UnitOfWorkService.execute` obtains the tenant from `RequestContext`, opens
+`PrismaService.scoped.$transaction` on the normal `DATABASE_URL` / `app_user` client, and awaits
+a parameter-bound `set_config('app.tenant_id', tenantId, true)` before placing the transaction in
+AsyncLocalStorage or running repository work. The setting is transaction-local. Repository
+executor access without that active unit of work throws.
 
 ```typescript
 // service
@@ -62,8 +68,12 @@ opens a transaction for its own multi-step write composes correctly when a servi
 already opened one.
 
 **Anti-pattern:** calling `prisma.$transaction` directly. It bypasses the store, so
-repositories called inside it silently use the non-transactional client and their writes are
-not rolled back with the rest.
+repositories called inside it open or join their own UnitOfWork transaction rather than the
+caller-created transaction. Their writes are therefore not rolled back with the caller's work.
+
+The separate `DATABASE_URL_PRIVILEGED` / `app_relay` client is exposed only as
+`PrismaService.unscoped` for approved cross-tenant relay operations. It is not a repository
+executor and never participates in the normal UnitOfWork path.
 
 ---
 
@@ -72,14 +82,16 @@ not rolled back with the rest.
 | Hook | Action |
 |---|---|
 | `prestart` / `prestart:dev` / `prestart:prod` | `prisma generate` — **no migrate** |
-| `PrismaService.onModuleInit` | `$connect()` |
-| `PrismaService.onModuleDestroy` | `$disconnect()` |
+| `PrismaService.onModuleInit` | Connect the normal app client and separate privileged relay client |
+| `PrismaService.onModuleDestroy` | Disconnect both runtime clients |
 
 Shutdown only runs because module 00 calls `enableShutdownHooks()`.
 
 Migration was deliberately removed from every start path so that running the app cannot mutate
 the database ([Art. IX](../rules/08-database.md)). **Production deploys must run
-`yarn prisma:deploy` as an explicit step** before starting the process.
+`yarn prisma:deploy` as an explicit step** before starting the process. Supply the
+provider/table-owner credential only to that administrative migration session as
+`DATABASE_URL`; do not retain it as a NestJS serving-runtime connection.
 
 ---
 

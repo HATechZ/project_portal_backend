@@ -6,6 +6,22 @@
 
 DO $$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') THEN
+    CREATE ROLE app_user
+      LOGIN
+      NOSUPERUSER
+      NOCREATEROLE
+      NOBYPASSRLS;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_relay') THEN
+    CREATE ROLE app_relay
+      LOGIN
+      NOSUPERUSER
+      NOCREATEROLE
+      BYPASSRLS;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_roles
     WHERE rolname = 'app_user'
@@ -14,7 +30,7 @@ BEGIN
       AND NOT rolcreaterole
       AND NOT rolbypassrls
   ) THEN
-    RAISE EXCEPTION 'pre-provisioned app_user must be LOGIN NOSUPERUSER NOCREATEROLE NOBYPASSRLS';
+    RAISE EXCEPTION 'app_user must be LOGIN NOSUPERUSER NOCREATEROLE NOBYPASSRLS';
   END IF;
 
   IF NOT EXISTS (
@@ -25,7 +41,7 @@ BEGIN
       AND NOT rolcreaterole
       AND rolbypassrls
   ) THEN
-    RAISE EXCEPTION 'pre-provisioned app_relay must be LOGIN NOSUPERUSER NOCREATEROLE BYPASSRLS';
+    RAISE EXCEPTION 'app_relay must be LOGIN NOSUPERUSER NOCREATEROLE BYPASSRLS';
   END IF;
 
   IF current_user IN ('app_user', 'app_relay') THEN
@@ -122,7 +138,13 @@ REVOKE ALL PRIVILEGES ON TABLE
   "workflow_transitions",
   "workspace_types"
 FROM app_user;
-REVOKE ALL PRIVILEGES ON TABLE "_prisma_migrations" FROM app_user;
+DO $$
+BEGIN
+  IF to_regclass('public."_prisma_migrations"') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL PRIVILEGES ON TABLE public."_prisma_migrations" FROM app_user';
+  END IF;
+END
+$$;
 
 GRANT USAGE ON SCHEMA public TO app_user, app_relay;
 
@@ -240,7 +262,13 @@ REVOKE ALL PRIVILEGES ON TABLE
   "workflow_transitions",
   "workspace_types"
 FROM app_relay;
-REVOKE ALL PRIVILEGES ON TABLE "_prisma_migrations" FROM app_relay;
+DO $$
+BEGIN
+  IF to_regclass('public."_prisma_migrations"') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL PRIVILEGES ON TABLE public."_prisma_migrations" FROM app_relay';
+  END IF;
+END
+$$;
 
 -- The privileged role is deliberately limited to the outbox relay table.
 GRANT SELECT, UPDATE ON TABLE "outbox_messages" TO app_relay;
