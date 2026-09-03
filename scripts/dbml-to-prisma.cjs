@@ -113,6 +113,10 @@ for (const ref of refs) {
   const relationName = ref.name ?? (usesPrismaDefaultRelationName ? undefined : pascal(`${ref.fromTable}_${primaryFromField}_${ref.toTable}`));
   const foreignKeys = ref.fromFields.map((field) => from.columns.find((column) => column.name === field));
   if (foreignKeys.some((field) => !field)) throw new Error(`Missing FK in ${ref.fromTable}.(${ref.fromFields.join(', ')})`);
+  const hasUniqueSingleForeignKey = ref.fromFields.length === 1 && (
+    foreignKeys[0].unique ||
+    from.indexes.some((index) => index.unique && index.fields.length === 1 && index.fields[0] === ref.fromFields[0])
+  );
   let forwardName = camel(primaryFromField.replace(/_id$/, ''));
   if (from.columns.some((column) => camel(column.name) === forwardName)) forwardName += 'Relation';
   const usedForward = new Set(from.relations.map((relation) => relation.field));
@@ -129,14 +133,14 @@ for (const ref of refs) {
     annotation: `@relation(${relationPrefix}${relationArguments.join(', ')})`,
   });
   let reverseName = ref.toTable === 'tenants'
-    ? camel(ref.fromTable)
+    ? camel(hasUniqueSingleForeignKey ? singular(ref.fromTable) : ref.fromTable)
     : ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions'
       ? 'consumedRefreshTokens'
       : `${camel(ref.fromTable)}By${pascal(primaryFromField)}`;
   const usedReverse = new Set(to.relations.map((relation) => relation.field));
   while (usedReverse.has(reverseName)) reverseName += 'Relation';
   to.relations.push({
-    field: reverseName, type: modelName(ref.fromTable), optional: ref.kind === '-', list: ref.kind !== '-',
+    field: reverseName, type: modelName(ref.fromTable), optional: ref.kind === '-' || hasUniqueSingleForeignKey, list: ref.kind !== '-' && !hasUniqueSingleForeignKey,
     annotation: relationName ? `@relation("${relationName}")` : '',
   });
 }

@@ -1,16 +1,24 @@
 import { Module } from '@nestjs/common';
 import { CompanyController } from './company.controller';
+import { CompanySignupController } from './company-signup.controller';
+import { CompanyTypeController } from './company-type.controller';
+import { CompanySignupService } from './company-signup.service';
 import { CompanyService } from './company.service';
-import { CompanyMutationProvider, CompanyQueryProvider } from './providers';
-import { CompanyRepository } from './repositories';
+import { CompanyQueryProvider } from './providers';
+import { CompanyRepository, CompanySignupRepository } from './repositories';
 
 @Module({
-  controllers: [CompanyController],
+  controllers: [
+    CompanyController,
+    CompanySignupController,
+    CompanyTypeController,
+  ],
   providers: [
     CompanyService,
-    CompanyMutationProvider,
+    CompanySignupService,
     CompanyQueryProvider,
     CompanyRepository,
+    CompanySignupRepository,
   ],
   exports: [CompanyQueryProvider],
 })

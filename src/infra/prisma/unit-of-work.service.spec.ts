@@ -6,8 +6,13 @@ describe('UnitOfWorkService', () => {
   const transaction = {
     $executeRaw: jest.fn(),
     user: { findMany: jest.fn() },
+    companyType: { findMany: jest.fn() },
   };
   const prisma = {
+    $transaction: jest.fn(
+      async (work: (client: typeof transaction) => Promise<unknown>) =>
+        work(transaction),
+    ),
     scoped: {
       $transaction: jest.fn(
         async (work: (client: typeof transaction) => Promise<unknown>) =>
@@ -68,5 +73,47 @@ describe('UnitOfWorkService', () => {
     expect(() => unitOfWork.client).toThrow(
       'Repository access requires an active unit of work',
     );
+  });
+
+  it('opens onboarding through app_user without requiring tenant context', async () => {
+    const unitOfWork = new UnitOfWorkService(
+      prisma as unknown as PrismaService,
+    );
+
+    await RequestContext.run({ requestId: 'signup-request' }, () =>
+      unitOfWork.executeProvisioning((client) => {
+        expect(Object.keys(client)).toEqual(['$queryRaw']);
+        expect(Object.isFrozen(client)).toBe(true);
+        expect('user' in client).toBe(false);
+        expect(() => unitOfWork.client).toThrow(
+          'Repository access requires an active unit of work',
+        );
+        return Promise.resolve();
+      }),
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.scoped.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('exposes only a raw-query capability for a pre-tenant reference read', async () => {
+    const unitOfWork = new UnitOfWorkService(
+      prisma as unknown as PrismaService,
+    );
+
+    await RequestContext.run({ requestId: 'reference-request' }, () =>
+      unitOfWork.executeReferenceRead((client) => {
+        expect(Object.keys(client)).toEqual(['$queryRaw']);
+        expect(Object.isFrozen(client)).toBe(true);
+        expect('companyType' in client).toBe(false);
+        expect(() => unitOfWork.client).toThrow(
+          'Repository access requires an active unit of work',
+        );
+        return Promise.resolve();
+      }),
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.scoped.$transaction).not.toHaveBeenCalled();
   });
 });

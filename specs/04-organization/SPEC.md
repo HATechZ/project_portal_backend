@@ -12,26 +12,39 @@ deviations rather than hiding them.
 Two organizing decisions, both visible in the shipped code:
 
 1. **Company types are global, companies are tenant-scoped.** `company_types` carries no
-   `tenant_id` because it is reference data shared by every tenant. Both tables are read through
-   the normal `DATABASE_URL` / `app_user` UnitOfWork; only Company rows are tenant-filtered and
-   protected by RLS. The privileged `app_relay` client is never used by this module.
+   `tenant_id` because it is public reference data shared by every tenant and needed before
+   signup. Both tables use the normal `DATABASE_URL` / `app_user`; Company reads use the tenant
+   UnitOfWork, while the public reference path exposes only parameterized `$queryRaw`. The
+   privileged `app_relay` client is never used by this module.
 2. **A company is identified by its abbreviation, per tenant.** `@@unique([tenantId, abbr])` is
    the real key users type and search on; `name` is free text and deliberately not unique.
 
 ## User stories
 
+> **Owner-approved architecture (2026-09-03):** Tenant is an internal workspace/security
+> boundary and Company is the business organization. They remain separate entities in a strict
+> 1:1 relationship. The sole product-facing creation flow is `POST /api/v1/company/signup`;
+> there is no separate Tenant creation flow. This decision supersedes the older multi-company
+> create story below wherever they conflict.
+
 | | As a | I want | So that |
 |---|---|---|---|
 | US-01 | system administrator | to register a company under my tenant | projects and members have an owner |
 | US-02 | any authenticated actor | to list companies page by page | a large tenant does not return one huge payload |
-| US-03 | any authenticated actor | to read the company type reference list | a client can populate a type selector |
+| US-03 | prospective or authenticated user | to read the company type reference list | the signup client can populate its type selector |
 | US-04 | system administrator | abbreviations to stay unique in my tenant | two companies never collide in a picker |
 
 ## Domain rules
 
+Company Account signup atomically creates Tenant, its one Company, the initial User, only the
+`system_admin` UserRole, a default active role-only ActorProfile, and the configured tenant
+permission matrix. Failure at any step rolls everything back. The function accepts no
+Tenant/role/permission/profile controls and creates no Member or ClientContact. Password hashing
+remains in NestJS. `app_relay` remains isolated to the outbox relay.
+
 | # | Rule | Enforced by |
 |---|---|---|
-| DR-01 | A company always belongs to exactly one tenant | app-user UnitOfWork + RLS + `@@unique([tenantId, abbr])` |
+| DR-01 | A company belongs to one tenant and each tenant owns at most one company | required FK + `@@unique([tenantId])` |
 | DR-02 | Company types are shared across tenants, never scoped | no `tenant_id` on `company_types` |
 | DR-03 | An abbreviation is unique within a tenant, never globally | composite unique, not `@unique` on `abbr` |
 | DR-04 | A company type reference must exist before it is assigned | pre-flight `findCompanyType` + FK |
@@ -41,6 +54,10 @@ Two organizing decisions, both visible in the shipped code:
 | DR-08 | A Member or Team assigned to a Division carries the same tenant and company as that Division | tenant/company-qualified composite FKs |
 
 ## Failure modes
+
+Signup rejects an unknown CompanyType, unaccepted terms, invalid administrator fields, and any
+undeclared property. Any database/reference failure aborts the entire provisioning statement.
+`EPC Contractor` is deterministic CompanyType reference data with no special authorization.
 
 | Condition | Effect |
 |---|---|
@@ -55,6 +72,7 @@ Two organizing decisions, both visible in the shipped code:
 
 - `[AC-U01]` Every company read SHALL be confined to the caller's tenant.
 - `[AC-U02]` Company type reads SHALL NOT be tenant-filtered.
+- `[AC-U03]` Company type options SHALL be readable before Tenant or authentication context exists.
 - `[AC-E01]` WHEN a duplicate abbreviation is submitted, the system SHALL return 409 and create nothing.
 - `[AC-E02]` WHEN an unknown `companyTypeId` is submitted, the system SHALL return 400 and create nothing.
 - `[AC-E03]` WHEN companies are listed, the system SHALL return them paginated and ordered by name.
@@ -74,6 +92,10 @@ in `tasks.md` with a currently-failing assertion.
 | No update, deactivate, or delete endpoint exists; a company is write-once | — |
 
 ## Out of scope
+
+The existing login endpoint still asks for raw `x-tenant-id`. Product UX requires a future
+approved Company/workspace-facing identifier that resolves the Tenant internally. Email remains
+tenant-scoped; this onboarding change does not invent that login identifier.
 
 Divisions, division types, members, teams, team members (the remaining 5 tables of this module,
 unbuilt) · clients (05) · which actor may see which company beyond the shipped guards (09).

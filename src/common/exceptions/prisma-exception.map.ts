@@ -50,6 +50,22 @@ function uniqueConstraintMessage(meta: unknown): string | undefined {
   return undefined;
 }
 
+const INVALID_SIGNUP_SQLSTATES = new Set(['22001', '22023', '23503']);
+
+function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
+  const meta = error.meta as
+    | {
+        code?: unknown;
+        driverAdapterError?: { cause?: { originalCode?: unknown } };
+      }
+    | undefined;
+
+  const value = meta?.code ?? meta?.driverAdapterError?.cause?.originalCode;
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : '';
+}
+
 export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
@@ -77,6 +93,17 @@ export function mapPrismaException(error: unknown): AppException | undefined {
         code: AppErrorCode.NotFound,
         message: 'The requested record was not found',
         status: HttpStatus.NOT_FOUND,
+        cause: error,
+      });
+    }
+    if (
+      error.code === 'P2010' &&
+      INVALID_SIGNUP_SQLSTATES.has(rawQuerySqlState(error))
+    ) {
+      return new AppException({
+        code: AppErrorCode.BadRequest,
+        message: 'The Company Account signup data is invalid',
+        status: HttpStatus.BAD_REQUEST,
         cause: error,
       });
     }

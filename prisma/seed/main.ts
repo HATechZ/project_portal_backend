@@ -10,10 +10,12 @@ import { Seeder } from './types';
 import { tenantSeeder } from './seeders/tenant.seeder';
 import { DEFAULT_TENANT_ID } from './data/tenants.data';
 import { permissionsSeeder } from './seeders/permissions.seeder';
+import { companyTypesSeeder } from './seeders/company-types.seeder';
 
 const seeders: Seeder[] = [
   tenantSeeder,
   rolesSeeder,
+  companyTypesSeeder,
   workspaceTypesSeeder,
   projectStatusesSeeder,
   workflowStatusesSeeder,

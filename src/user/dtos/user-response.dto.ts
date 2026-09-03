@@ -10,6 +10,12 @@ export class UserResponseDto {
   @ApiProperty({ example: 'jane@example.com' })
   email!: string;
 
+  @ApiPropertyOptional({ example: 'Bangladesh', nullable: true })
+  country!: string | null;
+
+  @ApiPropertyOptional({ example: '+880 1711-234567', nullable: true })
+  phone!: string | null;
+
   @ApiPropertyOptional({
     example: 'https://example.com/avatar.jpg',
     nullable: true,

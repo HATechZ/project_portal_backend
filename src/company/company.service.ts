@@ -1,23 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { PaginatedResult } from '../common/pagination/paginated-result';
-import {
-  CompanyResponseDto,
-  CompanyTypeResponseDto,
-  CreateCompanyDto,
-} from './dtos';
-import { CompanyMutationProvider, CompanyQueryProvider } from './providers';
+import { CompanyResponseDto, CompanyTypeResponseDto } from './dtos';
+import { CompanyQueryProvider } from './providers';
 
 @Injectable()
 export class CompanyService {
-  constructor(
-    private readonly mutationProvider: CompanyMutationProvider,
-    private readonly queryProvider: CompanyQueryProvider,
-  ) {}
-
-  create(input: CreateCompanyDto): Promise<CompanyResponseDto> {
-    return this.mutationProvider.create(input);
-  }
+  constructor(private readonly queryProvider: CompanyQueryProvider) {}
 
   findAll(
     query: PaginationQueryDto,

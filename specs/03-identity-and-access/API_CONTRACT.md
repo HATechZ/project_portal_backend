@@ -104,3 +104,10 @@ precisely so that "who may approve a drawing" is data, not code.
 
 The acting profile arrives per request and is stashed in `RequestContext.actorId`
 (module 00), which is already present and unused.
+
+## 6. Login workspace resolution gap
+
+Login currently requires raw `x-tenant-id`. The product UX must instead accept a future
+owner-approved Company/workspace identifier, resolve the strict 1:1 Company's Tenant internally,
+then perform the existing tenant-scoped credential lookup. Company abbreviation is only
+tenant-unique and Tenant slug is internal, so neither is promoted by this onboarding change.

@@ -264,7 +264,7 @@ model Tenant {
   actorProfiles ActorProfile[]
   authSessions AuthSession[]
   passwordResetTokens PasswordResetToken[]
-  companies Company[]
+  company Company?
   divisions Division[]
   members Member[]
   teams Team[]
@@ -319,6 +319,8 @@ model User {
   fullName String @db.VarChar(160) @map("full_name")
   email String @db.VarChar(255) @map("email")
   passwordHash String? @db.VarChar(255) @map("password_hash")
+  country String? @db.VarChar(100) @map("country")
+  phone String? @db.VarChar(60) @map("phone")
   avatarUrl String? @db.Text @map("avatar_url")
   isActive Boolean @default(true) @map("is_active")
   lastLoginAt DateTime? @db.Timestamp(6) @map("last_login_at")
@@ -505,7 +507,7 @@ model Company {
   clientsByCompanyId Client[] @relation("ClientsCompanyIdCompanies")
   @@unique([tenantId, abbr])
   @@index([name])
-  @@index([tenantId])
+  @@unique([tenantId])
   @@map("companies")
 }
 

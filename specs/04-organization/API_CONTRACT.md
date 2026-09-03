@@ -2,9 +2,10 @@
 
 **Status:** Shipped (retro-spec) · **Base:** `/api/v1`
 
-Every route sits behind the full guard chain, applied at the controller:
+Tenant-scoped Company reads sit behind the full guard chain, applied at their controller:
 `TenantContextGuard → AccessTokenGuard → AuthenticationGuard → ObjectScopeGuard →
-SystemAdminGuard → PermissionsGuard`. All responses are wrapped by the platform envelope
+SystemAdminGuard → PermissionsGuard`. CompanyType reference reads and Company signup are
+public because both are needed before a workspace or administrator exists. All responses are wrapped by the platform envelope
 ([00](../00-platform-core/SPEC.md)); the shapes below are the `data` member.
 
 ---
@@ -21,11 +22,46 @@ seeded.
 | Code | When |
 |---|---|
 | 200 | always, possibly an empty array |
-| 401 | no tenant context, or no valid access token |
 
 ---
 
-## `POST /company`
+## `POST /company/signup`
+
+Public **Create Company Account** operation. It accepts no Tenant header and provisions the
+complete workspace atomically.
+
+```jsonc
+{
+  "company": {
+    "name": "Tech Marine Solutions Ltd",
+    "abbr": "TMS",
+    "companyTypeId": "uuid"
+  },
+  "admin": {
+    "fullName": "Nayeem Rahman",
+    "email": "nayeem@techmarine.com",
+    "password": "SecurePassword123",
+    "country": "Bangladesh",
+    "phone": "+880 1711-234567"
+  },
+  "termsAccepted": true
+}
+```
+
+`confirmPassword`, Tenant identifiers, roles, permissions, and ActorProfile fields are not DTO
+properties and are rejected by the global whitelist. NestJS hashes the password and passes only
+the hash to the database function.
+
+The response exposes Company and administrator account data, not the internal Tenant. Unknown
+CompanyType and validation failures are 400. Any provisioning failure rolls back the entire
+operation.
+
+---
+
+## Retired: `POST /company`
+
+This route is removed because a Tenant cannot own a second Company. It is not redirected or
+reinterpreted as signup. The historical contract below is retained only as change history.
 
 Requires `ADD_COMPANY`.
 

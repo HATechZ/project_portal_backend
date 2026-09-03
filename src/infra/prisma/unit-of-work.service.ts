@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import {
   PrismaExecutor,
+  PrismaProvisioningExecutor,
+  PrismaReferenceReadExecutor,
   PrismaTransactionClient,
 } from './prisma-executor.type';
 import { PrismaService } from './prisma.service';
@@ -47,5 +49,37 @@ export class UnitOfWorkService {
         isolationLevel: options?.isolationLevel,
       },
     );
+  }
+
+  async executeProvisioning<T>(
+    work: (executor: PrismaProvisioningExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error('Provisioning cannot join a tenant-scoped unit of work');
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaProvisioningExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
+  }
+
+  async executeReferenceRead<T>(
+    work: (executor: PrismaReferenceReadExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error(
+        'A public reference read cannot join a tenant unit of work',
+      );
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaReferenceReadExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
   }
 }

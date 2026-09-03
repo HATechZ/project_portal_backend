@@ -64,11 +64,12 @@ export class CompanyRepository extends BaseRepository {
   }
 
   findCompanyTypes(): Promise<CompanyTypeRecord[]> {
-    return this.transaction((db) =>
-      db.companyType.findMany({
-        orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        select: companyTypeSelect,
-      }),
+    return this.referenceRead((db) =>
+      db.$queryRaw<CompanyTypeRecord[]>(Prisma.sql`
+      SELECT id, name, description
+      FROM public.company_types
+      ORDER BY name ASC, id ASC
+    `),
     );
   }
 

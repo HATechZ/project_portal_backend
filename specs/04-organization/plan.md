@@ -6,6 +6,16 @@
 
 ## 1. Module tree (as shipped)
 
+The approved onboarding addition uses separate public `company-signup.controller.ts` and
+`company-type.controller.ts` controllers, a
+signup service that hashes through `PASSWORD_HASHER`, and a signup repository that invokes only
+`public.provision_company_workspace` through the normal `app_user` client. Existing Company read
+paths remain guarded and unchanged; the old create handler is retired.
+
+The database function is the atomic boundary and internally resolves `system_admin`, creates the
+role-only default ActorProfile, and materializes the predefined permission matrix. Its fixed
+signature carries no caller-controlled authorization or ActorProfile fields.
+
 ```
 src/company/
 ├── company.module.ts              # no imports — guards arrive via the global SecurityModule
@@ -30,21 +40,20 @@ transaction boundary will go when writes stop being single-statement.
 
 ```
 GET /company        controller → service → CompanyQueryProvider → paginate() → repository UnitOfWork
-GET /company-type   controller → service → CompanyQueryProvider → repository UnitOfWork
-POST /company       controller → service → CompanyMutationProvider
-                                              ├─ findCompanyType()  ← pre-flight, app_user
-                                              └─ create()           ← tenant-scoped, app-generated id
+GET /company-type   public controller → service → CompanyQueryProvider → narrow reference read
+POST /company/signup public controller → signup service → signup repository → provisioning function
 ```
 
 ### One normal client, two data scopes
 
-`CompanyRepository` extends `BaseRepository`; every method opens or joins the normal app-user
-UnitOfWork. Global reference data does not require the privileged relay client:
+`CompanyRepository` extends `BaseRepository`; tenant-scoped methods open or join the normal
+app-user UnitOfWork. Global reference data uses a separate narrow read transaction and does not
+require the privileged relay client:
 
 | Table | `tenant_id`? | Executor | Why |
 |---|---|---|---|
 | `companies` | yes | ambient `app_user` transaction | tenant filtering and RLS apply |
-| `company_types` | **no** | ambient `app_user` transaction | global reference data has no tenant predicate or RLS policy |
+| `company_types` | **no** | narrow `app_user` reference-read transaction | needed before Tenant context; exposes only parameterized `$queryRaw` |
 
 `PrismaService.unscoped` is the separate `app_relay` executor and is reserved for the approved
 cross-tenant outbox relay path, not Company or CompanyType access.

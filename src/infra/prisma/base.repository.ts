@@ -1,4 +1,7 @@
-import { PrismaExecutor } from './prisma-executor.type';
+import {
+  PrismaExecutor,
+  PrismaReferenceReadExecutor,
+} from './prisma-executor.type';
 import { UnitOfWorkService } from './unit-of-work.service';
 
 export abstract class BaseRepository {
@@ -11,5 +14,10 @@ export abstract class BaseRepository {
     options?: Parameters<UnitOfWorkService['execute']>[1],
   ): Promise<T> {
     return this.unitOfWork.execute((transaction) => work(transaction), options);
+  }
+  protected referenceRead<T>(
+    work: (db: PrismaReferenceReadExecutor) => Promise<T>,
+  ): Promise<T> {
+    return this.unitOfWork.executeReferenceRead(work);
   }
 }
