@@ -105,9 +105,20 @@ precisely so that "who may approve a drawing" is data, not code.
 The acting profile arrives per request and is stashed in `RequestContext.actorId`
 (module 00), which is already present and unused.
 
-## 6. Login workspace resolution gap
+## 6. Universal Sign In
 
-Login currently requires raw `x-tenant-id`. The product UX must instead accept a future
-owner-approved Company/workspace identifier, resolve the strict 1:1 Company's Tenant internally,
-then perform the existing tenant-scoped credential lookup. Company abbreviation is only
-tenant-unique and Tenant slug is internal, so neither is promoted by this onboarding change.
+`POST /api/v1/auth/login` is the single Sign In endpoint for every User role. Its public body is:
+
+```jsonc
+{ "email": "user@example.com", "password": "..." }
+```
+
+It requires no workspace, Company, or Tenant identifier. Email is globally unique by its canonical
+lowercase/trimmed identity. The backend resolves the internal Tenant through a narrow database
+function, replaces any caller header context with that trusted result, and then runs the existing
+tenant-scoped credential/session flow. Unknown-email and password failures return the same generic
+401. `workspaceSlug` remains Company-owned public information but is not a login credential.
+
+Password recovery is unchanged by this login update. The current forgot/reset endpoints still use
+the existing Tenant-context contract, and reset links still carry a Tenant identifier. Removing
+that raw Tenant UX is a separate recovery-contract gap, not part of this Sign In change.

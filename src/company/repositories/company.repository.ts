@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PaginationArgs } from '../../common/pagination/paginate';
 import { BaseRepository } from '../../infra/prisma/base.repository';
@@ -15,6 +14,7 @@ export const companySelect = {
   id: true,
   name: true,
   abbr: true,
+  workspaceSlug: true,
   companyTypeId: true,
   companyType: { select: companyTypeSelect },
   isActive: true,
@@ -70,21 +70,6 @@ export class CompanyRepository extends BaseRepository {
       FROM public.company_types
       ORDER BY name ASC, id ASC
     `),
-    );
-  }
-
-  create(data: Omit<Prisma.CompanyUncheckedCreateInput, 'id' | 'tenantId'>) {
-    const scopedData: Partial<Prisma.CompanyUncheckedCreateInput> = { ...data };
-    delete scopedData.id;
-    delete scopedData.tenantId;
-    return this.transaction((db) =>
-      db.company.create({
-        data: {
-          id: randomUUID(),
-          ...scopedData,
-        } as Prisma.CompanyUncheckedCreateInput,
-        select: companySelect,
-      }),
     );
   }
 }

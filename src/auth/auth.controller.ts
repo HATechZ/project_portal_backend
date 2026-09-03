@@ -45,7 +45,6 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 
 @ApiTags('auth')
 @Controller('auth')
-@UseGuards(TenantContextGuard)
 @ApiStandardBadRequestResponse()
 @ApiStandardForbiddenResponse()
 export class AuthController {
@@ -54,7 +53,6 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  @ApiSecurity('tenant')
   @ApiOperation({ summary: 'Log in and issue JWT credentials' })
   @ApiStandardOkResponse(LoginResponseDto, 'Login successful')
   @ResponseMessage('Login successful')
@@ -64,6 +62,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @UseGuards(TenantContextGuard)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiSecurity('tenant')
@@ -76,6 +75,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @UseGuards(TenantContextGuard)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiSecurity('tenant')
@@ -91,6 +91,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @UseGuards(TenantContextGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiSecurity('tenant')
@@ -103,7 +104,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AccessTokenGuard, AuthenticationGuard)
+  @UseGuards(TenantContextGuard, AccessTokenGuard, AuthenticationGuard)
   @ApiSecurity({ bearer: [], tenant: [] })
   @ApiOperation({ summary: 'Log out and revoke the current token session' })
   @ApiNoContentResponse({ description: 'Logged out' })
@@ -114,7 +115,7 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(AccessTokenGuard, AuthenticationGuard)
+  @UseGuards(TenantContextGuard, AccessTokenGuard, AuthenticationGuard)
   @ApiSecurity({ bearer: [], tenant: [] })
   @ApiOperation({ summary: 'Get the authenticated user' })
   @ApiStandardOkResponse(AuthUserResponseDto, 'Authenticated user returned')

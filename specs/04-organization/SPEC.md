@@ -42,6 +42,11 @@ permission matrix. Failure at any step rolls everything back. The function accep
 Tenant/role/permission/profile controls and creates no Member or ClientContact. Password hashing
 remains in NestJS. `app_relay` remains isolated to the outbox relay.
 
+Company owns a stable, lowercase, globally unique `workspaceSlug`. It is generated internally
+and returned by signup, but is not a Sign In credential. It is not authorization data, is not
+accepted in the signup request, and does not expose
+or repurpose Tenant slug.
+
 | # | Rule | Enforced by |
 |---|---|---|
 | DR-01 | A company belongs to one tenant and each tenant owns at most one company | required FK + `@@unique([tenantId])` |
@@ -52,6 +57,7 @@ remains in NestJS. `app_relay` remains isolated to the outbox relay.
 | DR-06 | Creating a company requires the `ADD_COMPANY` permission | `@Permissions(WorkflowActionCode.ADD_COMPANY)` |
 | DR-07 | Name and abbreviation are trimmed before they are stored | `@Transform` on the DTO **and** `.trim()` in the provider |
 | DR-08 | A Member or Team assigned to a Division carries the same tenant and company as that Division | tenant/company-qualified composite FKs |
+| DR-09 | Company workspace slug is globally unique, URL-safe, generated internally, and immutable | database unique/check constraints + insert/update trigger |
 
 ## Failure modes
 
@@ -87,15 +93,12 @@ in `tasks.md` with a currently-failing assertion.
 
 | Deviation | Rule |
 |---|---|
-| `CompanyMutationProvider` catches `PrismaClientKnownRequestError` instead of delegating to `mapPrismaException` | VI.4 |
-| `create()` spreads, then `delete`s `id`/`tenantId`, then casts — the type is fought rather than expressed | X |
 | No update, deactivate, or delete endpoint exists; a company is write-once | — |
 
 ## Out of scope
 
-The existing login endpoint still asks for raw `x-tenant-id`. Product UX requires a future
-approved Company/workspace-facing identifier that resolves the Tenant internally. Email remains
-tenant-scoped; this onboarding change does not invent that login identifier.
+Frontend routing or subdomain conventions involving `workspaceSlug` remain frontend details.
+Tenant remains internal. User remains Tenant-owned while normalized email is globally unique.
 
 Divisions, division types, members, teams, team members (the remaining 5 tables of this module,
 unbuilt) · clients (05) · which actor may see which company beyond the shipped guards (09).

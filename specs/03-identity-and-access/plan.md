@@ -112,3 +112,12 @@ settled at Gate 2 before the auth tasks are written in detail.
 
 Services must **not** catch Prisma errors (Art. VI.4). The current `handleKnownError` in
 `UsersService` is the thing being removed, not the pattern to copy.
+
+## 7. Universal Sign In
+
+The existing `POST /auth/login` accepts email and password only. A dedicated repository invokes
+only `public.resolve_user_login_email(text)` through a query-only app-user executor. Auth replaces
+any request-header Tenant context with that trusted result for the existing tenant-scoped
+credential, session, and token path. Normal UnitOfWork remains fail-closed, and all email/password
+misses share the existing generic 401. Company `workspaceSlug` remains intact but is not a login
+credential.

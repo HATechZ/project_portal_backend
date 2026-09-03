@@ -16,6 +16,7 @@ export function toCompanyResponse(company: CompanyRecord): CompanyResponseDto {
     id: company.id,
     name: company.name,
     abbr: company.abbr,
+    workspaceSlug: company.workspaceSlug,
     companyTypeId: company.companyTypeId,
     companyType: company.companyType
       ? toCompanyTypeResponse(company.companyType)

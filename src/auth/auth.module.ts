@@ -4,7 +4,10 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthTokenProvider } from './providers';
 import { AuthPasswordResetProvider } from './providers/auth-password-reset.provider';
-import { AuthSessionRepository } from './repositories';
+import {
+  AuthSessionRepository,
+  LoginTenantResolverRepository,
+} from './repositories';
 import { SESSION_AUTHENTICATOR } from '../common/security/session-authenticator.port';
 import { MailModule } from '../infra/mail/mail.module';
 
@@ -25,6 +28,7 @@ import { MailModule } from '../infra/mail/mail.module';
     AuthTokenProvider,
     AuthPasswordResetProvider,
     AuthSessionRepository,
+    LoginTenantResolverRepository,
     { provide: SESSION_AUTHENTICATOR, useExisting: AuthTokenProvider },
   ],
   exports: [SESSION_AUTHENTICATOR],

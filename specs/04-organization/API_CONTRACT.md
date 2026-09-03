@@ -52,9 +52,33 @@ complete workspace atomically.
 properties and are rejected by the global whitelist. NestJS hashes the password and passes only
 the hash to the database function.
 
+```jsonc
+// 201 data
+{
+  "company": {
+    "id": "uuid",
+    "name": "Tech Marine Solutions Ltd",
+    "abbr": "TMS",
+    "companyTypeId": "uuid",
+    "workspaceSlug": "tech-marine-solutions"
+  },
+  "admin": {
+    "id": "uuid",
+    "fullName": "Nayeem Rahman",
+    "email": "nayeem@techmarine.com",
+    "country": "Bangladesh",
+    "phone": "+880 1711-234567"
+  }
+}
+```
+
 The response exposes Company and administrator account data, not the internal Tenant. Unknown
 CompanyType and validation failures are 400. Any provisioning failure rolls back the entire
 operation.
+
+The Company response includes its generated, globally unique `workspaceSlug`. The signup request
+does not accept that field. It remains stable public Company information but is not a login
+credential. Every User signs in through `/api/v1/auth/login` with email and password only.
 
 ---
 
@@ -80,6 +104,7 @@ Requires `ADD_COMPANY`.
   "id": "uuid",
   "name": "Haque & Sons Ltd.",
   "abbr": "HSL",
+  "workspaceSlug": "haque-and-sons",
   "companyTypeId": "uuid | null",
   "companyType": { "id": "uuid", "name": "string", "description": "string | null" },
   "isActive": true,

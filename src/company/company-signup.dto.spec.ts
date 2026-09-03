@@ -50,6 +50,14 @@ describe('CompanySignupDto', () => {
     expect(await errors(payload)).not.toHaveLength(0);
   });
 
+  it('rejects a caller-supplied workspaceSlug', async () => {
+    const payload = valid() as ReturnType<typeof valid> & {
+      company: Record<string, unknown>;
+    };
+    payload.company.workspaceSlug = 'caller-controlled';
+    expect(await errors(payload)).not.toHaveLength(0);
+  });
+
   it.each([
     ['tenantId', 'tenant-id'],
     ['roleId', 'role-id'],

@@ -23,7 +23,11 @@ describe('CompanySignupRepository', () => {
 
   it('uses one database function call as the atomic boundary', async () => {
     db.$queryRaw.mockResolvedValue([
-      { company_id: 'company-id', user_id: 'user-id' },
+      {
+        company_id: 'company-id',
+        user_id: 'user-id',
+        workspace_slug: 'tech-marine-solutions',
+      },
     ]);
     const repository = new CompanySignupRepository(
       unitOfWork as unknown as UnitOfWorkService,
@@ -32,6 +36,7 @@ describe('CompanySignupRepository', () => {
     await expect(repository.provision(input)).resolves.toEqual({
       companyId: 'company-id',
       userId: 'user-id',
+      workspaceSlug: 'tech-marine-solutions',
     });
     expect(unitOfWork.executeProvisioning).toHaveBeenCalledTimes(1);
     expect(db.$queryRaw).toHaveBeenCalledTimes(1);

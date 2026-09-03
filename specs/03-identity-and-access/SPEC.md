@@ -34,7 +34,7 @@ both are unticked tasks rather than described as done.
 | DR-03 | A non-null tenant/user has at most one default actor profile | partial unique index plus transactional service orchestration |
 | DR-04 | Refresh and reset tokens are stored hashed | `refresh_token_hash`, `token_hash` |
 | DR-05 | A reset token is single-use and expiring | `used_at` + `expires_at` checked together |
-| DR-06 | `email` is unique across users, case-insensitively | unique index + normalization on write |
+| DR-06 | `email` is globally unique by canonical lowercase/trimmed identity while User remains Tenant-owned | canonical CHECK + global unique constraint |
 | DR-07 | An inactive user cannot authenticate | login path checks `is_active` |
 | DR-08 | A password hash is never serialized to a response | absent from `UserEntity` |
 | DR-09 | An actor profile targets neither or exactly one of Member and ClientContact, and any target belongs to the same tenant | CHECK plus tenant-qualified composite FKs |
@@ -65,6 +65,8 @@ an address is registered.
 - `[AC-S02]` WHILE a session is revoked or past `expires_at`, it SHALL NOT authorize a request.
 - `[AC-W01]` IF credentials are wrong, THEN the response SHALL NOT reveal whether the email exists.
 - `[AC-W02]` IF a caller supplies an actor profile they do not own, THEN the system SHALL return 403.
+- `[AC-W03]` WHEN any User signs in with email and password, the system SHALL resolve the internal Tenant from globally unique normalized email and SHALL NOT require a workspace, Company, or raw Tenant identifier.
+- `[AC-W04]` IF email or password resolution fails, THEN the system SHALL return the same generic credential failure.
 
 ## Out of scope
 

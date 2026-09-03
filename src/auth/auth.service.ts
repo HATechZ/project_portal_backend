@@ -8,8 +8,12 @@ import {
 } from './dtos';
 import { AuthPasswordResetProvider } from './providers/auth-password-reset.provider';
 import { toAuthUserResponse, AuthTokenProvider } from './providers';
-import { AuthSessionRepository } from './repositories';
+import {
+  AuthSessionRepository,
+  LoginTenantResolverRepository,
+} from './repositories';
 import { SessionUser } from '../common/security/session.types';
+import { RequestContext } from '../common/context/request-context';
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
@@ -23,9 +27,27 @@ export class AuthService {
     private readonly hashingProvider: PasswordHasher,
     private readonly tokenProvider: AuthTokenProvider,
     private readonly passwordResetProvider: AuthPasswordResetProvider,
+    private readonly loginTenantResolver: LoginTenantResolverRepository,
   ) {}
 
   async login(request: Request, input: LoginDto): Promise<LoginResponseDto> {
+    const resolved = await this.loginTenantResolver.resolve(input.email);
+    if (!resolved) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    const currentContext = RequestContext.get();
+    if (!currentContext) throw new Error('Request context is required');
+    return RequestContext.run(
+      { requestId: currentContext.requestId, tenantId: resolved.tenantId },
+      () => this.loginInTenant(request, input, resolved.tenantId),
+    );
+  }
+
+  private async loginInTenant(
+    request: Request,
+    input: LoginDto,
+    tenantId: string,
+  ): Promise<LoginResponseDto> {
     const credentials = await this.repository.findCredentials(input.email);
     const valid =
       credentials?.isActive === true &&
@@ -38,11 +60,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
     const user = await this.repository.recordLogin(credentials.id);
-    const tokens = await this.tokenProvider.issue(
-      user,
-      credentials.tenantId,
-      request,
-    );
+    const tokens = await this.tokenProvider.issue(user, tenantId, request);
     return { user: toAuthUserResponse(user), tokens };
   }
 

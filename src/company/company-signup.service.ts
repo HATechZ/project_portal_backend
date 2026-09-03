@@ -31,6 +31,7 @@ export class CompanySignupService {
         name: input.company.name,
         abbr: input.company.abbr,
         companyTypeId: input.company.companyTypeId,
+        workspaceSlug: result.workspaceSlug,
       },
       admin: {
         id: result.userId,

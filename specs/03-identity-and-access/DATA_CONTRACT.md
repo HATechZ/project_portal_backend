@@ -26,7 +26,7 @@ this one, is the authority.
 |---|---|---|
 | `id` | `String @db.Uuid` | app-generated |
 | `fullName` | `VarChar(160)` | required account identity field |
-| `email` | `VarChar(255)` | unique with `tenantId`; never globally unique |
+| `email` | `VarChar(255)` | globally unique canonical lowercase/trimmed login identity; User remains Tenant-owned |
 | `country` | `VarChar(100)?` | nullable for legacy users; required by Company signup |
 | `phone` | `VarChar(60)?` | nullable for legacy users; required by Company signup; not unique |
 | `passwordHash` | `VarChar(255)?` | **nullable** — a user may exist before credentials are issued |
@@ -112,9 +112,8 @@ tenant-qualified ActorProfile target FKs, the at-most-one-business-target CHECK,
 partial default-profile unique index. Further implementation needs no migration unless a rule
 below forces one:
 
-- Case-insensitive email uniqueness (DR-06) is not expressible in the current unique index. It
-  is currently enforced by normalizing to lower case on write. Making it a database guarantee
-  needs a functional unique index, which means an ERD change and a new migration.
+- Global normalized email identity is enforced by canonical lowercase/trimmed storage plus a
+  global unique constraint. Tenant ownership, the Tenant FK, tenant index, and RLS remain intact.
 - Company Workspace onboarding adds nullable `country` and `phone`. Existing users remain null;
   signup requires non-empty values. Legacy backfill and later NOT NULL tightening require a
-  separate owner decision. Email uniqueness remains tenant-scoped.
+  separate owner decision.

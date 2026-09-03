@@ -11,3 +11,6 @@ export interface PrismaProvisioningExecutor {
 export interface PrismaReferenceReadExecutor {
   $queryRaw<T = unknown>(query: Prisma.Sql): Prisma.PrismaPromise<T>;
 }
+export interface PrismaLoginResolutionExecutor {
+  $queryRaw<T = unknown>(query: Prisma.Sql): Prisma.PrismaPromise<T>;
+}

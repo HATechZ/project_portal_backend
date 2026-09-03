@@ -28,6 +28,7 @@ describe('CompanySignupService', () => {
     repository.provision.mockResolvedValue({
       companyId: 'company-id',
       userId: 'user-id',
+      workspaceSlug: 'tech-marine-solutions',
     });
     const service = new CompanySignupService(
       repository as unknown as CompanySignupRepository,
@@ -49,6 +50,7 @@ describe('CompanySignupService', () => {
       expect.not.objectContaining({ password: 'SecurePassword123' }),
     );
     expect(result).not.toHaveProperty('tenantId');
+    expect(result.company.workspaceSlug).toBe('tech-marine-solutions');
   });
 
   it('does not provision when password hashing fails', async () => {

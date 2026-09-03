@@ -16,11 +16,13 @@ export interface CompanyProvisioningInput {
 export interface CompanyProvisioningResult {
   companyId: string;
   userId: string;
+  workspaceSlug: string;
 }
 
 interface ProvisioningRow {
   company_id: string;
   user_id: string;
+  workspace_slug: string;
 }
 
 @Injectable()
@@ -32,7 +34,7 @@ export class CompanySignupRepository {
   ): Promise<CompanyProvisioningResult> {
     return this.unitOfWork.executeProvisioning(async (db) => {
       const rows = await db.$queryRaw<ProvisioningRow[]>(Prisma.sql`
-        SELECT company_id, user_id
+        SELECT company_id, user_id, workspace_slug
         FROM public.provision_company_workspace(
           ${input.companyName}::text,
           ${input.companyAbbr}::text,
@@ -47,7 +49,11 @@ export class CompanySignupRepository {
       if (rows.length !== 1) {
         throw new Error('Company workspace provisioning returned no result');
       }
-      return { companyId: rows[0].company_id, userId: rows[0].user_id };
+      return {
+        companyId: rows[0].company_id,
+        userId: rows[0].user_id,
+        workspaceSlug: rows[0].workspace_slug,
+      };
     });
   }
 }

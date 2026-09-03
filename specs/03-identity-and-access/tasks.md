@@ -69,3 +69,17 @@
         VERIFY: yarn lint && yarn build
   - [ ] Record the HTTP walkthrough (Constitution Art. V)
         VERIFY: test -f specs/03-identity-and-access/walkthrough.md && grep -qi "PASS\|FAIL" specs/03-identity-and-access/walkthrough.md
+
+- [ ] **Phase 6: Email-only universal Sign In**
+  - [ ] Keep the existing login DTO limited to email and password
+        VERIFY: grep -q "email" src/auth/dtos/login.dto.ts && grep -q "password" src/auth/dtos/login.dto.ts && ! grep -qE "workspaceSlug|tenantId|companyId|roleId|actorProfileId" src/auth/dtos/login.dto.ts
+  - [ ] Remove the raw Tenant header requirement from login only
+        VERIFY: ! grep -B4 -A8 "@Post('login')" src/auth/auth.controller.ts | grep -q "TenantContextGuard" && grep -c "@UseGuards(TenantContextGuard)" src/auth/auth.controller.ts | grep -q "5"
+  - [ ] Resolve the internal Tenant from normalized email through the narrow database function path
+        VERIFY: grep -q "resolve_user_login_email" src/auth/repositories/login-tenant-resolver.repository.ts && grep -q "executeLoginResolution" src/auth/repositories/login-tenant-resolver.repository.ts && ! grep -qE "unscoped|app_relay|user\.find" src/auth/repositories/login-tenant-resolver.repository.ts
+  - [ ] Replace caller Tenant context with the internally resolved Tenant
+        VERIFY: grep -q "RequestContext.run" src/auth/auth.service.ts && grep -q "loginTenantResolver.resolve" src/auth/auth.service.ts
+  - [ ] Preserve generic credential failure responses
+        VERIFY: test $(grep -c "Invalid email or password" src/auth/auth.service.ts) -eq 1
+  - [ ] Cover email resolution, header override, generic failure, and existing token issue behavior
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=auth

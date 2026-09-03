@@ -5,6 +5,7 @@ export class CompanySignupCompanyResponseDto {
   @ApiProperty() name!: string;
   @ApiProperty() abbr!: string;
   @ApiProperty({ format: 'uuid' }) companyTypeId!: string;
+  @ApiProperty({ example: 'tech-marine-solutions' }) workspaceSlug!: string;
 }
 
 export class CompanySignupAdminResponseDto {

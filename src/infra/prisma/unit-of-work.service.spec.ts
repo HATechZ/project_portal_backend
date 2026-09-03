@@ -116,4 +116,24 @@ describe('UnitOfWorkService', () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.scoped.$transaction).not.toHaveBeenCalled();
   });
+
+  it('resolves login Tenant before context without weakening normal access', async () => {
+    const unitOfWork = new UnitOfWorkService(
+      prisma as unknown as PrismaService,
+    );
+
+    await RequestContext.run({ requestId: 'login-resolution' }, () =>
+      unitOfWork.executeLoginResolution((client) => {
+        expect(Object.keys(client)).toEqual(['$queryRaw']);
+        expect(Object.isFrozen(client)).toBe(true);
+        expect(() => unitOfWork.client).toThrow(
+          'Repository access requires an active unit of work',
+        );
+        return Promise.resolve();
+      }),
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.scoped.$transaction).not.toHaveBeenCalled();
+  });
 });
