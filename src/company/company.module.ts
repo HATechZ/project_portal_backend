@@ -4,6 +4,7 @@ import { CompanySignupController } from './company-signup.controller';
 import { CompanyTypeController } from './company-type.controller';
 import { CompanySignupService } from './company-signup.service';
 import { CompanyService } from './company.service';
+import { CompanyUpdateService } from './company-update.service';
 import { CompanyQueryProvider } from './providers';
 import { CompanyRepository, CompanySignupRepository } from './repositories';
 
@@ -15,6 +16,7 @@ import { CompanyRepository, CompanySignupRepository } from './repositories';
   ],
   providers: [
     CompanyService,
+    CompanyUpdateService,
     CompanySignupService,
     CompanyQueryProvider,
     CompanyRepository,

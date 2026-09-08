@@ -5,6 +5,8 @@ import {
   IsBoolean,
   IsByteLength,
   IsEmail,
+  IsDefined,
+  IsObject,
   IsString,
   IsUUID,
   MaxLength,
@@ -83,11 +85,15 @@ export class CompanySignupAdminDto {
 
 export class CompanySignupDto {
   @ApiProperty({ type: CompanySignupCompanyDto })
+  @IsDefined()
+  @IsObject()
   @ValidateNested()
   @Type(() => CompanySignupCompanyDto)
   company!: CompanySignupCompanyDto;
 
   @ApiProperty({ type: CompanySignupAdminDto })
+  @IsDefined()
+  @IsObject()
   @ValidateNested()
   @Type(() => CompanySignupAdminDto)
   admin!: CompanySignupAdminDto;

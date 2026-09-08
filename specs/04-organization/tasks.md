@@ -1,6 +1,6 @@
 # Tasks: 04 — Organization
 
-**Status:** Gate 4 — Phases 1–2 shipped, deviations open
+Completion tracking: `../INDEX.md`. Company lifecycle and Division/Member/Team work are deferred.
 **Spec Reference:** `specs/04-organization/SPEC.md`
 **Plan Reference:** `specs/04-organization/plan.md`
 
@@ -11,8 +11,8 @@
 > yarn verify:sdd --module 04
 > ```
 >
-> Retro-spec. Phases 1–2 describe code that exists today; Phases 3–5 fail their assertions right
-> now, which is correct. Nothing here is ticked on intent.
+> Assertions are reviewed independently. Recorded HTTP evidence is checked offline; the live
+> walkthrough itself is run separately. A passing unit test does not establish database grants.
 
 ---
 
@@ -44,20 +44,20 @@
   - [x] Turn an unknown company type into a 400 instead of leaking a database error
         VERIFY: grep -q "Unknown companyTypeId" prisma/migrations/20260903000000_company_workspace_onboarding/migration.sql && grep -q "INVALID_SIGNUP_SQLSTATES" src/common/exceptions/prisma-exception.map.ts
 
-- [ ] **Phase 3: Close the remaining deviations**
+- [x] **Phase 3: Close the remaining deviations**
   - [x] Route the repository through the unit of work so it can join a transaction
         VERIFY: grep -q "extends BaseRepository" src/company/repositories/company.repository.ts
   - [x] Stop injecting `PrismaService` into the repository (Art. X)
         VERIFY: ! grep -q "PrismaService" src/company/repositories/company.repository.ts
-  - [ ] Delegate Prisma error translation to the global filter (Art. VI.4)
-        VERIFY: test ! -f src/company/providers/company-mutation.provider.ts
-  - [ ] Express the create input as a type instead of deleting fields and casting
+  - [x] Delegate Prisma error translation to the global filter (Art. VI.4)
+        VERIFY: ! grep -rE "PrismaClientKnownRequestError|error.code.*P20" src/company --include='*.service.ts' --include='*.provider.ts' && grep -q "mapPrismaException" src/common/exceptions/http-exception.filter.ts
+  - [x] Express the create input as a type instead of deleting fields and casting
         VERIFY: test ! -f src/company/dtos/create-company.dto.ts && ! grep -q "CompanyUncheckedCreateInput" src/company/repositories/company.repository.ts
 
 - [ ] **Phase 4: Mutation beyond create**
   - [ ] Allow a company to be renamed or retyped
-        VERIFY: grep -qE "@(Patch|Put)\(" src/company/company.controller.ts
-  - [ ] Keep Company creation on atomic signup while lifecycle mutation remains pending
+        VERIFY: grep -qE "@(Patch|Put)\(" src/company/company.controller.ts && node scripts/verify-company-evidence.cjs --update
+  - [x] Keep Company creation on atomic signup while lifecycle mutation is explicitly deferred
         VERIFY: grep -q "CompanySignupService" src/company/company-signup.controller.ts && grep -q "provision_company_workspace" src/company/repositories/company-signup.repository.ts && ! grep -q "company.delete" src/company/repositories/company.repository.ts
 
 - [ ] **Phase 5: Sign-off**
@@ -68,28 +68,36 @@
   - [x] Lint and build clean
         VERIFY: corepack yarn lint && corepack yarn build
   - [ ] Record the HTTP walkthrough ([Art. V](../rules/05-walkthrough.md))
-        VERIFY: test -f specs/04-organization/walkthrough.md && grep -qi "PASS\|FAIL" specs/04-organization/walkthrough.md
+        VERIFY: test -f specs/04-organization/walkthrough.md && node scripts/verify-company-evidence.cjs
 
-- [ ] **Phase 6: Company Workspace signup**
-  - [ ] Generate and return a stable public workspace slug without accepting it from the client
+- [x] **Phase 6: Company Workspace signup**
+  - [x] Generate and return a stable public workspace slug without accepting it from the client
         VERIFY: grep -q "workspaceSlug" src/company/dtos/company-signup-response.dto.ts && grep -q "workspace_slug" src/company/repositories/company-signup.repository.ts && ! grep -q "workspaceSlug" src/company/dtos/company-signup.dto.ts
-  - [ ] Make CompanyType reference options available before authentication
+  - [x] Make CompanyType reference options available before authentication
         VERIFY: test -f src/company/company-type.controller.ts && grep -q "@Get('company-type')" src/company/company-type.controller.ts && ! grep -q "company-type" src/company/company.controller.ts && grep -q "referenceRead" src/company/repositories/company.repository.ts
-  - [ ] Expose only the public signup creation route
+  - [x] Expose only the public signup creation route
         VERIFY: grep -q "@Controller('company')" src/company/company-signup.controller.ts && grep -q "@Post('signup')" src/company/company-signup.controller.ts && ! grep -q "@Post('company')" src/company/company.controller.ts
-  - [ ] Reject client-controlled infrastructure fields
+  - [x] Reject client-controlled infrastructure fields
         VERIFY: grep -q "forbidNonWhitelisted" src/config/app-bootstrap.ts && ! grep -qE "tenantId|roleId|permissionIds|memberId|clientContactId" src/company/dtos/company-signup.dto.ts
   - [x] Require matching password confirmation at the edge without passing it to persistence
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
-  - [ ] Require trimmed nested fields, CompanyType UUID, password policy, and accepted terms
+  - [x] Require trimmed nested fields, CompanyType UUID, password policy, and accepted terms
         VERIFY: grep -q "CompanySignupDto" src/company/dtos/company-signup.dto.ts && grep -q "IsUUID" src/company/dtos/company-signup.dto.ts && grep -q "IsByteLength" src/company/dtos/company-signup.dto.ts && grep -q "Equals(true)" src/company/dtos/company-signup.dto.ts
-  - [ ] Hash in NestJS and pass only passwordHash to persistence
+  - [x] Hash in NestJS and pass only passwordHash to persistence
         VERIFY: grep -q "PASSWORD_HASHER" src/company/company-signup.service.ts && grep -q "passwordHash" src/company/company-signup.service.ts
-  - [ ] Invoke only the narrow provisioning function through app_user
+  - [x] Invoke only the narrow provisioning function through app_user
         VERIFY: grep -q "provision_company_workspace" src/company/repositories/company-signup.repository.ts && ! grep -q "unscoped\|app_relay\|BaseRepository" src/company/repositories/company-signup.repository.ts && test $(grep -rl "executeProvisioning" src --include='*.repository.ts' | wc -l) -eq 1
-  - [ ] Seed EPC Contractor idempotently
+  - [x] Seed EPC Contractor idempotently
         VERIFY: grep -rq "EPC Contractor" prisma/seed && grep -rq "companyType.upsert" prisma/seed
-  - [ ] Keep permission bootstrap SQL in parity with its approved matrix
+  - [x] Keep permission bootstrap SQL in parity with its approved matrix
         VERIFY: node scripts/verify-onboarding-permission-matrix.cjs
-  - [ ] Cover signup DTO, hashing, result mapping, and single-call atomic boundary
-        VERIFY: yarn test --runInBand --testPathPatterns=company-signup
+  - [x] Cover signup DTO, hashing, result mapping, and single-call atomic boundary
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
+
+- [x] **Approved Company completion**
+  - [x] Reject missing/null nested signup objects before hashing or provisioning
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
+  - [x] Validate partial updates and preserve immutable Company fields
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=company-update
+  - [x] Restrict Company reads and updates to same-Tenant system administrators
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=company-http

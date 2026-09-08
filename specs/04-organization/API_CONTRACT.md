@@ -1,165 +1,91 @@
 # API Contract: 04 — Organization
 
-**Status:** Shipped (retro-spec) · **Base:** `/api/v1`
+Base: `/api/v1`. Completion tracking: `../INDEX.md`.
 
-Tenant-scoped Company reads sit behind the full guard chain, applied at their controller:
-`AccessTokenGuard → TenantContextGuard → AuthenticationGuard → ObjectScopeGuard →
-SystemAdminGuard → PermissionsGuard`. CompanyType reference reads and Company signup are
-public because both are needed before a workspace or administrator exists. All responses are wrapped by the platform envelope
-([00](../00-platform-core/SPEC.md)); the shapes below are the `data` member.
+## Authentication and envelopes
 
-Bearer-authenticated Company reads derive Tenant context from the verified JWT; the frontend
-does not supply `x-tenant-id`, and any caller Tenant header is ignored.
+Company list/detail/update are same-Tenant system_admin only. Controller guard order:
+AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard -> ObjectScopeGuard ->
+SystemAdminGuard -> PermissionsGuard. No additional workflow action permission is required.
+Bearer JWT establishes Tenant context; no frontend x-tenant-id is required or trusted.
+Missing/invalid credentials return 401; authenticated non-admin returns 403.
 
----
+Current platform success shape is `{ success: true, message, data, timestamp }`.
+Errors are `{ success: false, error: { code, message, details? }, meta: { requestId, timestamp } }`.
+Responses echo `x-request-id`. DTO/UUID errors use VALIDATION_FAILED or BAD_REQUEST;
+authorization errors use UNAUTHORIZED/FORBIDDEN; missing resources use NOT_FOUND;
+constraint/concurrency errors use the existing centralized mapping (409).
 
-## `GET /company-type`
+## GET /api/v1/company-type
 
-Global reference data — not tenant-filtered (DR-02). Unpaginated: the list is short, fixed, and
-seeded.
+Public global reference data. Returns 200 with data array of `{ id, name, description }`;
+description is nullable. Ordered name asc, id asc. No pagination or Tenant header.
 
-```jsonc
-[{ "id": "uuid", "name": "Engineering Consultant", "description": "string | null" }]
-```
+## POST /api/v1/company/signup
 
-| Code | When |
-|---|---|
-| 200 | always, possibly an empty array |
+Public sole Company creation route; atomically provisions an internal Tenant and Company.
 
----
-
-## `POST /company/signup`
-
-Public **Create Company Account** operation. It accepts no Tenant header and provisions the
-complete workspace atomically.
-
-```jsonc
+```json
 {
-  "company": {
-    "name": "Tech Marine Solutions Ltd",
-    "abbr": "TMS",
-    "companyTypeId": "uuid"
-  },
+  "company": { "name": "Example Company", "abbr": "EX", "companyTypeId": "20000000-0000-4000-8000-000000000001" },
   "admin": {
-    "fullName": "Nayeem Rahman",
-    "email": "nayeem@techmarine.com",
-    "password": "SecurePassword123",
-    "confirmPassword": "SecurePassword123",
-    "country": "Bangladesh",
-    "phone": "+880 1711-234567"
+    "fullName": "Example Admin", "email": "admin@example.com",
+    "password": "SecurePassword123", "confirmPassword": "SecurePassword123",
+    "country": "Bangladesh", "phone": "+88012345678"
   },
   "termsAccepted": true
 }
 ```
 
-`admin.confirmPassword` is required and must exactly match `admin.password`; a missing or
-mismatched confirmation returns 400 before signup processing. The existing 8–72 byte password
-policy is unchanged. Confirmation is validation-only and is never hashed, returned, or passed
-to provisioning. NestJS hashes only `password` and passes only its hash to the database function.
-Tenant identifiers, roles, permissions and ActorProfile fields remain rejected by the whitelist.
+Both nested objects are required and non-null, non-array objects. Their omission/null/invalid
+shape returns 400 before hashing/provisioning. Company name is trimmed, 1–180 characters;
+abbr is trimmed, 1–30; CompanyType is a required existing UUID. Admin fullName is trimmed,
+1–160; email is normalized lowercase/trimmed, valid and at most 255; country is trimmed,
+1–100; phone is trimmed, 1–60. Password remains 8–72 bytes. Confirmation is required and must
+match exactly, with no trimming. It is validation-only and never passed to persistence.
+Only password is hashed. Terms must be boolean true. Undeclared fields are rejected.
 
-```jsonc
-// 201 data
-{
-  "company": {
-    "id": "uuid",
-    "name": "Tech Marine Solutions Ltd",
-    "abbr": "TMS",
-    "companyTypeId": "uuid",
-    "workspaceSlug": "tech-marine-solutions"
-  },
-  "admin": {
-    "id": "uuid",
-    "fullName": "Nayeem Rahman",
-    "email": "nayeem@techmarine.com",
-    "country": "Bangladesh",
-    "phone": "+880 1711-234567"
-  }
-}
-```
+201 data:
+- company: id, name, abbr, companyTypeId, workspaceSlug.
+- admin: id, fullName, email, country, phone.
 
-The response exposes Company and administrator account data, not the internal Tenant. Unknown
-CompanyType and validation failures are 400. Any provisioning failure rolls back the entire
-operation.
+No password/hash/confirmation/internal Tenant is returned. Slug is internally generated,
+globally unique and immutable, and is not a login credential. Email-only login is unchanged.
+Invalid input/unknown type returns 400; duplicate normalized administrator email returns 409.
+A provisioning failure rolls back the complete workspace.
 
-The Company response includes its generated, globally unique `workspaceSlug`. The signup request
-does not accept that field. It remains stable public Company information but is not a login
-credential. Every User signs in through `/api/v1/auth/login` with email and password only.
+## GET /api/v1/company
 
----
+Shared PaginationQueryDto page/limit; returns 200 with `{ items: Company[], meta }` in data.
+Order is name asc, id asc. A Tenant has at most one Company; later pages may be empty.
+Invalid pagination returns 400. Results never include another Tenant's Company.
 
-## Retired: `POST /company`
+## GET /api/v1/company/:id
 
-This route is removed because a Tenant cannot own a second Company. It is not redirected or
-reinterpreted as signup. The historical contract below is retained only as change history.
+UUID path validated before queries. Returns 200 Company; malformed UUID returns 400;
+missing or foreign Company returns indistinguishable 404 naming the requested ID.
 
-Requires `ADD_COMPANY`.
+Company response: id, name, abbr, workspaceSlug, companyTypeId (nullable for legacy rows),
+companyType (nullable object with id/name/description), isActive, createdAt, updatedAt.
 
-```jsonc
-// request
-{
-  "name": "Haque & Sons Ltd.",   // 1..180, trimmed
-  "abbr": "HSL",                 // 1..30, trimmed, unique per tenant
-  "companyTypeId": "uuid | null" // optional
-}
-```
+## PATCH /api/v1/company/:id
 
-```jsonc
-// 201
-{
-  "id": "uuid",
-  "name": "Haque & Sons Ltd.",
-  "abbr": "HSL",
-  "workspaceSlug": "haque-and-sons",
-  "companyTypeId": "uuid | null",
-  "companyType": { "id": "uuid", "name": "string", "description": "string | null" },
-  "isActive": true,
-  "createdAt": "2026-08-28T10:00:00.000Z",
-  "updatedAt": "2026-08-28T10:00:00.000Z"
-}
-```
+Same-Tenant system_admin only. Body accepts optional name (trimmed, 1–180) and companyTypeId
+(existing UUID). At least one is required. Null, unknown and immutable fields return 400.
+Only supplied fields change, plus updatedAt. Abbreviation, workspaceSlug, Tenant, IDs and
+activation cannot be changed. Unknown Company is checked before type existence.
 
-| Code | When |
-|---|---|
-| 201 | created |
-| 400 | validation failed, or `companyTypeId` does not exist |
-| 403 | caller lacks `ADD_COMPANY` |
-| 409 | abbreviation already used in this tenant |
+200 returns Company. Malformed ID, empty/invalid body or unknown type returns 400; missing or
+foreign Company returns 404. Shared FK/concurrency failures return 409. Same-field concurrent
+updates use last committed write wins; omitted fields are not overwritten.
 
-`isActive` is always `true` on create — the field is written by the repository, not the client,
-and no endpoint flips it.
+## Retired and deferred
 
----
+POST /api/v1/company is retired and returns 404; it cannot create a second Company.
+Company deactivate/delete and all Division/Member/Team routes are explicitly unapproved.
 
-## `GET /company`
+## Runtime prerequisite
 
-Paginated per the platform contract; ordered `name asc, id asc` so the order is total and paging
-is stable.
-
-| Query | Meaning |
-|---|---|
-| `page`, `limit` | `PaginationQueryDto` (00) |
-
-| Code | When |
-|---|---|
-| 200 | always, possibly an empty page |
-
----
-
-## `GET /company/:id`
-
-`:id` is `ParseUUIDPipe`-validated, so a malformed id is 400 before any query runs.
-
-| Code | When |
-|---|---|
-| 200 | found within the caller's tenant |
-| 400 | `:id` is not a uuid |
-| 404 | no such company **in this tenant** — indistinguishable from another tenant's company, which is intended |
-
----
-
-## Not exposed
-
-No `PATCH`, `PUT`, or `DELETE`. A company cannot currently be renamed, retyped, or deactivated
-through the API; changing one requires a database write. Recorded in `SPEC.md` under known
-deviations rather than treated as a decision.
+The configured database currently lacks app_user UPDATE on public.companies. Until the owner
+applies that existing-table privilege, valid PATCH returns 500 rather than the required 200.
+This is a tracked blocker, not the approved API behavior. No grants or migrations were applied.

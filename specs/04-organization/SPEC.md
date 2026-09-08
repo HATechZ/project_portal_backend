@@ -1,106 +1,73 @@
 # SPEC: 04 — Organization
 
-**Status:** Approved (retro-spec, partial) · **Tables:** 7 (2 built) · **Contracts:** `API_CONTRACT.md`
+Contracts: `API_CONTRACT.md`, `DATA_CONTRACT.md`. Status belongs in `../INDEX.md`.
 
-The tenant's own structure: who the company is, how it divides into divisions and teams, and
-which people belong to them. Only the first slice is built — `companies` and `company_types`.
+## Approved scope and stories
 
-This is a **retro-spec written to close a Gate 0 violation**: `src/company/` shipped before any
-`SPEC.md` existed for it. It describes what is there, not what was planned, and records the
-deviations rather than hiding them.
+Company and global CompanyType are the approved organization slice. Tenant is the internal
+security boundary and Company the business organization. Signup atomically creates the pair;
+the unique Tenant foreign key prevents a second Company in that Tenant.
 
-Two organizing decisions, both visible in the shipped code:
-
-1. **Company types are global, companies are tenant-scoped.** `company_types` carries no
-   `tenant_id` because it is public reference data shared by every tenant and needed before
-   signup. Both tables use the normal `DATABASE_URL` / `app_user`; Company reads use the tenant
-   UnitOfWork, while the public reference path exposes only parameterized `$queryRaw`. The
-   privileged `app_relay` client is never used by this module.
-2. **A company is identified by its abbreviation, per tenant.** `@@unique([tenantId, abbr])` is
-   the real key users type and search on; `name` is free text and deliberately not unique.
-
-## User stories
-
-> **Owner-approved architecture (2026-09-03):** Tenant is an internal workspace/security
-> boundary and Company is the business organization. They remain separate entities in a strict
-> 1:1 relationship. The sole product-facing creation flow is `POST /api/v1/company/signup`;
-> there is no separate Tenant creation flow. This decision supersedes the older multi-company
-> create story below wherever they conflict.
-
-| | As a | I want | So that |
-|---|---|---|---|
-| US-01 | system administrator | to register a company under my tenant | projects and members have an owner |
-| US-02 | any authenticated actor | to list companies page by page | a large tenant does not return one huge payload |
-| US-03 | prospective or authenticated user | to read the company type reference list | the signup client can populate its type selector |
-| US-04 | system administrator | abbreviations to stay unique in my tenant | two companies never collide in a picker |
+| Story | Actor | Requirement |
+|---|---|---|
+| US-01 | Prospective administrator | Create a Company workspace through public signup |
+| US-02 | Same-Tenant system_admin | List and retrieve the Tenant's Company |
+| US-03 | Public visitor | Read CompanyType options before signup |
+| US-04 | Same-Tenant system_admin | Rename/retype the Company without changing identity or slug |
 
 ## Domain rules
 
-Company Account signup atomically creates Tenant, its one Company, the initial User, only the
-`system_admin` UserRole, a default active role-only ActorProfile, and the configured tenant
-permission matrix. Failure at any step rolls everything back. The function accepts no
-Tenant/role/permission/profile controls and creates no Member or ClientContact. Password hashing
-remains in NestJS. `app_relay` remains isolated to the outbox relay.
+- DR-01: Company is Tenant-owned; each Tenant has at most one Company. Public signup is the
+  sole creation route; POST /company is retired.
+- DR-02: CompanyTypes are global. Both reference and scoped paths use app_user, never app_relay.
+- DR-03: Abbreviations are unique per Tenant, not globally. Signup trims name and abbreviation.
+- DR-04: Signup/retype require an existing CompanyType UUID. Legacy null types remain readable.
+- DR-05: The existing provisioning function generates UUID v4 IDs in PostgreSQL.
+- DR-06: Company reads/updates require an active same-Tenant system_admin actor/session.
+  Verified JWT establishes Tenant; caller x-tenant-id cannot override it. Signup/type reads
+  are public and require neither a token nor a Tenant header.
+- DR-07: Required company/admin objects reject omission, null, arrays and primitives with 400
+  before hashing/provisioning. Nested fields and accepted terms are validated at the edge.
+- DR-08: Future Member/Team writes must honor Tenant/Company/Division composite FKs.
+- DR-09: workspaceSlug is generated internally, globally unique and immutable. It is public
+  information, not a credential. Login remains email/password only.
+- DR-10: PATCH accepts only optional name/companyTypeId, with at least one supplied. Null and
+  unknown fields are rejected. Only supplied fields and updatedAt change. Concurrent writes
+  to the same field use last committed write wins; omitted fields are never overwritten.
 
-Company owns a stable, lowercase, globally unique `workspaceSlug`. It is generated internally
-and returned by signup, but is not a Sign In credential. It is not authorization data, is not
-accepted in the signup request, and does not expose
-or repurpose Tenant slug.
+Signup's existing atomic function creates Tenant, Company, initial User, system_admin UserRole,
+default active role-only ActorProfile and approved permission matrix. It creates no fake Member
+or ClientContact. Any failure rolls everything back. Only a password hash reaches provisioning;
+confirmPassword must match exactly and is never hashed, persisted or passed to the function.
 
-| # | Rule | Enforced by |
-|---|---|---|
-| DR-01 | A company belongs to one tenant and each tenant owns at most one company | required FK + `@@unique([tenantId])` |
-| DR-02 | Company types are shared across tenants, never scoped | no `tenant_id` on `company_types` |
-| DR-03 | An abbreviation is unique within a tenant, never globally | composite unique, not `@unique` on `abbr` |
-| DR-04 | A company type reference must exist before it is assigned | pre-flight `findCompanyType` + FK |
-| DR-05 | Ids are generated by the application, never the database | `randomUUID()` in the repository |
-| DR-06 | Creating a company requires the `ADD_COMPANY` permission | `@Permissions(WorkflowActionCode.ADD_COMPANY)` |
-| DR-07 | Name and abbreviation are trimmed before they are stored | `@Transform` on the DTO **and** `.trim()` in the provider |
-| DR-08 | A Member or Team assigned to a Division carries the same tenant and company as that Division | tenant/company-qualified composite FKs |
-| DR-09 | Company workspace slug is globally unique, URL-safe, generated internally, and immutable | database unique/check constraints + insert/update trigger |
+## Acceptance criteria
 
-## Failure modes
+- AC-U01: Every Company read/update is confined to the verified JWT Tenant and system_admin.
+- AC-U02: CompanyTypes are publicly readable and unscoped.
+- AC-E01: Signup returns 201; duplicate normalized administrator email returns 409 and leaves
+  no partial workspace.
+- AC-E02: Unknown CompanyType returns 400; rejected updates leave Company unchanged.
+- AC-E03: Lists use shared pagination ordered name asc, id asc.
+- AC-E04: Partial rename/retype returns 200 and preserves Tenant, id, abbreviation, slug and
+  activation. Missing/foreign Company IDs are indistinguishable 404s.
+- AC-S01: Missing/invalid bearer authentication returns 401; non-admin access returns 403.
+- AC-W01: Missing/null signup objects and invalid update fields return 400.
+- AC-W02: Request IDs are echoed on success/error using existing platform envelope shapes.
 
-Signup rejects an unknown CompanyType, unaccepted terms, invalid administrator fields, and any
-undeclared property. Any database/reference failure aborts the entire provisioning statement.
-`EPC Contractor` is deterministic CompanyType reference data with no special authorization.
+## Errors and constraints
 
-| Condition | Effect |
-|---|---|
-| Abbreviation already used in this tenant | 409, "A company with this abbreviation already exists" |
-| `companyTypeId` names a row that does not exist | 400, before the insert is attempted |
-| `companyTypeId` deleted between check and insert | 400 via the `P2003` foreign key path |
-| Company id not found | 404 naming the id |
-| No tenant header | 401 from `TenantContextGuard`, before any query |
-| Missing `ADD_COMPANY` permission | 403 from `PermissionsGuard` |
+Malformed UUIDs and DTOs return 400. Missing records return 404 naming the ID. Domain errors
+stay in services; shared Prisma translation maps P2002/P2003/P2034 to conflict and P2025 to
+404. Signup validation SQLSTATEs map centrally to 400. A type deleted after update precheck
+is a constraint conflict (409), not an unhandled 500. No feature-level Prisma catch is added.
 
-## EARS acceptance criteria
+## Explicitly deferred
 
-- `[AC-U01]` Every company read SHALL be confined to the caller's tenant.
-- `[AC-U02]` Company type reads SHALL NOT be tenant-filtered.
-- `[AC-U03]` Company type options SHALL be readable before Tenant or authentication context exists.
-- `[AC-E01]` WHEN a duplicate abbreviation is submitted, the system SHALL return 409 and create nothing.
-- `[AC-E02]` WHEN an unknown `companyTypeId` is submitted, the system SHALL return 400 and create nothing.
-- `[AC-E03]` WHEN companies are listed, the system SHALL return them paginated and ordered by name.
-- `[AC-S01]` WHILE a request carries no tenant context, the system SHALL reject it before querying.
-- `[AC-W01]` IF `companyTypeId` is omitted, THEN the company SHALL be created with a null type.
-- `[AC-W02]` IF the abbreviation differs only by surrounding whitespace, THEN it SHALL still collide.
+Company deactivate/delete is not approved. DivisionType, Division, Member, Team and TeamMember
+require later contracts and implementation. Completion covers the approved Company/CompanyType
+slice only. Clients, workflows and frontend slug routing remain outside this scope.
 
-## Known deviations
-
-Recorded here because they are shipped, not because they are accepted. Each is an unticked task
-in `tasks.md` with a currently-failing assertion.
-
-| Deviation | Rule |
-|---|---|
-| No update, deactivate, or delete endpoint exists; a company is write-once | — |
-
-## Out of scope
-
-Frontend routing or subdomain conventions involving `workspaceSlug` remain frontend details.
-Tenant remains internal. User remains Tenant-owned while normalized email is globally unique.
-
-Divisions, division types, members, teams, team members (the remaining 5 tables of this module,
-unbuilt) · clients (05) · which actor may see which company beyond the shipped guards (09).
-When those organization tables are implemented, their writes must honor DR-08; this contract
-does not authorize implementing them now.
+No schema, migration, grant or RLS changes are required. The DBML source named by repository
+rules is absent from this working tree; this contract records targeted existing Prisma models
+and migrations, without proposing schema changes. Vault sync is skipped because no vault server
+is connected; no separate vault files are written.

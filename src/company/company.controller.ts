@@ -1,5 +1,7 @@
 import {
   Controller,
+  Body,
+  Patch,
   Get,
   Param,
   ParseUUIDPipe,
@@ -25,6 +27,7 @@ import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.d
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { CompanyResponseDto } from './dtos';
 import { CompanyService } from './company.service';
+import { UpdateCompanyDto } from './dtos/update-company.dto';
 
 @ApiTags('company')
 @ApiSecurity('bearer')
@@ -62,5 +65,20 @@ export class CompanyController {
   )
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.companyService.findOne(id);
+  }
+
+  @Patch('company/:id')
+  @ResponseMessage('Company updated successfully')
+  @ApiOperation({
+    summary: 'Rename or retype your Company (system_admin only)',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiStandardOkResponse(CompanyResponseDto, 'Company updated')
+  @ApiStandardNotFoundResponse('Company was not found')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: UpdateCompanyDto,
+  ) {
+    return this.companyService.update(id, input);
   }
 }

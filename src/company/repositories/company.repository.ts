@@ -57,6 +57,25 @@ export class CompanyRepository extends BaseRepository {
     );
   }
 
+  update(
+    id: string,
+    input: { name?: string; companyTypeId?: string },
+  ): Promise<CompanyRecord> {
+    return this.transaction((db) =>
+      db.company.update({
+        where: { id },
+        data: {
+          ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+          ...(input.companyTypeId !== undefined
+            ? { companyTypeId: input.companyTypeId }
+            : {}),
+          updatedAt: new Date(),
+        },
+        select: companySelect,
+      }),
+    );
+  }
+
   findCompanyType(id: string): Promise<CompanyTypeRecord | null> {
     return this.transaction((db) =>
       db.companyType.findUnique({ where: { id }, select: companyTypeSelect }),
