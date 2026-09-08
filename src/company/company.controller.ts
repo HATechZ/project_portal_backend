@@ -27,11 +27,11 @@ import { CompanyResponseDto } from './dtos';
 import { CompanyService } from './company.service';
 
 @ApiTags('company')
-@ApiSecurity({ bearer: [], tenant: [] })
+@ApiSecurity('bearer')
 @Controller()
 @UseGuards(
-  TenantContextGuard,
   AccessTokenGuard,
+  TenantContextGuard,
   AuthenticationGuard,
   ObjectScopeGuard,
   SystemAdminGuard,

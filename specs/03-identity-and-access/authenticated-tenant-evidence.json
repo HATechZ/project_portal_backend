@@ -1,0 +1,287 @@
+{
+  "executedAt": "2026-09-08T03:15:49.333Z",
+  "databaseRole": "app_user",
+  "host": "Production AppModule; background jobs/throttler disabled, uncached Tenant reads, mail capture; temporary profiles seeded only as fixtures",
+  "cleanup": true,
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/auth/login (email/password only)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (email/password only)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (email/password only)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me (foreign header ignored)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me (malformed header ignored)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user/:id (own Tenant)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user/:id (foreign object and header)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user/:id (reverse cross-Tenant)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/role",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/role/:id",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user/:userId/role",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user/:userId/role (cross-Tenant)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/actor-profiles",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/actor-profiles/:id/activate (foreign owner)",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/user",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/role",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/actor-profiles",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me (header without token)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me (forged JWT Tenant)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/auth/users/:userId/sessions (foreign target)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout (foreign header ignored)",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me (logged out)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/refresh (logged-out session)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/refresh (header still required)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    }
+  ]
+}

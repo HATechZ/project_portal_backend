@@ -6,7 +6,7 @@ import { AppConfiguration } from '../../config/configuration';
 import { sharedSchemas } from './shared-schemas';
 
 const bearerAuthDescription =
-  'Paste only the raw accessToken JWT. Do not include "Bearer", "Authorization", the refreshToken, or tokenType; this API reference adds the Bearer prefix automatically.';
+  'Paste only the raw accessToken JWT. Do not include "Bearer", "Authorization", the refreshToken, or tokenType; this API reference adds the Bearer prefix automatically. Authenticated requests derive their Tenant from this verified token; no x-tenant-id is needed.';
 
 export function buildOpenApiConfig() {
   return new DocumentBuilder()
@@ -24,7 +24,16 @@ export function buildOpenApiConfig() {
       },
       'bearer',
     )
-    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-tenant-id' }, 'tenant')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-tenant-id',
+        description:
+          'Only for refresh and password recovery. Bearer-authenticated endpoints ignore this header.',
+      },
+      'tenant',
+    )
     .build();
 }
 

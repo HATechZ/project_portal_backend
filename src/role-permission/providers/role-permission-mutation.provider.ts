@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ActorRoleCode, Prisma } from '../../generated/prisma/client';
+import { ActorRoleCode } from '../../generated/prisma/client';
+import { RoleAssignmentRepository } from '../repositories/role-assignment.repository';
 import {
   AssignUserRoleDto,
   RoleResponseDto,
@@ -19,7 +20,10 @@ import {
 
 @Injectable()
 export class RolePermissionMutationProvider {
-  constructor(private readonly repository: RolePermissionRepository) {}
+  constructor(
+    private readonly repository: RolePermissionRepository,
+    private readonly assignments: RoleAssignmentRepository,
+  ) {}
 
   async setRolePermissions(
     id: string,
@@ -54,14 +58,9 @@ export class RolePermissionMutationProvider {
       this.requireUser(userId),
       this.requireRole(input.roleId),
     ]);
-    if (await this.repository.findActiveAssignment(userId, input.roleId))
-      throw new ConflictException('The user already has this role');
-    // The check above is the friendly path; the unique index is the guarantee.
-    // A concurrent assignment raises a unique violation, which
-    // `mapPrismaException` turns into the same 409 from its constraint map
-    // (Art. VI.4).
+    // The repository atomically reuses the grant and ensures its role-only profile.
     return toUserRoleAssignmentResponse(
-      await this.repository.createAssignment(
+      await this.assignments.ensureAssignment(
         userId,
         input.roleId,
         assignedByUserId,
@@ -89,27 +88,15 @@ export class RolePermissionMutationProvider {
     );
     if (!assignment)
       throw new NotFoundException('The user does not have this active role');
-    try {
-      const revoked = await this.repository.revokeAssignment(
-        assignment.id,
-        roleId,
-        role.code === ActorRoleCode.system_admin,
+    const revoked = await this.repository.revokeAssignment(
+      assignment.id,
+      roleId,
+      role.code === ActorRoleCode.system_admin,
+    );
+    if (!revoked) {
+      throw new ConflictException(
+        'The tenant must retain at least one active system administrator',
       );
-      if (!revoked) {
-        throw new ConflictException(
-          'The tenant must retain at least one active system administrator',
-        );
-      }
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2034'
-      ) {
-        throw new ConflictException(
-          'The role assignment changed concurrently; retry the request',
-        );
-      }
-      throw error;
     }
   }
 

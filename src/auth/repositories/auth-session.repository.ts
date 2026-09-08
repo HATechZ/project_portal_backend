@@ -34,80 +34,6 @@ export class AuthSessionRepository extends BaseRepository {
     return this.transaction((db) => db.user.findFirst({ where: { email } }));
   }
 
-  findActiveCredentials(email: string): Promise<UserCredentials | null> {
-    return this.transaction((db) =>
-      db.user.findFirst({
-        where: { email, isActive: true, passwordHash: { not: null } },
-      }),
-    );
-  }
-
-  async replacePasswordResetToken(
-    userId: string,
-    tokenHash: string,
-    expiresAt: Date,
-  ): Promise<void> {
-    const tenantId = RequestContext.requireTenantId();
-    await this.transaction(async (transaction) => {
-      await transaction.passwordResetToken.updateMany({
-        where: { tenantId, userId, usedAt: null },
-        data: { usedAt: new Date() },
-      });
-      await transaction.passwordResetToken.create({
-        data: {
-          tenantId,
-          id: randomUUID(),
-          userId,
-          tokenHash,
-          expiresAt,
-        },
-      });
-    });
-  }
-
-  async resetPassword(
-    tokenHash: string,
-    passwordHash: string,
-  ): Promise<boolean> {
-    const tenantId = RequestContext.requireTenantId();
-    return this.transaction(async (transaction) => {
-      const token = await transaction.passwordResetToken.findFirst({
-        where: {
-          tenantId,
-          tokenHash,
-          usedAt: null,
-          expiresAt: { gt: new Date() },
-          user: { isActive: true },
-        },
-        select: { id: true, userId: true },
-      });
-      if (!token) return false;
-
-      const consumed = await transaction.passwordResetToken.updateMany({
-        where: {
-          id: token.id,
-          tenantId,
-          usedAt: null,
-          expiresAt: { gt: new Date() },
-        },
-        data: { usedAt: new Date() },
-      });
-      if (consumed.count !== 1) return false;
-
-      const updated = await transaction.user.updateMany({
-        where: { id: token.userId, tenantId, isActive: true },
-        data: { passwordHash, updatedAt: new Date() },
-      });
-      if (updated.count !== 1) return false;
-
-      await transaction.authSession.updateMany({
-        where: { tenantId, userId: token.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      return true;
-    });
-  }
-
   findActiveUser(id: string): Promise<SessionUser | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
@@ -137,23 +63,34 @@ export class AuthSessionRepository extends BaseRepository {
     );
   }
 
-  recordLogin(id: string): Promise<SessionUser> {
+  recordLoginAndCreateSession(
+    id: string,
+    session: CreateAuthSessionInput,
+    expectedPasswordHash: string,
+  ): Promise<SessionUser | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction((db) =>
-      db.user.update({
-        where: { id },
+    return this.transaction(async (db) => {
+      // Recheck the verified credential while taking the User write lock. Reset,
+      // deactivation and operator revocation serialize against session creation.
+      const updated = await db.user.updateMany({
+        where: {
+          id,
+          tenantId,
+          isActive: true,
+          passwordHash: expectedPasswordHash,
+        },
         data: { lastLoginAt: new Date() },
+      });
+      if (updated.count !== 1) return null;
+      const user = await db.user.findUniqueOrThrow({
+        where: { id, tenantId },
         select: sessionUserSelect(tenantId),
-      }),
-    );
-  }
-
-  createSession(data: CreateAuthSessionInput) {
-    return this.transaction((db) =>
-      db.authSession.create({
-        data: data as Prisma.AuthSessionUncheckedCreateInput,
-      }),
-    );
+      });
+      await db.authSession.create({
+        data: session as Prisma.AuthSessionUncheckedCreateInput,
+      });
+      return user;
+    });
   }
 
   findValidSessionByTokenHash(refreshTokenHash: string) {

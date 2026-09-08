@@ -29,6 +29,11 @@ export const RequestContext = {
   tenantId(): string | undefined {
     return requestContextStorage.getStore()?.tenantId;
   },
+  setTenantId(tenantId: string): void {
+    const context = requestContextStorage.getStore();
+    if (!context) throw new Error('Request context is required');
+    context.tenantId = tenantId;
+  },
   requireTenantId(): string {
     const tenantId = requestContextStorage.getStore()?.tenantId;
     if (!tenantId) throw new Error('Tenant context is required');

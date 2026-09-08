@@ -3,10 +3,13 @@
 **Status:** Shipped (retro-spec) · **Base:** `/api/v1`
 
 Tenant-scoped Company reads sit behind the full guard chain, applied at their controller:
-`TenantContextGuard → AccessTokenGuard → AuthenticationGuard → ObjectScopeGuard →
+`AccessTokenGuard → TenantContextGuard → AuthenticationGuard → ObjectScopeGuard →
 SystemAdminGuard → PermissionsGuard`. CompanyType reference reads and Company signup are
 public because both are needed before a workspace or administrator exists. All responses are wrapped by the platform envelope
 ([00](../00-platform-core/SPEC.md)); the shapes below are the `data` member.
+
+Bearer-authenticated Company reads derive Tenant context from the verified JWT; the frontend
+does not supply `x-tenant-id`, and any caller Tenant header is ignored.
 
 ---
 
@@ -41,6 +44,7 @@ complete workspace atomically.
     "fullName": "Nayeem Rahman",
     "email": "nayeem@techmarine.com",
     "password": "SecurePassword123",
+    "confirmPassword": "SecurePassword123",
     "country": "Bangladesh",
     "phone": "+880 1711-234567"
   },
@@ -48,9 +52,11 @@ complete workspace atomically.
 }
 ```
 
-`confirmPassword`, Tenant identifiers, roles, permissions, and ActorProfile fields are not DTO
-properties and are rejected by the global whitelist. NestJS hashes the password and passes only
-the hash to the database function.
+`admin.confirmPassword` is required and must exactly match `admin.password`; a missing or
+mismatched confirmation returns 400 before signup processing. The existing 8–72 byte password
+policy is unchanged. Confirmation is validation-only and is never hashed, returned, or passed
+to provisioning. NestJS hashes only `password` and passes only its hash to the database function.
+Tenant identifiers, roles, permissions and ActorProfile fields remain rejected by the whitelist.
 
 ```jsonc
 // 201 data

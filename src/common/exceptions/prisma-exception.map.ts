@@ -51,6 +51,7 @@ function uniqueConstraintMessage(meta: unknown): string | undefined {
 }
 
 const INVALID_SIGNUP_SQLSTATES = new Set(['22001', '22023', '23503']);
+const UNIQUE_VIOLATION_SQLSTATE = '23505';
 
 function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
   const meta = error.meta as
@@ -68,6 +69,14 @@ function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
 
 export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2034') {
+      return new AppException({
+        code: AppErrorCode.Conflict,
+        message: 'The record changed concurrently; retry the request',
+        status: HttpStatus.CONFLICT,
+        cause: error,
+      });
+    }
     if (error.code === 'P2002') {
       return new AppException({
         code: AppErrorCode.Conflict,
@@ -104,6 +113,17 @@ export function mapPrismaException(error: unknown): AppException | undefined {
         code: AppErrorCode.BadRequest,
         message: 'The Company Account signup data is invalid',
         status: HttpStatus.BAD_REQUEST,
+        cause: error,
+      });
+    }
+    if (
+      error.code === 'P2010' &&
+      rawQuerySqlState(error) === UNIQUE_VIOLATION_SQLSTATE
+    ) {
+      return new AppException({
+        code: AppErrorCode.Conflict,
+        message: 'The Company Account conflicts with an existing account',
+        status: HttpStatus.CONFLICT,
         cause: error,
       });
     }

@@ -15,6 +15,7 @@ describe('CompanySignupService', () => {
       fullName: 'Nayeem Rahman',
       email: 'nayeem@techmarine.com',
       password: 'SecurePassword123',
+      confirmPassword: 'SecurePassword123',
       country: 'Bangladesh',
       phone: '+880 1711-234567',
     },
@@ -38,18 +39,24 @@ describe('CompanySignupService', () => {
     const result = await service.signup(input);
 
     expect(passwordHasher.hash).toHaveBeenCalledWith('SecurePassword123');
+    expect(passwordHasher.hash).toHaveBeenCalledTimes(1);
     expect(repository.provision).toHaveBeenCalledTimes(1);
-    expect(repository.provision).toHaveBeenCalledWith(
-      expect.objectContaining({
-        adminPasswordHash: 'bcrypt-hash',
-        adminCountry: 'Bangladesh',
-        adminPhone: '+880 1711-234567',
-      }),
-    );
+    expect(repository.provision).toHaveBeenCalledWith({
+      companyName: input.company.name,
+      companyAbbr: input.company.abbr,
+      companyTypeId: input.company.companyTypeId,
+      adminFullName: input.admin.fullName,
+      adminEmail: input.admin.email,
+      adminPasswordHash: 'bcrypt-hash',
+      adminCountry: 'Bangladesh',
+      adminPhone: '+880 1711-234567',
+    });
     expect(repository.provision).toHaveBeenCalledWith(
       expect.not.objectContaining({ password: 'SecurePassword123' }),
     );
     expect(result).not.toHaveProperty('tenantId');
+    expect(result.admin).not.toHaveProperty('confirmPassword');
+    expect(result.admin).not.toHaveProperty('password');
     expect(result.company.workspaceSlug).toBe('tech-marine-solutions');
   });
 

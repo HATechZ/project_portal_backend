@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CompanySignupDto } from './dtos';
+import { ValidationPipe } from '@nestjs/common';
 
 const valid = () => ({
   company: {
@@ -12,6 +13,7 @@ const valid = () => ({
     fullName: ' Nayeem Rahman ',
     email: ' NAYEEM@TECHMARINE.COM ',
     password: 'SecurePassword123',
+    confirmPassword: 'SecurePassword123',
     country: ' Bangladesh ',
     phone: ' +880 1711-234567 ',
   },
@@ -64,12 +66,53 @@ describe('CompanySignupDto', () => {
     ['permissions', []],
     ['memberId', 'member-id'],
     ['clientContactId', 'contact-id'],
-    ['confirmPassword', 'SecurePassword123'],
   ])('rejects undeclared admin field %s', async (field, value) => {
     const payload = valid() as ReturnType<typeof valid> & {
       admin: Record<string, unknown>;
     };
     payload.admin[field] = value;
+    expect(await errors(payload)).not.toHaveLength(0);
+  });
+
+  it.each([
+    ['mismatch', 'DifferentPassword123'],
+    ['missing', undefined],
+    ['null', null],
+  ])(
+    'returns 400 for %s confirmation before signup logic',
+    async (_case, confirmation) => {
+      const payload = {
+        ...valid(),
+        admin: { ...valid().admin, confirmPassword: confirmation },
+      };
+      const pipe = new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+      const signup = jest.fn();
+      await expect(
+        pipe
+          .transform(payload, { type: 'body', metatype: CompanySignupDto })
+          .then(signup),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(signup).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['short', 'x'.repeat(73), 'é'.repeat(37)])(
+    'preserves password byte-length rules',
+    async (password) => {
+      const payload = valid();
+      payload.admin.password = password;
+      payload.admin.confirmPassword = password;
+      expect(await errors(payload)).not.toHaveLength(0);
+    },
+  );
+
+  it('compares passwords exactly without trimming', async () => {
+    const payload = valid();
+    payload.admin.confirmPassword += ' ';
     expect(await errors(payload)).not.toHaveLength(0);
   });
 });

@@ -39,11 +39,11 @@ import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 
 @ApiTags('user')
-@ApiSecurity({ bearer: [], tenant: [] })
+@ApiSecurity('bearer')
 @Controller('user')
 @UseGuards(
-  TenantContextGuard,
   AccessTokenGuard,
+  TenantContextGuard,
   AuthenticationGuard,
   SystemAdminGuard,
 )

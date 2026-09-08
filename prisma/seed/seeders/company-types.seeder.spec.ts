@@ -4,7 +4,7 @@ import { SeedContext } from '../types';
 describe('companyTypesSeeder', () => {
   it('is repeatable through the deterministic CompanyType id', async () => {
     const upsert = jest.fn().mockResolvedValue(undefined);
-    const context = { prisma: { companyType: { upsert } } } as SeedContext;
+    const context = { prisma: { companyType: { upsert } } } as unknown as SeedContext;
 
     await companyTypesSeeder.run(context);
     await companyTypesSeeder.run(context);

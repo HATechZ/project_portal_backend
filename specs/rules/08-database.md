@@ -69,11 +69,11 @@ Propose it; do not perform it.
 3. Stop. Tell the owner what you need and which command produces it, e.g.:
 
    ```
-   Needs: users.email case-insensitive unique index.
-   Proposed in specs/03-identity-and-access/DATA_CONTRACT.md § Proposed schema change.
+   Needs: widgets.external_code uniqueness constraint.
+   Proposed in specs/NN-example/DATA_CONTRACT.md § Proposed schema change.
    To apply — edit the DBML, then:
      node scripts/dbml-to-prisma.cjs
-     yarn prisma:migrate --name ci_unique_email
+     yarn prisma:migrate --name widget_external_code_unique
    ```
 
 4. Do not tick any task that depends on the change until the owner confirms it is applied.

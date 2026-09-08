@@ -27,14 +27,13 @@ import {
 describe('AuthService universal Sign In', () => {
   const tenantA = '10000000-0000-4000-8000-000000000001';
   const tenantB = '10000000-0000-4000-8000-000000000002';
-  const request = { headers: { 'x-tenant-id': tenantB } } as Request;
+  const request = { headers: { 'x-tenant-id': tenantB } } as unknown as Request;
   const loginTenantResolver = { resolve: jest.fn() };
   const repository = {
     findCredentials: jest.fn(),
-    recordLogin: jest.fn(),
   };
   const hashingProvider = { hash: jest.fn(), compare: jest.fn() };
-  const tokenProvider = { issue: jest.fn() };
+  const tokenProvider = { issueLogin: jest.fn() };
   const resetProvider = {};
 
   const input = (email = 'user@example.com'): LoginDto => ({
@@ -64,12 +63,18 @@ describe('AuthService universal Sign In', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     hashingProvider.compare.mockResolvedValue(true);
-    tokenProvider.issue.mockResolvedValue({
-      accessToken: 'access',
-      refreshToken: 'refresh',
-      tokenType: 'Bearer',
-      expiresIn: 900,
-    });
+    tokenProvider.issueLogin.mockImplementation(
+      (id: string, resolvedTenantId: string) =>
+        Promise.resolve({
+          user: user(id, resolvedTenantId),
+          tokens: {
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            tokenType: 'Bearer',
+            expiresIn: 900,
+          },
+        }),
+    );
     loginTenantResolver.resolve.mockResolvedValue({ tenantId: tenantA });
     repository.findCredentials.mockImplementation(() => {
       const tenantId = RequestContext.requireTenantId();
@@ -81,9 +86,6 @@ describe('AuthService universal Sign In', () => {
             : null,
       );
     });
-    repository.recordLogin.mockImplementation((id: string) =>
-      Promise.resolve(user(id, RequestContext.requireTenantId())),
-    );
   });
 
   it('resolves Tenant from email and authenticates without workspace input', async () => {
@@ -94,10 +96,11 @@ describe('AuthService universal Sign In', () => {
     expect(loginTenantResolver.resolve).toHaveBeenCalledWith(
       'user@example.com',
     );
-    expect(tokenProvider.issue).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'user-a' }),
+    expect(tokenProvider.issueLogin).toHaveBeenCalledWith(
+      'user-a',
       tenantA,
       request,
+      'stored-hash',
     );
   });
 
@@ -105,30 +108,42 @@ describe('AuthService universal Sign In', () => {
     await RequestContext.run({ requestId: 'login', tenantId: tenantB }, () =>
       service().login(request, input()),
     );
-    expect(repository.recordLogin).toHaveBeenCalledWith('user-a');
-    expect(tokenProvider.issue).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(tokenProvider.issueLogin).toHaveBeenCalledWith(
+      'user-a',
       tenantA,
       request,
+      'stored-hash',
     );
   });
 
   it.each([
-    ['unknown email', 'missing@example.com', true],
-    ['wrong password', 'user@example.com', false],
-  ])('uses one generic failure for %s', async (_case, email, passwordValid) => {
-    if (email === 'missing@example.com') {
-      loginTenantResolver.resolve.mockResolvedValueOnce(null);
-    }
-    hashingProvider.compare.mockResolvedValueOnce(passwordValid);
+    ['unknown email', 'missing@example.com', true, true],
+    ['inactive Tenant resolution', 'user@example.com', true, true],
+    ['wrong password', 'user@example.com', false, false],
+  ])(
+    'uses one generic failure for %s',
+    async (_case, email, passwordValid, unresolved) => {
+      if (unresolved) {
+        loginTenantResolver.resolve.mockResolvedValueOnce(null);
+      }
+      hashingProvider.compare.mockResolvedValueOnce(passwordValid);
 
-    const attempt = RequestContext.run({ requestId: 'login' }, () =>
-      service().login(request, input(email)),
-    );
-    await expect(attempt).rejects.toEqual(
-      new UnauthorizedException('Invalid email or password'),
-    );
-  });
+      const attempt = RequestContext.run({ requestId: 'login' }, () =>
+        service().login(request, input(email)),
+      );
+      await expect(attempt).rejects.toEqual(
+        new UnauthorizedException('Invalid email or password'),
+      );
+      expect(hashingProvider.compare).toHaveBeenCalledTimes(1);
+      if (unresolved) {
+        expect(hashingProvider.compare).toHaveBeenCalledWith(
+          'SecurePassword123',
+          expect.stringMatching(/^\$2b\$12\$/),
+        );
+        expect(repository.findCredentials).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it('preserves inactive User rejection', async () => {
     repository.findCredentials.mockResolvedValueOnce({
@@ -141,6 +156,6 @@ describe('AuthService universal Sign In', () => {
     await expect(attempt).rejects.toEqual(
       new UnauthorizedException('Invalid email or password'),
     );
-    expect(tokenProvider.issue).not.toHaveBeenCalled();
+    expect(tokenProvider.issueLogin).not.toHaveBeenCalled();
   });
 });

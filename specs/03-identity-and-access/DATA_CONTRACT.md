@@ -1,6 +1,6 @@
 # Data Contract: 03 — Identity & Access
 
-Six tables. Read alongside `project_portal_workflow_management_erd.dbml` — that file, not
+Seven tables. Read alongside `project_portal_workflow_management_erd.dbml` — that file, not
 this one, is the authority.
 
 ---
@@ -14,6 +14,7 @@ this one, is the authority.
 | `user_roles` | `UserRole` | Grant of a role to a user, revocable without deletion. |
 | `actor_profiles` | `ActorProfile` | A capacity a user acts in. **The audit subject.** |
 | `auth_sessions` | `AuthSession` | A refresh-token session. |
+| `auth_session_consumed_refresh_tokens` | `AuthSessionConsumedRefreshToken` | Retained hashed refresh tokens for replay detection. |
 | `password_reset_tokens` | `PasswordResetToken` | Single-use expiring reset. |
 
 ---
@@ -73,13 +74,22 @@ the longest list in the schema, all named `<table>By<Field>ActorProfiles`.
 
 ### `AuthSession`
 
-`refreshTokenHash VarChar(255)`, `ipAddress?`, `userAgent?`, `expiresAt`, `revokedAt?`.
-Indexes on `[userId]` and `[expiresAt]` — the second exists for a cleanup job that does not
-exist yet.
+`tenantId`, `id`, `userId`, `refreshTokenHash VarChar(255)`,
+`previousRefreshTokenHash VarChar(255)?`, `ipAddress?`, `userAgent?`, `expiresAt`,
+`absoluteExpiresAt`, `revokedAt?`, `createdAt`. Both expiry limits must be in the future.
+Indexes on `[userId]`, `[expiresAt]`, `[previousRefreshTokenHash]` and `[tenantId]`.
+Historical session/token cleanup is deferred; expiry remains enforced on every use.
+
+### `AuthSessionConsumedRefreshToken`
+
+`tenantId`, app-generated `id`, `sessionId`, `tokenHash VarChar(255)`, `consumedAt`.
+Tenant-qualified token uniqueness and a `sessionId` foreign key (cascade on session deletion)
+retain every consumed hash for replay detection beyond the immediately previous token. Rotation and insertion of the
+consumed hash share one transaction. Plaintext refresh tokens are never stored here.
 
 ### `PasswordResetToken`
 
-`tokenHash VarChar(255) @unique`, `expiresAt`, `usedAt?`. Valid ⇔ `usedAt = null` **and**
+`tokenHash VarChar(255)`, unique within `[tenantId, tokenHash]`, `expiresAt`, `usedAt?`. Valid ⇔ `usedAt = null` **and**
 `expiresAt > now()`. Check both; checking one is a replay bug.
 
 ---
@@ -107,7 +117,8 @@ None. This module stores what it knows. It reads no latest-event tables.
 
 ## 5. Migration impact
 
-All six tables exist in `20260812000000_init`. Module 01.1 subsequently added the
+The original six identity tables exist in `20260812000000_init`; consumed refresh history is
+also present in the current schema. Module 01.1 subsequently added the
 tenant-qualified ActorProfile target FKs, the at-most-one-business-target CHECK, and the
 partial default-profile unique index. Further implementation needs no migration unless a rule
 below forces one:
@@ -117,3 +128,22 @@ below forces one:
 - Company Workspace onboarding adds nullable `country` and `phone`. Existing users remain null;
   signup requires non-empty values. Legacy backfill and later NOT NULL tightening require a
   separate owner decision.
+
+## Required database privilege change — not applied
+
+Read-only catalog inspection on 2026-09-08 confirmed that the application role `app_user`
+has only `SELECT` on `public.actor_profiles`. The prepared ordinary-user provisioning path
+requires `INSERT` and `UPDATE`; the existing default-profile switch requires `UPDATE`.
+Real runtime execution failed with SQLSTATE `42501` (permission denied for actor_profiles).
+
+The owner must supply the minimum privileges before runtime sign-off:
+
+```sql
+GRANT INSERT, UPDATE ON TABLE public.actor_profiles TO app_user;
+```
+
+This is a privilege prerequisite, not a table/column or RLS-policy reshape. No new schema
+objects are required by the prepared implementation. No grants, migrations, DBML or schema
+changes were made in this task. Existing RLS and Tenant-scoped UnitOfWork remain mandatory;
+`app_relay` is not used for identity writes. Re-run the full runtime tests after the owner
+resolves the privilege prerequisite.

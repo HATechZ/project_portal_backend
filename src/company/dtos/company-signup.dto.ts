@@ -9,8 +9,10 @@ import {
   IsUUID,
   MaxLength,
   MinLength,
+  Validate,
   ValidateNested,
 } from 'class-validator';
+import { PasswordConfirmationValidator } from './password-confirmation.validator';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -55,6 +57,14 @@ export class CompanySignupAdminDto {
   @IsString()
   @IsByteLength(8, 72)
   password!: string;
+
+  @ApiProperty({
+    description: 'Must exactly match password; validation only',
+    writeOnly: true,
+  })
+  @IsString()
+  @Validate(PasswordConfirmationValidator)
+  confirmPassword!: string;
 
   @ApiProperty({ example: 'Bangladesh', maxLength: 100 })
   @IsString()

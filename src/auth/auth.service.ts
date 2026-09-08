@@ -19,6 +19,11 @@ import {
   type PasswordHasher,
 } from '../infra/crypto/password-hasher.port';
 
+// A fixed non-credential hash equalizes the expensive password-check path when
+// pre-auth email resolution finds no eligible account.
+const LOGIN_TIMING_DUMMY_HASH =
+  '$2b$12$5oMkgG3FQJFzjn73Y2VeIePNywlfB09WEtdnALM/tCx3FKyYzutC2';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -33,6 +38,10 @@ export class AuthService {
   async login(request: Request, input: LoginDto): Promise<LoginResponseDto> {
     const resolved = await this.loginTenantResolver.resolve(input.email);
     if (!resolved) {
+      await this.hashingProvider.compare(
+        input.password,
+        LOGIN_TIMING_DUMMY_HASH,
+      );
       throw new UnauthorizedException('Invalid email or password');
     }
     const currentContext = RequestContext.get();
@@ -59,9 +68,13 @@ export class AuthService {
     if (!valid) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    const user = await this.repository.recordLogin(credentials.id);
-    const tokens = await this.tokenProvider.issue(user, tenantId, request);
-    return { user: toAuthUserResponse(user), tokens };
+    const issued = await this.tokenProvider.issueLogin(
+      credentials.id,
+      tenantId,
+      request,
+      credentials.passwordHash!,
+    );
+    return { user: toAuthUserResponse(issued.user), tokens: issued.tokens };
   }
 
   async refresh(

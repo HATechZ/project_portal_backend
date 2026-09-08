@@ -6,26 +6,34 @@ import { Seeder } from '../types';
 export const adminSeeder: Seeder = {
   name: 'initial administrator',
   async run({ prisma, admin }) {
+    const email = admin.email.trim().toLowerCase();
     const passwordHash = await hash(admin.password, 12);
-    const user = await prisma.user.upsert({
-      where: {
-        tenantId_email: { tenantId: admin.tenantId, email: admin.email },
-      },
-      create: {
-        id: ADMIN_IDS.user,
-        tenantId: admin.tenantId,
-        email: admin.email,
-        fullName: admin.fullName,
-        passwordHash,
-        isActive: true,
-      },
-      update: {
-        fullName: admin.fullName,
-        passwordHash,
-        isActive: true,
-        updatedAt: new Date(),
-      },
-    });
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing && existing.tenantId !== admin.tenantId) {
+      throw new Error(
+        'Initial administrator email belongs to a different Tenant',
+      );
+    }
+    const user = existing
+      ? await prisma.user.update({
+          where: { email },
+          data: {
+            fullName: admin.fullName,
+            passwordHash,
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            id: ADMIN_IDS.user,
+            tenantId: admin.tenantId,
+            email,
+            fullName: admin.fullName,
+            passwordHash,
+            isActive: true,
+          },
+        });
 
     const role = await prisma.role.findUniqueOrThrow({
       where: { code: ActorRoleCode.system_admin },

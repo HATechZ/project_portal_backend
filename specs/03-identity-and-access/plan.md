@@ -1,123 +1,123 @@
 # Technical Plan: 03 — Identity & Access
 
-**Status:** Approved — Phase 4 in progress
+Completion status is tracked in `specs/INDEX.md`.
 **Related Spec:** `specs/03-identity-and-access/SPEC.md`
 **Contracts:** `DATA_CONTRACT.md` · `API_CONTRACT.md`
 
----
+## 1. Module structure
 
-## 1. Module Tree
+```text
+src/user/
+├── user.module.ts
+├── user.controller.ts
+├── user.service.ts
+├── dtos/
+├── providers/
+└── repositories/user.repository.ts
 
-Shipped (`✓`) and planned:
-
-```
-src/users/
-├── users.module.ts              ✓  no imports — Prisma/Redis are @Global
-├── users.controller.ts          ✓  needs guards
-├── users.service.ts             ✓  needs to drop direct PrismaService + Prisma catches
-├── users.repository.ts             extends BaseRepository
-├── dto/{create,update}-user.dto.ts ✓
-└── entities/user.entity.ts      ✓  passwordHash absent — keep it that way
-
-src/auth/                           all planned
+src/auth/
 ├── auth.module.ts
-├── auth.controller.ts              login, refresh, logout, me, password/*
-├── auth.service.ts                 credential check, session lifecycle
-├── session.repository.ts           auth_sessions
-├── password-reset.repository.ts    password_reset_tokens
-├── guards/{auth,roles}.guard.ts
-├── decorators/{roles,current-actor}.decorator.ts
-└── dto/…
+├── auth.controller.ts
+├── auth.service.ts
+├── actor-profile.controller.ts
+├── actor-profile.service.ts
+├── dtos/
+├── providers/
+└── repositories/
 
-src/actor-profiles/                 all planned
-├── actor-profiles.module.ts
-├── actor-profiles.controller.ts
-├── actor-profiles.service.ts
-└── actor-profiles.repository.ts    actor_profiles, roles, user_roles
+src/role-permission/
+├── role-permission.module.ts
+├── role-permission.controller.ts
+├── role-permission.service.ts
+├── dtos/
+├── providers/
+└── repositories/role-permission.repository.ts
 ```
 
-Each new `*.module.ts` must be added to `specs/PLACEHOLDERS.md` in the same change, or
-Gate 0 fails the build.
+All three feature modules are registered in `specs/PLACEHOLDERS.md`. Controllers route,
+services/providers decide, repositories persist through `BaseRepository`, and repositories fail
+closed without an ambient Tenant unit of work.
 
----
+## 2. Authentication flow
 
-## 2. Repository surface
+1. `POST /auth/login` accepts canonical email and password only.
+2. The query-only login resolver maps normalized email to the internal active Tenant.
+3. Auth establishes trusted Tenant context and performs tenant-scoped credential lookup.
+4. Unknown/ineligible identity and wrong password share the same generic 401 and bcrypt-cost path.
+5. A successful login stamps `lastLoginAt` and creates the hashed-refresh-token session in one
+   transaction.
+   The transaction rechecks `isActive` and the verified password hash before updating the User
+   and creating a session, rejecting stale credential checks with the generic login 401.
+6. Access JWTs bind User, Tenant, and session. Refresh rotation records consumed hashes and
+   enforces absolute TTL; logout revokes the session.
 
-| Repository | Method | Transaction |
-|---|---|---|
-| `UsersRepository` | `findPage`, `findById`, `findByEmail`, `create`, `update`, `remove` | joins ambient |
-| `SessionRepository` | `create`, `findByHash`, `revoke`, `revokeAllForUser` | joins ambient |
-| `ActorProfileRepository` | `findForUser`, `create`, `setDefault`, `grantRole`, `revokeRole` | `setDefault` and role changes open one |
+No plaintext password, refresh token, or reset token is persisted.
 
-All extend `BaseRepository` and read `this.db`. `UsersService` currently injects
-`PrismaService` directly; that is the deviation to close first, because every later
-repository will be copied from whatever pattern is in the repo.
+## 3. Authorization flow
 
----
+Authenticated business requests pass through access-token verification and JWT Tenant binding,
+Tenant activation, active-session/User resolution, and active ActorProfile resolution.
+The caller's Tenant header is ignored on these routes. Only refresh/recovery still resolve an
+explicit header. Request interception preserves the established Tenant and acting profile.
+The selected actor id is stored in `RequestContext`. `SystemAdminGuard` protects User and
+role/permission administration. `PermissionsGuard` evaluates configured grants without a
+wildcard bypass. Object/workflow rules remain owned by their business modules.
 
-## 3. Transaction boundaries
+## 4. ActorProfiles
 
-| Operation | Tables | Why |
-|---|---|---|
-| Sign in | `auth_sessions` + `users.lastLoginAt` | session and stamp must agree |
-| Set default profile | `actor_profiles` ×2 | clear the old default, set the new one atomically; the partial unique index is the final DR-03 guarantee |
-| Grant role | `user_roles` (+ revoke prior grant of the same role) | avoid two live grants |
-| Consume reset | `password_reset_tokens.usedAt` + `users.passwordHash` | a used token with an unchanged password is worse than neither |
+The authenticated User may list only their own profiles. Activation accepts only an active,
+same-Tenant, same-User profile whose matching UserRole is not revoked. The repository clears the
+old default and sets the selected profile inside one serializable transaction; the partial unique
+index remains the database backstop. Role-only profiles remain valid.
 
-Each opens `this.transaction(...)` in the service, and the repositories join it.
+`RoleAssignmentRepository` serializes assignment/profile provisioning on the User row and
+reuses existing grants and role-only profiles. All writes stay within the Tenant transaction.
+The required app_user ActorProfile INSERT/UPDATE grants are documented in DATA_CONTRACT;
+they are an owner prerequisite and are not added by application code.
 
-ActorProfile creation may leave both business targets null, but must never populate both.
-Member and ClientContact targets are tenant-qualified: the profile tenant is carried into the
-relation and must match the target row. These are database guarantees introduced by Module
-01.1; service checks may improve messages but do not replace them.
+## 5. User and role administration
 
----
+User CRUD is paginated and restricted to `system_admin`. IDs are application-generated, email is
+canonical and globally unique, and password hashes never enter response DTOs. Role grants are
+created with history and revoked by timestamp. The final active System Administrator grant cannot
+be removed.
 
-## 4. Ids, enums & derived state
+## 6. Password recovery
 
-- Ids: `randomUUID()` at insert (shipped pattern in `UsersService.create`).
-- Enums: `ActorRoleCode` only, from `../generated/prisma/client`.
-- Derived state: none read; none written.
-- Active role query: always filter `revokedAt: null` — there is no "current roles" view.
+Forgot password uses a generic response, stores only a hashed random token, and supersedes older
+unused tokens. Reset consumes the token once, changes the password, and revokes active sessions in
+one transaction. The current recovery contract still carries Tenant context; removing that public
+Tenant detail is a separate product decision.
 
----
+`PasswordRecoveryRepository` serializes token issuance/reset on the User row. A failed enqueue
+retires only its own token; the provider logs a generic failure and fulfills the public request.
+`SessionAdministrationController` delegates same-Tenant target revocation to its service and
+repository, under the existing system_admin guards.
 
-## 5. Credential handling
+## 7. Transaction boundaries
 
-| Concern | Decision |
+| Operation | Atomic records |
 |---|---|
-| Password hashing | **Not yet chosen.** `argon2id` preferred over bcrypt; neither is a dependency today. Adding one is a task, not an assumption. |
-| Refresh token | Random 32+ bytes, returned once, stored as `refresh_token_hash` |
-| Reset token | Random 32+ bytes, stored as `token_hash @unique`, short expiry |
-| Access token | JWT or opaque — **open decision**, see below |
+| Successful login | `users.last_login_at` + `auth_sessions` |
+| Refresh rotation | session hash rotation + consumed-hash history |
+| Password reset | token consumption + password change + session revocation |
+| ActorProfile activation | previous default clear + selected default set |
+| Role permission replacement | revoked/allowed tenant grant matrix |
+| Role revocation | timestamp update with final-admin protection |
+| Role assignment | active grant + reusable role-only ActorProfile, preserving eligible default |
+| Operator revocation | User lock + all target session revocations |
 
-**Open decision — access tokens.** `@nestjs/jwt` is not a dependency, and the schema has no
-access-token table. Either add JWT and keep `auth_sessions` for refresh only, or make access
-tokens opaque and look them up per request. The second costs a Redis read per request but
-makes revocation instant. Module 02's cache is already available for it. This must be
-settled at Gate 2 before the auth tasks are written in detail.
+Permission replacement uses serializable isolation. Profile switching, role revocation and User
+deactivation retain serializable isolation; shared error mapping yields 409 on transaction
+conflicts. Final-admin checks count active Users, including during competing security changes.
 
----
+## 8. Verification
 
-## 6. Errors
-
-| Case | Thrown | Mapped to |
-|---|---|---|
-| Duplicate email | *(nothing — P2002)* | 409 `CONFLICT` via `mapPrismaException` |
-| Missing user | *(nothing — P2025)* | 404 `NOT_FOUND` |
-| Bad credentials / unknown email | `AppException({ code: UNAUTHORIZED })` | 401, identical either way |
-| Expired or revoked session | `AppException({ code: UNAUTHORIZED })` | 401 |
-| Role check fails | `AppException({ code: FORBIDDEN })` | 403 |
-| Reset token invalid | `AppException({ code: BAD_REQUEST })` | 400 |
-
-Services must **not** catch Prisma errors (Art. VI.4). The current `handleKnownError` in
-`UsersService` is the thing being removed, not the pattern to copy.
-
-## 7. Universal Sign In
-
-The existing `POST /auth/login` accepts email and password only. A dedicated repository invokes
-only `public.resolve_user_login_email(text)` through a query-only app-user executor. Auth replaces
-any request-header Tenant context with that trusted result for the existing tenant-scoped
-credential, session, and token path. Normal UnitOfWork remains fail-closed, and all email/password
-misses share the existing generic 401. Company `workspaceSlug` remains intact but is not a login
-credential.
+Run focused/full Jest, lint/build/TypeScript, Prisma validate, tenant scope and spec gates.
+`verify-identity-concurrency.cjs` uses real repositories and app_user transactions on temporary
+Tenants. `verify-identity-http.cjs` starts the production AppModule with isolated mail capture
+and disabled background consumers/Redis/throttler modules, then sends curl requests through
+the actual controllers, guards, validation and bootstrap. This host proves identity HTTP behavior,
+not SMTP delivery or infrastructure rate limiting. Both clean only their own temporary data.
+Evidence is written only after every required assertion and cleanup succeeds; static evidence
+checks compare production-source fingerprints. Independent verification is required before ticking.

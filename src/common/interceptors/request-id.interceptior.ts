@@ -20,14 +20,18 @@ export class RequestIdInterceptor implements NestInterceptor {
       RequestContext.requestId() ??
       normalizeRequestId(request.headers[REQUEST_ID_HEADER]);
     response.setHeader(REQUEST_ID_HEADER, requestId);
+    const establishedContext = RequestContext.get();
     return new Observable((subscriber) => {
-      RequestContext.run({ requestId, tenantId: request.tenantId }, () => {
-        next.handle().subscribe({
-          next: (value) => subscriber.next(value),
-          error: (error: unknown) => subscriber.error(error),
-          complete: () => subscriber.complete(),
-        });
-      });
+      RequestContext.run(
+        { ...establishedContext, requestId, tenantId: request.tenantId },
+        () => {
+          next.handle().subscribe({
+            next: (value) => subscriber.next(value),
+            error: (error: unknown) => subscriber.error(error),
+            complete: () => subscriber.complete(),
+          });
+        },
+      );
     });
   }
 }

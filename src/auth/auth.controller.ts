@@ -104,8 +104,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(TenantContextGuard, AccessTokenGuard, AuthenticationGuard)
-  @ApiSecurity({ bearer: [], tenant: [] })
+  @UseGuards(AccessTokenGuard, TenantContextGuard, AuthenticationGuard)
+  @ApiSecurity('bearer')
   @ApiOperation({ summary: 'Log out and revoke the current token session' })
   @ApiNoContentResponse({ description: 'Logged out' })
   @ResponseMessage('Logout successful')
@@ -115,8 +115,8 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(TenantContextGuard, AccessTokenGuard, AuthenticationGuard)
-  @ApiSecurity({ bearer: [], tenant: [] })
+  @UseGuards(AccessTokenGuard, TenantContextGuard, AuthenticationGuard)
+  @ApiSecurity('bearer')
   @ApiOperation({ summary: 'Get the authenticated user' })
   @ApiStandardOkResponse(AuthUserResponseDto, 'Authenticated user returned')
   @ResponseMessage('Authenticated user returned')

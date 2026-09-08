@@ -57,8 +57,8 @@
 - [ ] **Phase 4: Mutation beyond create**
   - [ ] Allow a company to be renamed or retyped
         VERIFY: grep -qE "@(Patch|Put)\(" src/company/company.controller.ts
-  - [ ] Deactivate rather than delete, so references survive
-        VERIFY: grep -q "deactivate" src/company/providers/company-mutation.provider.ts && ! grep -q "company.delete" src/company/repositories/company.repository.ts
+  - [ ] Keep Company creation on atomic signup while lifecycle mutation remains pending
+        VERIFY: grep -q "CompanySignupService" src/company/company-signup.controller.ts && grep -q "provision_company_workspace" src/company/repositories/company-signup.repository.ts && ! grep -q "company.delete" src/company/repositories/company.repository.ts
 
 - [ ] **Phase 5: Sign-off**
   - [x] Register the module in `PLACEHOLDERS.md`
@@ -77,8 +77,10 @@
         VERIFY: test -f src/company/company-type.controller.ts && grep -q "@Get('company-type')" src/company/company-type.controller.ts && ! grep -q "company-type" src/company/company.controller.ts && grep -q "referenceRead" src/company/repositories/company.repository.ts
   - [ ] Expose only the public signup creation route
         VERIFY: grep -q "@Controller('company')" src/company/company-signup.controller.ts && grep -q "@Post('signup')" src/company/company-signup.controller.ts && ! grep -q "@Post('company')" src/company/company.controller.ts
-  - [ ] Reject client-controlled infrastructure and confirmation fields
-        VERIFY: grep -q "forbidNonWhitelisted" src/config/app-bootstrap.ts && ! grep -qE "tenantId|roleId|permissionIds|memberId|clientContactId|confirmPassword" src/company/dtos/company-signup.dto.ts
+  - [ ] Reject client-controlled infrastructure fields
+        VERIFY: grep -q "forbidNonWhitelisted" src/config/app-bootstrap.ts && ! grep -qE "tenantId|roleId|permissionIds|memberId|clientContactId" src/company/dtos/company-signup.dto.ts
+  - [x] Require matching password confirmation at the edge without passing it to persistence
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
   - [ ] Require trimmed nested fields, CompanyType UUID, password policy, and accepted terms
         VERIFY: grep -q "CompanySignupDto" src/company/dtos/company-signup.dto.ts && grep -q "IsUUID" src/company/dtos/company-signup.dto.ts && grep -q "IsByteLength" src/company/dtos/company-signup.dto.ts && grep -q "Equals(true)" src/company/dtos/company-signup.dto.ts
   - [ ] Hash in NestJS and pass only passwordHash to persistence

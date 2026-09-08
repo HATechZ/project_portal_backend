@@ -26,11 +26,12 @@ export class AuthTokenProvider implements SessionAuthenticator {
     private readonly repository: AuthSessionRepository,
   ) {}
 
-  async issue(
-    user: SessionUser,
+  async issueLogin(
+    userId: string,
     tenantId: string,
     request: Request,
-  ): Promise<AuthTokens> {
+    expectedPasswordHash: string,
+  ): Promise<{ user: SessionUser; tokens: AuthTokens }> {
     const sessionId = randomUUID();
     const refreshToken = this.generateRefreshToken();
     const refreshTtl = this.config.get('jwt.refreshTtlSeconds', {
@@ -40,16 +41,24 @@ export class AuthTokenProvider implements SessionAuthenticator {
       infer: true,
     });
     const now = Date.now();
-    await this.repository.createSession({
-      id: sessionId,
-      userId: user.id,
-      refreshTokenHash: this.hash(refreshToken),
-      ipAddress: request.ip,
-      userAgent: request.get('user-agent'),
-      expiresAt: new Date(now + refreshTtl * 1000),
-      absoluteExpiresAt: new Date(now + absoluteTtl * 1000),
-    });
-    return this.tokens(user.id, tenantId, sessionId, refreshToken);
+    const user = await this.repository.recordLoginAndCreateSession(
+      userId,
+      {
+        id: sessionId,
+        userId,
+        refreshTokenHash: this.hash(refreshToken),
+        ipAddress: request.ip,
+        userAgent: request.get('user-agent'),
+        expiresAt: new Date(now + refreshTtl * 1000),
+        absoluteExpiresAt: new Date(now + absoluteTtl * 1000),
+      },
+      expectedPasswordHash,
+    );
+    if (!user) throw new UnauthorizedException('Invalid email or password');
+    return {
+      user,
+      tokens: await this.tokens(user.id, tenantId, sessionId, refreshToken),
+    };
   }
 
   async rotate(refreshToken: string, request: Request): Promise<AuthTokens> {

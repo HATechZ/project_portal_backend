@@ -10,6 +10,13 @@ import {
 } from './repositories';
 import { SESSION_AUTHENTICATOR } from '../common/security/session-authenticator.port';
 import { MailModule } from '../infra/mail/mail.module';
+import { ActorProfileController } from './actor-profile.controller';
+import { ActorProfileService } from './actor-profile.service';
+import { ActorProfileRepository } from './repositories/actor-profile.repository';
+import { SessionAdministrationController } from './session-administration.controller';
+import { SessionAdministrationService } from './session-administration.service';
+import { SessionAdministrationRepository } from './repositories/session-administration.repository';
+import { PasswordRecoveryRepository } from './repositories/password-recovery.repository';
 
 /**
  * Global, and exporting exactly one thing: the binding that lets the shared
@@ -22,13 +29,22 @@ import { MailModule } from '../infra/mail/mail.module';
 @Global()
 @Module({
   imports: [JwtModule.register({}), MailModule],
-  controllers: [AuthController],
+  controllers: [
+    AuthController,
+    ActorProfileController,
+    SessionAdministrationController,
+  ],
   providers: [
     AuthService,
     AuthTokenProvider,
     AuthPasswordResetProvider,
     AuthSessionRepository,
     LoginTenantResolverRepository,
+    ActorProfileService,
+    ActorProfileRepository,
+    SessionAdministrationService,
+    SessionAdministrationRepository,
+    PasswordRecoveryRepository,
     { provide: SESSION_AUTHENTICATOR, useExisting: AuthTokenProvider },
   ],
   exports: [SESSION_AUTHENTICATOR],

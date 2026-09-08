@@ -20,16 +20,20 @@ signature carries no caller-controlled authorization or ActorProfile fields.
 src/company/
 ├── company.module.ts              # no imports — guards arrive via the global SecurityModule
 ├── company.controller.ts          # routes + guards + Swagger, no queries
-├── company.service.ts             # delegates; owns no logic of its own
+├── company.service.ts             # delegates Company reads
+├── company-signup.controller.ts   # sole public Company workspace creation route
+├── company-signup.service.ts      # hashes the initial administrator password
+├── company-type.controller.ts     # public pre-signup reference read
 ├── dtos/
-│   ├── create-company.dto.ts      # class-validator + @Transform trimming
+│   ├── company-signup.dto.ts      # approved Company/Admin/consent request only
+│   ├── company-signup-response.dto.ts
 │   └── company-response.dto.ts    # CompanyResponseDto, CompanyTypeResponseDto
 ├── providers/
-│   ├── company-mutation.provider.ts   # writes
 │   ├── company-query.provider.ts      # reads + pagination
 │   └── company.mapper.ts              # record → DTO, pure functions
 └── repositories/
-    └── company.repository.ts      # the only file that names Prisma
+    ├── company.repository.ts      # tenant-scoped Company and reference reads
+    └── company-signup.repository.ts # narrow provisioning-function call
 ```
 
 The service is a pass-through. That reads as ceremony, and for one aggregate it nearly is — but
