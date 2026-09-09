@@ -4,9 +4,11 @@ Contracts: `API_CONTRACT.md`, `DATA_CONTRACT.md`. Status belongs in `../INDEX.md
 
 ## Approved scope and stories
 
-Company and global CompanyType are the approved organization slice. Tenant is the internal
+Company and global CompanyType are the implemented organization slice. Tenant is the internal
 security boundary and Company the business organization. Signup atomically creates the pair;
-the unique Tenant foreign key prevents a second Company in that Tenant.
+the unique Tenant foreign key prevents a second Company in that Tenant. The approved, unimplemented
+Division, Member, and Team contracts are respectively `04.1-division`, `04.2-member`, and
+`04.3-team`; they are the only next Organization implementation order.
 
 | Story | Actor | Requirement |
 |---|---|---|
@@ -28,7 +30,8 @@ the unique Tenant foreign key prevents a second Company in that Tenant.
   are public and require neither a token nor a Tenant header.
 - DR-07: Required company/admin objects reject omission, null, arrays and primitives with 400
   before hashing/provisioning. Nested fields and accepted terms are validated at the edge.
-- DR-08: Future Member/Team writes must honor Tenant/Company/Division composite FKs.
+- DR-08: Division, Member, and Team writes must honor Tenant/Company/Division composite FKs;
+  their detailed rules belong only to 04.1 → 04.2 → 04.3.
 - DR-09: workspaceSlug is generated internally, globally unique and immutable. It is public
   information, not a credential. Login remains email/password only.
 - DR-10: PATCH accepts only optional name/companyTypeId, with at least one supplied. Null and
@@ -63,9 +66,10 @@ is a constraint conflict (409), not an unhandled 500. No feature-level Prisma ca
 
 ## Explicitly deferred
 
-Company deactivate/delete is not approved. DivisionType, Division, Member, Team and TeamMember
-require later contracts and implementation. Completion covers the approved Company/CompanyType
-slice only. Clients, workflows and frontend slug routing remain outside this scope.
+Company deactivate/delete is not approved. DivisionType values, Division, Member, Team, and the
+existing Team membership relation are governed by the three child contracts and remain
+unimplemented. The membership relation is owned by Team, not a fourth Organization module.
+Clients, workflows and frontend slug routing remain outside this scope.
 
 No schema, migration, grant or RLS changes are required. The DBML source named by repository
 rules is absent from this working tree; this contract records targeted existing Prisma models

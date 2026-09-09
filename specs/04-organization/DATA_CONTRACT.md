@@ -27,9 +27,11 @@ authoritative under races; shared exception translation handles database errors.
 ## Migration impact and deferred scope
 
 None: no schema, migrations, grants, RLS policies or provisioning-function changes.
-DivisionType, Division, Member, Team and TeamMember remain deferred. Their future writes
-must honor existing Tenant/Company/Division composite relationships. Company lifecycle
-deactivation/deletion is not approved and requires a separate product contract.
+DivisionType values remain deferred. Division, Member, Team, and the existing `team_members`
+relation are specified but unimplemented in `04.1-division` → `04.2-member` → `04.3-team`.
+Those contracts honor existing Tenant/Company/Division composite relationships; `team_members`
+belongs to Team and is not a separate module. Company lifecycle deactivation/deletion is not
+approved and requires a separate product contract.
 
 ## Observed runtime prerequisite (2026-09-08)
 

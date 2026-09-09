@@ -1,6 +1,8 @@
 # Tasks: 04 — Organization
 
-Completion tracking: `../INDEX.md`. Company lifecycle and Division/Member/Team work are deferred.
+Completion tracking: `../INDEX.md`. Company lifecycle is deferred. Division → Member → Team is
+specified in `04.1-division`, `04.2-member`, and `04.3-team` and is not implementation work in
+this Company tasks list.
 **Spec Reference:** `specs/04-organization/SPEC.md`
 **Plan Reference:** `specs/04-organization/plan.md`
 

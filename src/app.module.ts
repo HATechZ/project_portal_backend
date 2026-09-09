@@ -19,6 +19,7 @@ import { TenantModule } from './common/tenant/tenant.module';
 import { SecurityModule } from './common/security/security.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
 import { CompanyModule } from './company/company.module';
+import { DivisionModule } from './division/division.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CompanyModule } from './company/company.module';
     AuthModule,
     RolePermissionModule,
     CompanyModule,
+    DivisionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

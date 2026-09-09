@@ -21,6 +21,8 @@ const UNIQUE_CONSTRAINT_MESSAGES: Record<string, string> = {
   companies_abbr_key: 'A company with this abbreviation already exists',
   companies_tenant_id_abbr_key:
     'A company with this abbreviation already exists',
+  divisions_tenant_id_company_id_abbr_key:
+    'A division with this abbreviation already exists',
   user_roles_active_tenant_user_role_key: 'The user already has this role',
   processed_events_tenant_id_event_id_consumer_key:
     'This event has already been processed by this consumer',

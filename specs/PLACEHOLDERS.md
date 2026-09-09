@@ -50,6 +50,7 @@ directory exists, so this table cannot silently rot.
 | `src/auth/auth.module.ts` | `specs/03-identity-and-access` |
 | `src/role-permission/role-permission.module.ts` | `specs/03-identity-and-access` |
 | `src/company/company.module.ts` | `specs/04-organization` |
+| `src/division/division.module.ts` | `specs/04.1-division` |
 
 `src/app.module.ts` is the composition root and is exempt — it registers modules but owns no
 domain surface of its own.

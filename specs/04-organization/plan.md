@@ -40,4 +40,6 @@ changes or cross-feature imports are introduced; app_relay remains outside this 
 3. Full Jest, lint, build, Prisma validate, Tenant-scope and spec verification.
 4. Independent task verification before ticking leaves and reconciling INDEX.
 
-Company lifecycle and the five Division/Member/Team tables remain explicitly deferred.
+Company lifecycle remains explicitly deferred. Division → Member → Team (including its existing
+membership relation) is specified in child contracts and remains unimplemented; no fourth
+membership module may be created.

@@ -39,8 +39,8 @@ credentials are delivered (`project_credential_deliveries`, module 07).
 
 ### `Role`
 
-`code` is `ActorRoleCode @unique`: `system_admin`, `prime_consultant`, `ccr_coordinator`,
-`division_lead`, `division_member`, `tms_manager`, `tms_drawing`, `tms_checking`,
+`code` is `ActorRoleCode @unique`: `system_admin`, `ccr_coordinator`, `division_lead`,
+`division_member`, `tms_manager`, `tms_drawing`, `tms_checking`,
 `tms_approval`, `client_owner`. `isSystemRole` defaults true — seeded, not user-created.
 
 ### `UserRole`
