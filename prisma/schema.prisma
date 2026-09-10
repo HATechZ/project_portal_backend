@@ -11,7 +11,9 @@ datasource db {
 enum ActorRoleCode {
   system_admin
   ccr_coordinator
+  division_head
   division_lead
+  team_lead
   division_member
   tms_manager
   tms_drawing

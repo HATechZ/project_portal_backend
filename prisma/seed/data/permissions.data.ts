@@ -86,6 +86,11 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.REQUEST_ARCHIVED_BID_REVIEW,
       ...commonCreate,
     ],
+    division_head: [
+      WorkflowActionCode.ADD_DIVISION,
+      WorkflowActionCode.ADD_TEAM,
+      WorkflowActionCode.ASSIGN_LEADER,
+    ],
     division_lead: [
       WorkflowActionCode.ADD_TEAM,
       WorkflowActionCode.REQUEST_INFO_FROM_MARKETING,
@@ -138,5 +143,9 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.CLIENT_ACCEPT_FINAL,
       WorkflowActionCode.CLIENT_REJECT_FINAL,
       WorkflowActionCode.DECIDE_BID_OUTCOME,
+    ],
+    team_lead: [
+      WorkflowActionCode.ADD_MEMBER,
+      WorkflowActionCode.ASSIGN_MEMBER,
     ],
   };
