@@ -1,4 +1,4 @@
-# Data Contract: 04.3 — Team
+# Data Contract: 04.3 - Team
 
 ## Tables and structural truth
 
@@ -18,8 +18,10 @@ Team/Member composite Division relationships and RLS remain database backstops.
 Create accepts `divisionId`, `name`, and optional `leadMemberId`; it derives Tenant/Company and
 verifies scoped Division and optional lead eligibility. Generic update accepts `name` only. Lead
 assignment is separate and accepts an eligible existing Member ID. Membership add accepts
-existing `memberId` and optional trimmed `teamRole` (1–100 when present); `joinedAt` is server
-time and `leftAt` is never caller input. End membership updates the single active association's
+`memberId` and optional trimmed `teamRole` (1-100 when present); the Member may have existed
+before the request or may have been created by a prior separate Member operation. This Team route
+never creates a Member and Member creation never inserts `team_members`. `joinedAt` is server time
+and `leftAt` is never caller input. End membership updates the single active association's
 `leftAt` in a transaction; it does not delete it. An active row means `leftAt IS NULL`; inserting
 another active row for the same pair is rejected by application validation and concurrency-safe
 recheck because current schema has an index, not a unique active-pair constraint.

@@ -87,6 +87,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       ...commonCreate,
     ],
     division_lead: [
+      WorkflowActionCode.ADD_TEAM,
       WorkflowActionCode.REQUEST_INFO_FROM_MARKETING,
       WorkflowActionCode.PM_LEAD_RESPOND_TO_MEMBER,
       WorkflowActionCode.PM_RETURN_TO_MEMBER,

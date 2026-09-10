@@ -85,6 +85,8 @@ POST /api/v1/company is retired and returns 404; it cannot create a second Compa
 Company deactivate/delete remains unapproved. Division, Member, and Team routes are approved
 targets specified only by `04.1-division`, `04.2-member`, and `04.3-team`; none is implemented
 by this Company module. Team membership routes belong to `04.3-team`, not a separate module.
+Member creation and Team assignment remain separate operations, even when a product flow performs
+them sequentially.
 
 ## Runtime prerequisite
 

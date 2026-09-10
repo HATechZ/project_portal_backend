@@ -19,6 +19,11 @@ For Team reads, a system_admin reads own Company and division_lead reads own Div
 Member ID equals `leadMemberId` (the list is filtered to those Teams). Other authenticated actors
 receive 403 rather than a broad organization directory.
 
+For Member reads needed by Team operations, system_admin reads own Company, division_lead reads
+own Division, and contextual Team Lead may read only their own Team's Division context and
+eligible same-Division Members required to add/remove Members in that exact Team. This does not
+grant general Division administration or all-Division browsing.
+
 ## Routes
 
 | Method | Path | Authorization / behavior |
@@ -30,10 +35,10 @@ receive 403 rather than a broad organization directory.
 | DELETE | `/team/:id` | same Team-management scope; `ADD_TEAM`; guarded hard delete 204 or 409 history block. |
 | PUT | `/team/:id/lead` | system_admin or scoped division_lead; `ADD_TEAM`; `{ leadMemberId }`; 200. |
 | GET | `/team/:id/member` | authorized Team scope; list current and, with `includeEnded=true`, ended association history; 200. |
-| POST | `/team/:id/member` | system_admin/scoped division_lead/contextual exact Team Lead; `ASSIGN_MEMBER`; `{ memberId, teamRole? }`; 201. |
+| POST | `/team/:id/member` | system_admin/scoped division_lead/contextual exact Team Lead; `ASSIGN_MEMBER`; `{ memberId, teamRole? }`; 201. Member may be existing or newly created by a prior separate `/member` call; this route never creates the Member. |
 | DELETE | `/team/:id/member/:memberId` | same membership scope; `ASSIGN_MEMBER`; end active membership with 204, never row deletion. |
 
 Team responses expose Team fields, safe lead summary, and membership fields (`id`, member summary,
 `teamRole`, `joinedAt`, `leftAt`) where requested. DTOs reject Tenant/Company/Division changes,
-isActive, timestamps, Member creation payloads, User/role/password fields, caller `leftAt`, and
-arbitrary member ID arrays. There is no activate/deactivate endpoint.
+isActive, timestamps, inline Member creation payloads, User/role/password fields, caller `leftAt`,
+and arbitrary member ID arrays. There is no activate/deactivate endpoint.

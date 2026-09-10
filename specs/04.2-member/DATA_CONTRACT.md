@@ -39,10 +39,17 @@ app_user/RLS UnitOfWork, not app_relay.
 
 ## Writes and migration impact
 
-Create derives Tenant/Company and uses an existing scoped Division; it receives name, business
-email, role title, and Division ID. Ordinary update receives only mutable business fields. The
+Create derives Tenant/Company and uses an existing actor-scoped Division; it receives name,
+business email, role title, and Division ID. `system_admin` can select any own-Company Division;
+`division_lead` can select only the active actor Member's Division; contextual Team Lead can
+select only the Division of the exact Team led by the actor Member. The Team Lead path resolves
+authenticated User -> active ActorProfile -> Member -> Team where `Team.leadMemberId` equals the
+actor Member -> `Team.divisionId`, and creates no role named for a Team Lead. Ordinary update
+receives only mutable business fields and remains governed by its existing authority. The
 dedicated access-link route is the only route accepting existing User/ActorProfile IDs.
 When `divisionId` changes, query Teams led by the Member and active `team_members` joined to Team;
 if any Team Division differs from the requested Division, return 409 before update. Ended
 membership history does not itself block a move. Constraints and shared Prisma mapping are the
-race backstop. No structural, privilege, or RLS change is proposed.
+race backstop. Member creation never writes `team_members`; Team assignment stays a separate
+Team operation. Runtime walkthrough on 2026-09-09 is blocked because app_user lacks Member write
+privilege on `members`; no structural, privilege, or RLS change was applied by Codex.

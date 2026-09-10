@@ -37,6 +37,21 @@ No write accepts or changes `id`, `tenantId`, `companyId`, `isActive`, timestamp
 relation. Use app_user through the fail-closed UnitOfWork and existing RLS; do not use app_relay.
 Existing constraints map through the shared Prisma exception filter.
 
+## Division Lead orchestration
+
+`PUT /division/:id/lead` is a business orchestration over the existing identity model, not a new
+Division relationship:
+
+`User -> division_lead UserRole -> ActorProfile -> Member -> Division`.
+
+The operation validates the requested Division under the authenticated Tenant/Company, validates
+an active Member in that exact Division, requires the Member to already have same-Tenant User
+access, idempotently ensures the existing `division_lead` UserRole and role-only ActorProfile,
+then links that ActorProfile to the Member. It does not write `Division.leadMemberId`, create a
+new table, create User/password/session state, revoke other Division Leads, or invent a new role.
+The current approved model does not define singular Division Lead cardinality, so assignment is
+additive/safe and does not remove another lead.
+
 Runtime prerequisite discovered during Gate 5 attempt on 2026-09-09: app_user currently has
 only `SELECT` on `public.divisions` and no reported grant on `public.division_types`. Valid
 Division create/update/delete and global DivisionType prevalidation therefore cannot pass

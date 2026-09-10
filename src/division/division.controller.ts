@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -30,8 +31,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
+import { ActiveUser } from '../common/security/active-user.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { ObjectScopeGuard } from '../common/security/object-scope.guard';
+import type { SessionUser } from '../common/security/session.types';
 import { Permissions } from '../common/security/permissions.decorator';
 import { PermissionsGuard } from '../common/security/permissions.guard';
 import { SystemAdminGuard } from '../common/security/system-admin.guard';
@@ -40,7 +43,9 @@ import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { WorkflowActionCode } from '../generated/prisma/client';
 import { DivisionService } from './division.service';
 import {
+  AssignDivisionLeadDto,
   CreateDivisionDto,
+  DivisionLeadResponseDto,
   DivisionResponseDto,
   UpdateDivisionDto,
 } from './dtos';
@@ -100,6 +105,23 @@ export class DivisionController {
     @Body() input: UpdateDivisionDto,
   ) {
     return this.divisionService.update(id, input);
+  }
+
+  @Put(':id/lead')
+  @ResponseMessage('Division Lead assigned successfully')
+  @ApiOperation({
+    summary: 'Assign Division Lead',
+    description:
+      'Assign an eligible Member of this Division as Division Lead. System Admin only.',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiStandardOkResponse(DivisionLeadResponseDto, 'Division Lead assigned')
+  assignLead(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: AssignDivisionLeadDto,
+    @ActiveUser() activeUser: SessionUser,
+  ) {
+    return this.divisionService.assignLead(id, input, activeUser.id);
   }
 
   @Delete(':id')

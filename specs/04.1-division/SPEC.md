@@ -6,10 +6,11 @@
 
 ## 1. Overview & Business Intent
 
-Division is a Tenant Company organizational record. It is not a Division Lead, User,
-ActorProfile, credential, email/password, or login identity. This module delivers only guarded
-Division CRUD inside the authenticated Tenant's one Company. It must not encode division names,
-abbreviations, seed IDs, fixed teams, or workflow meaning.
+Division is a Tenant Company organizational record. It is not a User, credential,
+email/password, or login identity. This module delivers guarded Division CRUD and a system-admin
+business operation to assign an eligible Member as Division Lead through the existing
+UserRole/ActorProfile/Member identity bridge. It must not encode division names, abbreviations,
+seed IDs, fixed teams, or workflow meaning.
 
 ## Current backend, approved target, and deferred matters
 
@@ -37,6 +38,7 @@ activation APIs, workflow behavior, and any schema/grant/RLS alteration.
 | DR-05 | `(tenantId, companyId, abbr)` is unique. `divisionTypeId`, if supplied, must identify a global existing DivisionType. | DTO/service precheck; database backstop |
 | DR-06 | Delete is a guarded hard delete only. It must refuse when any current Division relation has a dependent business/history row and must never cascade-delete such rows. | dependency probe, restrictive FKs, centralized error mapping |
 | DR-07 | `isActive` is structurally retained but this module exposes no deactivate/reactivate API or behavior. | API/DTO exclusion |
+| DR-08 | Assigning Division Lead is an orchestration over `User -> division_lead UserRole -> ActorProfile -> Member -> Division`; it creates no Division field/table/role/User/password/session and does not revoke other leads because singular cardinality is not established. | Division Lead repository orchestration |
 
 ## 4. Failure Modes
 
@@ -59,11 +61,13 @@ activation APIs, workflow behavior, and any schema/grant/RLS alteration.
 - `[AC-S01]` WHILE an ID belongs to another Tenant, list/detail/update/delete SHALL not expose it and direct access SHALL return the same 404 as absent data.
 - `[AC-W01]` IF a caller attempts ownership, activation, identity, or workflow changes through a Division DTO, THEN validation SHALL reject it before a write.
 - `[AC-W02]` IF a Division has Members, Teams, Projects by origin Division, or Work Requests by assigned/origin Division, THEN deletion SHALL return 409 and retain all rows.
+- `[AC-E04]` WHEN system_admin assigns an eligible same-Division Member as Division Lead, the system SHALL ensure the existing `division_lead` UserRole and ActorProfile are linked to that Member.
+- `[AC-W03]` IF the selected Member is missing User access or is outside the requested Division, THEN Division Lead assignment SHALL fail without creating User credentials or changing Division structure.
 
 ## 6. Out of Scope
 
-No public activation lifecycle; no DivisionType value management or workflow mapping; no User,
-Member, Team, lead, role, permission, or workflow routing creation. Member is `04.2-member` and
-Team plus the existing membership relation is `04.3-team`. TMS/classification questions are
-deferred. No schema, DBML, Prisma, migration, RLS-policy, grant, seed, or database change is
-authorized by this specification.
+No public activation lifecycle; no DivisionType value management or workflow mapping; no User
+credential/session creation, Team, new lead table, new role, permission, or workflow routing
+creation. Member is `04.2-member` and Team plus the existing membership relation is `04.3-team`.
+TMS/classification questions are deferred. No schema, DBML, Prisma, migration, RLS-policy, grant,
+seed, or database change is authorized by this specification.

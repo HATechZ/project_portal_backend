@@ -1,5 +1,13 @@
-import { DivisionResponseDto, DivisionTypeResponseDto } from '../dtos';
-import { DivisionRecord, DivisionTypeRecord } from '../repositories';
+import {
+  DivisionLeadResponseDto,
+  DivisionResponseDto,
+  DivisionTypeResponseDto,
+} from '../dtos';
+import {
+  DivisionLeadAssignmentRecord,
+  DivisionRecord,
+  DivisionTypeRecord,
+} from '../repositories';
 
 export function toDivisionTypeResponse(
   divisionType: DivisionTypeRecord,
@@ -25,5 +33,17 @@ export function toDivisionResponse(
     isActive: division.isActive,
     createdAt: division.createdAt,
     updatedAt: division.updatedAt,
+  };
+}
+
+export function toDivisionLeadResponse(
+  record: DivisionLeadAssignmentRecord,
+): DivisionLeadResponseDto {
+  return {
+    division: record.division,
+    member: record.member,
+    roleCode: record.roleCode,
+    userRoleActive: record.userRoleActive,
+    actorProfileLinked: record.actorProfileLinked,
   };
 }

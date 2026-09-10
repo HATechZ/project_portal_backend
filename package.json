@@ -20,6 +20,7 @@
     "start:debug": "nest start --debug --watch",
     "prestart:prod": "prisma generate",
     "start:prod": "node dist/main",
+    "db:seed": "tsx prisma/seed.ts",
     "db:setup": "prisma generate && prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

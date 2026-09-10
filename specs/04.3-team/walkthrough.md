@@ -10,7 +10,7 @@ fixtures; do not mark PASS from static tests.
 | Lead assignment | `PUT /api/v1/team/:id/lead` | same Tenant/Company/Division active Member only |
 | Membership | list/add/end/re-add | 200/201/204; joined/left history preserved; duplicate active 409 |
 | system_admin/division_lead | creation/manage/lead actions | own Company/own Division scope plus configured action |
-| Contextual Team Lead | exact Team add/end only | exact `leadMemberId` + `ASSIGN_MEMBER`; other Team/create/new Member 403 |
+| Contextual Team Lead | exact Team add/end only | exact `leadMemberId` + `ASSIGN_MEMBER`; other Team/create-Team 403; Member creation is verified separately in 04.2 scope |
 | Isolation/validation | foreign/mismatched Members and fields | 404/400/403 as applicable; JWT Tenant wins |
 
 Record method/path/body, actual status, envelope/error code, `x-request-id`, actor/profile and

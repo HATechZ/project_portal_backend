@@ -5,16 +5,25 @@ import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.d
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
 import {
+  AssignDivisionLeadDto,
   CreateDivisionDto,
+  DivisionLeadResponseDto,
   DivisionResponseDto,
   UpdateDivisionDto,
 } from './dtos';
-import { toDivisionResponse } from './providers';
-import { DivisionRepository, ScopedCompanyRecord } from './repositories';
+import { toDivisionLeadResponse, toDivisionResponse } from './providers';
+import {
+  DivisionLeadRepository,
+  DivisionRepository,
+  ScopedCompanyRecord,
+} from './repositories';
 
 @Injectable()
 export class DivisionService {
-  constructor(private readonly repository: DivisionRepository) {}
+  constructor(
+    private readonly repository: DivisionRepository,
+    private readonly leadRepository: DivisionLeadRepository,
+  ) {}
 
   async findAll(
     query: PaginationQueryDto,
@@ -67,6 +76,22 @@ export class DivisionService {
       });
     }
     await this.repository.delete(id, company.id);
+  }
+
+  async assignLead(
+    divisionId: string,
+    input: AssignDivisionLeadDto,
+    assignedByUserId: string,
+  ): Promise<DivisionLeadResponseDto> {
+    const company = await this.requireScopedCompany();
+    return toDivisionLeadResponse(
+      await this.leadRepository.assign({
+        companyId: company.id,
+        divisionId,
+        memberId: input.memberId,
+        assignedByUserId,
+      }),
+    );
   }
 
   private async requireScopedCompany(): Promise<ScopedCompanyRecord> {

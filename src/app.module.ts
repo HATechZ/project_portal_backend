@@ -20,6 +20,8 @@ import { SecurityModule } from './common/security/security.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
 import { CompanyModule } from './company/company.module';
 import { DivisionModule } from './division/division.module';
+import { MemberModule } from './member/member.module';
+import { TeamModule } from './team/team.module';
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { DivisionModule } from './division/division.module';
     RolePermissionModule,
     CompanyModule,
     DivisionModule,
+    MemberModule,
+    TeamModule,
   ],
   controllers: [AppController],
   providers: [AppService],

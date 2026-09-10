@@ -1,0 +1,50 @@
+{
+  "databaseRole": "app_user",
+  "cleanup": true,
+  "blockers": [
+    "POST /api/v1/member returned 500 because app_user lacks INSERT/write privilege on public.members (Prisma P2039, SQLSTATE 42501: permission denied for table members)."
+  ],
+  "checks": [
+    "App started with production AppModule and Member routes mapped",
+    "Seeded system_admin login succeeded with ADD_MEMBER permission",
+    "Scoped Company read succeeded through app_user Tenant context",
+    "Division fixture was cleaned up through HTTP"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": 200,
+      "result": "PASS",
+      "requestId": "echoed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/company",
+      "status": 200,
+      "result": "PASS",
+      "requestId": "echoed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/division",
+      "status": 200,
+      "result": "PASS",
+      "requestId": "echoed"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/member",
+      "status": 500,
+      "result": "FAIL",
+      "requestId": "echoed"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/division/96c86ed3-f6fb-4002-a7c0-c2b6922630af",
+      "status": 204,
+      "result": "PASS",
+      "requestId": "echoed"
+    }
+  ]
+}

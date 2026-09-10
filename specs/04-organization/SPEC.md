@@ -32,6 +32,9 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
   before hashing/provisioning. Nested fields and accepted terms are validated at the edge.
 - DR-08: Division, Member, and Team writes must honor Tenant/Company/Division composite FKs;
   their detailed rules belong only to 04.1 → 04.2 → 04.3.
+- DR-08a: Member creation authority is scoped to system_admin own Company, division_lead own
+  Division, and contextual Team Lead exact led-Team Division; this does not broaden Division CRUD
+  or Member update/delete authority.
 - DR-09: workspaceSlug is generated internally, globally unique and immutable. It is public
   information, not a credential. Login remains email/password only.
 - DR-10: PATCH accepts only optional name/companyTypeId, with at least one supplied. Null and

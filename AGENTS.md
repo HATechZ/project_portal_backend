@@ -20,6 +20,42 @@ demand — never all of them.
 
 **Do not read `prisma/schema.prisma` whole (~22K tokens). `grep` it.**
 
+## Token Efficiency and Verification Policy
+
+Correctness comes first; optimize tokens by eliminating duplicate or irrelevant work, never by
+weakening required checks. Reuse current-session and project context, approved specs, and recent
+successful verification when relevant files/config have not changed. For spec-governed tasks,
+start from the approved spec and directly relevant implementation files; do not re-read historical
+ERD/docs/frontend/history unless the spec is ambiguous, conflicting, stale, or implementation
+evidence requires reconciliation.
+
+Read only files directly relevant to the task or changed since the last relevant audit. Avoid broad
+repo scans, repeated architecture/source analysis, unrelated refactors, cleanup, documentation
+changes, and multiple equivalent tests/diagnostics/catalog queries/lint/build/spec checks without a
+concrete correctness reason. Use current repository conventions instead of researching alternatives
+unnecessarily. Spawn reviewer/verifier/sub-agents only when repository SDD rules require them or
+the user asks.
+
+Prefer focused tests/checks first; run broader verification only when required by the applicable
+spec or Definition of Done. Perform DB/catalog diagnostics only for concrete runtime/database
+issues. Avoid model-based checks the user can reliably perform manually. When manual/local
+verification is sufficient, output exactly:
+
+```text
+MANUAL CHECK
+Command: <exact command>
+Expected: <specific result to confirm>
+```
+
+Then wait for the result if that verification is required before proceeding. Keep progress updates
+and final reports concise, report exact blockers/owner decisions when requirements are genuinely
+ambiguous, and preserve unrelated working-tree changes.
+
+**Safety exception:** token optimization must never skip correctness-critical checks required by
+the applicable spec/SDD/Definition of Done, especially security/authentication/authorization,
+tenant isolation/RLS/object-scope, migration/schema integrity, required focused tests, required
+SDD/spec verification, or diagnostics necessary to resolve an actual failure.
+
 ## Commands
 
 ```bash

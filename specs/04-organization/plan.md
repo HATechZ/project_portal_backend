@@ -42,4 +42,5 @@ changes or cross-feature imports are introduced; app_relay remains outside this 
 
 Company lifecycle remains explicitly deferred. Division → Member → Team (including its existing
 membership relation) is specified in child contracts and remains unimplemented; no fourth
-membership module may be created.
+membership module may be created. Member creation and Team assignment remain separate child
+operations with Tenant/Company/Division scope enforced in their own contracts.

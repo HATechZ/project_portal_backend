@@ -21,6 +21,7 @@ Team Lead are denied. Caller Tenant/Company IDs or headers have no authority.
 | GET | `/division` | Scoped paginated list, `page`/`limit`, order `name asc, id asc`; 200 `{ items, meta }`. |
 | GET | `/division/:id` | Scoped detail; 200 or indistinguishable 404. |
 | PATCH | `/division/:id` | Partial `{ name?, abbr?, divisionTypeId? }`, at least one defined; 200. Explicit null is rejected unless a nullable-reference clear is deliberately supported and documented in the implementation review; target default is to reject null. |
+| PUT | `/division/:id/lead` | Assign Division Lead from `{ memberId }`; same-Company `system_admin` only; orchestrates existing Member/User/UserRole/ActorProfile link; 200. |
 | DELETE | `/division/:id` | Guarded hard delete; 204 only when the full dependency audit is empty, otherwise 409. |
 
 Responses expose `id`, `name`, `abbr`, `divisionTypeId`, nullable DivisionType summary,
@@ -28,3 +29,8 @@ retained `isActive`, `createdAt`, and `updatedAt`; never expose a Tenant/Company
 login/lead representation. Invalid DTO/UUID is 400; missing/foreign is 404; unauthorized is
 401/403; uniqueness, FK race, serialization, and delete dependency are 409. There is no
 deactivate/reactivate endpoint.
+
+`Assign Division Lead` returns the Division summary, assigned Member identity, `division_lead`
+role state, and whether the ActorProfile is linked. It does not expose password/session/token
+data and does not create User credentials. The Member must already be linked to same-Tenant User
+access; missing User access returns 409 using the repository's current conflict convention.

@@ -30,8 +30,9 @@ None: no schema, migrations, grants, RLS policies or provisioning-function chang
 DivisionType values remain deferred. Division, Member, Team, and the existing `team_members`
 relation are specified but unimplemented in `04.1-division` → `04.2-member` → `04.3-team`.
 Those contracts honor existing Tenant/Company/Division composite relationships; `team_members`
-belongs to Team and is not a separate module. Company lifecycle deactivation/deletion is not
-approved and requires a separate product contract.
+belongs to Team and is not a separate module. Member creation is scoped in the Member contract
+and does not write Team membership; Team membership add/remove is scoped in the Team contract.
+Company lifecycle deactivation/deletion is not approved and requires a separate product contract.
 
 ## Observed runtime prerequisite (2026-09-08)
 

@@ -39,9 +39,12 @@ function adminConfig() {
 }
 
 export async function runSeed(): Promise<void> {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl =
+    process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
   if (!databaseUrl)
-    throw new Error('DATABASE_URL is required to seed the database');
+    throw new Error(
+      'DATABASE_URL_MIGRATION or DATABASE_URL is required to seed the database',
+    );
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: databaseUrl }),
