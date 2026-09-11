@@ -15,13 +15,14 @@ controller, or specification.
 
 | Operation | Atomic records | Authorization rule |
 |---|---|---|
-| Team CRUD / assign lead | Team, Division and candidate Member reads | system_admin or scoped division_lead; `ADD_TEAM` |
-| add/end membership | Team, actor profile/member scope, candidate Member, active membership | system_admin/scoped division_lead or exact contextual lead; `ASSIGN_MEMBER`; existing or separately newly created Member only |
+| Team CRUD / assign lead | Team, Division and candidate Member reads | system_admin, division_head, or scoped division_lead; `ADD_TEAM` |
+| add/end membership | Team, actor profile/member scope, candidate Member, active membership | system_admin/division_head/scoped division_lead or exact `team_lead`; `ASSIGN_MEMBER`; existing or separately newly created Member only |
 | delete | Team and all membership history probe | Team-management scope; hard delete only if probe clear |
 
-The scope resolver obtains actor Member from active ActorProfile. For division_lead it compares
-that Member's Division to Team Division. For contextual lead it additionally compares Member ID
-to `leadMemberId` and admits only membership add/end routes for the exact Team they lead. All
+The scope resolver obtains actor Member from active ActorProfile. For division_head it confines
+access to the actor's own Tenant/Company. For division_lead it compares that Member's Division
+to Team Division. For `team_lead` it additionally compares Member ID to `leadMemberId` and
+admits only membership add/end routes for the exact Team they lead. All
 Member/lead candidates are scoped by Tenant/Company/Division and active status before write.
 Add/end serializes or locks the active association to prevent duplicate active rows; end sets
 `leftAt`. Use AppExceptions for
@@ -29,9 +30,9 @@ semantic 403/404/409 and let central Prisma mapping handle database races.
 
 ## Verification
 
-Focused tests must prove all system-admin, division-lead, contextual-lead, and denied cases;
+Focused tests must prove all system-admin, division-head, division-lead, team-lead, and denied cases;
 cross-Tenant/Company/Division Member rejection; active/history membership semantics; no Member,
-User, role, or Team Lead role creation inside Team routes; no automatic Team assignment from
+User, or role creation inside Team routes; no automatic Team assignment from
 Member creation; and Team delete blocking. HTTP/RLS evidence uses app_user, isolated fixtures and
 cleanup, records each route/envelope/error/request ID, and proves both Tenant directions. No
 workflow event, transport write, or schema/grant change is introduced.

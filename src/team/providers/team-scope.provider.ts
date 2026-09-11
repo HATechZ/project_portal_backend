@@ -12,7 +12,10 @@ export class TeamScopeProvider {
     companyId: string,
     requestedDivisionId?: string,
   ): Promise<string[]> {
-    if (actor.roleCode === ActorRoleCode.system_admin) {
+    if (
+      actor.roleCode === ActorRoleCode.system_admin ||
+      actor.roleCode === ActorRoleCode.division_head
+    ) {
       if (requestedDivisionId) {
         await this.requireScopedDivision(requestedDivisionId, companyId);
         return [requestedDivisionId];
@@ -47,13 +50,16 @@ export class TeamScopeProvider {
 
   assertCanManageMembership(actor: ActorScopeContext, team: TeamRecord): void {
     if (actor.roleCode === ActorRoleCode.system_admin) return;
+    if (actor.roleCode === ActorRoleCode.division_head) return;
     if (
       actor.roleCode === ActorRoleCode.division_lead &&
       actor.member?.divisionId === team.divisionId
     ) {
       return;
     }
-    if (actor.member?.id && actor.member.id === team.leadMemberId) return;
+    if (actor.member?.id && actor.member.id === team.leadMemberId) {
+      return;
+    }
     throw new ForbiddenException('Team membership is outside actor scope');
   }
 

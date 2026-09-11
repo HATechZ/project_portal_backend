@@ -24,8 +24,11 @@ Never write one needing a database, Redis, or the network.
 
 1. No code under `src/` for a module with no `SPEC.md`.
 2. **Never run a database-mutating command** (`prisma migrate*`, `db push`, `db seed`,
-   `studio`, `yarn db:setup`) and **never edit** the DBML, `prisma/schema.prisma`, or
-   `prisma/migrations/`. Propose schema changes in `DATA_CONTRACT.md` and stop.
+   `studio`, `yarn db:setup`). `prisma/schema.prisma` is the maintained schema authority,
+   and `prisma/migrations/` records schema evolution; edit them only for explicitly
+   approved schema work. DBML is only an optional architectural Reference ERD when
+   available/provided, not a required source of truth. Propose unapproved schema changes in
+   `DATA_CONTRACT.md` and stop.
    `prisma generate` is allowed — it never contacts the database.
    **Exception:** the `database-architect` subagent may do schema and dev-migration work.
    → [`rules/08-database.md`](rules/08-database.md)

@@ -13,6 +13,14 @@ Company, and Division Member before update. The `team_members` raw Team/Member r
 require service validation of both records and `team_members.tenantId` before insert. Existing
 Team/Member composite Division relationships and RLS remain database backstops.
 
+`team_lead` is a real ActorRole, but the role is not enough for object access. The exact Team
+scope is proven by active ActorProfile -> Member and `Team.leadMemberId` equality. A
+`division_head` ActorRole is Company-scoped across all current and future Divisions in that
+Company for configured Team operations, including deletion of any otherwise-deletable Team in
+own-Company Divisions. `division_lead` may create/provision or assign `team_lead` only for a
+Team inside that Division, and assignment must validate own-Division/target-Team scope at the
+time of assignment.
+
 ## Writes and lifecycle
 
 Create accepts `divisionId`, `name`, and optional `leadMemberId`; it derives Tenant/Company and

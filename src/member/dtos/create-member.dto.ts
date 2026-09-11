@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  IsBoolean,
+  IsByteLength,
   IsEmail,
   IsOptional,
   IsString,
@@ -28,21 +28,34 @@ export class CreateMemberDto {
   @MaxLength(255)
   email!: string;
 
-  @ApiProperty({ minLength: 1, maxLength: 140 })
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @ApiProperty({ minLength: 8, maxLength: 72 })
   @IsString()
-  @MinLength(1)
-  @MaxLength(140)
-  roleTitle!: string;
+  @IsByteLength(8, 72)
+  password!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  roleId!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   divisionId!: string;
 
-  @ApiPropertyOptional({ default: true })
+  @ApiPropertyOptional({ maxLength: 140 })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsString()
+  @MaxLength(140)
+  designation?: string;
+
+  @ApiPropertyOptional({ maxLength: 60 })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  phone?: string;
 }

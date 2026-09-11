@@ -39,9 +39,25 @@ credentials are delivered (`project_credential_deliveries`, module 07).
 
 ### `Role`
 
-`code` is `ActorRoleCode @unique`: `system_admin`, `ccr_coordinator`, `division_lead`,
-`division_member`, `tms_manager`, `tms_drawing`, `tms_checking`,
-`tms_approval`, `client_owner`. `isSystemRole` defaults true — seeded, not user-created.
+`code` is `ActorRoleCode @unique`: `system_admin`, `ccr_coordinator`, `division_head`,
+`division_lead`, `team_lead`, `division_member`, `tms_manager`, `tms_drawing`,
+`tms_checking`, `tms_approval`, `client_owner`. `isSystemRole` defaults true — seeded,
+not user-created.
+
+Role alone is never object scope. Authorization combines verified Tenant/Company context,
+active ActorProfile, role/permission, and relevant Division/Team/assignment evidence.
+`division_head` is Company-scoped across all current and future Divisions in the actor's own
+Company; `division_lead` is scoped to one Division; `team_lead` is scoped only to exact Teams
+legitimately led by the actor, with `Team.leadMemberId` as required object-scope evidence.
+
+Leadership creation/assignment authority follows the hierarchy. `system_admin` of the current
+Tenant/Company may create/provision or assign `division_head`; `division_head` may
+create/provision or assign `division_lead` only for a Division inside the same Company;
+`division_lead` may create/provision or assign `team_lead` only for a Team inside that Division;
+`team_lead` may manage or create eligible ordinary Members only within its exact Team scope,
+subject to the approved Member onboarding rules. Creating a leadership user reuses normal
+Member onboarding: `User -> Member -> UserRole -> Member-backed ActorProfile`; no separate
+leader identity model is introduced.
 
 ### `UserRole`
 
@@ -147,3 +163,84 @@ objects are required by the prepared implementation. No grants, migrations, DBML
 changes were made in this task. Existing RLS and Tenant-scoped UnitOfWork remain mandatory;
 `app_relay` is not used for identity writes. Re-run the full runtime tests after the owner
 resolves the privilege prerequisite.
+
+## Proposed schema change
+
+Required for the approved leadership-role foundation; not applied by Codex because Article IX
+marks `prisma/schema.prisma`, migrations, and DBML-generated schema output as owner-only outside
+the database-architect path.
+
+Tables/objects:
+
+- PostgreSQL enum `actor_role_code`: add values `division_head` and `team_lead`.
+- Prisma enum `ActorRoleCode`: add `division_head` and `team_lead`.
+- `roles` seed data: add system roles for `division_head` and `team_lead` with deterministic
+  IDs:
+  - `division_head`: `10000000-0000-4000-8000-000000000011`
+  - `team_lead`: `10000000-0000-4000-8000-000000000012`
+- Permission seed matrix proposal:
+  - `system_admin`: keep the existing supervisor matrix; it may provision/assign
+    `division_head` through existing role assignment.
+  - `division_head` confirmed organization permissions only:
+    `ADD_DIVISION`, `ADD_TEAM`, `ASSIGN_LEADER`.
+    `ADD_DIVISION` covers creating, listing/viewing, updating, and guarded-deleting otherwise
+    deletable Divisions in the actor's own Tenant/Company Division domain; newly created
+    Divisions automatically fall within that Company-wide Division scope. `ADD_TEAM` covers
+    approved Team management and deletion of otherwise-deletable Teams across own-Company
+    Divisions through object scope. `ASSIGN_LEADER` covers provisioning/assigning
+    `division_lead`; none of these grants imply system_admin inheritance or broad role
+    administration.
+    Do not grant `ASSIGN_MEMBER` for Division routing because Division Head does not directly
+    assign Members.
+    Do not grant `UPDATE_SETTINGS`, Client/ClientContact administration, auth/session/security,
+    arbitrary user administration, role/permission administration, or unrelated system_admin
+    operations.
+  - `division_lead`: keep own-Division Team management/member assignment permissions. Use
+    `ASSIGN_LEADER` only for assigning `team_lead` inside own Division once that assignment flow
+    is implemented.
+  - `team_lead` confirmed organization permissions only:
+    `ADD_MEMBER`, `ASSIGN_MEMBER`.
+    `ADD_MEMBER` covers creating eligible ordinary Members in exact Team scope through approved
+    Member onboarding. `ASSIGN_MEMBER` covers assigning eligible Members to the exact led Team.
+
+Deferred workflow-transition capabilities:
+
+- `division_head` needs semantically correct workflow permissions to assign/reroute a Work
+  Request to a Division, review a Division Lead submission, return revision to Division Lead,
+  and approve to the next configured authorized workflow stage.
+- `division_lead` needs semantically correct workflow permissions to assign a Work Request to a
+  Team, review Team Lead submission, return revision to Team Lead, and submit to Division Head.
+- `team_lead` needs semantically correct workflow permissions to assign a Team Member, review
+  Member submission, return revision to Member, and submit to Division Lead.
+- Existing old workflow permissions such as `PM_LEAD_RESPOND_TO_MEMBER`, `PM_RETURN_TO_MEMBER`,
+  `FORWARD_TO_TMS`, `FORWARD_TO_CCR`, `ORIGIN_MANAGER_APPROVE`, `SEND_BACKWARD`, and
+  `REQUEST_INFO_FROM_MARKETING` must not be granted to the new roles unless a current workflow
+  spec verifies their exact semantics match the new hierarchy. If no existing permission has the
+  correct semantics, define the required capability in the workflow/work-request spec before
+  adding final enum codes.
+
+Draft migration SQL shape:
+
+```sql
+ALTER TYPE public.actor_role_code ADD VALUE IF NOT EXISTS 'division_head';
+ALTER TYPE public.actor_role_code ADD VALUE IF NOT EXISTS 'team_lead';
+```
+
+No new table or column is required. `division_head` uses the existing role-only ActorProfile
+shape; `team_lead` uses the existing Member-backed ActorProfile shape plus `teams.lead_member_id`
+object-scope evidence.
+
+What breaks without it:
+
+- Generated `ActorRoleCode` lacks `division_head` and `team_lead`, so runtime code cannot use
+  generated enum members and the temporary string-cast bridge cannot be removed.
+- Seeded roles and permission grants cannot provision or authorize the approved hierarchy.
+- HTTP/runtime verification for `division_head` and real `team_lead` ActorProfiles cannot pass.
+
+Owner apply path:
+
+```text
+MANUAL CHECK
+Command: node scripts/dbml-to-prisma.cjs && corepack yarn prisma:migrate --name add-division-head-team-lead-roles && corepack yarn prisma:generate
+Expected: Prisma enum includes division_head/team_lead, a migration adds the enum values, seed data can reference both roles, and generated ActorRoleCode exposes ActorRoleCode.division_head and ActorRoleCode.team_lead.
+```

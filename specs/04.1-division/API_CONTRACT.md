@@ -10,8 +10,9 @@ object scope, an active same-Tenant `system_admin` ActorProfile, and configured
 `WorkflowActionCode.ADD_DIVISION`. Guard ordering follows the established pattern:
 `AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard -> ObjectScopeGuard ->
 SystemAdminGuard -> PermissionsGuard`. `system_admin` is Company/Tenant administration, not a
-platform super-admin: permission and scope checks still execute. `division_lead` and contextual
-Team Lead are denied. Caller Tenant/Company IDs or headers have no authority.
+platform super-admin: permission and scope checks still execute. `division_head`,
+`division_lead`, and `team_lead` are denied for Division-master CRUD unless later owner approval
+adds that exact policy. Caller Tenant/Company IDs or headers have no authority.
 
 ## Routes and DTOs
 
@@ -32,5 +33,8 @@ deactivate/reactivate endpoint.
 
 `Assign Division Lead` returns the Division summary, assigned Member identity, `division_lead`
 role state, and whether the ActorProfile is linked. It does not expose password/session/token
-data and does not create User credentials. The Member must already be linked to same-Tenant User
-access; missing User access returns 409 using the repository's current conflict convention.
+data and does not create separate leader identity models. A leadership user, when created by an
+approved provisioning flow, must reuse normal Member onboarding:
+`User -> Member -> UserRole -> Member-backed ActorProfile`. The Member must already be linked
+to same-Tenant User access for this assignment-only route; missing User access returns 409 using
+the repository's current conflict convention.

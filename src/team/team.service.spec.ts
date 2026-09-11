@@ -100,6 +100,23 @@ function serviceWithRepository(repo = repository()) {
 }
 
 describe('TeamService scopes', () => {
+  it('allows division_head to create a Team in any own-Company Division', async () => {
+    const { service, repo } = serviceWithRepository();
+
+    await expect(
+      service.create(
+        { divisionId: divisionB, name: 'Company Scoped Team' },
+        actor(ActorRoleCode.division_head),
+      ),
+    ).resolves.toMatchObject({ id: teamA.id });
+
+    expect(repo.findDivision).toHaveBeenCalledWith(divisionB, company.id);
+    expect(repo.create).toHaveBeenCalledWith(company.id, {
+      divisionId: divisionB,
+      name: 'Company Scoped Team',
+    });
+  });
+
   it('allows division_lead to create a Team only in their Division', async () => {
     const { service, repo } = serviceWithRepository();
     await expect(
@@ -209,6 +226,27 @@ describe('TeamService scopes', () => {
     await expect(
       membershipService.addMember('team-b', { memberId: 'member-a' }, lead),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows division_head to add and remove Team Members across own Company', async () => {
+    const { membershipService, repo } = serviceWithRepository();
+
+    await expect(
+      membershipService.addMember(
+        teamA.id,
+        { memberId: 'member-a' },
+        actor(ActorRoleCode.division_head),
+      ),
+    ).resolves.toMatchObject({ memberId: 'member-a' });
+    await expect(
+      membershipService.removeMember(
+        teamA.id,
+        'member-a',
+        actor(ActorRoleCode.division_head),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(repo.endMember).toHaveBeenCalledWith(teamA.id, 'member-a');
   });
 
   it('rejects cross-Division Team membership assignment', async () => {

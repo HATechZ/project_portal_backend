@@ -1,6 +1,19 @@
 const fs = require('node:fs');
 
-const input = fs.readFileSync('project_portal_workflow_management_erd.dbml', 'utf8');
+const inputPath = 'project_portal_workflow_management_erd.dbml';
+
+if (!fs.existsSync(inputPath)) {
+  console.error(
+    [
+      'Deprecated legacy DBML converter: DBML is optional historical/reference material.',
+      'The maintained schema authority is prisma/schema.prisma plus prisma/migrations/**.',
+      `No ${inputPath} file was found; nothing was generated.`,
+    ].join('\n'),
+  );
+  process.exit(1);
+}
+
+const input = fs.readFileSync(inputPath, 'utf8');
 
 function cleanSource(source) {
   let result = source.replace(/\/\*[\s\S]*?\*\//g, '');

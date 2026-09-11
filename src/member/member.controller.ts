@@ -36,6 +36,8 @@ import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
 import { Permissions } from '../common/security/permissions.decorator';
 import { PermissionsGuard } from '../common/security/permissions.guard';
+import { ActiveUser } from '../common/security/active-user.decorator';
+import type { SessionUser } from '../common/security/session.types';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { WorkflowActionCode } from '../generated/prisma/client';
@@ -69,10 +71,14 @@ export class MemberController {
 
   @Post()
   @ResponseMessage('Member created successfully')
-  @ApiOperation({ summary: 'Create a Member' })
+  @ApiOperation({ summary: 'Create Member' })
   @ApiStandardCreatedResponse(MemberResponseDto, 'Member created')
-  create(@Body() input: CreateMemberDto, @Req() request: ObjectScopeRequest) {
-    return this.memberService.create(input, request.actorScope!);
+  create(
+    @Body() input: CreateMemberDto,
+    @Req() request: ObjectScopeRequest,
+    @ActiveUser() activeUser: SessionUser,
+  ) {
+    return this.memberService.create(input, request.actorScope!, activeUser.id);
   }
 
   @Get()

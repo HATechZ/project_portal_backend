@@ -1,6 +1,6 @@
-# Project Portal Backend — Agent Entry Point
+# Project Portal Backend - Agent Entry Point
 
-**Project Portal** (`project-portal-backend`) — NestJS 11 + Prisma 7 + PostgreSQL (Neon) API
+**Project Portal** (`project-portal-backend`) - NestJS 11 + Prisma 7 + PostgreSQL (Neon) API
 for a project/bid workflow management portal. Redis for cache, rate limiting, and the BullMQ
 mail queue.
 
@@ -8,15 +8,15 @@ mail queue.
 
 ## Read this first
 
-> **Rules:** [`specs/RULES.md`](specs/RULES.md) — the card. Read it once per session.
+> **Rules:** [`specs/RULES.md`](specs/RULES.md) - the card. Read it once per session.
 > **Status:** [`specs/INDEX.md`](specs/INDEX.md).
 >
 > This file is an entry point, not a rulebook. It does not restate rules and is not where you
 > record progress. If those two files disagree with this one, they win.
 
-The card carries the five gates, the ten non-negotiables, and a routing table naming the
-single file to open for the task at hand. Full articles live in `specs/rules/` and are read on
-demand — never all of them.
+The card carries the five gates, the non-negotiables, and a routing table naming the single
+file to open for the task at hand. Full articles live in `specs/rules/` and are read on
+demand - never all of them.
 
 **Do not read `prisma/schema.prisma` whole (~22K tokens). `grep` it.**
 
@@ -60,9 +60,9 @@ SDD/spec verification, or diagnostics necessary to resolve an actual failure.
 
 ```bash
 docker compose up -d   # local Redis on 127.0.0.1:6379
-yarn start:dev         # prestart: prisma generate only — never migrates
-yarn lint              # eslint --fix — must be 0 errors
-yarn build             # nest build — gated by the SDD lint; must be 0 errors
+yarn start:dev         # prestart: prisma generate only - never migrates
+yarn lint              # eslint --fix - must be 0 errors
+yarn build             # nest build - gated by the SDD lint; must be 0 errors
 ```
 
 ```bash
@@ -80,15 +80,15 @@ yarn verify:sdd:strict        # also fail on ticked tasks with no VERIFY: line
 > ticked without a `VERIFY:` line. That is your enforcement point, in any tool. Claude Code
 > additionally has a `PostToolUse` hook (`.claude/settings.json`) that blocks at tick time
 > rather than build time; that file is Claude-specific and you can ignore it. Nothing about
-> the rule is Claude-only — only the earlier feedback is.
+> the rule is Claude-only - only the earlier feedback is.
 
-Codex has one project subagent — `database-architect` (`.codex/agents/database-architect.toml`),
+Codex has one project subagent - `database-architect` (`.codex/agents/database-architect.toml`),
 referenced by name for schema design / reshape (Art. IX). No skills. Rules tagged `[CLAUDE]`
-do not apply to you — follow the `[ALL]` equivalent stated alongside each one:
+do not apply to you - follow the `[ALL]` equivalent stated alongside each one:
 
 | Rule | Your equivalent |
 |---|---|
-| [Art. IV](specs/rules/04-vault.md) — `om` MCP vault sync | If the server is not connected, **skip vault sync entirely**. Do not hand-write vault files — that creates a second, diverging log. Record the decision in the module's `SPEC.md`. |
-| [Art. V](specs/rules/05-walkthrough.md) — Gate 5 walkthrough | Start the server and exercise each endpoint with `curl`. Record method, path, status, envelope shape, and `x-request-id` as PASS/FAIL in `walkthrough.md`. |
-| [Art. VI.10](specs/rules/06-standards.md) — Context7 MCP | Read the installed package's types under `node_modules` and the version in `package.json`. Never rely on recall — Prisma 7's driver-adapter setup differs from every Prisma 5 tutorial. |
-| [Art. IX](specs/rules/08-database.md) — schema design / reshape | Spawn the `database-architect` agent by name. It is the one path exempt from the Art. IX file/migrate lock (dev-time DBML + `dbml-to-prisma.cjs` + `prisma migrate dev` only). The `.claude/settings.json` prompt hook is Claude-only; you rely on naming the agent plus this row. |
+| [Art. IV](specs/rules/04-vault.md) - `om` MCP vault sync | If the server is not connected, **skip vault sync entirely**. Do not hand-write vault files - that creates a second, diverging log. Record the decision in the module's `SPEC.md`. |
+| [Art. V](specs/rules/05-walkthrough.md) - Gate 5 walkthrough | Start the server and exercise each endpoint with `curl`. Record method, path, status, envelope shape, and `x-request-id` as PASS/FAIL in `walkthrough.md`. |
+| [Art. VI.10](specs/rules/06-standards.md) - Context7 MCP | Read the installed package's types under `node_modules` and the version in `package.json`. Never rely on recall - Prisma 7's driver-adapter setup differs from every Prisma 5 tutorial. |
+| [Art. IX](specs/rules/08-database.md) - schema design / reshape | Spawn the `database-architect` agent by name for schema design / reshape. Prisma-first authority is `prisma/schema.prisma` + `prisma/migrations/**`; DBML is only an optional architectural Reference ERD when available/provided. The `.claude/settings.json` prompt hook is Claude-only; you rely on naming the agent plus this row. |

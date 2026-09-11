@@ -1,9 +1,13 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
 import { ActorScopeContext } from '../common/security/object-scope.provider';
+import {
+  PASSWORD_HASHER,
+  type PasswordHasher,
+} from '../infra/crypto/password-hasher.port';
 import {
   CreateMemberDto,
   MemberAccessLinkDto,
@@ -33,6 +37,7 @@ export class MemberService {
     private readonly accessRepository: MemberAccessRepository,
     private readonly relationsRepository: MemberRelationsRepository,
     private readonly scopeProvider: MemberScopeProvider,
+    @Inject(PASSWORD_HASHER) private readonly passwordHasher: PasswordHasher,
   ) {}
 
   async findAll(
@@ -73,6 +78,7 @@ export class MemberService {
   async create(
     input: CreateMemberDto,
     actor: ActorScopeContext,
+    assignedByUserId: string,
   ): Promise<MemberResponseDto> {
     const company = await this.requireScopedCompany();
     await this.scopeProvider.assertCanCreate(
@@ -80,13 +86,17 @@ export class MemberService {
       company.id,
       input.divisionId,
     );
+    const passwordHash = await this.passwordHasher.hash(input.password);
     return toMemberResponse(
-      await this.repository.create(company.id, {
+      await this.repository.createWithAccess(company.id, {
         name: input.name,
         email: input.email,
-        roleTitle: input.roleTitle,
+        passwordHash,
         divisionId: input.divisionId,
-        isActive: input.isActive ?? true,
+        roleId: input.roleId,
+        assignedByUserId,
+        designation: input.designation,
+        phone: input.phone,
       }),
     );
   }

@@ -4,7 +4,10 @@
 
 `members` / `Member`: Tenant ID, UUID ID, nullable `userId`, Company ID, Division ID,
 `name varchar(160)`, `email varchar(255)`, `roleTitle varchar(140)`, retained `isActive`, and
-timestamps. It has unique `(id,tenantId)` and `(tenantId,email)`, plus Division and Company
+timestamps. `designation` and `phone` are accepted by the V1 public create body but have no
+dedicated current Member columns; V1 maps designation to the structurally mandatory existing
+`roleTitle` business field and persists phone on the linked User. Authorization never comes from
+designation. It has unique `(id,tenantId)` and `(tenantId,email)`, plus Division and Company
 indexes. Its Division relation is the authoritative composite
 `(divisionId,tenantId,companyId) -> divisions(id,tenantId,companyId)` relationship. `userId`
 is a nullable current relation to User, not an authentication field and not declared unique;
@@ -18,16 +21,23 @@ WorkRequestRevisionRequests as requested-to Member. Before a hard delete, probe 
 relation in the scoped UnitOfWork. Any row blocks deletion with 409. Do not rely on ActorProfile
 `SetNull` to silently erase business context and do not cascade/end team membership or history.
 
-## Access integration boundary
+## Onboarding and access integration boundary
 
-The schema permits an unlinked Member. The implementation sequence is deliberately explicit:
+The schema permits an unlinked Member for legacy and exceptional linking paths. Normal V1
+`POST /member` must atomically create/link:
 
-1. `POST /member` creates only the Member.
-2. Module 03 creates or locates User access under its own User/password policy; this module's
-   link operation can associate only an existing same-Tenant User.
-3. Module 03 assigns/revokes UserRole under its existing audit/history semantics.
-4. Module 03 role assignment supplies or reuses a role-only ActorProfile; this module may link
-   that existing eligible profile's `memberId` to the already linked Member.
+1. User with request email and existing Auth password hash.
+2. Member linked to that User.
+3. UserRole for the required allowed internal `roleId`.
+4. Member-backed ActorProfile for that UserRole.
+
+The public create body is `name`, `email`, `password`, `divisionId`, `roleId`, optional
+`designation`, and optional `phone`. It never accepts `tenantId`, `companyId`, `userId`,
+`actorProfileId`, `passwordHash`, `confirmPassword`, `isActive`, or `teamId`.
+
+The existing `PUT /member/:id/access-link` endpoint remains the exceptional existing-User path:
+module 03 creates or locates User access under its own User/password policy; this module's link
+operation can associate only an existing same-Tenant User and optional existing eligible profile.
 
 The narrow link transaction reads `users`, active `user_roles`, and `actor_profiles` through its
 own repository data access without importing an Identity feature service. It changes only
@@ -40,11 +50,16 @@ app_user/RLS UnitOfWork, not app_relay.
 ## Writes and migration impact
 
 Create derives Tenant/Company and uses an existing actor-scoped Division; it receives name,
-business email, role title, and Division ID. `system_admin` can select any own-Company Division;
-`division_lead` can select only the active actor Member's Division; contextual Team Lead can
-select only the Division of the exact Team led by the actor Member. The Team Lead path resolves
-authenticated User -> active ActorProfile -> Member -> Team where `Team.leadMemberId` equals the
-actor Member -> `Team.divisionId`, and creates no role named for a Team Lead. Ordinary update
+business email, password, role ID, optional designation, optional phone, and Division ID.
+`system_admin` can select any own-Company Division and may create/provision or assign
+`division_head`; `division_head` can select any own-Company Division allowed by configured
+permissions and may create/provision or assign `division_lead` only for a Division inside that
+Company; `division_lead` can select only the active actor Member's Division and may
+create/provision or assign `team_lead` only for a Team inside that Division; `team_lead` can
+select only exact led-Team scope for eligible ordinary Members. The Team Lead path resolves
+authenticated User -> active `team_lead` ActorProfile -> Member -> Team where
+`Team.leadMemberId` equals the actor Member; `leadMemberId` is object-scope evidence and role
+alone does not authorize another Team. Ordinary update
 receives only mutable business fields and remains governed by its existing authority. The
 dedicated access-link route is the only route accepting existing User/ActorProfile IDs.
 When `divisionId` changes, query Teams led by the Member and active `team_members` joined to Team;

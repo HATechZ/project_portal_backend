@@ -32,9 +32,16 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
   before hashing/provisioning. Nested fields and accepted terms are validated at the edge.
 - DR-08: Division, Member, and Team writes must honor Tenant/Company/Division composite FKs;
   their detailed rules belong only to 04.1 → 04.2 → 04.3.
-- DR-08a: Member creation authority is scoped to system_admin own Company, division_lead own
-  Division, and contextual Team Lead exact led-Team Division; this does not broaden Division CRUD
-  or Member update/delete authority.
+- DR-08a: Organization authority is hierarchical: Company -> Division Head -> Division ->
+  Division Lead -> Team -> Team Lead -> Team Members. `division_head` covers all current and
+  future Divisions in the actor's own Company; `division_lead` covers one Division; `team_lead`
+  covers only exact Team(s) where object-scope evidence proves the actor legitimately leads.
+  Role alone is not object scope.
+- DR-08b: Leadership creation/assignment follows that hierarchy: system_admin may provision or
+  assign division_head in own Company; division_head may provision or assign division_lead for a
+  same-Company Division; division_lead may provision or assign team_lead for a Team in that
+  Division; team_lead may manage/create eligible ordinary Members only in exact Team scope.
+  All leadership creation reuses `User -> Member -> UserRole -> Member-backed ActorProfile`.
 - DR-09: workspaceSlug is generated internally, globally unique and immutable. It is public
   information, not a credential. Login remains email/password only.
 - DR-10: PATCH accepts only optional name/companyTypeId, with at least one supplied. Null and
@@ -72,6 +79,13 @@ is a constraint conflict (409), not an unhandled 500. No feature-level Prisma ca
 Company deactivate/delete is not approved. DivisionType values, Division, Member, Team, and the
 existing Team membership relation are governed by the three child contracts and remain
 unimplemented. The membership relation is owned by Team, not a fourth Organization module.
+Future Work Request routing must replace the old direct Division Lead -> Member path with:
+Work Request -> Division Head -> assign Division -> Division Lead -> assign Team -> Team Lead ->
+assign Team Member -> Member performs/submits -> Team Lead review. Team Lead rejection returns
+to Member; approval goes to Division Lead. Division Lead rejection returns to Team Lead; approval
+goes to Division Head. Division Head rejection returns to Division Lead; approval goes to the next
+configured and authorized workflow stage, not a hard-coded next Division. Cross-Tenant,
+cross-Company, cross-Division Team assignment and invalid cross-Team Member assignment are denied.
 Clients, workflows and frontend slug routing remain outside this scope.
 
 No schema, migration, grant or RLS changes are required. The DBML source named by repository

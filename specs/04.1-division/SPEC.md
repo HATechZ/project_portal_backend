@@ -33,12 +33,14 @@ activation APIs, workflow behavior, and any schema/grant/RLS alteration.
 |---|---|---|
 | DR-01 | A Division belongs to the authenticated Tenant and its single Company; neither value is caller input. | JWT Tenant context, scoped Company lookup, RLS, repository input shape |
 | DR-02 | Division has no login or person identity and create never creates a User, Member, ActorProfile, lead, or Team. | DTO/service boundary |
-| DR-03 | Only a same-Company `system_admin` with configured `ADD_DIVISION` permission may perform Division CRUD. `division_lead` and a contextual Team Lead have no Division-management bypass. | guards, permission and object-scope checks |
+| DR-03 | Only a same-Company `system_admin` with configured `ADD_DIVISION` permission may perform Division CRUD. `division_head`, `division_lead`, and `team_lead` have no Division-master CRUD authority unless the owner explicitly approves that policy later. | guards, permission and object-scope checks |
 | DR-04 | `name`, `abbr`, and nullable `divisionTypeId` are the only mutable business fields; Tenant, Company, ID, `isActive`, timestamps, and system fields are immutable. | DTO/repository allow-list |
 | DR-05 | `(tenantId, companyId, abbr)` is unique. `divisionTypeId`, if supplied, must identify a global existing DivisionType. | DTO/service precheck; database backstop |
 | DR-06 | Delete is a guarded hard delete only. It must refuse when any current Division relation has a dependent business/history row and must never cascade-delete such rows. | dependency probe, restrictive FKs, centralized error mapping |
 | DR-07 | `isActive` is structurally retained but this module exposes no deactivate/reactivate API or behavior. | API/DTO exclusion |
-| DR-08 | Assigning Division Lead is an orchestration over `User -> division_lead UserRole -> ActorProfile -> Member -> Division`; it creates no Division field/table/role/User/password/session and does not revoke other leads because singular cardinality is not established. | Division Lead repository orchestration |
+| DR-08 | Assigning Division Lead is an orchestration over `User -> division_lead UserRole -> ActorProfile -> Member -> Division`; it creates no Division field/table/User/password/session and does not revoke other leads because singular cardinality is not established. | Division Lead repository orchestration |
+| DR-09 | `division_head` is a real ActorRole scoped to the actor's own Tenant/Company and covers all current and future Divisions in that Company for configured Division-operation oversight and downstream Team/work routing. This spec does not approve `division_head` create/update/delete authority over Division master records. | role/permission/object-scope checks |
+| DR-10 | Leadership assignment scope is validated at assignment time: system_admin must target own Company, and division_head may create/provision or assign `division_lead` only for a Division inside the same Company. Role assignment alone never bypasses object scope. | assignment service validation |
 
 ## 4. Failure Modes
 
@@ -67,7 +69,7 @@ activation APIs, workflow behavior, and any schema/grant/RLS alteration.
 ## 6. Out of Scope
 
 No public activation lifecycle; no DivisionType value management or workflow mapping; no User
-credential/session creation, Team, new lead table, new role, permission, or workflow routing
-creation. Member is `04.2-member` and Team plus the existing membership relation is `04.3-team`.
+credential/session creation, Team, new lead table, permission, or workflow routing creation.
+Member is `04.2-member` and Team plus the existing membership relation is `04.3-team`.
 TMS/classification questions are deferred. No schema, DBML, Prisma, migration, RLS-policy, grant,
 seed, or database change is authorized by this specification.

@@ -52,6 +52,14 @@ new table, create User/password/session state, revoke other Division Leads, or i
 The current approved model does not define singular Division Lead cardinality, so assignment is
 additive/safe and does not remove another lead.
 
+`division_head` is an ActorRole, not a Division row relationship. It is Company-scoped across
+all current and future Divisions in the actor's own Company for configured Division-operation
+oversight and later Work Request routing. `division_head` may create/provision or assign
+`division_lead` only for a Division inside the same Company, using normal Member onboarding
+for new leadership users and validating object scope at assignment time. This contract does
+not add a Division-head FK, table, column, seed, or grant, and it does not decide whether
+`division_head` may create, update, or delete Division master records.
+
 Runtime prerequisite discovered during Gate 5 attempt on 2026-09-09: app_user currently has
 only `SELECT` on `public.divisions` and no reported grant on `public.division_types`. Valid
 Division create/update/delete and global DivisionType prevalidation therefore cannot pass
