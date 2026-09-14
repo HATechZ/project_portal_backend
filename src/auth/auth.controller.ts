@@ -62,10 +62,8 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(TenantContextGuard)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  @ApiSecurity('tenant')
   @ApiOperation({ summary: 'Rotate a refresh token and issue new credentials' })
   @ApiStandardOkResponse(RefreshResponseDto, 'Token refreshed successfully')
   @ResponseMessage('Token refreshed successfully')

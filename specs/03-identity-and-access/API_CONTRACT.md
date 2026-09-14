@@ -13,7 +13,7 @@ Only module-specific behavior is stated here.
 | `PATCH` | `/api/v1/user/:id` | 200 · 404 · 409 | `system_admin` |
 | `DELETE` | `/api/v1/user/:id` | 204 · 404 · 409 | `system_admin` |
 | `POST` | `/api/v1/auth/login` | 200 · 401 | public |
-| `POST` | `/api/v1/auth/refresh` | 200 · 401 | valid Tenant session |
+| `POST` | `/api/v1/auth/refresh` | 200 · 401 | valid refresh-token session |
 | `POST` | `/api/v1/auth/logout` | 204 · 401 | authenticated |
 | `GET` | `/api/v1/auth/me` | 200 · 401 | authenticated |
 | `POST` | `/api/v1/auth/forgot-password` | 202 | Tenant context |
@@ -34,7 +34,7 @@ Authenticated business endpoints derive Tenant context exclusively from the veri
 Tenant claim; no `x-tenant-id` is required or trusted, even when supplied. They require an active
 Tenant, an active session, an active User and an eligible ActorProfile. User, role and session
 administration additionally require `system_admin`. Login requires credentials only. Refresh
-requires Tenant context and a valid refresh token. Forgot/reset require Tenant context without
+derives Tenant context from its valid refresh-token session. Forgot/reset require Tenant context without
 an access token; reset additionally requires a valid reset token.
 
 ## 2. Universal Sign In
@@ -97,8 +97,9 @@ changed by email-only Sign In.
 
 Guard order is access-token verification and trusted Tenant binding, then Tenant activation,
 then session/User/ActorProfile authorization. Caller headers cannot select another Tenant.
-Malformed, stale or foreign Tenant headers are ignored on bearer-authenticated routes. Public
-refresh/recovery still validate their explicit Tenant header; email-only login is unchanged.
+Malformed, stale or foreign Tenant headers are ignored on bearer-authenticated routes. Refresh
+derives its Tenant from the persisted refresh-token session; recovery still validates its explicit
+Tenant header. Email-only login is unchanged.
 
 Authentication resolves the active default ActorProfile and stores its id in
 `RequestContext.actorId`. Coarse account administration is enforced by `SystemAdminGuard`.

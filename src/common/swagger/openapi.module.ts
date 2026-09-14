@@ -30,7 +30,7 @@ export function buildOpenApiConfig() {
         in: 'header',
         name: 'x-tenant-id',
         description:
-          'Only for refresh and password recovery. Bearer-authenticated endpoints ignore this header.',
+          'Only for password recovery. Bearer-authenticated endpoints ignore this header.',
       },
       'tenant',
     )
@@ -42,6 +42,53 @@ function serializeForScript(value: unknown): string {
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e');
 }
+
+type ScalarSecurityEntry = {
+  in?: string;
+  name?: string;
+  format?: string;
+};
+
+type ScalarRequestBuiltPayload = {
+  request: Pick<Request, 'headers'>;
+  requestBuilder: { security?: ScalarSecurityEntry[] };
+};
+
+export function normalizeScalarFinalAuthorization({
+  request,
+  requestBuilder,
+}: ScalarRequestBuiltPayload): void {
+  const hasBearerSecurity = requestBuilder.security?.some(
+    (entry) =>
+      entry?.in === 'header' &&
+      entry.name?.toLowerCase() === 'authorization' &&
+      entry.format?.toLowerCase() === 'bearer',
+  );
+  if (!hasBearerSecurity) return;
+
+  const rawToken = request.headers
+    .get('Authorization')
+    ?.split(',')
+    .map((value) => {
+      let token = value.trim();
+      while (/^Bearer(?:\s+|$)/i.test(token)) {
+        token = token.replace(/^Bearer(?:\s+|$)/i, '').trim();
+      }
+      return token;
+    })
+    .find(
+      (token) =>
+        token &&
+        token.toLowerCase() !== 'undefined' &&
+        token.toLowerCase() !== 'null',
+    );
+
+  if (rawToken) request.headers.set('Authorization', `Bearer ${rawToken}`);
+  else request.headers.delete('Authorization');
+}
+
+const scalarAuthorizationNormalizationScript = `
+      configuration.onRequestBuilt = ${normalizeScalarFinalAuthorization.toString()};`;
 
 export function generateDocsHtml(jsonPath: string): string {
   const configuration = {
@@ -63,9 +110,10 @@ export function generateDocsHtml(jsonPath: string): string {
   </head>
   <body>
     <div id="api-reference"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.68.0"></script>
     <script>
       var configuration = ${serializeForScript(configuration)};
+${scalarAuthorizationNormalizationScript}
       Scalar.createApiReference('#api-reference', configuration);
     </script>
   </body>

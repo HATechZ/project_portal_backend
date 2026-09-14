@@ -46,7 +46,7 @@ export class AuthTokenProvider implements SessionAuthenticator {
       {
         id: sessionId,
         userId,
-        refreshTokenHash: this.hash(refreshToken),
+        refreshTokenHash: this.hashRefreshToken(refreshToken),
         ipAddress: request.ip,
         userAgent: request.get('user-agent'),
         expiresAt: new Date(now + refreshTtl * 1000),
@@ -62,7 +62,7 @@ export class AuthTokenProvider implements SessionAuthenticator {
   }
 
   async rotate(refreshToken: string, request: Request): Promise<AuthTokens> {
-    const hash = this.hash(refreshToken);
+    const hash = this.hashRefreshToken(refreshToken);
     const session = await this.repository.findValidSessionByTokenHash(hash);
     if (!session) {
       const reused = await this.repository.findSessionByConsumedTokenHash(hash);
@@ -87,7 +87,7 @@ export class AuthTokenProvider implements SessionAuthenticator {
       ),
     );
     const rotated = await this.repository.rotateSession(session.id, hash, {
-      refreshTokenHash: this.hash(nextRefreshToken),
+      refreshTokenHash: this.hashRefreshToken(nextRefreshToken),
       previousRefreshTokenHash: hash,
       ipAddress: request.ip,
       userAgent: request.get('user-agent'),
@@ -172,7 +172,7 @@ export class AuthTokenProvider implements SessionAuthenticator {
     return randomBytes(48).toString('base64url');
   }
 
-  private hash(token: string): string {
+  hashRefreshToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
 }

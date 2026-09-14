@@ -7,6 +7,7 @@ import {
   PrismaReferenceReadExecutor,
   PrismaTransactionClient,
   PrismaLoginResolutionExecutor,
+  PrismaRefreshResolutionExecutor,
 } from './prisma-executor.type';
 import { PrismaService } from './prisma.service';
 import { RequestContext } from '../../common/context/request-context';
@@ -92,6 +93,21 @@ export class UnitOfWorkService {
     }
     return this.prisma.$transaction((transaction) => {
       const executor: PrismaLoginResolutionExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
+  }
+
+  async executeRefreshResolution<T>(
+    work: (executor: PrismaRefreshResolutionExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error('Refresh resolution cannot join a tenant unit of work');
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaRefreshResolutionExecutor = Object.freeze({
         $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
           transaction.$queryRaw<TResult>(query),
       });

@@ -7,6 +7,7 @@ import { AuthPasswordResetProvider } from './providers/auth-password-reset.provi
 import {
   AuthSessionRepository,
   LoginTenantResolverRepository,
+  RefreshTenantResolverRepository,
 } from './repositories';
 import { SESSION_AUTHENTICATOR } from '../common/security/session-authenticator.port';
 import { MailModule } from '../infra/mail/mail.module';
@@ -40,6 +41,7 @@ import { PasswordRecoveryRepository } from './repositories/password-recovery.rep
     AuthPasswordResetProvider,
     AuthSessionRepository,
     LoginTenantResolverRepository,
+    RefreshTenantResolverRepository,
     ActorProfileService,
     ActorProfileRepository,
     SessionAdministrationService,
