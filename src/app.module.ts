@@ -22,6 +22,7 @@ import { CompanyModule } from './company/company.module';
 import { DivisionModule } from './division/division.module';
 import { MemberModule } from './member/member.module';
 import { TeamModule } from './team/team.module';
+import { ClientModule } from './client/client.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TeamModule } from './team/team.module';
     DivisionModule,
     MemberModule,
     TeamModule,
+    ClientModule,
   ],
   controllers: [AppController],
   providers: [AppService],

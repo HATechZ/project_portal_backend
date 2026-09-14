@@ -60,6 +60,9 @@ an address is registered.
 - `[AC-U03]` Business mutations SHALL require an authenticated actor. Login uses credentials;
   refresh uses a valid refresh token and Tenant context; forgot/reset password use Tenant
   context and reset requires a valid single-use token, without an access token.
+- `[AC-U03a]` Client onboarding may internally initiate the existing one-time password-reset
+  lifecycle for a newly provisioned ClientContact User. It SHALL not accept, expose, or retain an
+  administrator-chosen password or create a second setup-token mechanism.
 - `[AC-E01]` WHEN a user signs in validly, the system SHALL create an `auth_sessions` row and return a refresh token whose hash is stored.
 - `[AC-E02]` WHEN a role is revoked, the system SHALL set `revoked_at` and leave the row in place.
 - `[AC-E03]` WHEN a password reset is used, the system SHALL set `used_at` so it cannot be replayed.

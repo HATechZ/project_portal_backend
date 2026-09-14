@@ -92,11 +92,20 @@ and object-scope checks.
 
 ### Create Client
 
-Create the Client organization only.
+System Admin performs one Client onboarding action. It creates the Client organization and its
+initial active Primary ClientContact in one business operation.
 
 Request fields:
 
-- `name` required, non-empty, max 180.
+- `name` required, non-empty, max 180;
+- `primaryContact.name` required, non-empty, max 160;
+- `primaryContact.email` required, valid email, max 255;
+- `primaryContact.designation` optional, max 140;
+- `primaryContact.phone` optional, max 60;
+- `enablePortalAccess` required boolean.
+
+`abbr` is not accepted in V1 because the approved current Client contract has no abbreviation
+field. It requires a separate approved data-contract change before it can enter the request.
 
 Server-managed fields:
 
@@ -106,8 +115,14 @@ Server-managed fields:
 - `isActive = true`;
 - timestamps.
 
-Creating a Client must not automatically create ClientContact, User, UserRole, ActorProfile, or
-portal access state.
+The initial contact is created active with `isPrimary = true`. The request must not accept
+`tenantId`, `companyId`, `roleId`, `userId`, `actorProfileId`, `password`, or `passwordHash`.
+
+When `enablePortalAccess = false`, no User, UserRole, ActorProfile, password, session, or setup
+token is created. When it is true, the backend provisions or establishes the ClientContact's User
+identity under the existing Identity rules, assigns `client_owner`, creates the ClientContact-linked
+ActorProfile, and initiates the secure password setup flow described below. System Admin never
+creates, chooses, receives, or sees that password.
 
 ### List Clients
 
@@ -240,9 +255,9 @@ Rules:
 
 ## Portal Access
 
-Client portal access is established for an existing active ClientContact and existing User. User
-creation, passwords, invitation, credential delivery, sessions, and credential reset behavior
-remain owned by Identity and future credential-delivery modules.
+Client portal access is established for an eligible active ClientContact. User identity, role
+assignment, ActorProfile lifecycle, password setup, sessions, and credential delivery remain owned
+by Identity; Client owns the business orchestration request only.
 
 ### Grant Client Portal Access
 
@@ -250,17 +265,25 @@ The operation:
 
 1. loads an active Client by route id in TenantContext;
 2. loads an active ClientContact by route id and verifies it belongs to that Client and Tenant;
-3. verifies the supplied existing User belongs to the same Tenant;
+3. provisions or establishes the required same-Tenant User identity without accepting a password;
 4. links `ClientContact.userId` to that User if not already linked;
 5. ensures or reuses a `client_owner` UserRole for that User;
 6. ensures or reuses an ActorProfile for that UserRole linked to the same ClientContact;
-7. leaves profile activation/default selection to existing Identity rules.
+7. initiates the one-time password setup flow using the existing Identity password-reset security
+   lifecycle;
+8. leaves profile activation/default selection to existing Identity rules.
 
 The operation is idempotent where practical. Repeating the same grant must not create duplicate
 UserRole or ActorProfile state.
 
-If no eligible existing User is available, return the repository's existing validation/error
-convention for a missing prerequisite. Do not create a User or invent credential semantics.
+The operation may reuse an eligible existing identity only where the existing global-email and
+Identity-linking rules permit it; otherwise it provisions the required User identity. It never
+accepts or returns a password, password hash, setup token, or session credential.
+
+Password setup uses the existing one-time, expiring, hashed reset-token model. The Client user
+chooses the password through the setup link. Production delivery uses the configured
+notification/email mechanism. Development may use the existing safe mail-capture/inspection path
+for the same link flow; the setup token is never exposed in the API response or normal logs.
 
 ### Revoke Client Portal Access
 
@@ -347,6 +370,8 @@ administration.
 - No normal hard-delete API for Client or ClientContact.
 - ClientContact belongs inside module 05 Clients.
 - ClientContact may exist without User.
+- Create Client always creates the initial active Primary ClientContact; additional contacts are
+  separate post-create operations.
 - One Client may have multiple `client_owner` actors.
 - A Client may have zero or one active Primary Contact.
 - Primary Contact does not imply User, portal access, or `client_owner`.

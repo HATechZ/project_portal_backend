@@ -64,9 +64,20 @@ const commonCreate = [
   WorkflowActionCode.RESPOND_WORKFLOW_INFO,
 ];
 
-const supervisorPermissions = Object.values(WorkflowActionCode).filter(
-  (code) => code !== WorkflowActionCode.DECIDE_BID_OUTCOME,
-);
+const clientManagementActions: WorkflowActionCode[] = [
+  WorkflowActionCode.MANAGE_CLIENT,
+  WorkflowActionCode.MANAGE_CLIENT_CONTACT,
+  WorkflowActionCode.MANAGE_CLIENT_PORTAL_ACCESS,
+];
+
+const supervisorPermissions = [
+  ...Object.values(WorkflowActionCode).filter(
+    (code) =>
+      code !== WorkflowActionCode.DECIDE_BID_OUTCOME &&
+      !clientManagementActions.includes(code),
+  ),
+  ...clientManagementActions,
+];
 
 export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
   {

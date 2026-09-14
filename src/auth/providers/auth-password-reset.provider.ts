@@ -44,6 +44,10 @@ export class AuthPasswordResetProvider {
     }
   }
 
+  initiate(email: string): Promise<void> {
+    return this.request(email);
+  }
+
   private async sendInstructions(email: string): Promise<void> {
     const user = await this.repository.findActiveCredentials(
       email.trim().toLowerCase(),

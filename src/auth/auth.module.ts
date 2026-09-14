@@ -10,6 +10,7 @@ import {
   RefreshTenantResolverRepository,
 } from './repositories';
 import { SESSION_AUTHENTICATOR } from '../common/security/session-authenticator.port';
+import { PASSWORD_SETUP_INITIATOR } from '../common/security/password-setup.port';
 import { MailModule } from '../infra/mail/mail.module';
 import { ActorProfileController } from './actor-profile.controller';
 import { ActorProfileService } from './actor-profile.service';
@@ -48,7 +49,8 @@ import { PasswordRecoveryRepository } from './repositories/password-recovery.rep
     SessionAdministrationRepository,
     PasswordRecoveryRepository,
     { provide: SESSION_AUTHENTICATOR, useExisting: AuthTokenProvider },
+    { provide: PASSWORD_SETUP_INITIATOR, useExisting: AuthPasswordResetProvider },
   ],
-  exports: [SESSION_AUTHENTICATOR],
+  exports: [SESSION_AUTHENTICATOR, PASSWORD_SETUP_INITIATOR],
 })
 export class AuthModule {}

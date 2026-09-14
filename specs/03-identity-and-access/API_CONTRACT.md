@@ -84,6 +84,11 @@ Reset tokens are random, stored only as hashes, expiring, and single-use. Reset 
 password replacement are atomic and revoke active sessions. Forgot-password responses do not
 reveal whether the account exists.
 
+The same approved token lifecycle may be initiated internally by Client onboarding when portal
+access is requested for an eligible ClientContact. This is not a new public password endpoint:
+the administrator never supplies or receives a password or setup token, and the Client user sets
+the password through the delivered one-time link.
+
 Enqueue failures retain the generic 202 response and retire only the undelivered token. A
 delivery failure after enqueue does not change the already-returned response. Recovery issuance
 and reset serialize per User; only the latest committed issuance is valid. Mail delivery and

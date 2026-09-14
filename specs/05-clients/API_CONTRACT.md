@@ -14,16 +14,31 @@ Body:
 
 ```json
 {
-  "name": "Acme Corporation"
+  "name": "DEME",
+  "primaryContact": {
+    "name": "John Smith",
+    "email": "john.smith@deme.com",
+    "phone": "+8801712345678",
+    "designation": "Project Manager"
+  },
+  "enablePortalAccess": true
 }
 ```
 
 Behavior:
 
-- creates the external customer organization only;
+- creates the external customer organization and its initial active Primary ClientContact;
 - derives Tenant and Company scope server-side;
 - starts active;
-- does not create contacts, users, roles, ActorProfiles, invitations, or credentials.
+- rejects caller-supplied `tenantId`, `companyId`, `roleId`, `userId`, `actorProfileId`,
+  `password`, and `passwordHash`;
+- when `enablePortalAccess` is false, creates no portal identity or setup state;
+- when `enablePortalAccess` is true, provisions or establishes the primary contact's User,
+  assigns `client_owner`, creates the ClientContact-linked ActorProfile, and initiates the
+  existing secure one-time password setup flow;
+- never returns a password, password hash, setup token, or session credential.
+
+`abbr` is not part of this V1 request because no approved current Client field supports it.
 
 Authorization:
 
@@ -255,26 +270,19 @@ Authorization:
 
 Swagger title: `Grant Client Portal Access`
 
-Body:
-
-```json
-{
-  "userId": "existing-user-id"
-}
-```
-
 Behavior:
 
 - validates Client in TenantContext and Company scope;
 - validates Client and ClientContact are active;
 - validates ClientContact belongs to the route Client;
-- validates User exists in the same Tenant;
-- links `ClientContact.userId` to the User when not already linked;
+- provisions or establishes the same-Tenant User identity without accepting a User ID or password;
+- links `ClientContact.userId` to that User when not already linked;
 - ensures or reuses the User's `client_owner` UserRole;
 - ensures or reuses an ActorProfile for that UserRole linked to the ClientContact;
+- initiates secure one-time password setup using the existing Identity reset-token lifecycle;
 - follows existing Identity activation/default-profile rules;
 - is idempotent for repeated identical grant;
-- returns business assignment state without exposing password/session internals.
+- returns business assignment state without exposing password, setup-token, or session internals.
 
 Response business fields:
 
@@ -288,7 +296,7 @@ Response business fields:
     "id": "contact-id",
     "name": "Jane Customer",
     "email": "jane@example.com",
-    "userId": "existing-user-id"
+    "userId": "provisioned-or-established-user-id"
   },
   "portalAccess": {
     "role": "client_owner",
@@ -298,10 +306,14 @@ Response business fields:
 }
 ```
 
-User provisioning:
+User provisioning and setup:
 
-- User must already exist.
-- This operation must not create password, invitation, credential, or session behavior.
+- The backend provisions or establishes the User under the existing Identity model; Client does
+  not accept an existing User ID as a prerequisite.
+- System Admin never creates, chooses, sees, or knows the password.
+- The Client user chooses a password from the one-time, expiring setup link. Token handling,
+  hashing, expiry, single use, and production email delivery reuse the approved Identity reset
+  lifecycle; development may use its safe delivery inspection path.
 
 Authorization:
 

@@ -122,6 +122,9 @@ enum WorkflowActionCode {
   DECIDE_BID_OUTCOME
   REQUEST_ARCHIVED_BID_REVIEW
   UPDATE_SETTINGS
+  MANAGE_CLIENT
+  MANAGE_CLIENT_CONTACT
+  MANAGE_CLIENT_PORTAL_ACCESS
   @@map("workflow_action_code")
 }
 
@@ -661,6 +664,7 @@ model ClientContact {
   workflowInfoRequestsByTargetClientContactId WorkflowInfoRequest[] @relation("WorkflowInfoRequestsTargetClientContactIdClientContacts")
   @@unique([id, tenantId])
   @@unique([tenantId, clientId, email])
+  // PostgreSQL migration enforces at most one active primary contact per client.
   @@index([email])
   @@index([tenantId])
   @@map("client_contacts")

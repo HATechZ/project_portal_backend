@@ -53,6 +53,7 @@ directory exists, so this table cannot silently rot.
 | `src/division/division.module.ts` | `specs/04.1-division` |
 | `src/member/member.module.ts` | `specs/04.2-member` |
 | `src/team/team.module.ts` | `specs/04.3-team` |
+| `src/client/client.module.ts` | `specs/05-clients` |
 
 `src/app.module.ts` is the composition root and is exempt — it registers modules but owns no
 domain surface of its own.

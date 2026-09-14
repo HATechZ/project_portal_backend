@@ -14,7 +14,11 @@ When implementing Module 05, start the API and record each focused HTTP/RLS chec
 
 Required checks:
 
-- system_admin creates Client in own Company.
+- system_admin creates Client plus initial active Primary ClientContact in own Company.
+- Create Client derives Tenant/Company and rejects caller identity/password control fields.
+- Create Client with portal access disabled creates no portal identity or setup state.
+- Create Client with portal access enabled provisions or establishes client_owner access and
+  initiates one-time password setup without exposing password or token material.
 - system_admin lists only in-scope Clients.
 - system_admin gets and updates in-scope Client.
 - system_admin deactivates and reactivates Client.
@@ -29,9 +33,10 @@ Required checks:
 - Set Primary Client Contact succeeds for one active contact.
 - setting a new primary atomically unsets the previous primary.
 - deactivating the primary contact clears active primary state.
-- Grant Client Portal Access succeeds for same-tenant existing User.
+- Grant Client Portal Access provisions or establishes eligible same-Tenant User access and
+  initiates one-time password setup without requiring a caller-supplied User ID.
 - Grant Client Portal Access is idempotent.
-- Grant Client Portal Access fails when User is missing.
+- Grant Client Portal Access handles an existing global email through the approved Identity linking and conflict rules without creating duplicate User state.
 - Grant Client Portal Access fails for inactive Client or inactive ClientContact.
 - Grant Client Portal Access fails for cross-tenant/cross-company User or Contact.
 - Revoke Client Portal Access preserves ClientContact/User/history and disables new acting use.

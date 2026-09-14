@@ -74,12 +74,25 @@ Lifecycle:
 - inactive contacts cannot be used for new portal or workflow operations;
 - deactivating the active primary contact clears `is_primary`.
 
+Create Client onboarding:
+
+- one Create Client action creates the Client and initial active Primary ClientContact together;
+- the request receives Client business fields, primary-contact business fields, and
+  `enablePortalAccess` only; Tenant, Company, IDs, User, role, ActorProfile, and password fields
+  are server-managed and caller-forbidden;
+- `enablePortalAccess: false` creates no identity or setup records;
+- `enablePortalAccess: true` provisions or establishes the primary contact's User identity,
+  `client_owner` UserRole, ClientContact-linked ActorProfile, and secure password setup through
+  the existing Identity reset-token lifecycle.
+
 Primary contact:
 
 - a Client may have zero or one active Primary Contact;
 - setting a new primary atomically unsets the previous primary;
 - selected primary contact must be active and belong to the Client;
 - primary status does not imply User, portal access, or `client_owner`.
+- concurrent writes must preserve this zero-or-one-active-primary invariant; implementation must
+  use a database-enforced or transactionally serialized backstop, not a read-then-write check.
 
 ## Portal Access Data Contract
 
@@ -95,15 +108,22 @@ actor_profiles.client_contact_id -> client_contacts.id
 Rules:
 
 - The Client and ClientContact must be active for new portal access grants.
-- The User must already exist.
-- The User must belong to the same Tenant as the ClientContact.
+- The backend provisions or establishes the User identity under the existing globally canonical
+  email and Tenant ownership rules; callers do not supply User identity or password fields.
+- The established User belongs to the same Tenant as the ClientContact.
 - The ActorProfile must target the same ClientContact.
 - `client_owner` access is scoped through ActorProfile -> ClientContact -> Client.
 - One Client may have multiple ClientContacts with `client_owner` portal access.
-- Repeated portal access grant must reuse existing UserRole and ActorProfile state when valid.
+- Repeated portal access grant must reuse valid User, UserRole, and ActorProfile state when
+  possible and must not duplicate access state.
 - Revocation preserves historical references and makes the affected acting context unavailable for
   new portal/workflow operations.
-- Client and ClientContact creation do not create identity state.
+- Initial Create Client onboarding creates identity/setup state only when `enablePortalAccess` is
+  true. Additional ClientContact creation creates no identity state; a later portal-access grant
+  follows the same provisioning/setup pattern.
+- Setup tokens follow the existing PasswordResetToken security model: random, stored only as a
+  hash, one-time, expiring, and never returned in ordinary API payloads or logs. Production uses
+  configured email/notification delivery; development may inspect the same secure delivery flow.
 
 ## Permission Data Contract
 
