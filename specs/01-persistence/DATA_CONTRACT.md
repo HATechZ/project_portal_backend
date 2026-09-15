@@ -63,15 +63,20 @@ An unsupported DBML type throws at generation time rather than emitting somethin
 
 ---
 
-## 3. Connection
+## 3. Connections
 
 Prisma 7 with the **driver adapter** `@prisma/adapter-pg`. The `datasource` block declares
 no `url`:
 
-| Context | Source of `DATABASE_URL` |
+| Context | Connection and source |
 |---|---|
-| CLI (`migrate`, `studio`) | `prisma.config.ts` → `env('DATABASE_URL')` via `dotenv/config` |
-| Runtime | `PrismaService` → `ConfigService.get('database.url')` → `new PrismaPg(...)` |
+| Normal serving runtime | `DATABASE_URL` → `database.url` → `PrismaService` application client (`app_user`) |
+| Privileged relay runtime | `DATABASE_URL_PRIVILEGED` → `database.privilegedUrl` → separate `PrismaService.unscoped` client (`app_relay`) |
+| Administrative migration session | Provider/table-owner connection supplied temporarily as `DATABASE_URL` → `prisma.config.ts` via `dotenv/config` |
+
+Normal repositories never receive the privileged client. `PrismaService.unscoped` is reserved
+for the approved cross-tenant relay path. The provider/table-owner credential is migration-only:
+it is not retained in the NestJS runtime environment or used as a serving connection.
 
 Consequence: a tutorial that says to put `url = env("DATABASE_URL")` in the schema is written
 for Prisma 5 and will not apply here.
@@ -105,6 +110,13 @@ Re-entrancy: if a transaction is already in the AsyncLocalStorage store, `execut
 callback against it and does **not** open a second one. This is what makes
 `service → repository → repository` composition safe.
 
-`BaseRepository.db` returns the ambient transaction client when one is open, otherwise
-`PrismaService`. A repository therefore never knows whether it is in a transaction, which is
-the point.
+For a root unit of work, `execute` obtains the tenant from `RequestContext`, opens a transaction
+on the normal scoped application client, and first executes the safely bound
+`set_config('app.tenant_id', tenantId, true)`. The `true` flag makes the setting
+transaction-local. Only after that statement completes does the transaction enter the
+AsyncLocalStorage store and become available to repository work.
+
+`BaseRepository.db` returns only the ambient transaction client. Access without an active unit
+of work throws; it never falls back to the root `PrismaService`. `BaseRepository.transaction`
+opens the root unit of work when necessary and joins the stored transaction when one already
+exists. The privileged relay client is outside this repository path.

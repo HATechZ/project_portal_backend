@@ -1,0 +1,486 @@
+{
+  "executedAt": "2026-09-08T04:37:40.849Z",
+  "databaseRole": "app_user",
+  "host": "Production AppModule; background workers/throttler disabled, uncached Redis reads, mail capture; fixture setup/inspection/cleanup uses maintenance connection",
+  "cleanup": true,
+  "checks": [
+    "Rejected updates leave persisted Company unchanged",
+    "Duplicate-email failure after Tenant/Company insert rolls back workspace; unknown type creates nothing",
+    "Exactly one Company per signup Tenant; two-way Tenant isolation"
+  ],
+  "blockers": [
+    "app_user lacks UPDATE on public.companies; valid rename/retype returns 500. No grant applied."
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/company-type",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (company missing)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (company null)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (company [])",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (admin missing)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (admin null)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (admin [])",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (invalid confirmation)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (invalid confirmation)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (Tenant A)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (Tenant B)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (email only)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (email only)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company?page=1&limit=1",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company?page=2&limit=1",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company?page=0",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (own)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (valid update blocked by UPDATE privilege)",
+      "status": 500,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "INTERNAL_ERROR",
+      "result": "FAIL",
+      "expectedStatus": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (valid update blocked by UPDATE privilege)",
+      "status": 500,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "INTERNAL_ERROR",
+      "result": "FAIL",
+      "expectedStatus": 200
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (own)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (invalid/immutable update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (own)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (no token)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/bad",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (missing)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (foreign target/header)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (reverse isolation)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (no token)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/bad",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (missing)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (foreign target/header)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (reverse isolation)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (email only)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/company/:id (ordinary role)",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/company/:id (ordinary role)",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company (retired create)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (duplicate admin email rolls back)",
+      "status": 409,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "CONFLICT",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (unknown type)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    }
+  ]
+}

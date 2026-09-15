@@ -8,6 +8,7 @@ export interface EnvironmentVariables {
   API_PREFIX: string;
   CORS_ORIGINS: string;
   DATABASE_URL: string;
+  DATABASE_URL_PRIVILEGED: string;
   REDIS_URL: string;
   REDIS_KEY_PREFIX: string;
   JWT_SECRET: string;
@@ -41,6 +42,7 @@ export const env = {
   apiPrefix: 'API_PREFIX',
   corsOrigins: 'CORS_ORIGINS',
   databaseUrl: 'DATABASE_URL',
+  databaseUrlPrivileged: 'DATABASE_URL_PRIVILEGED',
   redisUrl: 'REDIS_URL',
   redisKeyPrefix: 'REDIS_KEY_PREFIX',
   jwtSecret: 'JWT_SECRET',

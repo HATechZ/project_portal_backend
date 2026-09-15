@@ -51,7 +51,7 @@
         > object literal reaches no handler. The relay needs `eventType` → class.
         VERIFY: test -f src/infra/messaging/event-registry.ts && grep -q "eventType" src/infra/messaging/event-registry.ts && grep -q "EVENT_REGISTRY" src/infra/messaging/messaging.module.ts
   - [x] Make the relay the only writer of `publishedAt`
-        VERIFY: test $(grep -rl "publishedAt" src --include=*.ts | grep -vE "^src/(infra/messaging|generated)/" | wc -l) -eq 0
+        VERIFY: test $(grep -rl "publishedAt" src --include=*.ts | grep -vE "^src/(infra/messaging|generated)/" | wc -l) -eq 0 && grep -q "prisma.unscoped" src/infra/messaging/outbox-relay.service.ts && grep -q "DATABASE_URL_PRIVILEGED" src/config/env.schema.ts
   - [x] Retain failed publishes with their error rather than dropping them
         VERIFY: grep -q "attempts" src/infra/messaging/outbox-relay.service.ts && grep -q "lastError" src/infra/messaging/outbox-relay.service.ts
   - [x] Run the relay only where explicitly enabled
@@ -59,7 +59,7 @@
   - [x] Claim events idempotently, confining the P2002 catch to messaging infra
         VERIFY: grep -q "extends BaseRepository" src/infra/messaging/inbox.repository.ts && grep -q "P2002" src/infra/messaging/inbox.repository.ts && test $(grep -rl "P2002" src --include=*.ts | grep -vE "^src/(infra|common/exceptions)/" | wc -l) -eq 0
   - [x] Restore tenant context before a handler touches persistence
-        VERIFY: grep -q "RequestContext.run" src/infra/messaging/event-handler.base.ts && grep -q "tenantId" src/infra/messaging/event-handler.base.ts
+        VERIFY: grep -q "RequestContext.run" src/infra/messaging/event-handler.base.ts && grep -q "tenantId" src/infra/messaging/event-handler.base.ts && grep -q "unitOfWork.execute" src/infra/messaging/event-handler.base.ts
   - [x] Claim and side effect share one transaction so a failed handler retries cleanly
         VERIFY: grep -qE "unitOfWork\.execute|this\.transaction" src/infra/messaging/event-handler.base.ts
   - [x] Close the relay on shutdown

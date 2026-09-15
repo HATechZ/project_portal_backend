@@ -51,17 +51,20 @@ cares.** Neither substitutes for the other.
 | DR-01 | An event is written to the outbox in the producer's transaction, never published inline | `OutboxRepository extends BaseRepository`, writes `this.db` |
 | DR-02 | Only `src/infra/messaging/` names the transport, an exchange, or a routing key | Art. XI assertions |
 | DR-03 | Handlers run post-commit, never inside the producer's transaction | the relay is the sole delivery path, in-process included |
-| DR-04 | A consumer restores tenant context before touching persistence | `RequestContext` opened from the message |
+| DR-04 | A consumer restores tenant context and enters UnitOfWork before touching persistence | message tenant → `RequestContext` → transaction-local `app.tenant_id` |
 | DR-05 | A consumer is idempotent | `@@unique([tenantId, eventId, consumer])` on `processed_events` |
 | DR-06 | Event payloads carry IDs and primitives only — no Prisma types, no secrets | Art. XI §3 assertions |
 | DR-07 | A consumer never triggers a workflow transition | Art. XI §5 |
 | DR-08 | No feature module imports another feature module | Art. XI §1 assertions |
 | DR-09 | Contract evolution is additive; a removed or renamed field is a new routing key | review |
 | DR-10 | The relay is the only writer of `publishedAt` | `OutboxRelayService` |
+| DR-11 | Only the relay uses the privileged cross-tenant database client | `DATABASE_URL_PRIVILEGED` → `app_relay`; producers and consumers use `app_user` |
 
-DR-04 is the one that will bite hardest. A consumer has no HTTP request, so
-`RequestContext.requireTenantId()` is empty and the tenant Prisma extension is inert. Every
-query in a handler that skips this either throws or reads across tenants.
+DR-04 is the one that will bite hardest. A consumer has no HTTP request, so it must restore
+the message tenant into `RequestContext` and enter `UnitOfWorkService.execute(...)`. The root
+unit of work sets transaction-local `app.tenant_id` before repository work. Without that
+boundary, repository access and `app_user` RLS fail closed; absence never grants cross-tenant
+access.
 
 ## Failure modes
 
@@ -75,7 +78,7 @@ query in a handler that skips this either throws or reads across tenants.
 | Handler throws | Its transaction rolls back, dedupe row included, so the retry is clean |
 | Handler keeps throwing | Dead-lettered after the configured attempts; the outbox row stays stamped |
 | Events arrive out of causal order | Handler re-reads current state from Postgres (Art. VI.2) rather than trusting sequence |
-| Consumer missing tenant context | `requireTenantId()` throws — loud, before any query runs |
+| Consumer missing tenant context or UnitOfWork | repository access or `app_user` RLS fails closed before tenant data is returned |
 | Partial index missing | Correct but degrading: relay scans grow with total history rather than backlog |
 
 ## EARS acceptance criteria
@@ -87,11 +90,12 @@ query in a handler that skips this either throws or reads across tenants.
 - `[AC-E01]` WHEN the relay publishes a message, it SHALL stamp `publishedAt` and never republish it.
 - `[AC-E02]` WHEN the transport rejects a publish, the system SHALL leave the row unpublished, increment `attempts`, and record `lastError`.
 - `[AC-E03]` WHEN a consumer receives an event it has already processed, it SHALL skip it without repeating the side effect.
-- `[AC-E04]` WHEN a consumer receives an event, it SHALL open a tenant context from the message before any query.
+- `[AC-E04]` WHEN a consumer receives an event, it SHALL open a tenant context and UnitOfWork from the message before any repository query.
 - `[AC-S01]` WHILE the transport is unreachable, producers SHALL continue to accept writes and enqueue events.
 - `[AC-S02]` WHILE `MESSAGING_RELAY_ENABLED` is false, the process SHALL enqueue events but publish none.
 - `[AC-W01]` IF a handler throws, THEN its dedupe claim SHALL roll back with it so the retry is clean.
-- `[AC-W02]` IF an event carries no `tenantId`, THEN the consumer SHALL reject it rather than query unscoped.
+- `[AC-W02]` IF an event carries no `tenantId`, THEN the consumer SHALL reject it rather than enter persistence.
+- `[AC-S03]` WHILE the relay drains across tenants, it SHALL use only the separate `DATABASE_URL_PRIVILEGED` / `app_relay` client.
 
 ## Out of scope
 

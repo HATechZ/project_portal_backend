@@ -24,8 +24,11 @@ Never write one needing a database, Redis, or the network.
 
 1. No code under `src/` for a module with no `SPEC.md`.
 2. **Never run a database-mutating command** (`prisma migrate*`, `db push`, `db seed`,
-   `studio`, `yarn db:setup`) and **never edit** the DBML, `prisma/schema.prisma`, or
-   `prisma/migrations/`. Propose schema changes in `DATA_CONTRACT.md` and stop.
+   `studio`, `yarn db:setup`). `prisma/schema.prisma` is the maintained schema authority,
+   and `prisma/migrations/` records schema evolution; edit them only for explicitly
+   approved schema work. DBML is only an optional architectural Reference ERD when
+   available/provided, not a required source of truth. Propose unapproved schema changes in
+   `DATA_CONTRACT.md` and stop.
    `prisma generate` is allowed — it never contacts the database.
    **Exception:** the `database-architect` subagent may do schema and dev-migration work.
    → [`rules/08-database.md`](rules/08-database.md)
@@ -35,8 +38,9 @@ Never write one needing a database, Redis, or the network.
 6. `process.env` only in `src/config/configuration.ts`.
 7. Work request and project status are derived from the latest event row, never stored.
 8. **The layering law**: `controller → service → repository → this.db`. Each layer depends
-   only on the next; none skips or reaches back. Controllers run no queries; services outside
-   `src/infra/` name no concrete infrastructure. → [`rules/09-solid.md`](rules/09-solid.md)
+   only on the next; none skips or reaches back. Repository access requires an active unit of
+   work and fails closed without one. Controllers run no queries; services outside `src/infra/`
+   name no concrete infrastructure. → [`rules/09-solid.md`](rules/09-solid.md)
 9. Role grants are revoked by timestamp, never deleted.
 10. Record progress in `INDEX.md` and nowhere else.
 11. **Feature modules never import each other** — they publish events. Publish through the

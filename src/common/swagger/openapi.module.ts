@@ -5,11 +5,90 @@ import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { AppConfiguration } from '../../config/configuration';
 import { sharedSchemas } from './shared-schemas';
 
+const bearerAuthDescription =
+  'Paste only the raw accessToken JWT. Do not include "Bearer", "Authorization", the refreshToken, or tokenType; this API reference adds the Bearer prefix automatically. Authenticated requests derive their Tenant from this verified token; no x-tenant-id is needed.';
+
+export function buildOpenApiConfig() {
+  return new DocumentBuilder()
+    .setTitle('Project Portal API')
+    .setDescription(
+      'Project Portal workflow management API. For protected endpoints, authorize with the raw accessToken JWT; the API reference sends it as `Authorization: Bearer <accessToken>`.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: bearerAuthDescription,
+      },
+      'bearer',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-tenant-id',
+        description:
+          'Only for password recovery. Bearer-authenticated endpoints ignore this header.',
+      },
+      'tenant',
+    )
+    .build();
+}
+
 function serializeForScript(value: unknown): string {
   return JSON.stringify(value)
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e');
 }
+
+type ScalarSecurityEntry = {
+  in?: string;
+  name?: string;
+  format?: string;
+};
+
+type ScalarRequestBuiltPayload = {
+  request: Pick<Request, 'headers'>;
+  requestBuilder: { security?: ScalarSecurityEntry[] };
+};
+
+export function normalizeScalarFinalAuthorization({
+  request,
+  requestBuilder,
+}: ScalarRequestBuiltPayload): void {
+  const hasBearerSecurity = requestBuilder.security?.some(
+    (entry) =>
+      entry?.in === 'header' &&
+      entry.name?.toLowerCase() === 'authorization' &&
+      entry.format?.toLowerCase() === 'bearer',
+  );
+  if (!hasBearerSecurity) return;
+
+  const rawToken = request.headers
+    .get('Authorization')
+    ?.split(',')
+    .map((value) => {
+      let token = value.trim();
+      while (/^Bearer(?:\s+|$)/i.test(token)) {
+        token = token.replace(/^Bearer(?:\s+|$)/i, '').trim();
+      }
+      return token;
+    })
+    .find(
+      (token) =>
+        token &&
+        token.toLowerCase() !== 'undefined' &&
+        token.toLowerCase() !== 'null',
+    );
+
+  if (rawToken) request.headers.set('Authorization', `Bearer ${rawToken}`);
+  else request.headers.delete('Authorization');
+}
+
+const scalarAuthorizationNormalizationScript = `
+      configuration.onRequestBuilt = ${normalizeScalarFinalAuthorization.toString()};`;
 
 export function generateDocsHtml(jsonPath: string): string {
   const configuration = {
@@ -31,9 +110,10 @@ export function generateDocsHtml(jsonPath: string): string {
   </head>
   <body>
     <div id="api-reference"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.68.0"></script>
     <script>
       var configuration = ${serializeForScript(configuration)};
+${scalarAuthorizationNormalizationScript}
       Scalar.createApiReference('#api-reference', configuration);
     </script>
   </body>
@@ -51,22 +131,7 @@ export class OpenApiModule {
     const apiPrefix = config.get('app.apiPrefix', { infer: true });
     const docsPath = `/${apiPrefix}/docs`;
     const jsonPath = `/${apiPrefix}/docs-json`;
-    const document = SwaggerModule.createDocument(
-      app,
-      new DocumentBuilder()
-        .setTitle('Project Portal API')
-        .setDescription('Project Portal workflow management API')
-        .setVersion('1.0')
-        .addBearerAuth(
-          { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-          'bearer',
-        )
-        .addApiKey(
-          { type: 'apiKey', in: 'header', name: 'x-tenant-id' },
-          'tenant',
-        )
-        .build(),
-    );
+    const document = SwaggerModule.createDocument(app, buildOpenApiConfig());
     document.components ??= {};
     document.components.schemas = {
       ...document.components.schemas,

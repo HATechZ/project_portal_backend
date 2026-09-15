@@ -42,9 +42,16 @@ A new failure mode means a new `AppErrorCode`, not a bare `HttpException`.
 
 ## 5. Persistence goes through the unit of work
 
-Repositories extend `BaseRepository` and read `this.db`, which resolves to the ambient
-transaction when one is open and `PrismaService` otherwise. Multi-step writes use
-`this.transaction(...)`, which joins an outer transaction rather than nesting.
+Repositories extend `BaseRepository` and read `this.db`, which resolves only to the active
+ambient transaction. Repository access without an active unit of work fails closed; it never
+falls back to the root `PrismaService`. A root `UnitOfWorkService.execute(...)` obtains the
+tenant from `RequestContext`, opens a transaction on the normal `DATABASE_URL` / `app_user`
+client, and safely sets transaction-local `app.tenant_id` before repository work. Nested units
+of work and `this.transaction(...)` join the ambient transaction rather than nesting.
+
+`PrismaService.unscoped` uses the separate `DATABASE_URL_PRIVILEGED` / `app_relay` connection
+and is reserved for the approved cross-tenant relay path. It is not a normal repository
+executor.
 
 Services depend on repositories. Injecting `PrismaService` into a service is permitted only in
 `src/infra/`. Calling `prisma.$transaction` directly bypasses the store — repositories inside

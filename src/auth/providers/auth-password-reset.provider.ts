@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { AppConfiguration } from '../../config/configuration';
@@ -10,7 +15,7 @@ import {
   PASSWORD_HASHER,
   type PasswordHasher,
 } from '../../infra/crypto/password-hasher.port';
-import { AuthSessionRepository } from '../repositories';
+import { PasswordRecoveryRepository } from '../repositories/password-recovery.repository';
 
 const RESET_EMAIL_TEMPLATE = `
 <h1>Reset your password</h1>
@@ -22,14 +27,28 @@ const RESET_EMAIL_TEMPLATE = `
 
 @Injectable()
 export class AuthPasswordResetProvider {
+  private readonly logger = new Logger(AuthPasswordResetProvider.name);
   constructor(
     private readonly config: ConfigService<AppConfiguration, true>,
-    private readonly repository: AuthSessionRepository,
+    private readonly repository: PasswordRecoveryRepository,
     @Inject(PASSWORD_HASHER) private readonly hashingProvider: PasswordHasher,
     @Inject(MAIL_QUEUE) private readonly mailQueue: Queue<MailJobData>,
   ) {}
 
   async request(email: string): Promise<void> {
+    try {
+      await this.sendInstructions(email);
+    } catch {
+      // The public contract is identical for unknown accounts and delivery failures.
+      this.logger.error('Password recovery request could not be completed');
+    }
+  }
+
+  initiate(email: string): Promise<void> {
+    return this.request(email);
+  }
+
+  private async sendInstructions(email: string): Promise<void> {
     const user = await this.repository.findActiveCredentials(
       email.trim().toLowerCase(),
     );
@@ -50,24 +69,29 @@ export class AuthPasswordResetProvider {
     );
     resetUrl.searchParams.set('token', token);
     resetUrl.searchParams.set('tenantId', RequestContext.requireTenantId());
-    await this.mailQueue.add(MAIL_JOB_NAME, {
-      to: user.email,
-      subject: 'Reset your Project Portal password',
-      htmlTemplate: RESET_EMAIL_TEMPLATE,
-      templateContext: {
-        fullName: user.fullName,
-        resetUrl: resetUrl.toString(),
-        expiresInMinutes: Math.ceil(ttlSeconds / 60),
-      },
-      text: [
-        `Hello ${user.fullName},`,
-        '',
-        `Reset your password: ${resetUrl.toString()}`,
-        `This link expires in ${Math.ceil(ttlSeconds / 60)} minutes.`,
-        '',
-        'If you did not request this change, you can ignore this email.',
-      ].join('\n'),
-    });
+    try {
+      await this.mailQueue.add(MAIL_JOB_NAME, {
+        to: user.email,
+        subject: 'Reset your Project Portal password',
+        htmlTemplate: RESET_EMAIL_TEMPLATE,
+        templateContext: {
+          fullName: user.fullName,
+          resetUrl: resetUrl.toString(),
+          expiresInMinutes: Math.ceil(ttlSeconds / 60),
+        },
+        text: [
+          `Hello ${user.fullName},`,
+          '',
+          `Reset your password: ${resetUrl.toString()}`,
+          `This link expires in ${Math.ceil(ttlSeconds / 60)} minutes.`,
+          '',
+          'If you did not request this change, you can ignore this email.',
+        ].join('\n'),
+      });
+    } catch {
+      await this.repository.retireUndeliveredToken(this.hash(token));
+      throw new Error('Password recovery enqueue failed');
+    }
   }
 
   async reset(token: string, newPassword: string): Promise<void> {

@@ -11,6 +11,8 @@ export function toAuthUserResponse(user: SessionUser): AuthUserResponseDto {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
+    country: user.country,
+    phone: user.phone,
     avatarUrl: user.avatarUrl,
     roles: [...new Set(roles)].sort(),
     permissions: [...new Set(permissions)].sort(),

@@ -48,6 +48,9 @@ lerna-debug.log*
 .tmp
 Project_Portal_documentation.pdf
 project_portal_erd.dbml
+# Legacy/reference ERD exports. Prisma schema + migrations are authoritative.
+project_portal_workflow_management_erd.dbml
+.project_portal_workflow_management_erd.dbml
 
 # Runtime data
 pids

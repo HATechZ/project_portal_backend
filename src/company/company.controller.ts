@@ -1,26 +1,21 @@
 import {
-  Body,
   Controller,
+  Body,
+  Patch,
   Get,
   Param,
   ParseUUIDPipe,
-  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { WorkflowActionCode } from '../generated/prisma/client';
-import { Permissions } from '../common/security/permissions.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import { PermissionsGuard } from '../common/security/permissions.guard';
 import { SystemAdminGuard } from '../common/security/system-admin.guard';
 import {
-  ApiStandardArrayResponse,
   ApiStandardBadRequestResponse,
-  ApiStandardConflictResponse,
-  ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
   ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
@@ -30,19 +25,16 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import {
-  CompanyResponseDto,
-  CompanyTypeResponseDto,
-  CreateCompanyDto,
-} from './dtos';
+import { CompanyResponseDto } from './dtos';
 import { CompanyService } from './company.service';
+import { UpdateCompanyDto } from './dtos/update-company.dto';
 
 @ApiTags('company')
-@ApiSecurity({ bearer: [], tenant: [] })
+@ApiSecurity('bearer')
 @Controller()
 @UseGuards(
-  TenantContextGuard,
   AccessTokenGuard,
+  TenantContextGuard,
   AuthenticationGuard,
   ObjectScopeGuard,
   SystemAdminGuard,
@@ -53,27 +45,6 @@ import { CompanyService } from './company.service';
 @ApiStandardForbiddenResponse('System administrator access required')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
-
-  @Get('company-type')
-  @ResponseMessage('Company types returned successfully')
-  @ApiOperation({ summary: 'List company type references' })
-  @ApiStandardArrayResponse(CompanyTypeResponseDto)
-  findCompanyTypes() {
-    return this.companyService.findCompanyTypes();
-  }
-
-  @Post('company')
-  @Permissions(WorkflowActionCode.ADD_COMPANY)
-  @ResponseMessage('Company created successfully')
-  @ApiOperation({ summary: 'Create a company' })
-  @ApiStandardCreatedResponse(CompanyResponseDto, 'Company created')
-  @ApiStandardConflictResponse(
-    'Company abbreviation is already in use',
-    'A company with this abbreviation already exists',
-  )
-  create(@Body() input: CreateCompanyDto) {
-    return this.companyService.create(input);
-  }
 
   @Get('company')
   @ResponseMessage('Companies returned successfully')
@@ -94,5 +65,20 @@ export class CompanyController {
   )
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.companyService.findOne(id);
+  }
+
+  @Patch('company/:id')
+  @ResponseMessage('Company updated successfully')
+  @ApiOperation({
+    summary: 'Rename or retype your Company (system_admin only)',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiStandardOkResponse(CompanyResponseDto, 'Company updated')
+  @ApiStandardNotFoundResponse('Company was not found')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: UpdateCompanyDto,
+  ) {
+    return this.companyService.update(id, input);
   }
 }

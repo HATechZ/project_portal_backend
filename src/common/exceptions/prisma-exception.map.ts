@@ -21,9 +21,16 @@ const UNIQUE_CONSTRAINT_MESSAGES: Record<string, string> = {
   companies_abbr_key: 'A company with this abbreviation already exists',
   companies_tenant_id_abbr_key:
     'A company with this abbreviation already exists',
+  divisions_tenant_id_company_id_abbr_key:
+    'A division with this abbreviation already exists',
   user_roles_active_tenant_user_role_key: 'The user already has this role',
   processed_events_tenant_id_event_id_consumer_key:
     'This event has already been processed by this consumer',
+  workflow_transitions_tenant_id_action_id_from_status_id_key:
+    'A transition already exists for this action and source status',
+  actor_profiles_one_default: 'This person already has a default actor profile',
+  actor_profiles_kind_target:
+    'The actor kind must match exactly one actor profile target',
 };
 
 /**
@@ -45,8 +52,33 @@ function uniqueConstraintMessage(meta: unknown): string | undefined {
   return undefined;
 }
 
+const INVALID_SIGNUP_SQLSTATES = new Set(['22001', '22023', '23503']);
+const UNIQUE_VIOLATION_SQLSTATE = '23505';
+
+function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
+  const meta = error.meta as
+    | {
+        code?: unknown;
+        driverAdapterError?: { cause?: { originalCode?: unknown } };
+      }
+    | undefined;
+
+  const value = meta?.code ?? meta?.driverAdapterError?.cause?.originalCode;
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : '';
+}
+
 export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2034') {
+      return new AppException({
+        code: AppErrorCode.Conflict,
+        message: 'The record changed concurrently; retry the request',
+        status: HttpStatus.CONFLICT,
+        cause: error,
+      });
+    }
     if (error.code === 'P2002') {
       return new AppException({
         code: AppErrorCode.Conflict,
@@ -72,6 +104,28 @@ export function mapPrismaException(error: unknown): AppException | undefined {
         code: AppErrorCode.NotFound,
         message: 'The requested record was not found',
         status: HttpStatus.NOT_FOUND,
+        cause: error,
+      });
+    }
+    if (
+      error.code === 'P2010' &&
+      INVALID_SIGNUP_SQLSTATES.has(rawQuerySqlState(error))
+    ) {
+      return new AppException({
+        code: AppErrorCode.BadRequest,
+        message: 'The Company Account signup data is invalid',
+        status: HttpStatus.BAD_REQUEST,
+        cause: error,
+      });
+    }
+    if (
+      error.code === 'P2010' &&
+      rawQuerySqlState(error) === UNIQUE_VIOLATION_SQLSTATE
+    ) {
+      return new AppException({
+        code: AppErrorCode.Conflict,
+        message: 'The Company Account conflicts with an existing account',
+        status: HttpStatus.CONFLICT,
         cause: error,
       });
     }

@@ -3,7 +3,9 @@ import { ActorRoleCode } from '../../../src/generated/prisma/client';
 export const ROLE_IDS: Record<ActorRoleCode, string> = {
   system_admin: '10000000-0000-4000-8000-000000000001',
   ccr_coordinator: '10000000-0000-4000-8000-000000000003',
+  division_head: '10000000-0000-4000-8000-000000000011',
   division_lead: '10000000-0000-4000-8000-000000000004',
+  team_lead: '10000000-0000-4000-8000-000000000012',
   division_member: '10000000-0000-4000-8000-000000000005',
   tms_manager: '10000000-0000-4000-8000-000000000006',
   tms_drawing: '10000000-0000-4000-8000-000000000007',
@@ -24,9 +26,19 @@ export const roles = [
     description: 'Coordinates CCR workflow activities.',
   },
   {
+    code: ActorRoleCode.division_head,
+    name: 'Division Head',
+    description: 'Oversees division operations across a company.',
+  },
+  {
     code: ActorRoleCode.division_lead,
     name: 'Division Lead',
     description: 'Leads division workflow activities.',
+  },
+  {
+    code: ActorRoleCode.team_lead,
+    name: 'Team Lead',
+    description: 'Leads team workflow activities.',
   },
   {
     code: ActorRoleCode.division_member,

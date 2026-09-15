@@ -16,9 +16,9 @@ async function bootstrap() {
   const port = configService.get('app.port', { infer: true });
   const apiPrefix = configService.get('app.apiPrefix', { infer: true });
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  const applicationUrl = await app.getUrl();
+  const applicationUrl = `http://localhost:${port}`;
   Logger.log(`API running: ${applicationUrl}/${apiPrefix}/v1`, 'Bootstrap');
   Logger.log(`Swagger UI: ${applicationUrl}/${apiPrefix}/docs`, 'Bootstrap');
 }

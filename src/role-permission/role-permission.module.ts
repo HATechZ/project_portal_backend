@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { RolePermissionRepository } from './repositories';
+import { RoleAssignmentRepository } from './repositories/role-assignment.repository';
 import {
   RolePermissionMutationProvider,
   RolePermissionQueryProvider,
@@ -15,7 +15,7 @@ import { RolePermissionService } from './role-permission.service';
     RolePermissionMutationProvider,
     RolePermissionQueryProvider,
     RolePermissionRepository,
-    TenantContextGuard,
+    RoleAssignmentRepository,
   ],
   exports: [RolePermissionQueryProvider],
 })

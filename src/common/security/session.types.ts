@@ -17,6 +17,8 @@ export const sessionUserSelect = (tenantId: string) =>
     id: true,
     fullName: true,
     email: true,
+    country: true,
+    phone: true,
     avatarUrl: true,
     isActive: true,
     lastLoginAt: true,

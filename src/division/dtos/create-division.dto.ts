@@ -1,38 +1,37 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  IsOptional,
   IsString,
   IsUUID,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
-export class CreateCompanyDto {
-  @ApiProperty({ example: 'Haque & Sons Ltd.', maxLength: 180 })
-  @IsString()
+export class CreateDivisionDto {
+  @ApiProperty({ minLength: 1, maxLength: 180 })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
+  @IsString()
   @MinLength(1)
   @MaxLength(180)
   name!: string;
 
-  @ApiProperty({ example: 'HSL', maxLength: 30 })
-  @IsString()
+  @ApiProperty({ minLength: 1, maxLength: 30 })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
+  @IsString()
   @MinLength(1)
   @MaxLength(30)
   abbr!: string;
 
-  @ApiPropertyOptional({
-    format: 'uuid',
-    nullable: true,
-    description: 'Optional normalized company type reference.',
-  })
-  @IsOptional()
+  @ApiPropertyOptional({ format: 'uuid' })
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsUUID()
-  companyTypeId?: string | null;
+  divisionTypeId?: string;
 }

@@ -38,6 +38,7 @@ directory exists, so this table cannot silently rot.
 |---|---|
 | `src/common/swagger/openapi.module.ts` | `specs/00-platform-core` |
 | `src/common/security/security.module.ts` | `specs/02.1-messaging` |
+| `src/common/tenant/tenant.module.ts` | `specs/01.1-schema-integrity` |
 | `src/infra/crypto/crypto.module.ts` | `specs/02.1-messaging` |
 | `src/infra/prisma/prisma.module.ts` | `specs/01-persistence` |
 | `src/infra/redis/redis.module.ts` | `specs/02-infrastructure` |
@@ -49,6 +50,10 @@ directory exists, so this table cannot silently rot.
 | `src/auth/auth.module.ts` | `specs/03-identity-and-access` |
 | `src/role-permission/role-permission.module.ts` | `specs/03-identity-and-access` |
 | `src/company/company.module.ts` | `specs/04-organization` |
+| `src/division/division.module.ts` | `specs/04.1-division` |
+| `src/member/member.module.ts` | `specs/04.2-member` |
+| `src/team/team.module.ts` | `specs/04.3-team` |
+| `src/client/client.module.ts` | `specs/05-clients` |
 
 `src/app.module.ts` is the composition root and is exempt — it registers modules but owns no
 domain surface of its own.

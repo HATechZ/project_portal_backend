@@ -2,96 +2,73 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, WorkflowActionCode } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
-import { PrismaService } from '../../infra/prisma/prisma.service';
+import { BaseRepository } from '../../infra/prisma/base.repository';
+import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 
-const permissionSelect = {
-  id: true,
-  code: true,
-  name: true,
-  description: true,
-  isUserVisible: true,
-  isRevisionAction: true,
-  isInfoRequestAction: true,
-  isAssignmentAction: true,
-  isTerminalAction: true,
-} satisfies Prisma.WorkflowActionDefinitionSelect;
-
-const roleSelect = (tenantId: string) =>
-  ({
-    id: true,
-    code: true,
-    name: true,
-    description: true,
-    isSystemRole: true,
-    createdAt: true,
-    workflowActionRolePermissionsByRoleId: {
-      where: { tenantId, allowed: true },
-      orderBy: { action: { code: 'asc' as const } },
-      select: { action: { select: permissionSelect } },
-    },
-  }) satisfies Prisma.RoleSelect;
-
-const assignmentSelect = (tenantId: string) =>
-  ({
-    id: true,
-    userId: true,
-    roleId: true,
-    assignedByUserId: true,
-    assignedAt: true,
-    revokedAt: true,
-    role: { select: roleSelect(tenantId) },
-  }) satisfies Prisma.UserRoleSelect;
-
-export type RoleRecord = Prisma.RoleGetPayload<{
-  select: ReturnType<typeof roleSelect>;
-}>;
-export type PermissionRecord = Prisma.WorkflowActionDefinitionGetPayload<{
-  select: typeof permissionSelect;
-}>;
-export type UserRoleAssignment = Prisma.UserRoleGetPayload<{
-  select: ReturnType<typeof assignmentSelect>;
-}>;
+import {
+  permissionSelect,
+  roleSelect,
+  assignmentSelect,
+  RoleRecord,
+  PermissionRecord,
+  UserRoleAssignment,
+} from './role-permission.records';
+export { assignmentSelect } from './role-permission.records';
+export type {
+  RoleRecord,
+  PermissionRecord,
+  UserRoleAssignment,
+} from './role-permission.records';
 
 @Injectable()
-export class RolePermissionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export class RolePermissionRepository extends BaseRepository {
+  constructor(unitOfWork: UnitOfWorkService) {
+    super(unitOfWork);
+  }
 
   findRoles(): Promise<RoleRecord[]> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.role.findMany({
-      orderBy: { name: 'asc' },
-      select: roleSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.role.findMany({
+        orderBy: { name: 'asc' },
+        select: roleSelect(tenantId),
+      }),
+    );
   }
 
   findRole(id: string): Promise<RoleRecord | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.role.findUnique({
-      where: { id },
-      select: roleSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.role.findUnique({ where: { id }, select: roleSelect(tenantId) }),
+    );
   }
 
   findPermissions(): Promise<PermissionRecord[]> {
-    return this.prisma.workflowActionDefinition.findMany({
-      orderBy: { code: 'asc' },
-      select: permissionSelect,
-    });
+    return this.transaction((db) =>
+      db.workflowActionDefinition.findMany({
+        orderBy: { code: 'asc' },
+        select: permissionSelect,
+      }),
+    );
   }
 
   findVisiblePermissions(): Promise<PermissionRecord[]> {
-    return this.prisma.workflowActionDefinition.findMany({
-      where: { isUserVisible: true },
-      orderBy: { code: 'asc' },
-      select: permissionSelect,
-    });
+    return this.transaction((db) =>
+      db.workflowActionDefinition.findMany({
+        where: { isUserVisible: true },
+        orderBy: { code: 'asc' },
+        select: permissionSelect,
+      }),
+    );
   }
 
   findPermission(id: string): Promise<PermissionRecord | null> {
-    return this.prisma.workflowActionDefinition.findUnique({
-      where: { id },
-      select: permissionSelect,
-    });
+    return this.transaction((db) =>
+      db.workflowActionDefinition.findUnique({
+        where: { id },
+        select: permissionSelect,
+      }),
+    );
   }
 
   async replaceRolePermissions(
@@ -99,42 +76,48 @@ export class RolePermissionRepository {
     permissionCodes: WorkflowActionCode[],
   ): Promise<RoleRecord> {
     const tenantId = RequestContext.requireTenantId();
-    await this.prisma.$transaction(async (transaction) => {
-      const actions = await transaction.workflowActionDefinition.findMany({
-        where: { code: { in: permissionCodes } },
-        select: { id: true },
-      });
-      await transaction.workflowActionRolePermission.updateMany({
-        where: { tenantId, roleId },
-        data: { allowed: false },
-      });
-      for (const action of actions) {
-        await transaction.workflowActionRolePermission.upsert({
-          where: {
-            tenantId_actionId_roleId: { tenantId, actionId: action.id, roleId },
-          },
-          create: {
-            id: randomUUID(),
-            tenantId,
-            roleId,
-            actionId: action.id,
-            allowed: true,
-          },
-          update: { allowed: true },
+    return this.transaction(
+      async (transaction) => {
+        const actions = await transaction.workflowActionDefinition.findMany({
+          where: { code: { in: permissionCodes } },
+          select: { id: true },
         });
-      }
-    });
-    return this.prisma.role.findUniqueOrThrow({
-      where: { id: roleId },
-      select: roleSelect(tenantId),
-    });
+        await transaction.workflowActionRolePermission.updateMany({
+          where: { tenantId, roleId },
+          data: { allowed: false },
+        });
+        for (const action of actions) {
+          await transaction.workflowActionRolePermission.upsert({
+            where: {
+              tenantId_actionId_roleId: {
+                tenantId,
+                actionId: action.id,
+                roleId,
+              },
+            },
+            create: {
+              id: randomUUID(),
+              tenantId,
+              roleId,
+              actionId: action.id,
+              allowed: true,
+            },
+            update: { allowed: true },
+          });
+        }
+        return transaction.role.findUniqueOrThrow({
+          where: { id: roleId },
+          select: roleSelect(tenantId),
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   findUser(id: string): Promise<{ id: string } | null> {
-    return this.prisma.scoped.user.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+    return this.transaction((db) =>
+      db.user.findUnique({ where: { id }, select: { id: true } }),
+    );
   }
 
   findUserRoles(
@@ -142,11 +125,13 @@ export class RolePermissionRepository {
     includeRevoked = false,
   ): Promise<UserRoleAssignment[]> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.userRole.findMany({
-      where: { userId, ...(includeRevoked ? {} : { revokedAt: null }) },
-      orderBy: { assignedAt: 'desc' },
-      select: assignmentSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.userRole.findMany({
+        where: { userId, ...(includeRevoked ? {} : { revokedAt: null }) },
+        orderBy: { assignedAt: 'desc' },
+        select: assignmentSelect(tenantId),
+      }),
+    );
   }
 
   findActiveAssignment(
@@ -154,27 +139,12 @@ export class RolePermissionRepository {
     roleId: string,
   ): Promise<UserRoleAssignment | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.userRole.findFirst({
-      where: { userId, roleId, revokedAt: null },
-      select: assignmentSelect(tenantId),
-    });
-  }
-
-  createAssignment(
-    userId: string,
-    roleId: string,
-    assignedByUserId: string,
-  ): Promise<UserRoleAssignment> {
-    const tenantId = RequestContext.requireTenantId();
-    return this.prisma.scoped.userRole.create({
-      data: {
-        id: randomUUID(),
-        userId,
-        roleId,
-        assignedByUserId,
-      } as Prisma.UserRoleUncheckedCreateInput,
-      select: assignmentSelect(tenantId),
-    });
+    return this.transaction((db) =>
+      db.userRole.findFirst({
+        where: { userId, roleId, revokedAt: null },
+        select: assignmentSelect(tenantId),
+      }),
+    );
   }
 
   revokeAssignment(
@@ -183,11 +153,16 @@ export class RolePermissionRepository {
     preserveLastAssignment: boolean,
   ): Promise<boolean> {
     const tenantId = RequestContext.requireTenantId();
-    return this.prisma.$transaction(
+    return this.transaction(
       async (transaction) => {
         if (preserveLastAssignment) {
           const activeAssignments = await transaction.userRole.count({
-            where: { tenantId, roleId, revokedAt: null },
+            where: {
+              tenantId,
+              roleId,
+              revokedAt: null,
+              user: { isActive: true },
+            },
           });
           if (activeAssignments <= 1) return false;
         }

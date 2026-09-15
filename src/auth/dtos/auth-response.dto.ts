@@ -8,6 +8,8 @@ export class AuthUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ example: 'System Administrator' }) fullName!: string;
   @ApiProperty({ example: 'admin@project-portal.local' }) email!: string;
+  @ApiPropertyOptional({ nullable: true }) country!: string | null;
+  @ApiPropertyOptional({ nullable: true }) phone!: string | null;
   @ApiPropertyOptional({ nullable: true }) avatarUrl!: string | null;
   @ApiProperty({ enum: ActorRoleCode, isArray: true })
   roles!: ActorRoleCode[];

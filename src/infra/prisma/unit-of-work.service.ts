@@ -3,9 +3,14 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import {
   PrismaExecutor,
+  PrismaProvisioningExecutor,
+  PrismaReferenceReadExecutor,
   PrismaTransactionClient,
+  PrismaLoginResolutionExecutor,
+  PrismaRefreshResolutionExecutor,
 } from './prisma-executor.type';
 import { PrismaService } from './prisma.service';
+import { RequestContext } from '../../common/context/request-context';
 
 @Injectable()
 export class UnitOfWorkService {
@@ -14,7 +19,11 @@ export class UnitOfWorkService {
   constructor(private readonly prisma: PrismaService) {}
 
   get client(): PrismaExecutor {
-    return this.storage.getStore() ?? this.prisma.scoped;
+    const transaction = this.storage.getStore();
+    if (!transaction) {
+      throw new Error('Repository access requires an active unit of work');
+    }
+    return transaction;
   }
   get inTransaction(): boolean {
     return this.storage.getStore() !== undefined;
@@ -30,13 +39,79 @@ export class UnitOfWorkService {
   ): Promise<T> {
     const current = this.storage.getStore();
     if (current) return work(current);
+    const tenantId = RequestContext.requireTenantId();
     return this.prisma.scoped.$transaction(
-      (transaction) => this.storage.run(transaction, () => work(transaction)),
+      async (transaction) => {
+        await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+        return this.storage.run(transaction, () => work(transaction));
+      },
       {
         maxWait: options?.maxWait ?? 5000,
         timeout: options?.timeout ?? 15000,
         isolationLevel: options?.isolationLevel,
       },
     );
+  }
+
+  async executeProvisioning<T>(
+    work: (executor: PrismaProvisioningExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error('Provisioning cannot join a tenant-scoped unit of work');
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaProvisioningExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
+  }
+
+  async executeReferenceRead<T>(
+    work: (executor: PrismaReferenceReadExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error(
+        'A public reference read cannot join a tenant unit of work',
+      );
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaReferenceReadExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
+  }
+
+  async executeLoginResolution<T>(
+    work: (executor: PrismaLoginResolutionExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error('Login resolution cannot join a tenant unit of work');
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaLoginResolutionExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
+  }
+
+  async executeRefreshResolution<T>(
+    work: (executor: PrismaRefreshResolutionExecutor) => Promise<T>,
+  ): Promise<T> {
+    if (this.storage.getStore()) {
+      throw new Error('Refresh resolution cannot join a tenant unit of work');
+    }
+    return this.prisma.$transaction((transaction) => {
+      const executor: PrismaRefreshResolutionExecutor = Object.freeze({
+        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+          transaction.$queryRaw<TResult>(query),
+      });
+      return work(executor);
+    });
   }
 }

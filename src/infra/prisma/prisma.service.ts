@@ -20,11 +20,17 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
   private readonly tenantClient: TenantPrismaClient;
+  private readonly privilegedClient: PrismaClient;
 
   constructor(config: ConfigService<AppConfiguration, true>) {
     super({
       adapter: new PrismaPg({
         connectionString: config.get('database.url', { infer: true }),
+      }),
+    });
+    this.privilegedClient = new PrismaClient({
+      adapter: new PrismaPg({
+        connectionString: config.get('database.privilegedUrl', { infer: true }),
       }),
     });
     this.tenantClient = createTenantPrismaClient(this);
@@ -35,14 +41,16 @@ export class PrismaService
   }
 
   get unscoped(): PrismaClient {
-    return this;
+    return this.privilegedClient;
   }
 
   async onModuleInit(): Promise<void> {
     try {
       await this.$connect();
-      await this.$queryRaw`SELECT 1`;
-      this.logger.log('Database connection established (Prisma/PostgreSQL)');
+      await this.privilegedClient.$connect();
+      this.logger.log(
+        'Application and privileged database connections established',
+      );
     } catch (error) {
       this.logger.error(
         'Database connection failed',
@@ -53,7 +61,10 @@ export class PrismaService
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.$disconnect();
-    this.logger.log('Database connection closed');
+    await Promise.all([
+      this.$disconnect(),
+      this.privilegedClient.$disconnect(),
+    ]);
+    this.logger.log('Application and privileged database connections closed');
   }
 }

@@ -64,9 +64,20 @@ const commonCreate = [
   WorkflowActionCode.RESPOND_WORKFLOW_INFO,
 ];
 
-const supervisorPermissions = Object.values(WorkflowActionCode).filter(
-  (code) => code !== WorkflowActionCode.DECIDE_BID_OUTCOME,
-);
+const clientManagementActions: WorkflowActionCode[] = [
+  WorkflowActionCode.MANAGE_CLIENT,
+  WorkflowActionCode.MANAGE_CLIENT_CONTACT,
+  WorkflowActionCode.MANAGE_CLIENT_PORTAL_ACCESS,
+];
+
+const supervisorPermissions = [
+  ...Object.values(WorkflowActionCode).filter(
+    (code) =>
+      code !== WorkflowActionCode.DECIDE_BID_OUTCOME &&
+      !clientManagementActions.includes(code),
+  ),
+  ...clientManagementActions,
+];
 
 export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
   {
@@ -86,7 +97,13 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.REQUEST_ARCHIVED_BID_REVIEW,
       ...commonCreate,
     ],
+    division_head: [
+      WorkflowActionCode.ADD_DIVISION,
+      WorkflowActionCode.ADD_TEAM,
+      WorkflowActionCode.ASSIGN_LEADER,
+    ],
     division_lead: [
+      WorkflowActionCode.ADD_TEAM,
       WorkflowActionCode.REQUEST_INFO_FROM_MARKETING,
       WorkflowActionCode.PM_LEAD_RESPOND_TO_MEMBER,
       WorkflowActionCode.PM_RETURN_TO_MEMBER,
@@ -137,5 +154,9 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.CLIENT_ACCEPT_FINAL,
       WorkflowActionCode.CLIENT_REJECT_FINAL,
       WorkflowActionCode.DECIDE_BID_OUTCOME,
+    ],
+    team_lead: [
+      WorkflowActionCode.ADD_MEMBER,
+      WorkflowActionCode.ASSIGN_MEMBER,
     ],
   };

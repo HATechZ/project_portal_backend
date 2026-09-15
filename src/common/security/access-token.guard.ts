@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { isUUID } from 'class-validator';
+import { RequestContext } from '../context/request-context';
 import {
   SESSION_AUTHENTICATOR,
   type AccessTokenPayload,
@@ -13,6 +15,7 @@ import {
 } from './session-authenticator.port';
 
 export type AccessTokenRequest = Request & {
+  tenantId?: string;
   accessTokenPayload?: AccessTokenPayload;
 };
 
@@ -33,6 +36,13 @@ export class AccessTokenGuard implements CanActivate {
     request.accessTokenPayload = await this.authenticator.verifyAccessToken(
       match[1],
     );
+    const tenantId = request.accessTokenPayload.tenantId;
+    if (!isUUID(tenantId)) {
+      throw new UnauthorizedException('Invalid access token Tenant');
+    }
+    // Only a verified token may establish the authenticated request's Tenant.
+    RequestContext.setTenantId(tenantId);
+    request.tenantId = tenantId;
     return true;
   }
 }

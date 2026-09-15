@@ -1,6 +1,6 @@
 # Data Contract: 03 — Identity & Access
 
-Six tables. Read alongside `project_portal_workflow_management_erd.dbml` — that file, not
+Seven tables. Read alongside `project_portal_workflow_management_erd.dbml` — that file, not
 this one, is the authority.
 
 ---
@@ -14,6 +14,7 @@ this one, is the authority.
 | `user_roles` | `UserRole` | Grant of a role to a user, revocable without deletion. |
 | `actor_profiles` | `ActorProfile` | A capacity a user acts in. **The audit subject.** |
 | `auth_sessions` | `AuthSession` | A refresh-token session. |
+| `auth_session_consumed_refresh_tokens` | `AuthSessionConsumedRefreshToken` | Retained hashed refresh tokens for replay detection. |
 | `password_reset_tokens` | `PasswordResetToken` | Single-use expiring reset. |
 
 ---
@@ -25,7 +26,10 @@ this one, is the authority.
 | Field | Type | Note |
 |---|---|---|
 | `id` | `String @db.Uuid` | app-generated |
-| `email` | `VarChar(255)` | `@unique` |
+| `fullName` | `VarChar(160)` | required account identity field |
+| `email` | `VarChar(255)` | globally unique canonical lowercase/trimmed login identity; User remains Tenant-owned |
+| `country` | `VarChar(100)?` | nullable for legacy users; required by Company signup |
+| `phone` | `VarChar(60)?` | nullable for legacy users; required by Company signup; not unique |
 | `passwordHash` | `VarChar(255)?` | **nullable** — a user may exist before credentials are issued |
 | `isActive` | `Boolean @default(true)` | false blocks sign-in |
 | `lastLoginAt` | `Timestamp?` | set on successful sign-in |
@@ -35,9 +39,25 @@ credentials are delivered (`project_credential_deliveries`, module 07).
 
 ### `Role`
 
-`code` is `ActorRoleCode @unique`: `system_admin`, `prime_consultant`, `ccr_coordinator`,
-`division_lead`, `division_member`, `tms_manager`, `tms_drawing`, `tms_checking`,
-`tms_approval`, `client_owner`. `isSystemRole` defaults true — seeded, not user-created.
+`code` is `ActorRoleCode @unique`: `system_admin`, `ccr_coordinator`, `division_head`,
+`division_lead`, `team_lead`, `division_member`, `tms_manager`, `tms_drawing`,
+`tms_checking`, `tms_approval`, `client_owner`. `isSystemRole` defaults true — seeded,
+not user-created.
+
+Role alone is never object scope. Authorization combines verified Tenant/Company context,
+active ActorProfile, role/permission, and relevant Division/Team/assignment evidence.
+`division_head` is Company-scoped across all current and future Divisions in the actor's own
+Company; `division_lead` is scoped to one Division; `team_lead` is scoped only to exact Teams
+legitimately led by the actor, with `Team.leadMemberId` as required object-scope evidence.
+
+Leadership creation/assignment authority follows the hierarchy. `system_admin` of the current
+Tenant/Company may create/provision or assign `division_head`; `division_head` may
+create/provision or assign `division_lead` only for a Division inside the same Company;
+`division_lead` may create/provision or assign `team_lead` only for a Team inside that Division;
+`team_lead` may manage or create eligible ordinary Members only within its exact Team scope,
+subject to the approved Member onboarding rules. Creating a leadership user reuses normal
+Member onboarding: `User -> Member -> UserRole -> Member-backed ActorProfile`; no separate
+leader identity model is introduced.
 
 ### `UserRole`
 
@@ -54,23 +74,38 @@ DR-01, because a grant is an account-administration act rather than a workflow a
 |---|---|
 | `userId?` | nullable — a profile can exist before the login does |
 | `roleId` | required |
-| `memberId?` | set for staff actors (module 04) |
-| `clientContactId?` | set for client actors (module 05) |
+| `memberId?` | optional staff target; `(memberId, tenantId)` must identify one Member (module 04) |
+| `clientContactId?` | optional client target; `(clientContactId, tenantId)` must identify one ClientContact (module 05) |
 | `label` | `VarChar(180)`, human-readable |
-| `isDefault` / `isActive` | at most one default per user (DR-03, service-enforced) |
+| `isDefault` / `isActive` | at most one default for each non-null `(tenantId, userId)`, database-enforced |
+
+An ActorProfile may have neither business target (for example, a System Administrator) or
+exactly one of `memberId` and `clientContactId`; both populated is rejected by
+`actor_profiles_at_most_one_business_target`. The partial unique index
+`actor_profiles_one_default_per_user` enforces one default where both tenant and user are
+non-null.
 
 Referenced as `*_by_actor_id` from ~25 tables across modules 07–13. Its inverse relations are
 the longest list in the schema, all named `<table>By<Field>ActorProfiles`.
 
 ### `AuthSession`
 
-`refreshTokenHash VarChar(255)`, `ipAddress?`, `userAgent?`, `expiresAt`, `revokedAt?`.
-Indexes on `[userId]` and `[expiresAt]` — the second exists for a cleanup job that does not
-exist yet.
+`tenantId`, `id`, `userId`, `refreshTokenHash VarChar(255)`,
+`previousRefreshTokenHash VarChar(255)?`, `ipAddress?`, `userAgent?`, `expiresAt`,
+`absoluteExpiresAt`, `revokedAt?`, `createdAt`. Both expiry limits must be in the future.
+Indexes on `[userId]`, `[expiresAt]`, `[previousRefreshTokenHash]` and `[tenantId]`.
+Historical session/token cleanup is deferred; expiry remains enforced on every use.
+
+### `AuthSessionConsumedRefreshToken`
+
+`tenantId`, app-generated `id`, `sessionId`, `tokenHash VarChar(255)`, `consumedAt`.
+Tenant-qualified token uniqueness and a `sessionId` foreign key (cascade on session deletion)
+retain every consumed hash for replay detection beyond the immediately previous token. Rotation and insertion of the
+consumed hash share one transaction. Plaintext refresh tokens are never stored here.
 
 ### `PasswordResetToken`
 
-`tokenHash VarChar(255) @unique`, `expiresAt`, `usedAt?`. Valid ⇔ `usedAt = null` **and**
+`tokenHash VarChar(255)`, unique within `[tenantId, tokenHash]`, `expiresAt`, `usedAt?`. Valid ⇔ `usedAt = null` **and**
 `expiresAt > now()`. Check both; checking one is a replay bug.
 
 ---
@@ -79,8 +114,8 @@ exist yet.
 
 | From | To | Module |
 |---|---|---|
-| `ActorProfile.memberId` | `members` | 04 |
-| `ActorProfile.clientContactId` | `client_contacts` | 05 |
+| `ActorProfile.(memberId, tenantId)` | `members.(id, tenantId)` | 04 |
+| `ActorProfile.(clientContactId, tenantId)` | `client_contacts.(id, tenantId)` | 05 |
 | `User.membersByUserId` | `members` | 04 |
 | `User.clientContactsByUserId` | `client_contacts` | 05 |
 | `Role` → `workflow_transitions`, `workflow_action_role_permissions` | | 09 |
@@ -98,9 +133,114 @@ None. This module stores what it knows. It reads no latest-event tables.
 
 ## 5. Migration impact
 
-All six tables exist in `20260812000000_init`. Implementing this module needs **no
-migration** unless a rule below forces one:
+The original six identity tables exist in `20260812000000_init`; consumed refresh history is
+also present in the current schema. Module 01.1 subsequently added the
+tenant-qualified ActorProfile target FKs, the at-most-one-business-target CHECK, and the
+partial default-profile unique index. Further implementation needs no migration unless a rule
+below forces one:
 
-- Case-insensitive email uniqueness (DR-06) is not expressible in the current unique index. It
-  is currently enforced by normalizing to lower case on write. Making it a database guarantee
-  needs a functional unique index, which means an ERD change and a new migration.
+- Global normalized email identity is enforced by canonical lowercase/trimmed storage plus a
+  global unique constraint. Tenant ownership, the Tenant FK, tenant index, and RLS remain intact.
+- Company Workspace onboarding adds nullable `country` and `phone`. Existing users remain null;
+  signup requires non-empty values. Legacy backfill and later NOT NULL tightening require a
+  separate owner decision.
+
+## Required database privilege change — not applied
+
+Read-only catalog inspection on 2026-09-08 confirmed that the application role `app_user`
+has only `SELECT` on `public.actor_profiles`. The prepared ordinary-user provisioning path
+requires `INSERT` and `UPDATE`; the existing default-profile switch requires `UPDATE`.
+Real runtime execution failed with SQLSTATE `42501` (permission denied for actor_profiles).
+
+The owner must supply the minimum privileges before runtime sign-off:
+
+```sql
+GRANT INSERT, UPDATE ON TABLE public.actor_profiles TO app_user;
+```
+
+This is a privilege prerequisite, not a table/column or RLS-policy reshape. No new schema
+objects are required by the prepared implementation. No grants, migrations, DBML or schema
+changes were made in this task. Existing RLS and Tenant-scoped UnitOfWork remain mandatory;
+`app_relay` is not used for identity writes. Re-run the full runtime tests after the owner
+resolves the privilege prerequisite.
+
+## Proposed schema change
+
+Required for the approved leadership-role foundation; not applied by Codex because Article IX
+marks `prisma/schema.prisma`, migrations, and DBML-generated schema output as owner-only outside
+the database-architect path.
+
+Tables/objects:
+
+- PostgreSQL enum `actor_role_code`: add values `division_head` and `team_lead`.
+- Prisma enum `ActorRoleCode`: add `division_head` and `team_lead`.
+- `roles` seed data: add system roles for `division_head` and `team_lead` with deterministic
+  IDs:
+  - `division_head`: `10000000-0000-4000-8000-000000000011`
+  - `team_lead`: `10000000-0000-4000-8000-000000000012`
+- Permission seed matrix proposal:
+  - `system_admin`: keep the existing supervisor matrix; it may provision/assign
+    `division_head` through existing role assignment.
+  - `division_head` confirmed organization permissions only:
+    `ADD_DIVISION`, `ADD_TEAM`, `ASSIGN_LEADER`.
+    `ADD_DIVISION` covers creating, listing/viewing, updating, and guarded-deleting otherwise
+    deletable Divisions in the actor's own Tenant/Company Division domain; newly created
+    Divisions automatically fall within that Company-wide Division scope. `ADD_TEAM` covers
+    approved Team management and deletion of otherwise-deletable Teams across own-Company
+    Divisions through object scope. `ASSIGN_LEADER` covers provisioning/assigning
+    `division_lead`; none of these grants imply system_admin inheritance or broad role
+    administration.
+    Do not grant `ASSIGN_MEMBER` for Division routing because Division Head does not directly
+    assign Members.
+    Do not grant `UPDATE_SETTINGS`, Client/ClientContact administration, auth/session/security,
+    arbitrary user administration, role/permission administration, or unrelated system_admin
+    operations.
+  - `division_lead`: keep own-Division Team management/member assignment permissions. Use
+    `ASSIGN_LEADER` only for assigning `team_lead` inside own Division once that assignment flow
+    is implemented.
+  - `team_lead` confirmed organization permissions only:
+    `ADD_MEMBER`, `ASSIGN_MEMBER`.
+    `ADD_MEMBER` covers creating eligible ordinary Members in exact Team scope through approved
+    Member onboarding. `ASSIGN_MEMBER` covers assigning eligible Members to the exact led Team.
+
+Deferred workflow-transition capabilities:
+
+- `division_head` needs semantically correct workflow permissions to assign/reroute a Work
+  Request to a Division, review a Division Lead submission, return revision to Division Lead,
+  and approve to the next configured authorized workflow stage.
+- `division_lead` needs semantically correct workflow permissions to assign a Work Request to a
+  Team, review Team Lead submission, return revision to Team Lead, and submit to Division Head.
+- `team_lead` needs semantically correct workflow permissions to assign a Team Member, review
+  Member submission, return revision to Member, and submit to Division Lead.
+- Existing old workflow permissions such as `PM_LEAD_RESPOND_TO_MEMBER`, `PM_RETURN_TO_MEMBER`,
+  `FORWARD_TO_TMS`, `FORWARD_TO_CCR`, `ORIGIN_MANAGER_APPROVE`, `SEND_BACKWARD`, and
+  `REQUEST_INFO_FROM_MARKETING` must not be granted to the new roles unless a current workflow
+  spec verifies their exact semantics match the new hierarchy. If no existing permission has the
+  correct semantics, define the required capability in the workflow/work-request spec before
+  adding final enum codes.
+
+Draft migration SQL shape:
+
+```sql
+ALTER TYPE public.actor_role_code ADD VALUE IF NOT EXISTS 'division_head';
+ALTER TYPE public.actor_role_code ADD VALUE IF NOT EXISTS 'team_lead';
+```
+
+No new table or column is required. `division_head` uses the existing role-only ActorProfile
+shape; `team_lead` uses the existing Member-backed ActorProfile shape plus `teams.lead_member_id`
+object-scope evidence.
+
+What breaks without it:
+
+- Generated `ActorRoleCode` lacks `division_head` and `team_lead`, so runtime code cannot use
+  generated enum members and the temporary string-cast bridge cannot be removed.
+- Seeded roles and permission grants cannot provision or authorize the approved hierarchy.
+- HTTP/runtime verification for `division_head` and real `team_lead` ActorProfiles cannot pass.
+
+Owner apply path:
+
+```text
+MANUAL CHECK
+Command: node scripts/dbml-to-prisma.cjs && corepack yarn prisma:migrate --name add-division-head-team-lead-roles && corepack yarn prisma:generate
+Expected: Prisma enum includes division_head/team_lead, a migration adds the enum values, seed data can reference both roles, and generated ActorRoleCode exposes ActorRoleCode.division_head and ActorRoleCode.team_lead.
+```

@@ -1,89 +1,46 @@
 # Technical Plan: 04 — Organization
 
-**Status:** Retro-spec (Gate 2) · **Related Spec:** `SPEC.md` · **Contract:** `API_CONTRACT.md`
+Contracts: SPEC.md, API_CONTRACT.md, DATA_CONTRACT.md. Status belongs in ../INDEX.md.
 
----
+## Components
 
-## 1. Module tree (as shipped)
+- CompanySignupController -> CompanySignupService -> CompanySignupRepository -> existing
+  narrow provisioning function. DTO validation runs before hashing. Only eight mapped fields,
+  including password hash, cross the provisioning boundary; confirmation stays in validation.
+- CompanyTypeController -> CompanyService -> CompanyQueryProvider -> CompanyRepository public
+  reference read. No Tenant context or relay connection is needed.
+- CompanyController -> CompanyService -> CompanyQueryProvider -> scoped CompanyRepository
+  for list/detail. Shared pagination returns items/meta ordered name asc, id asc.
+- CompanyController -> CompanyService -> CompanyUpdateService -> CompanyRepository for PATCH.
+  UpdateCompanyDto accepts only name/type. Service rejects empty patches, checks Company before
+  type validity to conceal foreign records, and maps the result using the existing mapper.
 
-```
-src/company/
-├── company.module.ts              # no imports — guards arrive via the global SecurityModule
-├── company.controller.ts          # routes + guards + Swagger, no queries
-├── company.service.ts             # delegates; owns no logic of its own
-├── dtos/
-│   ├── create-company.dto.ts      # class-validator + @Transform trimming
-│   └── company-response.dto.ts    # CompanyResponseDto, CompanyTypeResponseDto
-├── providers/
-│   ├── company-mutation.provider.ts   # writes
-│   ├── company-query.provider.ts      # reads + pagination
-│   └── company.mapper.ts              # record → DTO, pure functions
-└── repositories/
-    └── company.repository.ts      # the only file that names Prisma
-```
+## Authorization and persistence
 
-The service is a pass-through. That reads as ceremony, and for one aggregate it nearly is — but
-it is the seam that keeps the controller from binding to two providers, and it is where the
-transaction boundary will go when writes stop being single-statement.
+CompanyController applies AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard ->
+ObjectScopeGuard -> SystemAdminGuard -> PermissionsGuard to reads/updates. system_admin is
+required; no additional workflow action permission is attached. JWT Tenant is authoritative.
 
-## 2. Read and write paths
+CompanyRepository extends BaseRepository. Operations join/open the normal Tenant UnitOfWork
+under app_user/RLS. Update is one mapped statement for supplied fields plus updatedAt. Identity,
+abbreviation, slug, Tenant and activation are never included. Prechecks improve domain errors;
+FK/unique constraints and RLS remain authoritative under races. Same-field updates use last
+commit wins, and omitted fields are preserved. Shared Prisma translation handles conflicts.
 
-```
-GET /company        controller → service → CompanyQueryProvider → paginate() → repository.scoped
-GET /company-type   controller → service → CompanyQueryProvider → repository.unscoped
-POST /company       controller → service → CompanyMutationProvider
-                                              ├─ findCompanyType()  ← pre-flight, unscoped
-                                              └─ create()           ← scoped, app-generated id
-```
+Signup's existing SECURITY DEFINER function is its atomic boundary. It resolves system_admin,
+creates the default role-only profile and approved permission matrix. No schema/function/grant
+changes or cross-feature imports are introduced; app_relay remains outside this module.
 
-### The two clients, and why
+## Verification
 
-`CompanyRepository` reaches for `prisma.scoped` for companies and plain `prisma.*` for company
-types. This is not an oversight:
+1. Focused DTO/service/repository and HTTP boundary tests without external services.
+2. Production AppModule curl walkthrough using real app_user/RLS, isolated background workers,
+   temporary workspaces/types and cleanup. Cover signup, pagination, reads, updates, validation,
+   authorization, two-way Tenant isolation, rollback, envelopes and request IDs.
+3. Full Jest, lint, build, Prisma validate, Tenant-scope and spec verification.
+4. Independent task verification before ticking leaves and reconciling INDEX.
 
-| Table | `tenant_id`? | Client | Why |
-|---|---|---|---|
-| `companies` | yes | `prisma.scoped` | tenant extension injects the filter |
-| `company_types` | **no** | `prisma.companyType` | global reference data; a scoped read would filter on a column that does not exist |
-
-Any future reader who "fixes" the second one to `.scoped` will break company types entirely.
-That is the single most likely wrong change to this file.
-
-### The pre-flight check is not the guard
-
-`findCompanyType` before insert produces a clean 400 instead of a raw foreign-key error. It is a
-convenience, not the constraint — the row can vanish between the check and the insert, so the
-`P2003` branch still has to exist. The FK is the guarantee; the lookup is the message.
-
-## 3. Pagination
-
-`paginate(query, fetch, count)` from `src/common/pagination/`. Ordering is `name asc, id asc` —
-the `id` tiebreak matters: `name` is not unique, and without a total order a row can appear on
-two pages or none.
-
-## 4. Errors
-
-| Case | Path | Result |
-|---|---|---|
-| Duplicate abbr | `P2002` caught in the provider | 409 |
-| Unknown type, checked | pre-flight lookup | 400 |
-| Unknown type, raced | `P2003` caught in the provider | 400 |
-| Missing company | `findById` returns null | 404 |
-
-Catching Prisma errors in the provider is a **deviation** (Art. VI.4) — `mapPrismaException`
-owns this translation. It is recorded rather than fixed because the fix belongs with the
-repository rework in Phase 3, not on its own.
-
-## 5. Sequencing
-
-| Phase | Content | State |
-|---|---|---|
-| 1 | Reference reads, tenant-scoped company reads, pagination | shipped |
-| 2 | Guarded create with permission + uniqueness | shipped |
-| 3 | Close the deviations — `BaseRepository`, drop the local Prisma catch | **not started** |
-| 4 | Update / deactivate endpoints | not started |
-| 5 | Divisions, members, teams — the module's other 5 tables | not started |
-
-Phase 3 is the one worth doing next: it is entirely local to this module, needs no schema
-change, and removes the last reason this module cannot participate in a transaction with
-another.
+Company lifecycle remains explicitly deferred. Division → Member → Team (including its existing
+membership relation) is specified in child contracts and remains unimplemented; no fourth
+membership module may be created. Member creation and Team assignment remain separate child
+operations with Tenant/Company/Division scope enforced in their own contracts.

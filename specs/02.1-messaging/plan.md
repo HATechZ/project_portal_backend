@@ -22,7 +22,7 @@ src/infra/messaging/
 ├── rabbitmq-event.transport.ts       # adapter #2 — Phase 7, deferred
 ├── outbox.repository.ts              # extends BaseRepository — joins ambient tx
 ├── outbox.service.ts                 # enqueue(event) — the only producer API
-├── outbox-relay.service.ts           # BullMQ repeatable — the only publisher
+├── outbox-relay.service.ts           # the only publisher; privileged app_relay DB path
 ├── inbox.repository.ts               # extends BaseRepository — processed_events claim
 └── event-handler.base.ts             # tenant restore + dedupe wrapper for consumers
 ```
@@ -116,6 +116,10 @@ The claim and the side effect share one transaction, so a throwing handler rolls
 dedupe row and the retry is clean. Claiming in a separate transaction would mark the event
 processed for work that never happened — the same dual-write bug as the outbox, mirrored.
 
+The restored `RequestContext` supplies the tenant to the root `UnitOfWorkService.execute(...)`.
+That transaction uses `DATABASE_URL` / `app_user` and sets transaction-local `app.tenant_id`
+before `inbox.claim` or handler repository work. Missing either boundary fails closed.
+
 `inbox.claim` catches `P2002` locally and returns "already processed". This is the **one**
 sanctioned exception to Art. VI.4: it is control flow, not a failure, and it is confined to
 `src/infra/messaging/`. Art. XI §4 records the exemption so it does not read as a violation.
@@ -159,6 +163,10 @@ queues by tenant count and make bindings unmanageable.
 
 Per Art. VI.6 each of these touches four files together: `env.ts`, `env.schema.ts`,
 `configuration.ts`, `.env.example`.
+
+The relay's cross-tenant drain and stamp operations alone use
+`DATABASE_URL_PRIVILEGED` / `app_relay` through `PrismaService.unscoped`. Producers and
+consumers never receive that executor; they persist through the normal app-user UnitOfWork.
 
 ---
 

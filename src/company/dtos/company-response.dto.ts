@@ -21,6 +21,9 @@ export class CompanyResponseDto {
   @ApiProperty({ example: 'HSL' })
   abbr!: string;
 
+  @ApiProperty({ example: 'haque-and-sons' })
+  workspaceSlug!: string;
+
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   companyTypeId!: string | null;
 

@@ -1,6 +1,19 @@
 const fs = require('node:fs');
 
-const input = fs.readFileSync('project_portal_workflow_management_erd.dbml', 'utf8');
+const inputPath = 'project_portal_workflow_management_erd.dbml';
+
+if (!fs.existsSync(inputPath)) {
+  console.error(
+    [
+      'Deprecated legacy DBML converter: DBML is optional historical/reference material.',
+      'The maintained schema authority is prisma/schema.prisma plus prisma/migrations/**.',
+      `No ${inputPath} file was found; nothing was generated.`,
+    ].join('\n'),
+  );
+  process.exit(1);
+}
+
+const input = fs.readFileSync(inputPath, 'utf8');
 
 function cleanSource(source) {
   let result = source.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -13,6 +26,7 @@ function pascal(value) {
 }
 
 function singular(value) {
+  if (value.endsWith('priorities')) return `${value.slice(0, -3)}y`;
   if (value.endsWith('statuses')) return value.slice(0, -2);
   if (value.endsWith('categories')) return `${value.slice(0, -3)}y`;
   if (value.endsWith('companies')) return `${value.slice(0, -3)}y`;
@@ -72,29 +86,76 @@ for (const match of source.matchAll(tablePattern)) {
 }
 
 const refs = [];
-for (const match of source.matchAll(/^Ref:\s+(\w+)\.(\w+)\s*([><-])\s*(\w+)\.(\w+)/gm)) {
-  refs.push({ fromTable: match[1], fromField: match[2], kind: match[3], toTable: match[4], toField: match[5] });
+const refPattern = /^Ref(?:\s+(\w+))?:\s+(\([^\r\n]+\)|\w+\.\w+)\s*([><-])\s*(\([^\r\n]+\)|\w+\.\w+)(?:\s+\[([^\]]+)\])?/gm;
+function parseRefEndpoint(endpoint) {
+  const fields = endpoint.trim().replace(/^\(|\)$/g, '').split(',').map((field) => field.trim());
+  const parsed = fields.map((field) => field.match(/^(\w+)\.(\w+)$/));
+  if (parsed.some((field) => !field)) throw new Error(`Invalid ref endpoint ${endpoint}`);
+  const table = parsed[0][1];
+  if (parsed.some((field) => field[1] !== table)) throw new Error(`Mixed-table ref endpoint ${endpoint}`);
+  return { table, fields: parsed.map((field) => field[2]) };
+}
+for (const match of source.matchAll(refPattern)) {
+  const from = parseRefEndpoint(match[2]);
+  const to = parseRefEndpoint(match[4]);
+  if (from.fields.length !== to.fields.length) throw new Error(`Mismatched composite ref ${match[0]}`);
+  const settings = new Map();
+  for (const setting of (match[5] ?? '').split(',')) {
+    const parsed = setting.trim().match(/^(delete|update):\s*(cascade|restrict|set null|no action)$/i);
+    if (parsed) settings.set(parsed[1].toLowerCase(), parsed[2].toLowerCase());
+  }
+  refs.push({
+    name: match[1], fromTable: from.table, fromFields: from.fields, kind: match[3],
+    toTable: to.table, toFields: to.fields, onDelete: settings.get('delete'),
+    onUpdate: settings.get('update'),
+  });
+}
+
+function prismaReferentialAction(action) {
+  return ({ cascade: 'Cascade', restrict: 'Restrict', 'set null': 'SetNull', 'no action': 'NoAction' })[action];
 }
 
 for (const ref of refs) {
   const from = tables.get(ref.fromTable);
   const to = tables.get(ref.toTable);
   if (!from || !to) throw new Error(`Invalid ref ${JSON.stringify(ref)}`);
-  const relationName = pascal(`${ref.fromTable}_${ref.fromField}_${ref.toTable}`);
-  const fk = from.columns.find((column) => column.name === ref.fromField);
-  if (!fk) throw new Error(`Missing FK ${ref.fromTable}.${ref.fromField}`);
-  let forwardName = camel(ref.fromField.replace(/_id$/, ''));
+  const usesPrismaDefaultRelationName =
+    ref.toTable === 'tenants' ||
+    (ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions');
+  const primaryFromField = ref.fromFields[0];
+  const relationName = ref.name ?? (usesPrismaDefaultRelationName ? undefined : pascal(`${ref.fromTable}_${primaryFromField}_${ref.toTable}`));
+  const foreignKeys = ref.fromFields.map((field) => from.columns.find((column) => column.name === field));
+  if (foreignKeys.some((field) => !field)) throw new Error(`Missing FK in ${ref.fromTable}.(${ref.fromFields.join(', ')})`);
+  const hasUniqueSingleForeignKey = ref.fromFields.length === 1 && (
+    foreignKeys[0].unique ||
+    from.indexes.some((index) => index.unique && index.fields.length === 1 && index.fields[0] === ref.fromFields[0])
+  );
+  let forwardName = camel(primaryFromField.replace(/_id$/, ''));
   if (from.columns.some((column) => camel(column.name) === forwardName)) forwardName += 'Relation';
   const usedForward = new Set(from.relations.map((relation) => relation.field));
   while (usedForward.has(forwardName)) forwardName += 'Relation';
+  const relationArguments = [
+    `fields: [${ref.fromFields.map(camel).join(', ')}]`,
+    `references: [${ref.toFields.map(camel).join(', ')}]`,
+  ];
+  if (ref.onDelete) relationArguments.push(`onDelete: ${prismaReferentialAction(ref.onDelete)}`);
+  if (ref.onUpdate) relationArguments.push(`onUpdate: ${prismaReferentialAction(ref.onUpdate)}`);
+  const relationPrefix = relationName ? `"${relationName}", ` : '';
   from.relations.push({
-    field: forwardName, type: modelName(ref.toTable), optional: !fk.required,
-    annotation: `@relation("${relationName}", fields: [${camel(ref.fromField)}], references: [${camel(ref.toField)}])`,
+    field: forwardName, type: modelName(ref.toTable), optional: foreignKeys.some((field) => !field.required),
+    annotation: `@relation(${relationPrefix}${relationArguments.join(', ')})`,
   });
-  let reverseName = `${camel(ref.fromTable)}By${pascal(ref.fromField)}`;
+  let reverseName = ref.toTable === 'tenants'
+    ? camel(hasUniqueSingleForeignKey ? singular(ref.fromTable) : ref.fromTable)
+    : ref.fromTable === 'auth_session_consumed_refresh_tokens' && ref.toTable === 'auth_sessions'
+      ? 'consumedRefreshTokens'
+      : `${camel(ref.fromTable)}By${pascal(primaryFromField)}`;
   const usedReverse = new Set(to.relations.map((relation) => relation.field));
   while (usedReverse.has(reverseName)) reverseName += 'Relation';
-  to.relations.push({ field: reverseName, type: modelName(ref.fromTable), optional: ref.kind === '-', list: ref.kind !== '-', annotation: `@relation("${relationName}")` });
+  to.relations.push({
+    field: reverseName, type: modelName(ref.fromTable), optional: ref.kind === '-' || hasUniqueSingleForeignKey, list: ref.kind !== '-' && !hasUniqueSingleForeignKey,
+    annotation: relationName ? `@relation("${relationName}")` : '',
+  });
 }
 
 function prismaType(type) {
@@ -148,7 +209,9 @@ for (const table of tables.values()) {
   }
   if (table.relations.length) {
     out.push('');
-    for (const relation of table.relations) out.push(`  ${relation.field} ${relation.type}${relation.list ? '[]' : relation.optional ? '?' : ''} ${relation.annotation}`);
+    for (const relation of table.relations) {
+      out.push(`  ${relation.field} ${relation.type}${relation.list ? '[]' : relation.optional ? '?' : ''} ${relation.annotation}`.trimEnd());
+    }
   }
   const scalarUnique = new Set(table.columns.filter((column) => column.unique).map((column) => column.name));
   for (const index of table.indexes) {
@@ -158,5 +221,6 @@ for (const table of tables.values()) {
   out.push(`  @@map("${table.name}")`, '}', '');
 }
 
+while (out.at(-1) === '') out.pop();
 fs.writeFileSync('prisma/schema.prisma', `${out.join('\n')}\n`);
 console.log(`Generated ${tables.size} models, ${enums.size} enums, and ${refs.length} relations.`);

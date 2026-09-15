@@ -48,11 +48,11 @@ import {
 import { RolePermissionService } from './role-permission.service';
 
 @ApiTags('role & permission')
-@ApiSecurity({ bearer: [], tenant: [] })
+@ApiSecurity('bearer')
 @Controller()
 @UseGuards(
-  TenantContextGuard,
   AccessTokenGuard,
+  TenantContextGuard,
   AuthenticationGuard,
   SystemAdminGuard,
 )

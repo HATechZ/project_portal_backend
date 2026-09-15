@@ -1,18 +1,26 @@
 import { Module } from '@nestjs/common';
-import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { CompanyController } from './company.controller';
+import { CompanySignupController } from './company-signup.controller';
+import { CompanyTypeController } from './company-type.controller';
+import { CompanySignupService } from './company-signup.service';
 import { CompanyService } from './company.service';
-import { CompanyMutationProvider, CompanyQueryProvider } from './providers';
-import { CompanyRepository } from './repositories';
+import { CompanyUpdateService } from './company-update.service';
+import { CompanyQueryProvider } from './providers';
+import { CompanyRepository, CompanySignupRepository } from './repositories';
 
 @Module({
-  controllers: [CompanyController],
+  controllers: [
+    CompanyController,
+    CompanySignupController,
+    CompanyTypeController,
+  ],
   providers: [
     CompanyService,
-    CompanyMutationProvider,
+    CompanyUpdateService,
+    CompanySignupService,
     CompanyQueryProvider,
     CompanyRepository,
-    TenantContextGuard,
+    CompanySignupRepository,
   ],
   exports: [CompanyQueryProvider],
 })

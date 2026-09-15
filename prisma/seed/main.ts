@@ -10,10 +10,12 @@ import { Seeder } from './types';
 import { tenantSeeder } from './seeders/tenant.seeder';
 import { DEFAULT_TENANT_ID } from './data/tenants.data';
 import { permissionsSeeder } from './seeders/permissions.seeder';
+import { companyTypesSeeder } from './seeders/company-types.seeder';
 
 const seeders: Seeder[] = [
   tenantSeeder,
   rolesSeeder,
+  companyTypesSeeder,
   workspaceTypesSeeder,
   projectStatusesSeeder,
   workflowStatusesSeeder,
@@ -37,9 +39,12 @@ function adminConfig() {
 }
 
 export async function runSeed(): Promise<void> {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl =
+    process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
   if (!databaseUrl)
-    throw new Error('DATABASE_URL is required to seed the database');
+    throw new Error(
+      'DATABASE_URL_MIGRATION or DATABASE_URL is required to seed the database',
+    );
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: databaseUrl }),
