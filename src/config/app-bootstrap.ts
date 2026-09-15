@@ -4,10 +4,12 @@ import {
   VersioningType,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { AppConfiguration } from './configuration';
 import { HttpExceptionFilter } from '../common/exceptions/http-exception.filter';
 import { EtagInterceptor } from '../common/interceptors/etag.interceptor';
 import { RequestIdInterceptor } from '../common/interceptors/request-id.interceptior';
+import { TransformInterceptor } from '../common/interceptors/transform.interceptor';
 import { OpenApiModule } from '../common/swagger/openapi.module';
 
 export function configureApplication(app: INestApplication): void {
@@ -31,6 +33,10 @@ export function configureApplication(app: INestApplication): void {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new RequestIdInterceptor(), new EtagInterceptor());
+  app.useGlobalInterceptors(
+    new RequestIdInterceptor(),
+    new EtagInterceptor(),
+    new TransformInterceptor(app.get(Reflector)),
+  );
   OpenApiModule.setup(app);
 }

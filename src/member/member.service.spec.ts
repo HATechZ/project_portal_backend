@@ -18,6 +18,8 @@ describe('MemberService onboarding', () => {
   it('hashes the create password and delegates atomic onboarding without plaintext password', async () => {
     const repository = {
       findScopedCompany: jest.fn().mockResolvedValue(company),
+    };
+    const onboardingRepository = {
       createWithAccess: jest.fn().mockResolvedValue({
         id: 'member-id',
         userId: 'user-id',
@@ -46,6 +48,7 @@ describe('MemberService onboarding', () => {
     const service = new MemberService(
       repository as never,
       {} as never,
+      onboardingRepository as never,
       {} as never,
       scopeProvider as never,
       passwordHasher as never,
@@ -71,17 +74,20 @@ describe('MemberService onboarding', () => {
       company.id,
       'division-id',
     );
-    expect(repository.createWithAccess).toHaveBeenCalledWith(company.id, {
-      name: 'Jane Member',
-      email: 'jane@example.com',
-      passwordHash: 'hashed-password',
-      divisionId: 'division-id',
-      roleId: 'role-id',
-      assignedByUserId: 'admin-user-id',
-      designation: 'Engineer',
-      phone: '+1-555-0100',
-    });
-    expect(repository.createWithAccess).not.toHaveBeenCalledWith(
+    expect(onboardingRepository.createWithAccess).toHaveBeenCalledWith(
+      company.id,
+      {
+        name: 'Jane Member',
+        email: 'jane@example.com',
+        passwordHash: 'hashed-password',
+        divisionId: 'division-id',
+        roleId: 'role-id',
+        assignedByUserId: 'admin-user-id',
+        designation: 'Engineer',
+        phone: '+1-555-0100',
+      },
+    );
+    expect(onboardingRepository.createWithAccess).not.toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ password: 'secret123' }),
     );

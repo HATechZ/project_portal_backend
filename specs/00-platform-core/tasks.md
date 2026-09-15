@@ -31,13 +31,13 @@
 
 - [x] **Phase 2: Response envelope**
   - [x] Wrap every success response as `{ success, data, meta }`
-        VERIFY: grep -q "success: true" src/common/interceptors/response.interceptor.ts && grep -q "new ResponseInterceptor()" src/config/app-bootstrap.ts
+        VERIFY: grep -q "success: true" src/common/interceptors/transform.interceptor.ts && grep -q "new TransformInterceptor(" src/config/app-bootstrap.ts
   - [x] Keep envelope construction out of controllers
         VERIFY: test $(grep -rl "success: true" src --include=*.controller.ts | wc -l) -eq 0
   - [x] Provide Swagger helpers that document the real enveloped shape
         VERIFY: grep -q "wrapEnvelope" src/common/swagger/wrap-envelope.ts && grep -q "ApiPaginatedResponse" src/common/swagger/api-paginated-response.decorator.ts
   - [x] Clamp page size to 100 regardless of the requested limit
-        VERIFY: grep -q "Math.min(100" src/common/pagination/paginate.ts && grep -q "Max(100)" src/common/pagination/pagination-query.dto.ts
+        VERIFY: grep -q "Math.min(100" src/common/pagination/paginate.ts && grep -q "Max(100)" src/common/pagination/dtos/pagination-query.dto.ts
 
 - [x] **Phase 3: Error handling**
   - [x] Format every thrown value through one catch-all filter
@@ -49,7 +49,7 @@
 
 - [x] **Phase 4: Configuration & lifecycle**
   - [x] Read `process.env` in exactly one file
-        VERIFY: test $(grep -rl "process\.env" src --include=*.ts | grep -v "src/config/configuration.ts" | wc -l) -eq 0
+        VERIFY: test $(grep -rl "process\.env" src --include=*.ts | grep -v "src/config/configuration.ts" | grep -v "^src/generated/" | wc -l) -eq 0
   - [x] Fail the boot on invalid configuration
         VERIFY: grep -q "validationSchema: environmentSchema" src/app.module.ts && grep -q "DATABASE_URL" src/config/env.schema.ts
   - [x] Delegate all app wiring out of `main.ts`
@@ -67,7 +67,7 @@
   - [x] No concrete infrastructure adapter is named outside `src/infra/`
         VERIFY: test $(grep -rlE "NodemailerMailSender|HandlebarsTemplateRenderer|RedisThrottlerStorage" src --include=*.ts | grep -v "^src/infra/" | wc -l) -eq 0
   - [x] Only `src/infra/` instantiates an infrastructure client
-        VERIFY: test $(grep -rlE "new (PrismaClient|Redis|Queue|Worker)\(" src --include=*.ts | grep -v "^src/infra/" | wc -l) -eq 0
+        VERIFY: test $(grep -rlE "new (PrismaClient|Redis|Queue|Worker)\(" src --include=*.ts | grep -v "^src/infra/" | grep -v "^src/generated/" | wc -l) -eq 0
   - [x] Controllers stay under 150 lines, services and repositories under 200
         VERIFY: test $(find src -name "*.controller.ts" -exec wc -l {} + | grep -v total | awk '$1>150' | wc -l) -eq 0 && test $(find src \( -name "*.service.ts" -o -name "*.repository.ts" \) -exec wc -l {} + | grep -v total | awk '$1>200' | wc -l) -eq 0
   - [x] One exported class per controller, service, and repository file

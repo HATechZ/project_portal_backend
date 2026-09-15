@@ -1,6 +1,6 @@
 # Tasks: 04.1 - Division
 
-**Status:** Gate 4 - implementation WIP - 8/11 implemented
+**Status:** Gate 5 - COMPLETE - 11/11 verified 2026-09-15
 **Spec Reference:** `SPEC.md` - **Plan Reference:** `plan.md`
 
 Runtime evidence is separately recorded in `walkthrough.md`. Implement in this module before
@@ -24,14 +24,14 @@ Runtime evidence is separately recorded in `walkthrough.md`. Implement in this m
   - [x] Apply the established guard chain and `ADD_DIVISION`; depend on mutation routes, require configured permission and same-Company system_admin without wildcard bypass, and deny division_head/division_lead/team_lead for Division-master CRUD unless later owner approval adds that exact policy. Test 401, 403, own-Tenant allow, foreign-Tenant 404; complete when guard and authorization tests pass.
         VERIFY: grep -q "SystemAdminGuard" src/division/division.controller.ts && grep -q "ADD_DIVISION" src/division/division.controller.ts && corepack yarn test --runInBand --testPathPatterns=division
   - [x] Implement Assign Division Lead orchestration; depend on existing Member/User/UserRole/ActorProfile model, require same-Division linked-User Member, idempotently ensure `division_lead` UserRole and ActorProfile, link profile to Member, and create no Division lead field/table/role/User/password/session. Complete when focused tests pass.
-        VERIFY: grep -q "@Put(':id/lead')" src/division/division.controller.ts && grep -q "ActorRoleCode.division_lead" src/division/repositories/division-lead.repository.ts && ! grep -q "leadMemberId" src/division/dtos/*.ts && corepack yarn test --runInBand --testPathPatterns=division && corepack yarn test --runInBand --testPathPatterns=actor-access
+        VERIFY: grep -q "@Put(':id/lead')" src/division/division-lead.controller.ts && grep -q "ActorRoleCode.division_lead" src/division/repositories/division-lead.repository.ts && ! grep -q "leadMemberId" src/division/dtos/*.ts && corepack yarn test --runInBand --testPathPatterns=division && corepack yarn test --runInBand --testPathPatterns=actor-access
   - [x] Keep services free of Prisma exception catches and infrastructure; depend on all operations, use AppExceptions only for domain outcomes, and rely on centralized Prisma mapping. Test 400/404/409 envelope codes; complete when static and focused tests pass.
         VERIFY: ! grep -rE "PrismaClientKnownRequestError|PrismaService|app_relay" src/division --include='*.service.ts' && corepack yarn test --runInBand --testPathPatterns=division
 
-- [ ] **Phase 4: independent verification and sign-off**
-  - [ ] Add focused unit/integration tests for every positive and negative rule; depend on completed implementation, include no-login/no-side-effect proof, type/unique/race behavior, all authorization cases, and deletion blockers. Complete when the independent test command exits zero.
+- [x] **Phase 4: independent verification and sign-off**
+  - [x] Add focused unit/integration tests for every positive and negative rule; depend on completed implementation, include no-login/no-side-effect proof, type/unique/race behavior, all authorization cases, and deletion blockers. Complete when the independent test command exits zero.
         VERIFY: corepack yarn test --runInBand --testPathPatterns=division
-  - [ ] Execute and record the production HTTP/RLS walkthrough; depend on tests, use app_user with isolated cleanup, cover all six routes, 400/401/403/404/409, two-Tenant isolation, envelope, and x-request-id. Complete only with PASS evidence and cleanup.
+  - [x] Execute and record the production HTTP/RLS walkthrough; depend on tests, use app_user with isolated cleanup, cover all six routes, 400/401/403/404/409, two-Tenant isolation, envelope, and x-request-id. Complete only with PASS evidence and cleanup.
         VERIFY: test -f specs/04.1-division/walkthrough.md && node scripts/verify-division-evidence.cjs http
-  - [ ] Run final module/repository boundary checks; depend on walkthrough, confirm no cross-feature import or transport write, lint/build/spec checks, and update INDEX only after independent verification. Complete when all commands pass.
-        VERIFY: test $(grep -rlE "from '\.\.?/(\.\./)?(auth|user|company|member|team)/" src/division --include=*.ts | wc -l) -eq 0 && corepack yarn lint && corepack yarn build && corepack yarn verify:spec -- --module 04.1-division && corepack yarn verify:sdd:strict
+  - [x] Run final module/repository boundary checks; depend on walkthrough, confirm no cross-feature import or transport write, lint/build/spec checks, and update INDEX only after independent verification. Complete when all commands pass.
+        VERIFY: test $(grep -rlE "from '\.\.?/(\.\./)?(auth|user|company|member|team)/" src/division --include=*.ts | wc -l) -eq 0 && corepack yarn lint && corepack yarn build && corepack yarn verify:spec -- --module 04.1-division && node scripts/verify-division-evidence.cjs http

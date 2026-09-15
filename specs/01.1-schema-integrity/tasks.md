@@ -17,7 +17,7 @@ The owner-approved 2026-09-02 corrections replace the rejected destructive Phase
   - [x] Keep database constraint handling centralized
         VERIFY: test -f src/common/exceptions/prisma-exception.map.ts
 
-- [x] **Phase 6: Row-level security**
+- [ ] **Phase 6: Row-level security**
   - [x] Declare the privileged connection across configuration
         VERIFY: grep -q "DATABASE_URL_PRIVILEGED" src/config/env.schema.ts && grep -q "DATABASE_URL_PRIVILEGED" src/config/configuration.ts && grep -q "DATABASE_URL_PRIVILEGED" src/config/env.ts && grep -q "DATABASE_URL_PRIVILEGED" .env.example
   - [x] Give the relay its own connection
@@ -28,7 +28,7 @@ The owner-approved 2026-09-02 corrections replace the rejected destructive Phase
         VERIFY: grep -q "set_config" src/infra/prisma/unit-of-work.service.ts
   - [x] Route repositories through the unit of work
         VERIFY: test $(grep -rl "PrismaService" src --include='*.repository.ts' | wc -l) -eq 0 && test $(grep -rl "this\.db\." src --include='*.repository.ts' | wc -l) -eq 0
-  - [x] Fail repository access without an active unit of work
+  - [ ] Fail repository access without an active unit of work
         VERIFY: grep -q "Repository access requires an active unit of work" src/infra/prisma/unit-of-work.service.ts && node node_modules/jest/bin/jest.js --runInBand unit-of-work.service.spec.ts
   - [x] Enable RLS on every scoped table and tenant root
         VERIFY: test $(grep -rho "ENABLE ROW LEVEL SECURITY" prisma/migrations/ | wc -l) -ge 53

@@ -25,7 +25,7 @@ const teamA = {
 
 function actor(
   roleCode: ActorRoleCode,
-  member?: { id: string; divisionId: string },
+  member?: { id: string; divisionId: string; ledDivisionIds?: string[] },
 ): ActorScopeContext {
   return {
     actorProfileId: 'actor-profile',
@@ -41,6 +41,8 @@ function actor(
           id: member.id,
           companyId: company.id,
           divisionId: member.divisionId,
+          // 04.1.1: leadership now comes from the led set, not the home column.
+          ledDivisionIds: member.ledDivisionIds ?? [member.divisionId],
           active: true,
           companyActive: true,
           divisionActive: true,

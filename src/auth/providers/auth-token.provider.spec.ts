@@ -20,42 +20,57 @@ describe('AuthTokenProvider refresh rotation', () => {
       userId,
       tenantId,
       refreshTokenHash: '',
-      previousRefreshTokenHash: null,
+      previousRefreshTokenHash: null as string | null,
       expiresAt: new Date(Date.now() + 60_000),
       absoluteExpiresAt: new Date(Date.now() + 120_000),
-      revokedAt: null,
+      revokedAt: null as Date | null,
     };
     const consumedHashes = new Set<string>();
+    type SessionHashes = {
+      refreshTokenHash: string;
+      previousRefreshTokenHash: string;
+    };
     const repository = {
-      recordLoginAndCreateSession: jest.fn(async (_id, input) => {
-        session.refreshTokenHash = input.refreshTokenHash;
-        return issuedUser;
-      }),
-      findValidSessionByTokenHash: jest.fn(async (tokenHash) =>
-        tokenHash === session.refreshTokenHash &&
-        session.revokedAt === null &&
-        session.expiresAt > new Date() &&
-        session.absoluteExpiresAt > new Date()
-          ? session
-          : null,
+      recordLoginAndCreateSession: jest.fn(
+        (_id: string, input: SessionHashes) => {
+          session.refreshTokenHash = input.refreshTokenHash;
+          return Promise.resolve(issuedUser);
+        },
       ),
-      findSessionByConsumedTokenHash: jest.fn(async (tokenHash) =>
-        consumedHashes.has(tokenHash) ? { id: session.id } : null,
+      findValidSessionByTokenHash: jest.fn((tokenHash: string) =>
+        Promise.resolve(
+          tokenHash === session.refreshTokenHash &&
+            session.revokedAt === null &&
+            session.expiresAt > new Date() &&
+            session.absoluteExpiresAt > new Date()
+            ? session
+            : null,
+        ),
       ),
-      findActiveUser: jest.fn(async () => issuedUser),
-      rotateSession: jest.fn(async (_id, currentHash, input) => {
-        if (currentHash !== session.refreshTokenHash) return false;
-        session.refreshTokenHash = input.refreshTokenHash;
-        session.previousRefreshTokenHash = input.previousRefreshTokenHash;
-        consumedHashes.add(currentHash);
-        return true;
-      }),
-      revokeSession: jest.fn(async () => {
+      findSessionByConsumedTokenHash: jest.fn((tokenHash: string) =>
+        Promise.resolve(
+          consumedHashes.has(tokenHash) ? { id: session.id } : null,
+        ),
+      ),
+      findActiveUser: jest.fn(() => Promise.resolve(issuedUser)),
+      rotateSession: jest.fn(
+        (_id: string, currentHash: string, input: SessionHashes) => {
+          if (currentHash !== session.refreshTokenHash) {
+            return Promise.resolve(false);
+          }
+          session.refreshTokenHash = input.refreshTokenHash;
+          session.previousRefreshTokenHash = input.previousRefreshTokenHash;
+          consumedHashes.add(currentHash);
+          return Promise.resolve(true);
+        },
+      ),
+      revokeSession: jest.fn(() => {
         session.revokedAt = new Date();
+        return Promise.resolve();
       }),
     };
     const provider = new AuthTokenProvider(
-      { signAsync: jest.fn(async () => 'access-token') } as never,
+      { signAsync: jest.fn(() => Promise.resolve('access-token')) } as never,
       {
         get: jest.fn((key: string) =>
           key === 'jwt.refreshTtlSeconds'
@@ -93,7 +108,9 @@ describe('AuthTokenProvider refresh rotation', () => {
     expect(consumedHashes.has(hash(originalRefreshToken))).toBe(true);
     expect(session.revokedAt).toBeNull();
 
-    await expect(provider.rotate(originalRefreshToken, request)).rejects.toEqual(
+    await expect(
+      provider.rotate(originalRefreshToken, request),
+    ).rejects.toEqual(
       new UnauthorizedException('Invalid or expired refresh token'),
     );
     expect(repository.revokeSession).toHaveBeenCalledWith(sessionId);

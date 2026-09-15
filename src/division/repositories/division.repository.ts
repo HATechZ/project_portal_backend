@@ -133,6 +133,7 @@ export class DivisionRepository extends BaseRepository {
         projectsByOriginDivisionId,
         workRequestsByAssignedDivisionId,
         workRequestsByOriginDivisionId,
+        divisionLeadsByDivisionId,
       ] = await Promise.all([
         db.division.findFirst({
           where: { ...where, membersByDivisionId: { some: {} } },
@@ -154,6 +155,10 @@ export class DivisionRepository extends BaseRepository {
           where: { ...where, workRequestsByOriginDivisionId: { some: {} } },
           select: { id: true },
         }),
+        db.division.findFirst({
+          where: { ...where, divisionLeadsByDivisionId: { some: {} } },
+          select: { id: true },
+        }),
       ]);
 
       return [
@@ -166,6 +171,7 @@ export class DivisionRepository extends BaseRepository {
         workRequestsByOriginDivisionId
           ? 'workRequestsByOriginDivisionId'
           : null,
+        divisionLeadsByDivisionId ? 'divisionLeadsByDivisionId' : null,
       ].filter((blocker): blocker is DivisionDeleteBlocker => blocker !== null);
     });
   }

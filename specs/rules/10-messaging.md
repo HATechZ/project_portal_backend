@@ -184,7 +184,7 @@ not a boundary violation. Nothing else is exempt.
 | File | Imports | Fix |
 |---|---|---|
 | `user/providers/user-mutation.provider.ts` | `AuthHashingProvider` | `PASSWORD_HASHER` port in `src/infra/crypto/` |
-| `role-permission/role-permission.controller.ts` | `type SessionUser` | move the shape to `src/contracts/` |
+| `role-permission/user-role.controller.ts` | `type SessionUser` | move the shape to `src/contracts/` |
 
 The end-state assertion additionally flags five files that import auth **guards**. Those clear
 when guards move to `src/common/security/` — the same Phase 8.

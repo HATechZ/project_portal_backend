@@ -13,27 +13,35 @@ import {
 
 export class CreateClientPrimaryContactDto {
   @ApiProperty({ minLength: 1, maxLength: 160 })
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(160)
   name!: string;
 
   @ApiProperty({ maxLength: 255 })
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail()
   @MaxLength(255)
   email!: string;
 
   @ApiPropertyOptional({ maxLength: 140 })
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
   @IsString()
   @MaxLength(140)
   designation?: string;
 
   @ApiPropertyOptional({ maxLength: 60 })
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
   @IsString()
   @MaxLength(60)
@@ -42,7 +50,9 @@ export class CreateClientPrimaryContactDto {
 
 export class CreateClientDto {
   @ApiProperty({ minLength: 1, maxLength: 180 })
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(180)

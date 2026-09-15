@@ -1,10 +1,12 @@
 import {
+  DivisionLeadDetailDto,
   DivisionLeadResponseDto,
   DivisionResponseDto,
   DivisionTypeResponseDto,
 } from '../dtos';
 import {
   DivisionLeadAssignmentRecord,
+  DivisionLeadRecord,
   DivisionRecord,
   DivisionTypeRecord,
 } from '../repositories';
@@ -45,5 +47,18 @@ export function toDivisionLeadResponse(
     roleCode: record.roleCode,
     userRoleActive: record.userRoleActive,
     actorProfileLinked: record.actorProfileLinked,
+    assignedAt: record.assignedAt,
+    revokedIncumbent: record.revokedIncumbent,
+    idempotent: record.idempotent,
+  };
+}
+
+export function toDivisionLeadDetail(
+  record: DivisionLeadRecord,
+): DivisionLeadDetailDto {
+  return {
+    member: record.member,
+    assignedAt: record.assignedAt,
+    assignedByUserId: record.assignedByUserId,
   };
 }

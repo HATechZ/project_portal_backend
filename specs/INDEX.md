@@ -1,87 +1,63 @@
-# Project Portal Backend — Specifications Master Index (SDD Dashboard)
+# Project Portal Backend — SDD Dashboard
 
-> Master rollup of every module. Governed by [`RULES.md`](RULES.md).
->
-> **This is the only status surface.** Do not record progress in `CLAUDE.md`, `AGENTS.md`,
-> `GEMINI.md`, or `Agent.md` ([Art. VII](rules/07-status.md)).
+> The only status surface ([Art. VII](rules/07-status.md)). Rules: [`RULES.md`](RULES.md).
+> Notes stay one short line; details live in the module's own `tasks.md` / `walkthrough.md`.
 
-| #        | Module                                                                                                                                                        | Tables          | Phase       | Tasks Done | Status          | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ----------- | ---------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **00**   | **Platform Core** — bootstrap, envelope, interceptors, exception filter, config, pagination, Swagger + repo-wide SOLID conformance                            | —               | **Phase 4** | 24/26      | `[WIP]`         | Retro-spec. Also carries the repo-wide [Art. X](rules/09-solid.md) layering assertions.                                                                                                                                                                                                                                                                                                                                                                                |
-| **01**   | **Persistence** — DBML→Prisma pipeline, PrismaService, UnitOfWork, BaseRepository, migrations                                                                 | —               | **Phase 4** | 17/17      | `[WIP]`         | Retro-spec. Existing repositories now execute through the fail-closed UnitOfWork boundary completed by 01.1; Gate 5 remains pending.                                                                                                                                                                                                                                                                                                                                     |
-| **01.1** | **Schema Integrity & Tenant Isolation** — RLS + privileged relay role, composite tenant-carrying FKs, retained-architecture integrity constraints | — (reshapes 52) | **Phase 5** | 45/45      | `[DONE]`        | All three database connections are available in the operator environment; NestJS runtime still consumes only `DATABASE_URL` (`app_user`) and `DATABASE_URL_PRIVILEGED` (`app_relay`). All three `20260902` migrations finished without rollback. Read-only catalog verification passed for all tenant-carrying FKs, supporting handles/indexes, organization constraints, exact-transition uniqueness, and ActorProfile constraints. No HTTP walkthrough applies because this module exposes no endpoint. |
-| **02**   | **Infrastructure** — Redis cache, Redis throttler storage, BullMQ mail queue + worker                                                                         | —               | **Phase 4** | 15/15      | `[WIP]`         | Retro-spec. Every assertion passes; Gate 5 blocked only on the walkthrough.                                                                                                                                                                                                                                                                                                                                                                                            |
-| **02.1** | **Messaging & Domain Events** — transactional outbox, relay, event contracts, module boundaries                                                               | 2 **applied**   | **Phase 4** | 34/35      | `[WIP]`         | Carries [Art. XI](rules/10-messaging.md). Phases 5, 7, 8, 9 (lint/build) done; Phase 6 all but partial index (skipped by owner). Only HTTP walkthrough remains for Gate 5.                                                                                                                                                                                                                                                                                             |
-| **03** | **Identity & Access** — users, roles, user_roles, actor_profiles, auth_sessions, consumed refresh history, password_reset_tokens | 7 | **Phase 4** | 44/50 | `[WIP]` | 44 assertions independently verified; six runtime-dependent leaves remain unticked. Runtime verification blocked because app_user has only SELECT on actor_profiles. Owner INSERT/UPDATE grant prerequisite is documented in 03 DATA_CONTRACT. JWT-derived bearer Tenant context independently verified with 31 live curl requests; no caller Tenant header needed. No migration or grant was applied. |
-| **04** | **Organization** — Company/CompanyType parent contract | 2 implemented / 7 total | **Phase 4** | 34/36 | `[WIP]` | Nested signup validation and admin-only rename/retype code implemented; 34 leaves independently verified. Live curl: 50 PASS, 2 FAIL because app_user lacks UPDATE on companies. Rename/retype and walkthrough signoff remain unticked. Company lifecycle remains deferred; child implementation order is 04.1 → 04.2 → 04.3. |
-| **04.1** | **Division** — organizational Division CRUD | 1 (+ global DivisionType) | **Phase 4** | 8/11 | `[WIP]` | Static implementation leaves 1–8 verified, including Assign Division Lead orchestration over existing UserRole/ActorProfile/Member model. Focused tests, lint, build, and scoped SDD pass. Gate 5 HTTP remains blocked by known app_user Division write/reference grants. |
-| **04.2** | **Member** — internal Company/Division business person | 1 | **Phase 4** | 7/10 | `[WIP]` | Static implementation leaves verified: Member CRUD, V1 atomic User/Member/UserRole/ActorProfile onboarding, exceptional existing-User access-link boundary, scoped creation/read rules, guarded delete, and no automatic Team assignment. Gate 5 HTTP/RLS blocked because app_user lacks write privilege on `members`; fixture Division cleanup confirmed. No grant/schema/RLS change applied. |
-| **04.3** | **Team** — Division grouping and existing membership relation | 2 | **Phase 4** | 9/11 | `[WIP]` | Team module/API implemented for scoped create/read/update/delete, lead assignment, and Team-owned membership list/add/end. Focused tests, lint, and build pass. Gate 5 HTTP/RLS walkthrough remains pending. |
-| **05**   | **Clients** — clients, client_contacts                                                                                                                        | 2               | Phase 3     | 0/22       | `[SPEC APPROVED]` | Implementation-ready Client + ClientContact spec in `specs/05-clients`. Approved lifecycle, ClientContact primary-contact behavior, system_admin Client administration, CCR selector-only access, client_owner workflow-only access, and minimum new Client-management permission capabilities.                                                                                                              |
-| **06**   | **Reference Data** — portal_configs, option_types/values, all lookup + status tables, seeding                                                                 | 16              | Phase 0     | 0/0        | `[NOT STARTED]` | Blocks 07–11: they all FK into these tables. Needs to land early.                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **07**   | **Projects & Bids** — projects, status events, bid_details, credential deliveries, outcomes, conversions, archived reviews                                    | 7               | Phase 0     | 0/0        | `[NOT STARTED]` | BID and PROJECT are one table discriminated by `workspace_type_id`.                                                                                                                                                                                                                                                                                                                                                                                                    |
-| **08**   | **Documents** — documents, versions, folders, folder locations, version links, registry                                                                       | 6               | Phase 0     | 0/0        | `[NOT STARTED]` | Storage-agnostic: bucket/key/url columns, no provider chosen yet.                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **09**   | **Workflow Engine** — workflow_statuses, action definitions, transitions, action role permissions                                                             | 4               | Phase 0     | 0/0        | `[NOT STARTED]` | The rules: which role may fire which action from which status.                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **10**   | **Work Requests** — work_requests, assignments, audit logs, notes, audit attachments                                                                          | 5               | Phase 0     | 0/0        | `[NOT STARTED]` | Status is derived from the latest audit log (Art. VI.2).                                                                                                                                                                                                                                                                                                                                                                                                               |
-| **11**   | **Info Requests & Revisions** — info requests/responses, revision requests/documents/submissions, decisions                                                   | 7               | Phase 0     | 0/0        | `[NOT STARTED]` |                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| **12**   | **Notifications** — notifications, notification_recipients                                                                                                    | 2               | Phase 0     | 0/0        | `[NOT STARTED]` | Consumes module 02's mail queue.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **13**   | **Audit** — system_audit_logs                                                                                                                                 | 1               | Phase 0     | 0/0        | `[NOT STARTED]` |                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Module | Tables | Phase | Tasks | Status | Note |
+|---|---|---|---|---|---|
+| [00](00-platform-core/) Platform Core | — | 4 | 24/26 | `[WIP]` | Retro-spec; carries repo-wide [Art. X](rules/09-solid.md) assertions |
+| [01](01-persistence/) Persistence | — | 4 | 15/17 | `[WIP]` | DBML-authority task retired (schema being redesigned); UoW test suite deleted |
+| [01.1](01.1-schema-integrity/) Schema Integrity & Tenant Isolation | reshapes 52 | 4 | 44/45 | `[WIP]` | Applied + catalog-verified; UoW fail-closed test suite deleted, needs new proof |
+| [02](02-infrastructure/) Infrastructure | — | 4 | 15/15 | `[WIP]` | Retro-spec; only walkthrough remains |
+| [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | [Art. XI](rules/10-messaging.md); partial index skipped by owner; walkthrough remains |
+| [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/50 | `[WIP]` | 6 unticked: test suites deleted; actor_profiles grant blocker cleared 2026-09-15 |
+| [04](04-organization/) Organization | 2 of 7 | 4 | 29/36 | `[WIP]` | 5 unticked: signup/update test suites deleted; UPDATE grant still missing |
+| [04.1](04.1-division/) Division | 1 (+DivisionType) | 5 | 11/11 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (24 curls, 0 blockers, cleanup PASS) |
+| [04.1.1](04.1.1-division-lead-multiplicity/) Division Lead Multiplicity | 1 applied | 5 | 17/17 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (28 curls, 0 blockers, cleanup PASS) |
+| [04.2](04.2-member/) Member | 1 | 4 | 7/10 | `[WIP]` | Grants + seed cleared 2026-09-15; Gate 5 walkthrough re-runnable |
+| [04.3](04.3-team/) Team | 2 | 4 | 9/11 | `[WIP]` | Gate 5 walkthrough pending |
+| [05](05-clients/) Clients | 2 | 3 | 0/22 | `[SPEC APPROVED]` | Ready for implementation |
+| 06 Reference Data | 16 | 0 | — | `[NOT STARTED]` | Blocks 07–11 (all FK into it) |
+| 07 Projects & Bids | 7 | 0 | — | `[NOT STARTED]` | BID/PROJECT share a table via `workspace_type_id` |
+| 08 Documents | 6 | 0 | — | `[NOT STARTED]` | Storage-agnostic |
+| 09 Workflow Engine | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
+| 10 Work Requests | 5 | 0 | — | `[NOT STARTED]` | Status derived from latest audit log (Art. VI.2) |
+| 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
+| 12 Notifications | 2 | 0 | — | `[NOT STARTED]` | Consumes 02's mail queue |
+| 13 Audit | 1 | 0 | — | `[NOT STARTED]` | |
 
-All 63 ERD tables are assigned exactly once across modules 03–13. Module 02.1 proposes two
-tables that are **not** ERD tables (`outbox_messages`, `processed_events`) — infrastructure,
-not domain, so the count above is unaffected.
+All 63 ERD tables are assigned once across 03–13. 02.1's `outbox_messages` /
+`processed_events` are infrastructure, not ERD tables.
 
-Phase 5 is tracked per module above. Static assertions and builds do not establish runtime
-completion; each module needs its applicable database/HTTP evidence. Module 03 remains WIP
-with its ActorProfile database privilege prerequisite unresolved.
-
----
-
-## SDD Phase Key
-
-- `Phase 0`: Spec not started
-- `Phase 1`: `SPEC.md` + `DATA_CONTRACT.md` / `API_CONTRACT.md` in progress or awaiting review
-- `Phase 2`: `plan.md` in progress or awaiting review
-- `Phase 3`: `tasks.md` in progress or ready for implementation (`[SPEC APPROVED]`)
-- `Phase 4`: Implementing tasks (`[WIP]`)
-- `Phase 5`: Verified and complete (`[DONE]`)
-
----
+**Phases:** 0 not started · 1 SPEC + contracts · 2 plan · 3 tasks (`[SPEC APPROVED]`) ·
+4 implementing (`[WIP]`) · 5 verified (`[DONE]`)
 
 ## Open deviations
 
-Shipped code that contradicts the rules. Each is an unticked task with a currently-failing
-`VERIFY:` line — listed here to be visible without running the suite, not as a second log.
+Shipped code or schema that contradicts the rules; each has a failing unticked `VERIFY:`.
 
-| Mod  | Deviation                                                                                                                                                                                             | Rule | Where                                                            |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
-| 00   | ETag hashes the enveloped body incl. a fresh `meta.timestamp` → changes every request, 304 is dead code                                                                                               | VI.3 | `interceptors/etag.interceptor.ts`                               |
-| 00   | `UsersService` injecting `PrismaService` breaks the layering law repo-wide                                                                                                                            | X    | asserted in `00/tasks.md` Phase 5                                |
-| 02.1 | **Owner waived Art. IX 2026-08-28** — both models written into `schema.prisma` directly. **No migration exists; the tables are not real.** `yarn prisma:migrate` is still the owner's to run          | IX   | `02.1-messaging/DATA_CONTRACT.md` §3                             |
-
-| 03 | app_user has only SELECT on actor_profiles; provisioning and switching require INSERT/UPDATE. Runtime verification stops with SQLSTATE 42501. No grant applied. | IX | `03-identity-and-access/DATA_CONTRACT.md` |
-| 03 | Approved `division_head` and `team_lead` roles require owner-only ActorRoleCode enum, migration, generated client, role seed, and permission-matrix updates. Temporary runtime bridge cannot be removed until generated enum values exist. | IX | `03-identity-and-access/DATA_CONTRACT.md` Proposed schema change |
-
----
+| Mod | Deviation | Rule | Where |
+|---|---|---|---|
+| 00 | ETag hashes body incl. fresh `meta.timestamp` → 304 is dead code | VI.3 | `interceptors/etag.interceptor.ts` |
+| 00 | `UsersService` injects `PrismaService` (layering) | X | `00/tasks.md` Phase 5 |
+| 02.1 | Art. IX waived 2026-08-28: models in `schema.prisma`, no migration yet | IX | `02.1-messaging/DATA_CONTRACT.md` §3 |
+| 03 | `division_head` / `team_lead` need enum + migration + seed; runtime bridge stays until then | IX | `03-identity-and-access/DATA_CONTRACT.md` |
+| 04 | app_user lacks UPDATE on `companies` (confirmed live 2026-09-15) | IX | `04-organization/DATA_CONTRACT.md` |
 
 ## Session Log
 
-One line per session. **Keep the last 10 rows**; trim the oldest when adding an eleventh
-([Art. VII](rules/07-status.md)).
+Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
-| Date       | Agent                      | Module           | Gates | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---------- | -------------------------- | ---------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-03 | Codex + database-architect | 03, 04           | 1–5   | Audited Company Workspace onboarding end to end. Confirmed DBML/Prisma/migration parity, atomic SECURITY DEFINER provisioning and grant/RLS isolation; corrected deterministic CompanyType seeding and permission-matrix drift verification; exposed pre-signup CompanyType reference reads through a narrow app-user read executor. |
-| 2026-09-03 | Codex + database-architect | 03, 04           | 1–5   | Applied and catalog-verified workspace-aware universal Sign In migration. Company signup now returns an immutable global workspace slug; the existing Auth login resolves Tenant internally through the narrow app-user function. Same-email cross-workspace isolation and signup→login→Company walkthrough passed. |
-
-| 2026-09-08 | Codex + independent verifier | 03 | 1–4 | Prepared identity provisioning/revocation, validation/error/recovery hardening and race fixes; baseline database races reproduced and temporary data cleaned. Final runtime tests blocked by missing app_user ActorProfile INSERT/UPDATE privileges; no schema, RLS or grant changes. |
-
-| 2026-09-08 | Codex + independent verifier | 04 | 1–4 | Required matching signup password confirmation at the DTO edge; preserved password policy and explicit hash-only provisioning. Focused 22 tests and full 83 tests passed; lint, build, Prisma validate and diff checks passed. No schema changes. |
-
-| 2026-09-08 | Codex + independent verifier | 03 | 1–5 (Tenant UX) | JWT-derived bearer Tenant context, guard ordering, Swagger and context preservation verified: 13 focused tests, 96 full tests, 31 live curl requests with cross-Tenant isolation and cleanup. Broader Module 03 profile-write/runtime leaves remain unticked. |
-
-| 2026-09-08 | Codex + independent verifier | 04 | 1?5 | Implemented required nested signup objects and same-Tenant admin name/type PATCH; reconciled contracts and 34/36 tasks. Focused41/full114 tests pass; live curl50PASS/2FAIL with rollback/isolation/cleanup. Owner UPDATE privilege on companies blocks successful mutation verification; no grant/schema changes. |
-| 2026-09-09 | Codex | 04.1–04.3 | 1–3 | Added implementation-ready Division, Member, and Team child specs only; reconciled Organization parent/index and removed the stale active-role listing. No runtime, Prisma/schema, migration, grant, seed, or database change. |
-| 2026-09-09 | Codex + independent verifier | 04.1 | 4 | Implemented Division CRUD module, scoped repository, DTO allow-lists, guard chain, conflict mapping, focused tests, and HTTP evidence scripts. Static leaves 1–7 verified; leaf 8 awaits manual verification of added no-login/no-side-effect proof. HTTP walkthrough blocked by missing app_user Division write/reference grants. |
-| 2026-09-09 | Codex | 04, 04.2, 04.3 | 1-3 | Reconciled owner-approved Member authority: system_admin Company-wide, division_lead own Division, contextual Team Lead exact led-Team Division; Team add/remove remains exact-scope and separate from Member creation. Spec-only update; no runtime, schema, migration, grant, seed, or database change. |
-| 2026-09-09 | Codex | 04.2 | 4–5 attempted | Member implementation leaves 1–7 pass scoped SDD verification. HTTP/RLS walkthrough started through production AppModule/app_user; login and Company read passed, fixture Division cleanup confirmed, but `POST /member` is blocked by app_user lacking `members` write privilege (P2039/42501). No grant/schema/RLS change applied. |
+| Date | Agent | Module | Gates | Note |
+|---|---|---|---|---|
+| 2026-09-08 | Codex + verifier | 03 | 1–4 | Provisioning/revocation hardening; runtime blocked by actor_profiles grants |
+| 2026-09-08 | Codex + verifier | 04 | 1–4 | Signup password confirmation at DTO edge; 83 tests pass |
+| 2026-09-08 | Codex + verifier | 03 | 1–5 | JWT-derived Tenant context verified (31 live curls) |
+| 2026-09-08 | Codex + verifier | 04 | 1–5 | Nested signup + admin PATCH; 50/52 curls, UPDATE grant blocks rest |
+| 2026-09-09 | Codex | 04.1–04.3 | 1–3 | Added Division, Member, Team specs |
+| 2026-09-09 | Codex + verifier | 04.1 | 4 | Division CRUD implemented; HTTP blocked by grants |
+| 2026-09-09 | Codex | 04, 04.2, 04.3 | 1–3 | Reconciled Member authority scopes (spec only) |
+| 2026-09-09 | Codex | 04.2 | 4–5 | Member leaves 1–7 pass; `POST /member` blocked by grants |
+| 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
+| 2026-09-15 | Claude | 00, 01, 01.1, 03, 04 | 5 | 29/30 failing claims resolved: 15 unticked (proof deleted), rest fixed |
+| 2026-09-15 | Claude | 04.1 | 5 | Division DONE 11/11: walkthrough PASS (24 curls); 500-on-unknown-divisionTypeId fixed; recursive `verify:sdd:strict` removed from final VERIFY |

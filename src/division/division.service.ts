@@ -7,11 +7,16 @@ import { PaginatedResult } from '../common/pagination/paginated-result';
 import {
   AssignDivisionLeadDto,
   CreateDivisionDto,
+  DivisionLeadDetailDto,
   DivisionLeadResponseDto,
   DivisionResponseDto,
   UpdateDivisionDto,
 } from './dtos';
-import { toDivisionLeadResponse, toDivisionResponse } from './providers';
+import {
+  toDivisionLeadDetail,
+  toDivisionLeadResponse,
+  toDivisionResponse,
+} from './providers';
 import {
   DivisionLeadRepository,
   DivisionRepository,
@@ -92,6 +97,32 @@ export class DivisionService {
         assignedByUserId,
       }),
     );
+  }
+
+  async revokeLead(
+    divisionId: string,
+    revokedByUserId: string,
+  ): Promise<DivisionLeadDetailDto> {
+    const company = await this.requireScopedCompany();
+    await this.requireDivision(divisionId, company.id);
+    return toDivisionLeadDetail(
+      await this.leadRepository.revoke({
+        companyId: company.id,
+        divisionId,
+        revokedByUserId,
+      }),
+    );
+  }
+
+  /** Null, not 404 — a Lead-less Division is valid (04.1.1 DR-10). */
+  async findLead(divisionId: string): Promise<DivisionLeadDetailDto | null> {
+    const company = await this.requireScopedCompany();
+    await this.requireDivision(divisionId, company.id);
+    const lead = await this.leadRepository.findActiveLead(
+      divisionId,
+      company.id,
+    );
+    return lead ? toDivisionLeadDetail(lead) : null;
   }
 
   private async requireScopedCompany(): Promise<ScopedCompanyRecord> {

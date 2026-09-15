@@ -49,7 +49,10 @@ import { PasswordRecoveryRepository } from './repositories/password-recovery.rep
     SessionAdministrationRepository,
     PasswordRecoveryRepository,
     { provide: SESSION_AUTHENTICATOR, useExisting: AuthTokenProvider },
-    { provide: PASSWORD_SETUP_INITIATOR, useExisting: AuthPasswordResetProvider },
+    {
+      provide: PASSWORD_SETUP_INITIATOR,
+      useExisting: AuthPasswordResetProvider,
+    },
   ],
   exports: [SESSION_AUTHENTICATOR, PASSWORD_SETUP_INITIATOR],
 })

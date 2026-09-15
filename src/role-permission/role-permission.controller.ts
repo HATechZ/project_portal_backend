@@ -1,36 +1,19 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
-  ParseBoolPipe,
   ParseUUIDPipe,
-  Post,
   Put,
-  Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiSecurity,
-  ApiTags,
-} from '@nestjs/swagger';
-import { ActiveUser } from '../common/security/active-user.decorator';
+import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { SystemAdminGuard } from '../common/security/system-admin.guard';
-import type { SessionUser } from '../common/security/session.types';
 import {
   ApiStandardBadRequestResponse,
   ApiStandardArrayResponse,
-  ApiStandardConflictResponse,
-  ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
   ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
@@ -39,11 +22,9 @@ import {
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import {
-  AssignUserRoleDto,
   PermissionResponseDto,
   RoleResponseDto,
   SetRolePermissionsDto,
-  UserRoleAssignmentResponseDto,
 } from './dtos';
 import { RolePermissionService } from './role-permission.service';
 
@@ -113,50 +94,5 @@ export class RolePermissionController {
   @ApiStandardNotFoundResponse('Permission was not found')
   findPermission(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.findPermission(id);
-  }
-
-  @Get('user/:userId/role')
-  @ResponseMessage('User roles returned successfully')
-  @ApiOperation({ summary: "List a user's role assignments" })
-  @ApiQuery({ name: 'includeRevoked', required: false, type: Boolean })
-  @ApiStandardArrayResponse(UserRoleAssignmentResponseDto)
-  @ApiStandardNotFoundResponse('User was not found')
-  findUserRoles(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Query('includeRevoked', new ParseBoolPipe({ optional: true }))
-    includeRevoked = false,
-  ) {
-    return this.service.findUserRoles(userId, includeRevoked);
-  }
-
-  @Post('user/:userId/role')
-  @ResponseMessage('Role assigned successfully')
-  @ApiOperation({ summary: 'Assign a role to a user' })
-  @ApiStandardCreatedResponse(UserRoleAssignmentResponseDto, 'Role assigned')
-  @ApiStandardNotFoundResponse('User or role was not found')
-  @ApiStandardConflictResponse('The user already has this role')
-  assignUserRole(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Body() input: AssignUserRoleDto,
-    @ActiveUser() activeUser: SessionUser,
-  ) {
-    return this.service.assignUserRole(userId, input, activeUser.id);
-  }
-
-  @Delete('user/:userId/role/:roleId')
-  @ResponseMessage('Role revoked successfully')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Revoke an active role assignment' })
-  @ApiNoContentResponse({ description: 'Role revoked' })
-  @ApiStandardNotFoundResponse('User, role, or active assignment was not found')
-  @ApiStandardConflictResponse(
-    'Cannot revoke your own or the final active administrator role',
-  )
-  revokeUserRole(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Param('roleId', ParseUUIDPipe) roleId: string,
-    @ActiveUser() activeUser: SessionUser,
-  ) {
-    return this.service.revokeUserRole(userId, roleId, activeUser.id);
   }
 }

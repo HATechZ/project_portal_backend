@@ -25,12 +25,15 @@ export class TeamScopeProvider {
     if (actor.roleCode !== ActorRoleCode.division_lead) {
       throw new ForbiddenException('Team management is outside actor scope');
     }
-    const divisionId = this.requireActorDivision(actor);
-    if (requestedDivisionId && requestedDivisionId !== divisionId) {
+    const divisionIds = this.requireLedDivisions(actor);
+    if (requestedDivisionId && !divisionIds.includes(requestedDivisionId)) {
       throw new ForbiddenException('Requested Division is outside actor scope');
     }
-    await this.requireScopedDivision(divisionId, companyId);
-    return [divisionId];
+    const scoped = requestedDivisionId ? [requestedDivisionId] : divisionIds;
+    for (const divisionId of scoped) {
+      await this.requireScopedDivision(divisionId, companyId);
+    }
+    return scoped;
   }
 
   async assertCanManageTeam(
@@ -53,7 +56,7 @@ export class TeamScopeProvider {
     if (actor.roleCode === ActorRoleCode.division_head) return;
     if (
       actor.roleCode === ActorRoleCode.division_lead &&
-      actor.member?.divisionId === team.divisionId
+      (actor.member?.ledDivisionIds ?? []).includes(team.divisionId)
     ) {
       return;
     }
@@ -63,11 +66,17 @@ export class TeamScopeProvider {
     throw new ForbiddenException('Team membership is outside actor scope');
   }
 
-  private requireActorDivision(actor: ActorScopeContext): string {
-    if (!actor.member?.divisionId) {
+  /**
+   * 04.1.1 AC-S02: the `division_lead` role conveys no Division by itself.
+   * Authority is the active `division_leads` set; empty is refused rather
+   * than defaulted to the actor's home Division.
+   */
+  private requireLedDivisions(actor: ActorScopeContext): string[] {
+    const led = actor.member?.ledDivisionIds ?? [];
+    if (led.length === 0) {
       throw new ForbiddenException('Division lead Member context required');
     }
-    return actor.member.divisionId;
+    return led;
   }
 
   private async requireScopedDivision(

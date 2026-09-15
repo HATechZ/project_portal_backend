@@ -80,6 +80,14 @@ export const sessionActorSelect = (tenantId: string) =>
             isActive: true,
           },
         },
+        // 04.1.1: the Divisions this Member actively leads. Object scope for a
+        // division_lead comes from these rows, never from `divisionId` above —
+        // that single column is the Member's home Division, not its authority.
+        // Travelling with the session keeps scope resolution query-free.
+        divisionLeadsByMemberId: {
+          where: { revokedAt: null, tenantId },
+          select: { divisionId: true },
+        },
       },
     },
     clientContact: {

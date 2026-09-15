@@ -28,7 +28,9 @@ describe('Scalar docs security configuration', () => {
       requestBuilder: { security: bearerSecurity },
     });
 
-    expect(request.headers.get('Authorization')).toBe('Bearer access.jwt.value');
+    expect(request.headers.get('Authorization')).toBe(
+      'Bearer access.jwt.value',
+    );
   });
 
   it('normalizes an already-prefixed JWT without duplicating Bearer', () => {
@@ -41,7 +43,9 @@ describe('Scalar docs security configuration', () => {
       requestBuilder: { security: bearerSecurity },
     });
 
-    expect(request.headers.get('Authorization')).toBe('Bearer access.jwt.value');
+    expect(request.headers.get('Authorization')).toBe(
+      'Bearer access.jwt.value',
+    );
   });
 
   it('removes Authorization when no bearer token is present', () => {
@@ -67,9 +71,15 @@ describe('Scalar docs security configuration', () => {
       requestBuilder: { security: bearerSecurity },
     });
 
-    expect(request.headers.get('Authorization')).toBe('Bearer access.jwt.value');
+    expect(request.headers.get('Authorization')).toBe(
+      'Bearer access.jwt.value',
+    );
     expect(request.headers.get('Authorization')).not.toContain(',');
-    expect(Array.from(request.headers.keys()).filter((key) => key === 'authorization')).toHaveLength(1);
+    expect(
+      Array.from(request.headers.keys()).filter(
+        (key) => key === 'authorization',
+      ),
+    ).toHaveLength(1);
   });
 
   it('preserves x-tenant-id while normalizing bearer Authorization', () => {
@@ -85,27 +95,33 @@ describe('Scalar docs security configuration', () => {
       requestBuilder: { security: bearerSecurity },
     });
 
-    expect(request.headers.get('Authorization')).toBe('Bearer access.jwt.value');
+    expect(request.headers.get('Authorization')).toBe(
+      'Bearer access.jwt.value',
+    );
     expect(request.headers.get('x-tenant-id')).toBe('tenant-id-value');
   });
 
   it('passes the final-request normalization hook to the pinned browser runtime', () => {
     const html = generateDocsHtml('/docs-json');
     const createApiReference = jest.fn();
-    const inlineScript = html.match(/<script>\s*([\s\S]*?)\s*<\/script>\s*<\/body>/)?.[1];
+    const inlineScript = html.match(
+      /<script>\s*([\s\S]*?)\s*<\/script>\s*<\/body>/,
+    )?.[1];
 
     expect(html).toContain(
       'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.68.0',
     );
     expect(inlineScript).toBeDefined();
 
+    // Executes the generated inline docs script, which is the behavior under test.
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call
     new Function('Scalar', inlineScript ?? '')({ createApiReference });
 
     expect(createApiReference).toHaveBeenCalledWith(
       '#api-reference',
       expect.objectContaining({
         url: '/docs-json',
-        onRequestBuilt: expect.any(Function),
+        onRequestBuilt: expect.any(Function) as unknown,
       }),
     );
   });

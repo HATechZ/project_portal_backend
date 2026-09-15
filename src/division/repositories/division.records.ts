@@ -34,7 +34,11 @@ export type DivisionDeleteBlocker =
   | 'teamsByDivisionId'
   | 'projectsByOriginDivisionId'
   | 'workRequestsByAssignedDivisionId'
-  | 'workRequestsByOriginDivisionId';
+  | 'workRequestsByOriginDivisionId'
+  // 04.1.1 DR-11: leadership history is a dependent. Revoked rows count too —
+  // they are retained audit trail, so a Division that ever had a Lead is
+  // permanently undeletable by design.
+  | 'divisionLeadsByDivisionId';
 
 export interface DivisionMutationInput {
   name?: string;

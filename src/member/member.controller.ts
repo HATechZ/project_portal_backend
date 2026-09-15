@@ -1,6 +1,5 @@
 import {
   Body,
-  Controller,
   Delete,
   Get,
   HttpCode,
@@ -11,61 +10,29 @@ import {
   Put,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
+import { ApiNoContentResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
 import {
-  ApiNoContentResponse,
-  ApiOperation,
-  ApiParam,
-  ApiSecurity,
-  ApiTags,
-} from '@nestjs/swagger';
-import {
-  ApiStandardBadRequestResponse,
-  ApiStandardConflictResponse,
   ApiStandardCreatedResponse,
-  ApiStandardForbiddenResponse,
-  ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
-  ApiStandardUnauthorizedResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
-import { AccessTokenGuard } from '../common/security/access-token.guard';
-import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
 import { ActiveUser } from '../common/security/active-user.decorator';
 import type { SessionUser } from '../common/security/session.types';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
-import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
 import {
   CreateMemberDto,
   MemberAccessLinkDto,
   MemberQueryDto,
+  LedDivisionResponseDto,
   MemberResponseDto,
   UpdateMemberDto,
 } from './dtos';
+import { MemberApiController } from './member-api.decorator';
 import { MemberService } from './member.service';
 
-@ApiTags('member')
-@ApiSecurity('bearer')
-@Controller('member')
-@UseGuards(
-  AccessTokenGuard,
-  TenantContextGuard,
-  AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
-)
-@Permissions(WorkflowActionCode.ADD_MEMBER)
-@ApiStandardBadRequestResponse()
-@ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('Member access is outside actor scope')
-@ApiStandardNotFoundResponse('Member was not found')
-@ApiStandardConflictResponse('Member request conflicts with current data')
+@MemberApiController()
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
 
@@ -99,6 +66,23 @@ export class MemberController {
     @Req() request: ObjectScopeRequest,
   ) {
     return this.memberService.findOne(id, request.actorScope!);
+  }
+
+  @Get(':id/divisions')
+  @ResponseMessage('Led Divisions returned successfully')
+  @ApiOperation({
+    summary: 'List Divisions this Member leads',
+    description:
+      'Active leadership only; revoked rows are never returned. Empty array ' +
+      'when the Member leads no Division.',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiStandardOkResponse(LedDivisionResponseDto, 'Led Divisions returned')
+  findLedDivisions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: ObjectScopeRequest,
+  ) {
+    return this.memberService.findLedDivisions(id, request.actorScope!);
   }
 
   @Patch(':id')

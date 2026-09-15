@@ -10,21 +10,21 @@ const API_SECURITY_METADATA = 'swagger/apiSecurity';
 describe('AuthService refresh tenant resolution', () => {
   it('derives tenant context from the refresh token without a tenant header', async () => {
     const refreshTenantResolver = {
-      resolve: jest.fn(async () => ({ tenantId })),
+      resolve: jest.fn(() => Promise.resolve({ tenantId })),
     };
     const tokenProvider = {
       hashRefreshToken: jest.fn(() => 'refresh-token-hash'),
-      rotate: jest.fn(async () => {
+      rotate: jest.fn(() => {
         expect(RequestContext.requireTenantId()).toBe(tenantId);
-        return {
+        return Promise.resolve({
           accessToken: 'access-token',
           refreshToken: 'next-refresh-token',
           tokenType: 'Bearer' as const,
           expiresIn: 900,
-        };
+        });
       }),
     };
-    const tenants = { isActive: jest.fn(async () => true) };
+    const tenants = { isActive: jest.fn(() => Promise.resolve(true)) };
     const service = new AuthService(
       {} as never,
       {} as never,
@@ -55,11 +55,11 @@ describe('AuthService refresh tenant resolution', () => {
     const refresh = Object.getOwnPropertyDescriptor(
       AuthController.prototype,
       'refresh',
-    )?.value;
+    )?.value as object;
     const forgotPassword = Object.getOwnPropertyDescriptor(
       AuthController.prototype,
       'forgotPassword',
-    )?.value;
+    )?.value as object;
 
     expect(Reflect.getMetadata(API_SECURITY_METADATA, refresh)).toBeUndefined();
     expect(Reflect.getMetadata(API_SECURITY_METADATA, forgotPassword)).toEqual([

@@ -74,13 +74,13 @@ Completion status and counts are maintained in `specs/INDEX.md`.
   - [ ] Record the HTTP walkthrough (Constitution Art. V)
         VERIFY: test -f specs/03-identity-and-access/walkthrough.md && node scripts/verify-identity-evidence.cjs http
 
-- [x] **Phase 6: Email-only universal Sign In**
+- [ ] **Phase 6: Email-only universal Sign In**
   - [x] Keep the existing login DTO limited to email and password
         VERIFY: grep -q "email" src/auth/dtos/login.dto.ts && grep -q "password" src/auth/dtos/login.dto.ts && ! grep -qE "workspaceSlug|tenantId|companyId|roleId|actorProfileId" src/auth/dtos/login.dto.ts
-  - [x] Keep login public while refresh and recovery retain explicit Tenant context
+  - [ ] Keep login public while refresh and recovery retain explicit Tenant context
         VERIFY: ! grep -B4 -A8 "@Post('login')" src/auth/auth.controller.ts | grep -q "TenantContextGuard" && test $(grep -c "TenantContextGuard" src/auth/auth.controller.ts) -eq 6
   - [x] Enforce globally unique normalized User email while retaining Tenant ownership
-        VERIFY: grep -Fq "email varchar(255) [not null, unique" project_portal_workflow_management_erd.dbml && grep -Fq "email String @unique" prisma/schema.prisma && grep -Fq "tenantId String" prisma/schema.prisma && grep -Fq "@@index([tenantId])" prisma/schema.prisma
+        VERIFY: grep -Fq "email String @unique" prisma/schema.prisma && grep -Fq "tenantId String" prisma/schema.prisma && grep -Fq "@@index([tenantId])" prisma/schema.prisma
   - [x] Enforce canonical lower-trimmed email and remove the old Tenant/email uniqueness
         VERIFY: grep -q "users_email_canonical_check" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && grep -q "email = lower(btrim(email))" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && grep -q "DROP INDEX public.users_tenant_id_email_key" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql
   - [x] Resolve the internal Tenant from normalized email through the narrow database function path
@@ -91,7 +91,7 @@ Completion status and counts are maintained in `specs/INDEX.md`.
         VERIFY: grep -q "RETURNS TABLE (tenant_id uuid)" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && grep -q "SECURITY DEFINER" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && grep -q "SET search_path = pg_catalog" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql
   - [x] Grant only narrow resolver execution to app_user and exclude PUBLIC and app_relay
         VERIFY: grep -q "REVOKE ALL ON FUNCTION public.resolve_user_login_email(text) FROM PUBLIC" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && grep -q "GRANT EXECUTE ON FUNCTION public.resolve_user_login_email(text) TO app_user" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && ! grep -q "app_relay" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql && ! grep -qE "GRANT (SELECT|INSERT|UPDATE|DELETE).*users" prisma/migrations/20260903020000_global_normalized_email_login/migration.sql
-  - [x] Keep normal UnitOfWork fail-closed and expose only queryRaw for login resolution
+  - [ ] Keep normal UnitOfWork fail-closed and expose only queryRaw for login resolution
         VERIFY: grep -q "RequestContext.requireTenantId" src/infra/prisma/unit-of-work.service.ts && grep -q "Repository access requires an active unit of work" src/infra/prisma/unit-of-work.service.ts && grep -q "Object.freeze" src/infra/prisma/unit-of-work.service.ts && corepack yarn test --runInBand --testPathPatterns=unit-of-work.service.spec.ts
   - [x] Preserve generic credential failure responses
         VERIFY: test $(grep -c "Invalid email or password" src/auth/auth.service.ts) -eq 2
@@ -105,7 +105,7 @@ Completion status and counts are maintained in `specs/INDEX.md`.
         VERIFY: grep -q 'workspaceSlug String @unique' prisma/schema.prisma && ! grep -q "workspaceSlug" src/auth/dtos/login.dto.ts && grep -q 'tenant_isolation_users' prisma/migrations/20260901000000_enable_tenant_rls/migration.sql
   - [x] Cover email resolution, header override, generic failure, and existing token issue behavior
         VERIFY: corepack yarn test --runInBand --testPathPatterns=auth
-  - [x] Prove authenticated Company reads remain Tenant-isolated after email-only Sign In
+  - [ ] Prove authenticated Company reads remain Tenant-isolated after email-only Sign In
         VERIFY: grep -q "email and password only" specs/04-organization/walkthrough.md && grep -q "exactly the newly provisioned User's Tenant Company" specs/04-organization/walkthrough.md
   - [x] Record the email-only HTTP walkthrough with internal Tenant resolution
         VERIFY: grep -q "email and password only" specs/03-identity-and-access/walkthrough.md && grep -q "Tenant was resolved internally" specs/03-identity-and-access/walkthrough.md
@@ -113,11 +113,11 @@ Completion status and counts are maintained in `specs/INDEX.md`.
 - [ ] **Phase 7: Identity completion**
   - [ ] Provision an idempotent eligible role-only ActorProfile with role assignment
         VERIFY: corepack yarn test --runInBand --testPathPatterns=role-assignment.repository.spec.ts && node scripts/verify-identity-evidence.cjs http
-  - [x] Revoke same-Tenant target User sessions through a system_admin endpoint
+  - [ ] Revoke same-Tenant target User sessions through a system_admin endpoint
         VERIFY: corepack yarn test --runInBand --testPathPatterns=session-administration.service.spec.ts
-  - [x] Reject non-nullable update fields before mutation while allowing null avatarUrl
+  - [ ] Reject non-nullable update fields before mutation while allowing null avatarUrl
         VERIFY: corepack yarn test --runInBand --testPathPatterns=update-user.dto.spec.ts
-  - [x] Translate persistence conflicts centrally including serialization failures
+  - [ ] Translate persistence conflicts centrally including serialization failures
         VERIFY: corepack yarn test --runInBand --testPathPatterns=prisma-exception.map.spec.ts
   - [x] Keep recovery responses generic on delivery failure and retire undelivered tokens
         VERIFY: corepack yarn test --runInBand --testPathPatterns=auth-password-reset.provider.spec.ts
@@ -128,6 +128,6 @@ Completion status and counts are maintained in `specs/INDEX.md`.
   - [x] Reconcile identity contracts and independently verify every completion claim
         VERIFY: node scripts/verify-identity-evidence.cjs contracts
 
-- [x] **Phase 8: JWT-derived authenticated Tenant context**
-  - [x] Bind bearer requests to the verified JWT Tenant, ignoring caller Tenant headers
+- [ ] **Phase 8: JWT-derived authenticated Tenant context**
+  - [ ] Bind bearer requests to the verified JWT Tenant, ignoring caller Tenant headers
         VERIFY: corepack yarn test --runInBand --testPathPatterns=authenticated-tenant

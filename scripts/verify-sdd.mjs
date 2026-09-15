@@ -17,6 +17,7 @@
  *   node scripts/verify-sdd.mjs --spec          validate spec ARTIFACTS (Gates 1-3), executes nothing
  *   node scripts/verify-sdd.mjs --lint          structural check only, executes nothing
  *   node scripts/verify-sdd.mjs --hook          Claude Code PostToolUse entry point
+ *   node scripts/verify-sdd.mjs --verbose       list every PASS too (default: failures + summary only)
  *
  * Exit 0 = every ticked assertion holds. Exit 1 = at least one claim is not true.
  */
@@ -36,6 +37,7 @@ const OPT = {
   lint: argv.includes('--lint'),
   hook: argv.includes('--hook'),
   spec: argv.includes('--spec'),
+  verbose: argv.includes('--verbose') || argv.includes('-v'),
   file: (() => {
     const i = argv.indexOf('--file');
     return i !== -1 && argv[i + 1] ? argv[i + 1] : null;
@@ -386,7 +388,7 @@ function specMode() {
       bad++;
       console.log(`${C.r}✗${C.x} ${C.B}${d}${C.x} ${C.d}(${tasks.length} leaf tasks, ${ticked} ticked)${C.x}`);
       for (const p of problems) console.log(`    ${C.r}·${C.x} ${p}`);
-    } else {
+    } else if (OPT.verbose) {
       console.log(
         `${C.g}✓${C.x} ${C.B}${d}${C.x} ${C.d}(${tasks.length} leaf tasks, all with assertions, ${ticked} ticked)${C.x}`
       );
@@ -459,7 +461,7 @@ for (const file of files) {
       if (!OPT.all || !t.verify) continue;
       const r = run(t.verify);
       if (r.ok) tally.probePass++;
-      header.push(`  ${r.ok ? `${C.y}○ READY${C.x}` : `${C.d}· todo ${C.x}`}  ${r.ok ? label : `${C.d}${label}${C.x}`}`);
+      if (r.ok || OPT.verbose) header.push(`  ${r.ok ? `${C.y}○ READY${C.x}` : `${C.d}· todo ${C.x}`}  ${r.ok ? label : `${C.d}${label}${C.x}`}`);
       continue;
     }
 
@@ -474,11 +476,13 @@ for (const file of files) {
     const r = run(t.verify);
     if (r.ok) {
       tally.pass++;
-      header.push(`  ${C.g}✓ PASS${C.x}      ${label}`);
+      // Passing lines are the bulk of the output; agents pay for every one. Opt in with --verbose.
+      if (OPT.verbose) header.push(`  ${C.g}✓ PASS${C.x}      ${label}`);
     } else {
       tally.fail++;
       failures.push({ at, label, why: r.why, output: r.output, cmd: t.verify });
-      header.push(`  ${C.r}✗ FAIL${C.x}      ${C.B}${label}${C.x}\n              ${C.d}${at}${C.x}`);
+      // The "Claims that do not hold" block already names each failure; don't list it twice.
+      if (OPT.verbose) header.push(`  ${C.r}✗ FAIL${C.x}      ${C.B}${label}${C.x}\n              ${C.d}${at}${C.x}`);
     }
   }
 
@@ -497,7 +501,8 @@ if (failures.length) {
     if (f.cmd) console.log(`    ${C.d}verify${C.x}  ${f.cmd}`);
     console.log(`    ${C.d}result${C.x}  ${f.why}`);
     if (f.output) {
-      const trimmed = f.output.split('\n').slice(0, 6).join('\n              ');
+      const lines = f.output.split('\n').filter((l) => l.trim() && !/^(yarn run v|\$ )/.test(l));
+      const trimmed = lines.slice(0, OPT.verbose ? 6 : 3).join('\n              ');
       console.log(`    ${C.d}output${C.x}  ${trimmed}`);
     }
     console.log('');

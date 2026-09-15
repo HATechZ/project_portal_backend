@@ -4,6 +4,7 @@ import { MemberService } from './member.service';
 import { MemberScopeProvider } from './providers';
 import {
   MemberAccessRepository,
+  MemberOnboardingRepository,
   MemberRelationsRepository,
   MemberRepository,
 } from './repositories';
@@ -14,6 +15,7 @@ import {
     MemberService,
     MemberRepository,
     MemberAccessRepository,
+    MemberOnboardingRepository,
     MemberRelationsRepository,
     MemberScopeProvider,
   ],

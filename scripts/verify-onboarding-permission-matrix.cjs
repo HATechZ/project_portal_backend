@@ -1,10 +1,19 @@
 const fs = require('node:fs');
 
 const source = fs.readFileSync('prisma/seed/data/permissions.data.ts', 'utf8');
-const migration = fs.readFileSync(
-  'prisma/migrations/20260903000000_company_workspace_onboarding/migration.sql',
-  'utf8',
-);
+
+// Later migrations redefine the provisioning function; compare against the newest definition.
+const MATRIX_MARKER = "WHEN 'system_admin'::public.actor_role_code THEN";
+const migrationDir = fs
+  .readdirSync('prisma/migrations')
+  .filter((dir) => fs.existsSync(`prisma/migrations/${dir}/migration.sql`))
+  .sort()
+  .reverse()
+  .find((dir) =>
+    fs.readFileSync(`prisma/migrations/${dir}/migration.sql`, 'utf8').includes(MATRIX_MARKER),
+  );
+if (!migrationDir) throw new Error('No migration defines the onboarding permission matrix');
+const migration = fs.readFileSync(`prisma/migrations/${migrationDir}/migration.sql`, 'utf8');
 
 const commonBlock = source.match(/const commonCreate = \[([\s\S]*?)\];/);
 if (!commonBlock) throw new Error('Cannot locate commonCreate permission source');
@@ -23,7 +32,7 @@ const roles = [
 if (roles.length === 0) throw new Error('Role permission matrix is empty');
 
 const supervisorSource = source.match(
-  /const supervisorPermissions =[\s\S]*?code !== WorkflowActionCode\.([A-Z][A-Z0-9_]*)[\s\S]*?\);/,
+  /const supervisorPermissions =[\s\S]*?code !== WorkflowActionCode\.([A-Z][A-Z0-9_]*)/,
 );
 const supervisorSql = migration.match(
   /WHEN 'system_admin'::public\.actor_role_code THEN\s*action_definition\.code <> '([A-Z][A-Z0-9_]*)'::public\.workflow_action_code/,
@@ -59,4 +68,4 @@ for (const role of roles.filter((code) => code !== 'system_admin')) {
 
 if (/app_relay/.test(migration)) throw new Error('Onboarding migration must not reference app_relay');
 
-console.log('Onboarding SQL permission matrix matches permissions.data.ts.');
+console.log(`Onboarding SQL permission matrix (${migrationDir}) matches permissions.data.ts.`);

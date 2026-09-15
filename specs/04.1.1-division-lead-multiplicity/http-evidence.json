@@ -1,0 +1,273 @@
+{
+  "executedAt": "2026-09-15T08:26:06.098Z",
+  "databaseRole": "app_user",
+  "host": "Production AppModule; background workers/throttler disabled, uncached Redis reads, mail capture; fixture setup/inspection/cleanup uses maintenance connection",
+  "cleanup": true,
+  "checks": [
+    "A Member leads a Division it does not belong to",
+    "One Member holds active Lead rows for two Divisions",
+    "Re-assigning the sitting Lead is an idempotent no-op",
+    "Assigning a new Lead revokes the incumbent, leaving exactly one",
+    "Member led-Divisions read returns only active rows",
+    "A Lead-less Division reads as null and revokes as 404",
+    "A Member revoked from a Division can be re-assigned to it",
+    "Foreign Tenant lead access is indistinguishable from missing",
+    "A role without ASSIGN_LEADER is refused the lead routes",
+    "Division hard delete is refused while lead history exists"
+  ],
+  "blockers": [],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/company/signup (Tenant A)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (Tenant B)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (Tenant A)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (Tenant B)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (create LHOME)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (create LALPHA)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (create LBETA)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (create LSOLO)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (no token)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (bad memberId)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/bad/lead",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (assign, non-home Division)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (assign second Division)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (idempotent re-assign)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (replace incumbent)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id/lead (read)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/member/:id/divisions",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id/lead (Lead-less)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/division/:id/lead (revoke, none active)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (Member has no User)",
+      "status": 409,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "CONFLICT",
+      "result": "PASS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/division/:id/lead (revoke)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (re-assign after revoke)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id/lead (foreign Tenant read)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "PUT",
+      "path": "/division/:id/lead (foreign Tenant assign)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (ordinary role)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id/lead (ordinary role)",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/division/:id (delete blocked by lead rows)",
+      "status": 409,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "CONFLICT",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    }
+  ]
+}

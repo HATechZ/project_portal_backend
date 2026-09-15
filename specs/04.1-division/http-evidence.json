@@ -1,0 +1,230 @@
+{
+  "executedAt": "2026-09-15T09:17:38.359Z",
+  "databaseRole": "app_user",
+  "host": "Production AppModule; background workers/throttler disabled, uncached Redis reads, mail capture; fixture setup/inspection/cleanup uses maintenance connection",
+  "cleanup": true,
+  "checks": [
+    "Create/list/detail/update/delete pass through app_user Tenant scope",
+    "Foreign Tenant Division access is indistinguishable from missing",
+    "Guarded hard delete refuses dependent Division"
+  ],
+  "blockers": [],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/company/signup (Tenant A)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/company/signup (Tenant B)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (Tenant A)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (Tenant B)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division (no token)",
+      "status": 401,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "UNAUTHORIZED",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (blank name)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (ownership override)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (unknown type)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (create)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division?page=1&limit=1",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id (own)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/division/:id (update)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/bad",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id (missing)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id (foreign)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/division/:id (foreign update)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login (ordinary role)",
+      "status": 200,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division (ordinary role)",
+      "status": 403,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "FORBIDDEN",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/division (dependent create)",
+      "status": 201,
+      "envelope": "success,message,data,timestamp",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/division/:id (dependency)",
+      "status": 409,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "CONFLICT",
+      "result": "PASS"
+    },
+    {
+      "method": "PATCH",
+      "path": "/division/:id (empty update)",
+      "status": 400,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "BAD_REQUEST",
+      "result": "PASS"
+    },
+    {
+      "method": "DELETE",
+      "path": "/division/:id (delete)",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    },
+    {
+      "method": "GET",
+      "path": "/division/:id (deleted)",
+      "status": 404,
+      "envelope": "success,error,meta",
+      "requestId": "echoed",
+      "errorCode": "NOT_FOUND",
+      "result": "PASS"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "status": 204,
+      "envelope": "empty (204)",
+      "requestId": "echoed",
+      "errorCode": null,
+      "result": "PASS"
+    }
+  ]
+}

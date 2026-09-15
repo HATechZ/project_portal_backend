@@ -15,6 +15,9 @@ On finishing any task or module phase, update `INDEX.md`:
 Keep the Session Log to the **last 10 rows**; trim the oldest when adding an eleventh. It is
 read every session, so it must not grow without bound.
 
+Every `INDEX.md` cell is **one short line (≤ ~90 chars)** — evidence, counts, and history go in
+the module's `tasks.md` / `walkthrough.md`. Do not pad table columns for alignment.
+
 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, and `Agent.md` MUST NOT carry progress logs. Two
 hand-maintained status tables always drift.
 

@@ -1,9 +1,7 @@
 const { Test } = require('@nestjs/testing');
 const { Global, Module } = require('@nestjs/common');
-const { Reflector } = require('@nestjs/core');
 const { AppModule } = require('../dist/src/app.module');
 const { configureApplication } = require('../dist/src/config/app-bootstrap');
-const { TransformInterceptor } = require('../dist/src/common/interceptors/transform.interceptor');
 const { MailQueueService } = require('../dist/src/infra/mail/mail-queue.service');
 const { MailWorkersModule } = require('../dist/src/infra/mail/mail-workers.module');
 const { MessagingModule } = require('../dist/src/infra/messaging/messaging.module');
@@ -30,7 +28,6 @@ async function host() {
   const testing=await builder.compile();
   const app=testing.createNestApplication({logger:false});
   configureApplication(app);
-  app.useGlobalInterceptors(new TransformInterceptor(app.get(Reflector)));
   await app.listen(0,'127.0.0.1');
   const base=await app.getUrl();
   const rows=[];
@@ -42,7 +39,7 @@ async function host() {
     if(tenantId) options.push(`header = ${quote('x-tenant-id: '+tenantId)}`);
     if(body!==undefined) options.push('header = "content-type: application/json"',`data-binary = ${quote(JSON.stringify(body))}`);
     const raw=await new Promise((resolve,reject)=>{
-      const child=spawn('curl.exe',['--silent','--show-error','--include','--max-time','30','--request',method,'--url',base+'/api/v1'+path,'--config','-'],{windowsHide:true});
+      const child=spawn(process.platform==='win32'?'curl.exe':'curl',['--silent','--show-error','--include','--max-time','30','--request',method,'--url',base+'/api/v1'+path,'--config','-'],{windowsHide:true});
       let out='',err=''; child.stdout.on('data',x=>out+=x);child.stderr.on('data',x=>err+=x);
       child.on('error',reject);child.on('exit',code=>code===0?resolve(out):reject(new Error('curl failed: '+err)));
       child.stdin.end(options.join('\n'));

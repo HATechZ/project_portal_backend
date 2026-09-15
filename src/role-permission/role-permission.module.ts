@@ -7,9 +7,10 @@ import {
 } from './providers';
 import { RolePermissionController } from './role-permission.controller';
 import { RolePermissionService } from './role-permission.service';
+import { UserRoleController } from './user-role.controller';
 
 @Module({
-  controllers: [RolePermissionController],
+  controllers: [RolePermissionController, UserRoleController],
   providers: [
     RolePermissionService,
     RolePermissionMutationProvider,

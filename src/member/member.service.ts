@@ -12,6 +12,7 @@ import {
   CreateMemberDto,
   MemberAccessLinkDto,
   MemberQueryDto,
+  LedDivisionResponseDto,
   MemberResponseDto,
   UpdateMemberDto,
 } from './dtos';
@@ -19,11 +20,13 @@ import {
   MemberScopeProvider,
   assertMemberUpdateHasFields,
   memberNotFound,
+  assertDivisionMove,
   scopedCompanyNotFound,
   toMemberResponse,
 } from './providers';
 import {
   MemberAccessRepository,
+  MemberOnboardingRepository,
   MemberRecord,
   MemberRelationsRepository,
   MemberRepository,
@@ -35,6 +38,7 @@ export class MemberService {
   constructor(
     private readonly repository: MemberRepository,
     private readonly accessRepository: MemberAccessRepository,
+    private readonly onboardingRepository: MemberOnboardingRepository,
     private readonly relationsRepository: MemberRelationsRepository,
     private readonly scopeProvider: MemberScopeProvider,
     @Inject(PASSWORD_HASHER) private readonly passwordHasher: PasswordHasher,
@@ -75,6 +79,24 @@ export class MemberService {
     return toMemberResponse(member);
   }
 
+  /**
+   * Divisions this Member actively leads. Empty array, not 404, when it leads
+   * none (04.1.1 DR-10 — Lead-less is a valid state).
+   */
+  async findLedDivisions(
+    id: string,
+    actor: ActorScopeContext,
+  ): Promise<LedDivisionResponseDto[]> {
+    const company = await this.requireScopedCompany();
+    const member = await this.requireMember(id, company.id);
+    await this.scopeProvider.resolveReadableDivisionIds(
+      actor,
+      company.id,
+      member.divisionId,
+    );
+    return this.repository.findLedDivisions(member.id, company.id);
+  }
+
   async create(
     input: CreateMemberDto,
     actor: ActorScopeContext,
@@ -88,7 +110,7 @@ export class MemberService {
     );
     const passwordHash = await this.passwordHasher.hash(input.password);
     return toMemberResponse(
-      await this.repository.createWithAccess(company.id, {
+      await this.onboardingRepository.createWithAccess(company.id, {
         name: input.name,
         email: input.email,
         passwordHash,
@@ -111,7 +133,12 @@ export class MemberService {
     const company = await this.requireScopedCompany();
     const member = await this.requireMember(id, company.id);
     if (input.divisionId) {
-      await this.assertDivisionMove(member, company.id, input.divisionId);
+      await assertDivisionMove(
+        { repository: this.repository, relations: this.relationsRepository },
+        member,
+        company.id,
+        input.divisionId,
+      );
     }
     return toMemberResponse(
       await this.repository.update(id, company.id, input),
@@ -168,28 +195,5 @@ export class MemberService {
     const member = await this.repository.findById(id, companyId);
     if (!member) throw memberNotFound(id);
     return member;
-  }
-
-  private async assertDivisionMove(
-    member: MemberRecord,
-    companyId: string,
-    divisionId: string,
-  ): Promise<void> {
-    if (!(await this.repository.findDivision(divisionId, companyId))) {
-      throw memberNotFound(divisionId);
-    }
-    if (
-      member.divisionId !== divisionId &&
-      (await this.relationsRepository.hasCrossDivisionTeamLinks(
-        member.id,
-        divisionId,
-      ))
-    ) {
-      throw new AppException({
-        code: AppErrorCode.Conflict,
-        status: HttpStatus.CONFLICT,
-        message: 'Member has active Team relations in another Division',
-      });
-    }
   }
 }

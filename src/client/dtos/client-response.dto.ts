@@ -44,7 +44,10 @@ export class ClientPortalAccessResponseDto {
   @ApiProperty({ type: ClientResponseDto })
   client!: Pick<ClientResponseDto, 'id' | 'name'>;
   @ApiProperty({ type: ClientContactResponseDto })
-  clientContact!: Pick<ClientContactResponseDto, 'id' | 'name' | 'email' | 'userId'>;
+  clientContact!: Pick<
+    ClientContactResponseDto,
+    'id' | 'name' | 'email' | 'userId'
+  >;
   @ApiProperty()
   portalAccess!: { role: 'client_owner'; scope: 'client'; active: boolean };
 }

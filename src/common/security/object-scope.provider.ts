@@ -39,7 +39,10 @@ export interface ActorScopeContext {
   member: {
     id: string;
     companyId: string;
+    /** The Member's home Division. Confers no leadership (04.1.1 DR-01). */
     divisionId: string;
+    /** Divisions this Member actively leads. Empty means leads none. */
+    ledDivisionIds: string[];
     active: boolean;
     companyActive: boolean;
     divisionActive: boolean;
@@ -63,6 +66,9 @@ export class ObjectScopeProvider {
           id: actor.member.id,
           companyId: actor.member.companyId,
           divisionId: actor.member.divisionId,
+          ledDivisionIds: actor.member.divisionLeadsByMemberId.map(
+            (lead) => lead.divisionId,
+          ),
           active: actor.member.isActive,
           companyActive: actor.member.company.isActive,
           divisionActive: actor.member.division.isActive,
@@ -174,8 +180,11 @@ export class ObjectScopeProvider {
       return member.companyActive && member.companyId === requirement.companyId;
     }
     if (requirement.kind === 'memberDivision') {
-      return (
-        member.divisionActive && member.divisionId === requirement.divisionId
+      // 04.1.1 DR-09: Division scope is a set. The home Division counts only
+      // while it is active; led Divisions come from division_leads.
+      const home = member.divisionActive ? [member.divisionId] : [];
+      return [...home, ...member.ledDivisionIds].includes(
+        requirement.divisionId,
       );
     }
     return false;

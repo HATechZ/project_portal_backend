@@ -20,7 +20,10 @@ export class ClientContactRepository extends BaseRepository {
     super(unitOfWork);
   }
 
-  findAll(clientId: string, args: PaginationArgs): Promise<ClientContactRecord[]> {
+  findAll(
+    clientId: string,
+    args: PaginationArgs,
+  ): Promise<ClientContactRecord[]> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.clientContact.findMany({
@@ -35,40 +38,64 @@ export class ClientContactRepository extends BaseRepository {
 
   count(clientId: string): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction((db) => db.clientContact.count({ where: { tenantId, clientId } }));
+    return this.transaction((db) =>
+      db.clientContact.count({ where: { tenantId, clientId } }),
+    );
   }
 
   findById(id: string, clientId: string): Promise<ClientContactRecord | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
-      db.clientContact.findFirst({ where: { id, tenantId, clientId }, select: clientContactSelect }),
+      db.clientContact.findFirst({
+        where: { id, tenantId, clientId },
+        select: clientContactSelect,
+      }),
     );
   }
 
-  create(clientId: string, input: ClientContactInput): Promise<ClientContactRecord> {
+  create(
+    clientId: string,
+    input: ClientContactInput,
+  ): Promise<ClientContactRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.clientContact.create({
         data: {
-          id: randomUUID(), tenantId, clientId, name: input.name.trim(),
-          email: input.email.trim().toLowerCase(), designation: optional(input.designation),
-          phone: optional(input.phone), isActive: true, isPrimary: false,
+          id: randomUUID(),
+          tenantId,
+          clientId,
+          name: input.name.trim(),
+          email: input.email.trim().toLowerCase(),
+          designation: optional(input.designation),
+          phone: optional(input.phone),
+          isActive: true,
+          isPrimary: false,
         },
         select: clientContactSelect,
       }),
     );
   }
 
-  update(id: string, clientId: string, input: Partial<ClientContactInput>): Promise<ClientContactRecord> {
+  update(
+    id: string,
+    clientId: string,
+    input: Partial<ClientContactInput>,
+  ): Promise<ClientContactRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.clientContact.update({
         where: { id_tenantId: { id, tenantId } },
         data: {
           ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-          ...(input.email !== undefined ? { email: input.email.trim().toLowerCase() } : {}),
-          ...(input.designation !== undefined ? { designation: optional(input.designation) } : {}),
-          ...(input.phone !== undefined ? { phone: optional(input.phone) } : {}),
+          ...(input.email !== undefined
+            ? { email: input.email.trim().toLowerCase() }
+            : {}),
+          ...(input.designation !== undefined
+            ? { designation: optional(input.designation) }
+            : {}),
+          ...(input.phone !== undefined
+            ? { phone: optional(input.phone) }
+            : {}),
           updatedAt: new Date(),
         },
         select: clientContactSelect,
@@ -107,23 +134,30 @@ export class ClientContactRepository extends BaseRepository {
     });
   }
 
-  setPrimary(id: string, clientId: string): Promise<ClientContactRecord | null> {
+  setPrimary(
+    id: string,
+    clientId: string,
+  ): Promise<ClientContactRecord | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction(async (db) => {
-      const selected = await db.clientContact.findFirst({
-        where: { id, tenantId, clientId, isActive: true }, select: { id: true },
-      });
-      if (!selected) return null;
-      await db.clientContact.updateMany({
-        where: { tenantId, clientId, isPrimary: true },
-        data: { isPrimary: false, updatedAt: new Date() },
-      });
-      return db.clientContact.update({
-        where: { id_tenantId: { id, tenantId } },
-        data: { isPrimary: true, updatedAt: new Date() },
-        select: clientContactSelect,
-      });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return this.transaction(
+      async (db) => {
+        const selected = await db.clientContact.findFirst({
+          where: { id, tenantId, clientId, isActive: true },
+          select: { id: true },
+        });
+        if (!selected) return null;
+        await db.clientContact.updateMany({
+          where: { tenantId, clientId, isPrimary: true },
+          data: { isPrimary: false, updatedAt: new Date() },
+        });
+        return db.clientContact.update({
+          where: { id_tenantId: { id, tenantId } },
+          data: { isPrimary: true, updatedAt: new Date() },
+          select: clientContactSelect,
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 }
 

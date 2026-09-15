@@ -20,11 +20,16 @@ export class MemberScopeProvider {
       return this.findCompanyDivisionIds(companyId);
     }
 
-    const divisionId = await this.resolveActorDivisionId(actorProfile);
-    if (requestedDivisionId && requestedDivisionId !== divisionId) {
-      throw new ForbiddenException('Requested Division is outside actor scope');
+    const divisionIds = await this.resolveActorDivisionIds(actorProfile);
+    if (requestedDivisionId) {
+      if (!divisionIds.includes(requestedDivisionId)) {
+        throw new ForbiddenException(
+          'Requested Division is outside actor scope',
+        );
+      }
+      return [requestedDivisionId];
     }
-    return [divisionId];
+    return divisionIds;
   }
 
   async assertCanCreate(
@@ -34,8 +39,8 @@ export class MemberScopeProvider {
   ): Promise<void> {
     await this.requireScopedDivision(divisionId, companyId);
     if (actorProfile.roleCode === ActorRoleCode.system_admin) return;
-    const actorDivisionId = await this.resolveActorDivisionId(actorProfile);
-    if (actorDivisionId !== divisionId) {
+    const actorDivisionIds = await this.resolveActorDivisionIds(actorProfile);
+    if (!actorDivisionIds.includes(divisionId)) {
       throw new ForbiddenException('Member creation is outside actor scope');
     }
   }
@@ -46,23 +51,33 @@ export class MemberScopeProvider {
     }
   }
 
-  private async resolveActorDivisionId(
+  /**
+   * 04.1.1 DR-09: Division authority is a set, never one column.
+   *
+   * A `division_lead` is scoped by its active `division_leads` rows. An empty
+   * set is refused outright (AC-S02) — falling back to the actor's own home
+   * Division would grant authority nobody assigned.
+   */
+  private async resolveActorDivisionIds(
     actorProfile: ActorScopeContext,
-  ): Promise<string> {
+  ): Promise<string[]> {
     if (actorProfile.roleCode === ActorRoleCode.division_lead) {
-      if (!actorProfile.member?.divisionId) {
-        throw new ForbiddenException('Division lead Member context required');
+      const led = actorProfile.member?.ledDivisionIds ?? [];
+      if (led.length === 0) {
+        throw new ForbiddenException('Division lead has no assigned Division');
       }
-      return actorProfile.member.divisionId;
+      return led;
     }
 
-    if (actorProfile.member?.id) {
-      const leadMemberId = actorProfile.member.id;
+    // Team-Lead fallback: a separate authority path, unrelated to Division
+    // leadership and deliberately left unchanged by 04.1.1.
+    const actorMemberId = actorProfile.member?.id;
+    if (actorMemberId) {
       const ledDivisionId = await this.repository.findLedTeamDivisionId(
-        leadMemberId,
+        actorMemberId,
         actorProfile.actorProfileId,
       );
-      if (ledDivisionId) return ledDivisionId;
+      if (ledDivisionId) return [ledDivisionId];
     }
     throw new ForbiddenException('Member actor scope required');
   }

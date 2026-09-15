@@ -4,7 +4,11 @@ import { RequestContext } from '../../common/context/request-context';
 import { PaginationArgs } from '../../common/pagination/paginate';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
-import { ClientRecord, clientSelect, ScopedCompanyRecord } from './client.records';
+import {
+  ClientRecord,
+  clientSelect,
+  ScopedCompanyRecord,
+} from './client.records';
 
 @Injectable()
 export class ClientRepository extends BaseRepository {
@@ -34,18 +38,23 @@ export class ClientRepository extends BaseRepository {
 
   count(companyId: string): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction((db) => db.client.count({ where: { tenantId, companyId } }));
+    return this.transaction((db) =>
+      db.client.count({ where: { tenantId, companyId } }),
+    );
   }
 
   findById(id: string, companyId: string): Promise<ClientRecord | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
-      db.client.findFirst({ where: { id, tenantId, companyId }, select: clientSelect }),
+      db.client.findFirst({
+        where: { id, tenantId, companyId },
+        select: clientSelect,
+      }),
     );
   }
 
   update(id: string, companyId: string, name: string): Promise<ClientRecord> {
-    const tenantId = RequestContext.requireTenantId();
+    RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.client.update({
         where: { id },
@@ -58,8 +67,12 @@ export class ClientRepository extends BaseRepository {
     });
   }
 
-  setActive(id: string, companyId: string, isActive: boolean): Promise<ClientRecord> {
-    const tenantId = RequestContext.requireTenantId();
+  setActive(
+    id: string,
+    companyId: string,
+    isActive: boolean,
+  ): Promise<ClientRecord> {
+    RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.client.update({
         where: { id },
@@ -76,7 +89,13 @@ export class ClientRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.client.create({
-        data: { id: randomUUID(), tenantId, companyId, name: name.trim(), isActive: true },
+        data: {
+          id: randomUUID(),
+          tenantId,
+          companyId,
+          name: name.trim(),
+          isActive: true,
+        },
         select: clientSelect,
       }),
     );

@@ -1,18 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context';
-import { ensureUserRoleAndRoleOnlyProfile } from '../../common/security/actor-access-orchestration';
 import { PaginationArgs } from '../../common/pagination/paginate';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
-import { ActorRoleCode, Prisma } from '../../generated/prisma/client';
-import { AppErrorCode } from '../../common/exceptions/app-error-code';
-import { AppException } from '../../common/exceptions/app-exception';
 import {
   MemberMutationInput,
   MemberRecord,
   ScopedCompanyRecord,
   ScopedDivisionRecord,
+  memberDivisionSelect,
   memberSelect,
 } from './member.records';
 
@@ -25,21 +22,6 @@ export const auditedMemberRelations = [
   'workflowInfoRequestsByTargetMemberId',
   'workRequestRevisionRequestsByRequestedToMemberId',
 ] as const;
-
-const disallowedMemberOnboardingRoles = new Set<ActorRoleCode>([
-  ActorRoleCode.client_owner,
-]);
-
-export interface MemberOnboardingInput {
-  name: string;
-  email: string;
-  passwordHash: string;
-  divisionId: string;
-  roleId: string;
-  assignedByUserId: string;
-  designation?: string;
-  phone?: string;
-}
 
 @Injectable()
 export class MemberRepository extends BaseRepository {
@@ -65,6 +47,31 @@ export class MemberRepository extends BaseRepository {
         select: { id: true, companyId: true },
       }),
     );
+  }
+
+  /**
+   * Divisions this Member actively leads. Revoked rows are never returned —
+   * they are retained history, not current authority (04.1.1 DR-06).
+   */
+  findLedDivisions(
+    memberId: string,
+    companyId: string,
+  ): Promise<{ id: string; name: string; abbr: string; assignedAt: Date }[]> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const rows = await db.divisionLead.findMany({
+        where: { tenantId, companyId, memberId, revokedAt: null },
+        select: {
+          assignedAt: true,
+          division: { select: memberDivisionSelect },
+        },
+        orderBy: [{ division: { name: 'asc' } }, { divisionId: 'asc' }],
+      });
+      return rows.map((row) => ({
+        ...row.division,
+        assignedAt: row.assignedAt,
+      }));
+    });
   }
 
   findCompanyDivisionIds(companyId: string): Promise<string[]> {
@@ -150,69 +157,6 @@ export class MemberRepository extends BaseRepository {
     );
   }
 
-  createWithAccess(
-    companyId: string,
-    input: MemberOnboardingInput,
-  ): Promise<MemberRecord> {
-    const tenantId = RequestContext.requireTenantId();
-    return this.transaction(
-      async (db) => {
-        const role = await db.role.findUnique({
-          where: { id: input.roleId },
-          select: { id: true, name: true, code: true },
-        });
-        if (!role) throw this.notFound('Role was not found');
-        if (disallowedMemberOnboardingRoles.has(role.code)) {
-          throw this.conflict('Role is not eligible for Member onboarding');
-        }
-
-        const userId = randomUUID();
-        await db.user.create({
-          data: {
-            id: userId,
-            tenantId,
-            fullName: input.name.trim(),
-            email: input.email.trim().toLowerCase(),
-            passwordHash: input.passwordHash,
-            ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
-          },
-          select: { id: true },
-        });
-
-        const member = await db.member.create({
-          data: {
-            tenantId,
-            id: randomUUID(),
-            userId,
-            companyId,
-            divisionId: input.divisionId,
-            name: input.name.trim(),
-            email: input.email.trim().toLowerCase(),
-            roleTitle: (input.designation?.trim() || role.name).trim(),
-            isActive: true,
-          },
-          select: memberSelect,
-        });
-
-        await ensureUserRoleAndRoleOnlyProfile(db, {
-          tenantId,
-          userId,
-          roleId: role.id,
-          assignedByUserId: input.assignedByUserId,
-          memberId: member.id,
-        });
-
-        const onboarded = await db.member.findFirst({
-          where: { id: member.id, tenantId, companyId },
-          select: memberSelect,
-        });
-        if (!onboarded) throw this.notFound('Member was not found');
-        return onboarded;
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
-  }
-
   update(id: string, companyId: string, input: MemberMutationInput) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
@@ -242,22 +186,6 @@ export class MemberRepository extends BaseRepository {
     return this.transaction(async (db) => {
       await db.member.delete({ where: { id_tenantId: { id, tenantId } } });
       void companyId;
-    });
-  }
-
-  private notFound(message: string): AppException {
-    return new AppException({
-      code: AppErrorCode.NotFound,
-      status: 404,
-      message,
-    });
-  }
-
-  private conflict(message: string): AppException {
-    return new AppException({
-      code: AppErrorCode.Conflict,
-      status: 409,
-      message,
     });
   }
 }

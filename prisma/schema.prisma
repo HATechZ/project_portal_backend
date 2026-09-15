@@ -272,6 +272,7 @@ model Tenant {
   company Company?
   divisions Division[]
   members Member[]
+  divisionLeads DivisionLead[]
   teams Team[]
   teamMembers TeamMember[]
   clients Client[]
@@ -540,6 +541,7 @@ model Division {
   company Company @relation("DivisionsCompanyIdCompanies", fields: [companyId], references: [id])
   divisionType DivisionType? @relation("DivisionsDivisionTypeIdDivisionTypes", fields: [divisionTypeId], references: [id])
   membersByDivisionId Member[] @relation("MembersDivisionIdDivisions")
+  divisionLeadsByDivisionId DivisionLead[] @relation("DivisionLeadsDivisionIdDivisions")
   teamsByDivisionId Team[] @relation("TeamsDivisionIdDivisions")
   projectsByOriginDivisionId Project[] @relation("ProjectsOriginDivisionIdDivisions")
   workRequestsByAssignedDivisionId WorkRequest[] @relation("WorkRequestsAssignedDivisionIdDivisions")
@@ -570,6 +572,7 @@ model Member {
   user User? @relation("MembersUserIdUsers", fields: [userId], references: [id])
   company Company @relation("MembersCompanyIdCompanies", fields: [companyId], references: [id])
   division Division @relation("MembersDivisionIdDivisions", fields: [divisionId, tenantId, companyId], references: [id, tenantId, companyId])
+  divisionLeadsByMemberId DivisionLead[] @relation("DivisionLeadsMemberIdMembers")
   teamsByLeadMemberId Team[] @relation("TeamsLeadMemberIdMembers")
   teamMembersByMemberId TeamMember[] @relation("TeamMembersMemberIdMembers")
   workRequestAssignmentsByMemberId WorkRequestAssignment[] @relation("WorkRequestAssignmentsMemberIdMembers")
@@ -583,6 +586,37 @@ model Member {
   @@index([divisionId, tenantId, companyId])
   @@index([tenantId])
   @@map("members")
+}
+
+// Division leadership is an explicit, persisted assignment: a Member may lead many
+// Divisions, a Division has at most one active Lead. Leadership is revoked by setting
+// revokedAt; rows are never deleted. The "at most one active Lead per Division" and
+// "no duplicate active (division, member) pair" rules are PARTIAL unique indexes
+// (WHERE revoked_at IS NULL) and MUST be hand-written as raw SQL in the
+// *_division_lead_multiplicity migration, together with the tenant RLS policy and the
+// app_user SELECT/INSERT/UPDATE grants (no DELETE) — none of the three are expressible
+// here. Prisma's @@unique carries no predicate, so do not replace them with a plain
+// @@unique: a non-partial unique would permanently bar re-assigning a Member to a
+// Division it previously led. See specs/04.1.1-division-lead-multiplicity/DATA_CONTRACT.md.
+model DivisionLead {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  companyId String @db.Uuid @map("company_id")
+  divisionId String @db.Uuid @map("division_id")
+  memberId String @db.Uuid @map("member_id")
+  assignedAt DateTime @default(now()) @db.Timestamp(6) @map("assigned_at")
+  assignedByUserId String @db.Uuid @map("assigned_by_user_id")
+  revokedAt DateTime? @db.Timestamp(6) @map("revoked_at")
+  revokedByUserId String? @db.Uuid @map("revoked_by_user_id")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  division Division @relation("DivisionLeadsDivisionIdDivisions", fields: [divisionId, tenantId, companyId], references: [id, tenantId, companyId])
+  member Member @relation("DivisionLeadsMemberIdMembers", fields: [memberId, tenantId], references: [id, tenantId])
+  @@unique([id, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, memberId, revokedAt])
+  @@index([tenantId, divisionId, revokedAt])
+  @@map("division_leads")
 }
 
 model Team {

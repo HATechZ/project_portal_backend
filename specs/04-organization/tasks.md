@@ -72,7 +72,7 @@ this Company tasks list.
   - [ ] Record the HTTP walkthrough ([Art. V](../rules/05-walkthrough.md))
         VERIFY: test -f specs/04-organization/walkthrough.md && node scripts/verify-company-evidence.cjs
 
-- [x] **Phase 6: Company Workspace signup**
+- [ ] **Phase 6: Company Workspace signup**
   - [x] Generate and return a stable public workspace slug without accepting it from the client
         VERIFY: grep -q "workspaceSlug" src/company/dtos/company-signup-response.dto.ts && grep -q "workspace_slug" src/company/repositories/company-signup.repository.ts && ! grep -q "workspaceSlug" src/company/dtos/company-signup.dto.ts
   - [x] Make CompanyType reference options available before authentication
@@ -81,7 +81,7 @@ this Company tasks list.
         VERIFY: grep -q "@Controller('company')" src/company/company-signup.controller.ts && grep -q "@Post('signup')" src/company/company-signup.controller.ts && ! grep -q "@Post('company')" src/company/company.controller.ts
   - [x] Reject client-controlled infrastructure fields
         VERIFY: grep -q "forbidNonWhitelisted" src/config/app-bootstrap.ts && ! grep -qE "tenantId|roleId|permissionIds|memberId|clientContactId" src/company/dtos/company-signup.dto.ts
-  - [x] Require matching password confirmation at the edge without passing it to persistence
+  - [ ] Require matching password confirmation at the edge without passing it to persistence
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
   - [x] Require trimmed nested fields, CompanyType UUID, password policy, and accepted terms
         VERIFY: grep -q "CompanySignupDto" src/company/dtos/company-signup.dto.ts && grep -q "IsUUID" src/company/dtos/company-signup.dto.ts && grep -q "IsByteLength" src/company/dtos/company-signup.dto.ts && grep -q "Equals(true)" src/company/dtos/company-signup.dto.ts
@@ -93,13 +93,13 @@ this Company tasks list.
         VERIFY: grep -rq "EPC Contractor" prisma/seed && grep -rq "companyType.upsert" prisma/seed
   - [x] Keep permission bootstrap SQL in parity with its approved matrix
         VERIFY: node scripts/verify-onboarding-permission-matrix.cjs
-  - [x] Cover signup DTO, hashing, result mapping, and single-call atomic boundary
+  - [ ] Cover signup DTO, hashing, result mapping, and single-call atomic boundary
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
 
-- [x] **Approved Company completion**
-  - [x] Reject missing/null nested signup objects before hashing or provisioning
+- [ ] **Approved Company completion**
+  - [ ] Reject missing/null nested signup objects before hashing or provisioning
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
-  - [x] Validate partial updates and preserve immutable Company fields
+  - [ ] Validate partial updates and preserve immutable Company fields
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-update
-  - [x] Restrict Company reads and updates to same-Tenant system administrators
+  - [ ] Restrict Company reads and updates to same-Tenant system administrators
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-http

@@ -60,6 +60,38 @@ for new leadership users and validating object scope at assignment time. This co
 not add a Division-head FK, table, column, seed, or grant, and it does not decide whether
 `division_head` may create, update, or delete Division master records.
 
+## Proposed schema change
+
+**Not applied. Requires explicit owner approval.** Full specification:
+[`../04.1.1-division-lead-multiplicity/DATA_CONTRACT.md`](../04.1.1-division-lead-multiplicity/DATA_CONTRACT.md).
+
+`Member.divisionId` is a single non-nullable column, so the orchestration described above can
+only ever make a Member the Lead of its own one Division. Module `04.1.1` proposes a new
+`division_leads` join table — `tenantId`, `id`, `companyId`, `divisionId`, `memberId`,
+`assignedAt`, `assignedByUserId`, nullable `revokedAt`, nullable `revokedByUserId` — with
+tenant-carrying composite FKs to `divisions (id, tenantId, companyId)` and
+`members (id, tenantId)`, plus two **partial** unique indexes predicated on
+`revoked_at IS NULL`, tenant RLS, and narrow app_user `SELECT, INSERT, UPDATE` grants (no
+`DELETE`). No column is added to `divisions` or `members`, and `Division.leadMemberId` is not
+introduced.
+
+**Owner decision recorded 2026-09-15:** a Member may lead many Divisions; a Division has at
+most one active Lead. This settles the cardinality question left open in § Division Lead
+orchestration above — that section describes currently shipped behavior and is superseded by
+`04.1.1` once the migration is applied. Assignment becomes incumbent-revoking rather than
+purely additive.
+
+Without this table, multi-Division leadership is unrepresentable. Two further impacts land on
+this module: the delete dependency probe gains a sixth inverse relation
+(`divisionLeadsByDivisionId`), and DR-08's "does not revoke other leads" no longer holds.
+
+```text
+Needs: division_leads table, two partial unique indexes, RLS policy, app_user grants.
+Proposed in specs/04.1.1-division-lead-multiplicity/DATA_CONTRACT.md — Proposed schema change.
+To apply — delegate to the database-architect subagent, then:
+  yarn prisma:migrate --name division_lead_multiplicity
+```
+
 Runtime prerequisite discovered during Gate 5 attempt on 2026-09-09: app_user currently has
 only `SELECT` on `public.divisions` and no reported grant on `public.division_types`. Valid
 Division create/update/delete and global DivisionType prevalidation therefore cannot pass
