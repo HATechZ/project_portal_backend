@@ -109,8 +109,8 @@ export class RolePermissionRepository extends BaseRepository {
             update: { allowed: true },
           });
         }
-        return transaction.role.findUniqueOrThrow({
-          where: { id: roleId },
+        return transaction.role.findFirstOrThrow({
+          where: { id: roleId, OR: [{ isSystemRole: true }, { tenantId }] },
           select: roleSelect(tenantId),
         });
       },

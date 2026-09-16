@@ -21,8 +21,6 @@ const FILTER_OPERATIONS = new Set([
 ]);
 
 const ROLE_READ_FILTER_OPERATIONS = new Set([
-  'findUnique',
-  'findUniqueOrThrow',
   'findFirst',
   'findFirstOrThrow',
   'findMany',
@@ -83,6 +81,11 @@ function scopeRoleArguments(
   args: QueryArguments,
   tenantId: string,
 ): QueryArguments {
+  if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
+    throw new Error(
+      'Role findUnique is unsafe for the mixed system/custom role catalog; use findFirst with tenant scope.',
+    );
+  }
   const customRoleData = (data: unknown): unknown => {
     if (Array.isArray(data)) {
       return data.map((item) => ({

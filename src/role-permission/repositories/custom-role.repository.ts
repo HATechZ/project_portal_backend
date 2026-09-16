@@ -50,8 +50,8 @@ export class CustomRoleRepository extends BaseRepository {
           },
           select: { id: true },
         });
-        return db.role.findUniqueOrThrow({
-          where: { id: role.id },
+        return db.role.findFirstOrThrow({
+          where: { id: role.id, tenantId, isSystemRole: false },
           select: roleSelect(tenantId),
         });
       },

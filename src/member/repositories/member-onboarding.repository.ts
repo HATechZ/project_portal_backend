@@ -38,8 +38,11 @@ export class MemberOnboardingRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
       async (db) => {
-        const role = await db.role.findUnique({
-          where: { id: input.roleId },
+        const role = await db.role.findFirst({
+          where: {
+            id: input.roleId,
+            OR: [{ isSystemRole: true }, { tenantId }],
+          },
           select: {
             id: true,
             name: true,

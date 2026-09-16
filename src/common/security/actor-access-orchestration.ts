@@ -24,8 +24,11 @@ export async function ensureUserRoleAndRoleOnlyProfile(
     where: { id: input.userId, tenantId: input.tenantId },
     select: { id: true },
   });
-  const role = await db.role.findUniqueOrThrow({
-    where: { id: input.roleId },
+  const role = await db.role.findFirstOrThrow({
+    where: {
+      id: input.roleId,
+      OR: [{ isSystemRole: true }, { tenantId: input.tenantId }],
+    },
     select: { name: true },
   });
   const existing = await db.userRole.findFirst({
