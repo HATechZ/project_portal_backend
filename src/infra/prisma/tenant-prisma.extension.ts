@@ -20,6 +20,17 @@ const FILTER_OPERATIONS = new Set([
   'deleteMany',
 ]);
 
+const ROLE_READ_FILTER_OPERATIONS = new Set([
+  'findUnique',
+  'findUniqueOrThrow',
+  'findFirst',
+  'findFirstOrThrow',
+  'findMany',
+  'count',
+  'aggregate',
+  'groupBy',
+]);
+
 function withTenantWhere(
   args: QueryArguments,
   tenantId: string,
@@ -62,11 +73,83 @@ function scopeArguments(
   return args;
 }
 
+/**
+ * Roles are a mixed catalog: system roles are globally visible while custom
+ * access roles are tenant-owned. They cannot use the normal tenant-only
+ * branch without hiding fixed workflow identities from every tenant.
+ */
+function scopeRoleArguments(
+  operation: string,
+  args: QueryArguments,
+  tenantId: string,
+): QueryArguments {
+  const customRoleData = (data: unknown): unknown => {
+    if (Array.isArray(data)) {
+      return data.map((item) => ({
+        ...(item as object),
+        isSystemRole: false,
+        tenantId,
+      }));
+    }
+    return {
+      ...(data as object | undefined),
+      isSystemRole: false,
+      tenantId,
+    };
+  };
+  const where = args.where as object | undefined;
+  const readableWhere = {
+    AND: [
+      ...(where ? [where] : []),
+      {
+        OR: [{ isSystemRole: true }, { tenantId }],
+      },
+    ],
+  };
+  const writableWhere = {
+    AND: [...(where ? [where] : []), { isSystemRole: false, tenantId }],
+  };
+
+  if (ROLE_READ_FILTER_OPERATIONS.has(operation)) {
+    return { ...args, where: readableWhere };
+  }
+  if (
+    [
+      'update',
+      'updateMany',
+      'updateManyAndReturn',
+      'delete',
+      'deleteMany',
+    ].includes(operation)
+  ) {
+    return { ...args, where: writableWhere };
+  }
+  if (operation === 'create' || operation.startsWith('createMany')) {
+    return {
+      ...args,
+      data: customRoleData(args.data),
+    };
+  }
+  if (operation === 'upsert') {
+    return {
+      ...args,
+      where: writableWhere,
+      create: customRoleData(args.create),
+      update: customRoleData(args.update),
+    };
+  }
+  return args;
+}
+
 export const tenantScopeExtension = Prisma.defineExtension({
   name: 'tenant-scope',
   query: {
     $allModels: {
       $allOperations({ model, operation, args, query }) {
+        if (model === 'Role') {
+          const tenantId = RequestContext.requireTenantId();
+          return query(scopeRoleArguments(operation, args, tenantId));
+        }
         if (!TENANT_SCOPED_MODELS.has(model)) return query(args);
         const tenantId = RequestContext.requireTenantId();
         return query(scopeArguments(operation, args, tenantId));

@@ -4,10 +4,12 @@ import { AppException } from '../../common/exceptions/app-exception';
 import { UpdateMemberDto } from '../dtos';
 
 export function memberNotFound(id: string): AppException {
+  void id;
   return new AppException({
     code: AppErrorCode.NotFound,
     status: HttpStatus.NOT_FOUND,
-    message: `Member with ID ${id} was not found`,
+    message:
+      'Member not found. It may have been removed or you may not have access to it.',
   });
 }
 
@@ -15,7 +17,8 @@ export function scopedCompanyNotFound(): AppException {
   return new AppException({
     code: AppErrorCode.NotFound,
     status: HttpStatus.NOT_FOUND,
-    message: 'Company was not found for the active Tenant',
+    message:
+      'Company not found. It may have been removed or you may not have access to it.',
   });
 }
 
@@ -29,7 +32,8 @@ export function assertMemberUpdateHasFields(input: UpdateMemberDto): void {
   ) {
     throw new AppException({
       code: AppErrorCode.BadRequest,
-      message: 'Supply at least one Member field',
+      message:
+        'Some information is invalid. Correct the highlighted fields and try again.',
     });
   }
 }

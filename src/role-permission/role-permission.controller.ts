@@ -5,6 +5,8 @@ import {
   Param,
   ParseUUIDPipe,
   Put,
+  Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
@@ -14,6 +16,7 @@ import { SystemAdminGuard } from '../common/security/system-admin.guard';
 import {
   ApiStandardBadRequestResponse,
   ApiStandardArrayResponse,
+  ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
   ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
@@ -25,6 +28,7 @@ import {
   PermissionResponseDto,
   RoleResponseDto,
   SetRolePermissionsDto,
+  CreateCustomRoleDto,
 } from './dtos';
 import { RolePermissionService } from './role-permission.service';
 
@@ -45,15 +49,23 @@ export class RolePermissionController {
 
   @Get('role')
   @ResponseMessage('Roles returned successfully')
-  @ApiOperation({ summary: 'List roles with their tenant permission grants' })
+  @ApiOperation({ summary: 'List available roles' })
   @ApiStandardArrayResponse(RoleResponseDto)
   findRoles() {
     return this.service.findRoles();
   }
 
+  @Post('role')
+  @ResponseMessage('Custom role created successfully')
+  @ApiOperation({ summary: 'Create a custom role' })
+  @ApiStandardCreatedResponse(RoleResponseDto)
+  createRole(@Body() input: CreateCustomRoleDto) {
+    return this.service.createCustomRole(input);
+  }
+
   @Get('role/:id')
   @ResponseMessage('Role returned successfully')
-  @ApiOperation({ summary: 'Get a role with its tenant permission grants' })
+  @ApiOperation({ summary: 'Get role details' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiStandardOkResponse(RoleResponseDto)
   @ApiStandardNotFoundResponse('Role was not found')
@@ -64,7 +76,7 @@ export class RolePermissionController {
   @Put('role/:id/permission')
   @ResponseMessage('Role permissions updated successfully')
   @ApiOperation({
-    summary: 'Replace the complete permission set for a role in this tenant',
+    summary: 'Update permissions for a role',
     description:
       'This operation performs full replacement. Permission codes omitted from the request are revoked for this tenant and role.',
   })
@@ -80,16 +92,19 @@ export class RolePermissionController {
   @Get('permission')
   @ResponseMessage('Permissions returned successfully')
   @ApiOperation({
-    summary: 'List UI-visible workflow permission definitions',
+    summary: 'List available permissions',
   })
   @ApiStandardArrayResponse(PermissionResponseDto)
-  findPermissions() {
-    return this.service.findPermissions();
+  findPermissions(
+    @Query('customRole') customRole?: string,
+    @Query('scope') scope?: string,
+  ) {
+    return this.service.findPermissions(customRole === 'true', scope);
   }
 
   @Get('permission/:id')
   @ResponseMessage('Permission returned successfully')
-  @ApiOperation({ summary: 'Get a workflow permission definition' })
+  @ApiOperation({ summary: 'Get permission details' })
   @ApiStandardOkResponse(PermissionResponseDto)
   @ApiStandardNotFoundResponse('Permission was not found')
   findPermission(@Param('id', ParseUUIDPipe) id: string) {

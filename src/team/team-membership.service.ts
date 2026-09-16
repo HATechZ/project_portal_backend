@@ -50,7 +50,7 @@ export class TeamMembershipService {
     if (
       await this.membershipRepository.findActiveMembership(id, input.memberId)
     ) {
-      throw teamScopeConflict('Member is already active on this Team');
+      throw teamScopeConflict('This member is already active on this team.');
     }
     return toTeamMemberResponse(
       await this.membershipRepository.addMember(

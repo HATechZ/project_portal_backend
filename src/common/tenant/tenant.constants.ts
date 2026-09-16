@@ -1,6 +1,7 @@
 export const TENANT_ID_HEADER = 'x-tenant-id';
 
 export const TENANT_SCOPED_MODELS = new Set<string>([
+  'Role',
   'User',
   'UserRole',
   'ActorProfile',

@@ -52,6 +52,9 @@ function makeDb({
       update: jest.fn().mockResolvedValue({}),
     },
     role: {
+      findFirstOrThrow: jest
+        .fn()
+        .mockResolvedValue({ id: 'role-1', name: 'Division Lead' }),
       findUniqueOrThrow: jest
         .fn()
         .mockResolvedValue({ id: 'role-1', name: 'Division Lead' }),

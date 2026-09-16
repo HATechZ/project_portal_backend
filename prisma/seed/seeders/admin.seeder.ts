@@ -35,10 +35,10 @@ export const adminSeeder: Seeder = {
           },
         });
 
-    const role = await prisma.role.findUniqueOrThrow({
-      where: { code: ActorRoleCode.system_admin },
+    const systemRole = await prisma.systemRole.findUniqueOrThrow({
+      where: { systemCode: ActorRoleCode.system_admin },
     });
-    const roleId = role.id;
+    const roleId = systemRole.roleId;
     await prisma.userRole.upsert({
       where: { id: ADMIN_IDS.userRole },
       create: {

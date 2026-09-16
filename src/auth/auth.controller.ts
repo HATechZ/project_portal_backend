@@ -56,7 +56,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in and issue JWT credentials' })
   @ApiStandardOkResponse(LoginResponseDto, 'Login successful')
   @ResponseMessage('Login successful')
-  @ApiStandardUnauthorizedResponse('Invalid email or password')
+  @ApiStandardUnauthorizedResponse(
+    'Email or password is incorrect. Check your credentials and try again.',
+  )
   login(@Req() request: Request, @Body() input: LoginDto) {
     return this.authService.login(request, input);
   }
@@ -67,7 +69,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Rotate a refresh token and issue new credentials' })
   @ApiStandardOkResponse(RefreshResponseDto, 'Token refreshed successfully')
   @ResponseMessage('Token refreshed successfully')
-  @ApiStandardUnauthorizedResponse('Invalid or expired refresh token')
+  @ApiStandardUnauthorizedResponse(
+    'Your session has expired. Sign in again to continue.',
+  )
   refresh(@Req() request: Request, @Body() input: RefreshTokenDto) {
     return this.authService.refresh(request, input.refreshToken);
   }

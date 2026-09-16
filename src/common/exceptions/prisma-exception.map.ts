@@ -15,29 +15,48 @@ import { AppException } from './app-exception';
  * Postgres reports. A constraint that is missing here falls back to the generic
  * message below: the worst case is a vaguer 409, never a wrong one.
  */
-const UNIQUE_CONSTRAINT_MESSAGES: Record<string, string> = {
-  users_email_key: 'A user with this email already exists',
-  users_tenant_id_email_key: 'A user with this email already exists',
-  companies_abbr_key: 'A company with this abbreviation already exists',
-  companies_tenant_id_abbr_key:
-    'A company with this abbreviation already exists',
-  divisions_tenant_id_company_id_abbr_key:
-    'A division with this abbreviation already exists',
-  user_roles_active_tenant_user_role_key: 'The user already has this role',
-  processed_events_tenant_id_event_id_consumer_key:
-    'This event has already been processed by this consumer',
-  workflow_transitions_tenant_id_action_id_from_status_id_key:
-    'A transition already exists for this action and source status',
-  actor_profiles_one_default: 'This person already has a default actor profile',
-  actor_profiles_kind_target:
-    'The actor kind must match exactly one actor profile target',
+const UNIQUE_CONSTRAINT_MESSAGES: Record<
+  string,
+  { code: AppErrorCode; message: string }
+> = {
+  users_email_key: {
+    code: AppErrorCode.DuplicateUserEmail,
+    message:
+      'A user with this email already exists. Use a different email or use the existing account.',
+  },
+  users_tenant_id_email_key: {
+    code: AppErrorCode.DuplicateUserEmail,
+    message:
+      'A user with this email already exists. Use a different email or use the existing account.',
+  },
+  companies_abbr_key: {
+    code: AppErrorCode.DuplicateCompanyAbbreviation,
+    message:
+      'A company with this abbreviation already exists. Use a different abbreviation.',
+  },
+  companies_tenant_id_abbr_key: {
+    code: AppErrorCode.DuplicateCompanyAbbreviation,
+    message:
+      'A company with this abbreviation already exists. Use a different abbreviation.',
+  },
+  divisions_tenant_id_company_id_abbr_key: {
+    code: AppErrorCode.DuplicateDivisionAbbreviation,
+    message:
+      'A division with this abbreviation already exists. Use a different abbreviation.',
+  },
+  user_roles_active_tenant_user_role_key: {
+    code: AppErrorCode.UserRoleAlreadyAssigned,
+    message: 'This user already has the selected role.',
+  },
 };
 
 /**
  * `meta.target` is either the constraint name or the field list, depending on
  * the driver. Try every reading rather than assuming one.
  */
-function uniqueConstraintMessage(meta: unknown): string | undefined {
+function uniqueConstraintMessage(
+  meta: unknown,
+): { code: AppErrorCode; message: string } | undefined {
   const target = (meta as { target?: unknown } | undefined)?.target;
   const candidates =
     typeof target === 'string'
@@ -73,36 +92,38 @@ export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2034') {
       return new AppException({
-        code: AppErrorCode.Conflict,
-        message: 'The record changed concurrently; retry the request',
+        code: AppErrorCode.StaleUpdate,
+        message:
+          'This record was changed by another user. Refresh the page and try again.',
         status: HttpStatus.CONFLICT,
         cause: error,
       });
     }
     if (error.code === 'P2002') {
       return new AppException({
-        code: AppErrorCode.Conflict,
+        code:
+          uniqueConstraintMessage(error.meta)?.code ?? AppErrorCode.Conflict,
         message:
-          uniqueConstraintMessage(error.meta) ??
-          'A record with these unique values already exists',
+          uniqueConstraintMessage(error.meta)?.message ??
+          'This change cannot be completed because it conflicts with an existing record. Review the information and try again.',
         status: HttpStatus.CONFLICT,
-        details: error.meta,
         cause: error,
       });
     }
     if (error.code === 'P2003') {
       return new AppException({
         code: AppErrorCode.DatabaseConstraint,
-        message: 'The operation violates a related record constraint',
+        message:
+          'This change cannot be completed because related records still depend on this item. Review those relationships and try again.',
         status: HttpStatus.CONFLICT,
-        details: error.meta,
         cause: error,
       });
     }
     if (error.code === 'P2025') {
       return new AppException({
         code: AppErrorCode.NotFound,
-        message: 'The requested record was not found',
+        message:
+          'The requested resource was not found. Refresh the page and try again.',
         status: HttpStatus.NOT_FOUND,
         cause: error,
       });
@@ -113,7 +134,8 @@ export function mapPrismaException(error: unknown): AppException | undefined {
     ) {
       return new AppException({
         code: AppErrorCode.BadRequest,
-        message: 'The Company Account signup data is invalid',
+        message:
+          'Some information is invalid. Correct the highlighted fields and try again.',
         status: HttpStatus.BAD_REQUEST,
         cause: error,
       });
@@ -124,7 +146,8 @@ export function mapPrismaException(error: unknown): AppException | undefined {
     ) {
       return new AppException({
         code: AppErrorCode.Conflict,
-        message: 'The Company Account conflicts with an existing account',
+        message:
+          'This change cannot be completed because it conflicts with an existing account. Review the information and try again.',
         status: HttpStatus.CONFLICT,
         cause: error,
       });
@@ -133,7 +156,8 @@ export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientInitializationError) {
     return new AppException({
       code: AppErrorCode.ServiceUnavailable,
-      message: 'Database service is unavailable',
+      message:
+        'The service is temporarily unavailable. Please try again shortly.',
       status: HttpStatus.SERVICE_UNAVAILABLE,
       cause: error,
     });

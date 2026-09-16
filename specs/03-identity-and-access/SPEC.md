@@ -25,6 +25,8 @@ ActorProfile listing/activation are implemented. User administration is restrict
 | US-03 | `system_admin` | to grant/revoke roles without deleting history | "who could do what, when" stays answerable |
 | US-04 | user who forgot a password | a single-use expiring reset link | |
 | US-05 | operator | to revoke a stolen session immediately | |
+| US-06 | `system_admin` | to create a tenant custom access role with initial compatible permissions | access can be delegated without creating a workflow identity |
+| US-07 | `system_admin` | to see only roles eligible for a selected User | assignment dropdowns cannot grant irrelevant roles |
 
 ## Domain rules
 
@@ -78,6 +80,55 @@ an address is registered.
 - `[AC-W05]` IF a User attempts to activate an unavailable or unowned ActorProfile, THEN the
   system SHALL return 403 without changing their default profile.
 
+## Custom access roles — approved V1 boundary
+
+System roles remain application-defined workflow and organizational identities. Their fixed
+`ActorRoleCode`, existing grants, ActorProfiles, permission grants, workflow transitions, and
+routing behavior remain unchanged. A custom access role is tenant-created, permission-configured
+access only: it never creates a workflow stage, routing identity, transition endpoint, or
+System Administrator bypass. `prime_consultant` is not restored.
+
+Only a same-Tenant `system_admin` may create, administer permissions for, discover, assign, or
+revoke a custom access role. A custom role cannot administer roles merely by being custom or by
+holding a workflow permission. Existing hierarchy rules for `system_admin`, `ccr_coordinator`,
+`division_head`, `division_lead`, `team_lead`, `division_member`, TMS roles, `client_owner`, and
+workflow transitions are preserved.
+
+V1 scope is explicit and limited to current enforceable ActorProfile evidence:
+
+| Scope | Required assigned ActorProfile target | Enforcement boundary |
+|---|---|---|
+| `member` | active same-Tenant Member | exact linked Member only |
+| `division` | active same-Tenant Member | linked Member's home Division only; led Divisions do not widen custom scope |
+| `company` | active same-Tenant Member | linked Member's Company only |
+| `client_contact` | active same-Tenant ClientContact | exact linked ClientContact only |
+| `client` | active same-Tenant ClientContact | linked Contact's active Client only |
+
+`tenant`, `team`, `role_only`, and `client_company` are not supported in V1: the current
+object-scope model cannot safely prove them for a custom role. Assignment must create or reuse an
+ActorProfile with the required existing target; it must not fabricate a Member or ClientContact.
+The role's declared scope and selected profile target must agree before a grant becomes active.
+Existing object checks remain authoritative in addition to permission checks.
+
+The executable custom-role permission matrix is intentionally small in V1:
+
+| Workflow action | Allowed custom scopes |
+|---|---|
+| `ADD_MEMBER` | `division`, `company` |
+| `ADD_TEAM` | `division`, `company` |
+| `ASSIGN_MEMBER` | `division`, `company` |
+| every other `WorkflowActionCode` | none |
+
+`member`, `client_contact`, and `client` remain representable future scopes but have no
+eligible V1 permission and are not selectable on role creation. Eligibility expands only after
+the owning protected operation is implemented with generic permission plus object-scope checks.
+
+Creation is one atomic business operation: create the tenant custom role and its initial approved
+permission grants together, or create neither. Permission replacement remains the later full-set
+replacement operation. Assignment discovery and assignment both re-evaluate server-side target,
+tenant, role kind/scope, active grants, and existing hierarchy; frontend filtering is never
+authoritative.
+
 ## Identity completion acceptance
 
 - Role assignment atomically ensures one reusable role-only ActorProfile for that User/role.
@@ -95,6 +146,12 @@ an address is registered.
 - Bearer-authenticated endpoints derive Tenant context solely from the verified JWT Tenant
   claim, ignoring caller Tenant headers. Tenant activation, session validity, active User and
   eligible ActorProfile checks still apply; object access remains Tenant-isolated.
+
+## Custom-role lifecycle boundary
+
+V1 approves creation, initial permission grants, permission replacement, eligible-role discovery,
+assignment, and timestamp revocation only. Rename, deactivation, and deletion of custom roles
+require a later owner decision and are not inferred here.
 
 ## Out of scope
 

@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
-import { RolePermissionRepository } from './repositories';
+import {
+  CustomRoleRepository,
+  RoleOptionsRepository,
+  RolePermissionRepository,
+} from './repositories';
 import { RoleAssignmentRepository } from './repositories/role-assignment.repository';
 import {
   RolePermissionMutationProvider,
@@ -16,6 +20,8 @@ import { UserRoleController } from './user-role.controller';
     RolePermissionMutationProvider,
     RolePermissionQueryProvider,
     RolePermissionRepository,
+    CustomRoleRepository,
+    RoleOptionsRepository,
     RoleAssignmentRepository,
   ],
   exports: [RolePermissionQueryProvider],

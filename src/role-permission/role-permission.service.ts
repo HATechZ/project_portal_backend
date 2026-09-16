@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import {
   AssignUserRoleDto,
+  CreateCustomRoleDto,
   PermissionResponseDto,
   RoleResponseDto,
   SetRolePermissionsDto,
   UserRoleAssignmentResponseDto,
+  RoleOptionResponseDto,
 } from './dtos';
 import {
   RolePermissionMutationProvider,
@@ -24,8 +26,14 @@ export class RolePermissionService {
   findRole(id: string): Promise<RoleResponseDto> {
     return this.queryProvider.findRole(id);
   }
-  findPermissions(): Promise<PermissionResponseDto[]> {
-    return this.queryProvider.findPermissions();
+  createCustomRole(input: CreateCustomRoleDto): Promise<RoleResponseDto> {
+    return this.mutationProvider.createCustomRole(input);
+  }
+  findPermissions(
+    customRole?: boolean,
+    scope?: string,
+  ): Promise<PermissionResponseDto[]> {
+    return this.queryProvider.findPermissions(customRole, scope);
   }
   findPermission(id: string): Promise<PermissionResponseDto> {
     return this.queryProvider.findPermission(id);
@@ -41,6 +49,9 @@ export class RolePermissionService {
     includeRevoked: boolean,
   ): Promise<UserRoleAssignmentResponseDto[]> {
     return this.queryProvider.findUserRoles(userId, includeRevoked);
+  }
+  findRoleOptions(userId: string): Promise<RoleOptionResponseDto[]> {
+    return this.queryProvider.findRoleOptions(userId);
   }
   assignUserRole(
     userId: string,

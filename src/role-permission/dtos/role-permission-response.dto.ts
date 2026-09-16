@@ -1,8 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  ActorRoleCode,
-  WorkflowActionCode,
-} from '../../generated/prisma/client';
+import { WorkflowActionCode } from '../../generated/prisma/client';
 
 export class PermissionResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -18,10 +15,12 @@ export class PermissionResponseDto {
 
 export class RoleResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ enum: ActorRoleCode }) code!: ActorRoleCode;
+  @ApiProperty() code!: string;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty() isSystemRole!: boolean;
+  @ApiPropertyOptional({ enum: ['division', 'company'], nullable: true })
+  scope!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: () => PermissionResponseDto, isArray: true })
   permissions!: PermissionResponseDto[];

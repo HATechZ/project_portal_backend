@@ -14,7 +14,7 @@ import { mapPrismaException } from './prisma-exception.map';
 
 interface ErrorBody {
   code: string;
-  message: string | string[];
+  message: string;
   details?: unknown;
 }
 
@@ -53,14 +53,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof AppException) {
       return {
         code: exception.code,
-        message: this.userMessageFor(status),
+        message: exception.message,
         details: exception.details,
       };
     }
     if (exception instanceof HttpException) {
       const body = exception.getResponse();
       if (typeof body === 'string')
-        return { code: this.codeFor(status), message: body };
+        return {
+          code: this.codeFor(status),
+          message: this.userMessageFor(status),
+        };
       const payload = body as Record<string, unknown>;
       return {
         code:
@@ -68,7 +71,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
             ? payload.code
             : this.codeFor(status),
         message: this.userMessageFor(status),
-        details: payload.details,
       };
     }
     return {
@@ -80,20 +82,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private userMessageFor(status: number): string {
     const messages: Partial<Record<number, string>> = {
       [HttpStatus.BAD_REQUEST]:
-        'Please check the information you entered and try again.',
-      [HttpStatus.UNAUTHORIZED]: 'Please sign in again to continue.',
-      [HttpStatus.FORBIDDEN]: 'You do not have permission to do that.',
-      [HttpStatus.NOT_FOUND]: 'We could not find what you were looking for.',
+        'Some information is invalid. Correct the highlighted fields and try again.',
+      [HttpStatus.UNAUTHORIZED]:
+        'Your session has expired or is no longer valid. Sign in again to continue.',
+      [HttpStatus.FORBIDDEN]:
+        "You don't have permission to perform this action. Contact your administrator if you need access.",
+      [HttpStatus.NOT_FOUND]:
+        'The requested resource was not found. Refresh the page and try again.',
       [HttpStatus.CONFLICT]:
-        'This cannot be completed because the information is already in use.',
+        'This change cannot be completed because it conflicts with the current record state. Refresh and try again.',
       [HttpStatus.TOO_MANY_REQUESTS]:
-        'Too many requests. Please wait a moment and try again.',
+        'Too many attempts. Wait a moment and try again.',
       [HttpStatus.SERVICE_UNAVAILABLE]:
         'This service is temporarily unavailable. Please try again shortly.',
       [HttpStatus.INTERNAL_SERVER_ERROR]:
-        'Something went wrong. Please try again later.',
+        "We couldn't complete your request because of an unexpected error. Try again. If the problem continues, contact support.",
     };
-    return messages[status] ?? 'Something went wrong. Please try again later.';
+    return (
+      messages[status] ??
+      "We couldn't complete your request because of an unexpected error. Try again. If the problem continues, contact support."
+    );
   }
 
   private codeFor(status: number): AppErrorCode {

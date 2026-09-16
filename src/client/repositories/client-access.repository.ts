@@ -27,12 +27,18 @@ export class ClientAccessRepository extends BaseRepository {
           where: { id: clientId, tenantId, companyId, isActive: true },
           select: { id: true, name: true },
         });
-        if (!client) throw this.notFound('Client was not found');
+        if (!client)
+          throw this.notFound(
+            'Client not found. It may have been removed or you may not have access to it.',
+          );
         const contact = await db.clientContact.findFirst({
           where: { id: contactId, tenantId, clientId, isActive: true },
           select: { id: true, name: true, email: true, userId: true },
         });
-        if (!contact) throw this.notFound('Client contact was not found');
+        if (!contact)
+          throw this.notFound(
+            'Client contact not found. Refresh the client details and try again.',
+          );
         return establishPortalAccess(db, client, contact, assignedByUserId);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -50,10 +56,15 @@ export class ClientAccessRepository extends BaseRepository {
         where: { id: contactId, tenantId, clientId, client: { companyId } },
         select: { userId: true },
       });
-      if (!contact) throw this.notFound('Client contact was not found');
+      if (!contact)
+        throw this.notFound(
+          'Client contact not found. Refresh the client details and try again.',
+        );
       if (!contact.userId) return;
-      const role = await db.role.findUnique({
-        where: { code: ActorRoleCode.client_owner },
+      const role = await db.role.findFirst({
+        where: {
+          systemRole: { is: { systemCode: ActorRoleCode.client_owner } },
+        },
         select: { id: true },
       });
       if (!role) throw this.notFound('Client owner role was not found');

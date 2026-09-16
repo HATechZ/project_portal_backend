@@ -1,10 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { AppConfiguration } from '../../config/configuration';
@@ -16,6 +11,8 @@ import {
   type PasswordHasher,
 } from '../../infra/crypto/password-hasher.port';
 import { PasswordRecoveryRepository } from '../repositories/password-recovery.repository';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 
 const RESET_EMAIL_TEMPLATE = `
 <h1>Reset your password</h1>
@@ -101,7 +98,12 @@ export class AuthPasswordResetProvider {
       passwordHash,
     );
     if (!reset) {
-      throw new BadRequestException('Invalid or expired password reset token');
+      throw new AppException({
+        code: AppErrorCode.PasswordResetLinkInvalid,
+        status: 400,
+        message:
+          'This password setup link is invalid or has expired. Request a new link to continue.',
+      });
     }
   }
 

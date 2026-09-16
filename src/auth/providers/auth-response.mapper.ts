@@ -2,7 +2,9 @@ import { AuthUserResponseDto } from '../dtos';
 import { SessionUser } from '../../common/security/session.types';
 
 export function toAuthUserResponse(user: SessionUser): AuthUserResponseDto {
-  const roles = user.userRolesByUserId.map(({ role }) => role.code);
+  const roles = user.userRolesByUserId.map(
+    ({ role }) => role.systemRole?.systemCode ?? role.customCode!,
+  );
   const permissions = user.userRolesByUserId.flatMap(({ role }) =>
     role.workflowActionRolePermissionsByRoleId.map(({ action }) => action.code),
   );

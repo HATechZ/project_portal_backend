@@ -29,7 +29,10 @@ export const sessionUserSelect = (tenantId: string) =>
       select: {
         role: {
           select: {
-            code: true,
+            isSystemRole: true,
+            customCode: true,
+            customScope: true,
+            systemRole: { select: { systemCode: true } },
             workflowActionRolePermissionsByRoleId: {
               where: { allowed: true, tenantId },
               select: { action: { select: { code: true } } },
@@ -54,7 +57,10 @@ export const sessionActorSelect = (tenantId: string) =>
     isDefault: true,
     role: {
       select: {
-        code: true,
+        isSystemRole: true,
+        customCode: true,
+        customScope: true,
+        systemRole: { select: { systemCode: true } },
         workflowActionRolePermissionsByRoleId: {
           where: { tenantId, allowed: true },
           select: { action: { select: { code: true } } },

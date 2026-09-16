@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
@@ -10,6 +10,8 @@ import {
 } from '../../common/security/session-authenticator.port';
 import { SessionActor, SessionUser } from '../../common/security/session.types';
 import { AuthSessionRepository } from '../repositories';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 
 export interface AuthTokens {
   accessToken: string;
@@ -54,7 +56,7 @@ export class AuthTokenProvider implements SessionAuthenticator {
       },
       expectedPasswordHash,
     );
-    if (!user) throw new UnauthorizedException('Invalid email or password');
+    if (!user) throw invalidCredentials();
     return {
       user,
       tokens: await this.tokens(user.id, tenantId, sessionId, refreshToken),
@@ -67,13 +69,13 @@ export class AuthTokenProvider implements SessionAuthenticator {
     if (!session) {
       const reused = await this.repository.findSessionByConsumedTokenHash(hash);
       if (reused) await this.repository.revokeSession(reused.id);
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw reused ? refreshInvalid() : refreshExpired();
     }
 
     const user = await this.repository.findActiveUser(session.userId);
     if (!user) {
       await this.repository.revokeSession(session.id);
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw refreshExpired();
     }
 
     const nextRefreshToken = this.generateRefreshToken();
@@ -95,7 +97,7 @@ export class AuthTokenProvider implements SessionAuthenticator {
     });
     if (!rotated) {
       await this.repository.revokeSession(session.id);
-      throw new UnauthorizedException('Refresh token has already been used');
+      throw refreshInvalid();
     }
     return this.tokens(user.id, session.tenantId, session.id, nextRefreshToken);
   }
@@ -124,7 +126,12 @@ export class AuthTokenProvider implements SessionAuthenticator {
       }
       return payload;
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      throw new AppException({
+        code: AppErrorCode.AuthSessionExpired,
+        status: 401,
+        message:
+          'Your session has expired or is no longer valid. Sign in again to continue.',
+      });
     }
   }
 
@@ -175,4 +182,29 @@ export class AuthTokenProvider implements SessionAuthenticator {
   hashRefreshToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
+}
+
+function invalidCredentials(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthInvalidCredentials,
+    status: 401,
+    message:
+      'Email or password is incorrect. Check your credentials and try again.',
+  });
+}
+
+function refreshExpired(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthRefreshExpired,
+    status: 401,
+    message: 'Your session has expired. Sign in again to continue.',
+  });
+}
+
+function refreshInvalid(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthRefreshInvalid,
+    status: 401,
+    message: 'Your session is no longer valid. Sign in again to continue.',
+  });
 }

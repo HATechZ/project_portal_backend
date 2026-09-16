@@ -1,13 +1,10 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ActorRoleCode } from '../../generated/prisma/client';
 import { ALLOW_ACTOR_ROLES_KEY } from './allow-actor-roles.decorator';
 import { SessionActor } from './session.types';
+import { AppErrorCode } from '../exceptions/app-error-code';
+import { AppException } from '../exceptions/app-exception';
 
 @Injectable()
 export class SystemAdminGuard implements CanActivate {
@@ -17,7 +14,7 @@ export class SystemAdminGuard implements CanActivate {
     const actor = context
       .switchToHttp()
       .getRequest<{ actor?: SessionActor }>().actor;
-    const roleCode = actor?.role.code;
+    const roleCode = actor?.role.systemRole?.systemCode;
     if (roleCode === ActorRoleCode.system_admin) return true;
 
     // Opt-in only: absent metadata means system_admin alone, as before.
@@ -28,6 +25,10 @@ export class SystemAdminGuard implements CanActivate {
       ]) ?? [];
     if (roleCode && allowed.includes(roleCode)) return true;
 
-    throw new ForbiddenException('System administrator access required');
+    throw new AppException({
+      code: AppErrorCode.Forbidden,
+      status: 403,
+      message: 'Only a system administrator can perform this action.',
+    });
   }
 }

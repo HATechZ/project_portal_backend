@@ -27,9 +27,14 @@ export class MemberAccessRepository extends BaseRepository {
           where: { id: input.memberId, tenantId, companyId: input.companyId },
           select: { id: true, userId: true },
         });
-        if (!member) throw this.notFound('Member was not found');
+        if (!member)
+          throw this.notFound(
+            'Member not found. It may have been removed or you may not have access to it.',
+          );
         if (member.userId && member.userId !== input.userId) {
-          throw this.conflict('Member is already linked to a different User');
+          throw this.conflict(
+            'This member is already linked to another user account. Review the existing access before continuing.',
+          );
         }
         if (input.actorProfileId) {
           await linkMemberUserActorProfile(db, {
@@ -44,7 +49,10 @@ export class MemberAccessRepository extends BaseRepository {
             where: { id: input.userId, tenantId },
             select: { id: true },
           });
-          if (!user) throw this.notFound('User was not found');
+          if (!user)
+            throw this.notFound(
+              'User not found. Check the selected user and try again.',
+            );
           await db.member.update({
             where: { id_tenantId: { id: member.id, tenantId } },
             data: { userId: input.userId, updatedAt: new Date() },
@@ -55,7 +63,10 @@ export class MemberAccessRepository extends BaseRepository {
           where: { id: member.id, tenantId, companyId: input.companyId },
           select: memberSelect,
         });
-        if (!linked) throw this.notFound('Member was not found');
+        if (!linked)
+          throw this.notFound(
+            'Member not found. It may have been removed or you may not have access to it.',
+          );
         return linked;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

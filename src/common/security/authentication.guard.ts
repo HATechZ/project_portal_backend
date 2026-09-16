@@ -1,12 +1,12 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Inject,
   Injectable,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { RequestContext } from '../context/request-context';
+import { AppErrorCode } from '../exceptions/app-error-code';
+import { AppException } from '../exceptions/app-exception';
 import { AccessTokenRequest } from './access-token.guard';
 import {
   SESSION_AUTHENTICATOR,
@@ -31,26 +31,25 @@ export class AuthenticationGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticationRequest>();
     const payload = request.accessTokenPayload;
     if (!payload) {
-      throw new UnauthorizedException('Access token validation is required');
+      throw authRequired();
     }
     if (payload.tenantId !== RequestContext.requireTenantId()) {
-      throw new UnauthorizedException(
-        'Access token is not valid for this tenant',
-      );
+      throw sessionExpired();
     }
     if (!(await this.authenticator.isSessionActive(payload.sid, payload.sub))) {
-      throw new UnauthorizedException(
-        'Authentication session is no longer active',
-      );
+      throw sessionExpired();
     }
 
     const user = await this.authenticator.findActiveUser(payload.sub);
-    if (!user) throw new UnauthorizedException('Authentication required');
+    if (!user) throw sessionExpired();
     const actor = await this.authenticator.findActiveActor(payload.sub);
     if (!actor) {
-      throw new ForbiddenException(
-        'No active actor profile is available for this account',
-      );
+      throw new AppException({
+        code: AppErrorCode.ActorProfileRequired,
+        status: 403,
+        message:
+          'Your account is not fully configured for portal access. Contact your administrator.',
+      });
     }
     RequestContext.setActorId(actor.id);
     request.user = user;
@@ -58,4 +57,21 @@ export class AuthenticationGuard implements CanActivate {
     request.authSessionId = payload.sid;
     return true;
   }
+}
+
+function authRequired(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthRequired,
+    status: 401,
+    message: 'You need to sign in to access this page.',
+  });
+}
+
+function sessionExpired(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthSessionExpired,
+    status: 401,
+    message:
+      'Your session has expired or is no longer valid. Sign in again to continue.',
+  });
 }

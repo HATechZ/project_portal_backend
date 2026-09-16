@@ -1,13 +1,16 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ActorRoleCode } from '../../generated/prisma/client';
 import { SystemAdminGuard } from './system-admin.guard';
+import { AppException } from '../exceptions/app-exception';
 
 function contextFor(roleCode?: ActorRoleCode): ExecutionContext {
   return {
     switchToHttp: () => ({
       getRequest: () =>
-        roleCode ? { actor: { role: { code: roleCode } } } : {},
+        roleCode
+          ? { actor: { role: { systemRole: { systemCode: roleCode } } } }
+          : {},
     }),
     getHandler: () => () => undefined,
     getClass: () => class {},
@@ -40,13 +43,13 @@ describe('SystemAdminGuard', () => {
       ]) {
         expect(() =>
           guardAllowing(undefined).canActivate(contextFor(role)),
-        ).toThrow(ForbiddenException);
+        ).toThrow(AppException);
       }
     });
 
     it('denies an unauthenticated request', () => {
       expect(() => guardAllowing(undefined).canActivate(contextFor())).toThrow(
-        ForbiddenException,
+        AppException,
       );
     });
   });
@@ -75,7 +78,7 @@ describe('SystemAdminGuard', () => {
         guardAllowing(allowed).canActivate(
           contextFor(ActorRoleCode.division_lead),
         ),
-      ).toThrow(ForbiddenException);
+      ).toThrow(AppException);
     });
   });
 });

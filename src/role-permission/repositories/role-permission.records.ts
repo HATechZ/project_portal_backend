@@ -15,7 +15,10 @@ export const permissionSelect = {
 export const roleSelect = (tenantId: string) =>
   ({
     id: true,
-    code: true,
+    tenantId: true,
+    customCode: true,
+    customScope: true,
+    systemRole: { select: { systemCode: true } },
     name: true,
     description: true,
     isSystemRole: true,

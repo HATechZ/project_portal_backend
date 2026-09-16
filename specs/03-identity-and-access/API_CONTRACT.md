@@ -7,6 +7,8 @@ Only module-specific behavior is stated here.
 
 | Method | Path | Status | Authorization |
 |---|---|---|---|
+| `POST` | `/api/v1/role` | 201 / 400 / 409 | `system_admin` |
+| `GET` | `/api/v1/user/:userId/role-options` | 200 / 404 | `system_admin` |
 | `POST` | `/api/v1/user` | 201 · 409 | `system_admin` |
 | `GET` | `/api/v1/user` | 200 | `system_admin` |
 | `GET` | `/api/v1/user/:id` | 200 · 404 | `system_admin` |
@@ -111,6 +113,65 @@ Authentication resolves the active default ActorProfile and stores its id in
 Fine-grained workflow actions are enforced through configured `WorkflowActionCode` grants and
 the workflow modules that own their state transitions; this module does not create a wildcard
 System Administrator bypass.
+
+## 6a. Role and permission administration
+
+Swagger summaries are deliberately short and use these endpoint purposes:
+
+| Method/path | Summary | Contract detail |
+|---|---|---|
+| `GET /role` | List available roles | Lists retrievable global system roles and same-Tenant custom roles. |
+| `GET /role/:id` | Get role details | Returns one safe role detail. |
+| `POST /role` | Create a custom role | Atomically creates a custom role and initial compatible grants. |
+| `PUT /role/:id/permission` | Update permissions for a role | Retains existing full replacement semantics. |
+| `GET /permission` | List available permissions | Lists the existing selector catalog. |
+| `GET /permission/:id` | Get permission details | Returns one catalog definition. |
+| `GET /user/:userId/role` | List roles assigned to a user | Retains existing active/history behavior. |
+| `GET /user/:userId/role-options` | List roles available for assignment | Is the target-aware dropdown source. |
+| `POST /user/:userId/role` | Assign a role to a user | Revalidates eligibility server-side. |
+| `DELETE /user/:userId/role/:roleId` | Remove a role from a user | Retains timestamp revocation/final-admin protections. |
+
+Role list/detail retain all existing role and permission information and additionally expose
+`isSystemRole`, a stable backend `code` projection, and nullable `scope` for custom roles.
+System code is the existing fixed actor code; custom code is backend-generated and tenant-safe.
+
+### `POST /api/v1/role` — Create custom role
+
+```json
+{
+  "name": "Quality Reviewer",
+  "description": "Reviews quality-related records.",
+  "scope": "division",
+  "permissionCodes": [
+    "ADD_MEMBER",
+    "ASSIGN_MEMBER"
+  ]
+}
+```
+
+`name` is required; `description` is optional; V1 `scope` is one of `division`, `company`;
+and `permissionCodes` is a non-duplicate non-empty array of
+existing catalog codes. Reject `tenantId`, `roleId`, `isSystemRole`, `createdByUserId`, `code`,
+`systemCode`, custom-code input, workflow actor code, and every undeclared property. The backend
+derives tenant ownership, generates custom code, marks the row non-system, and writes initial
+grants in the same serializable transaction.
+
+### Scope-compatible permissions
+
+The backend filters and validates every requested permission through the authoritative
+`workflow action -> custom scope` policy. In V1 `ADD_MEMBER`, `ADD_TEAM`, and `ASSIGN_MEMBER`
+are eligible only for `division` and `company`; every other action is ineligible. Frontend
+filtering is UX only. Eligibility expands only when the owning protected operation supports
+generic permission plus object-scope authorization; there is no wildcard.
+
+### `GET /api/v1/user/:userId/role-options`
+
+Returns only roles assignable by the authenticated System Administrator to the same-Tenant target
+User, as dropdown items: `id`, `code`, `name`, `description`, `isSystemRole`, nullable `scope`.
+Server-side eligibility considers assigning actor, target active Member/ClientContact context,
+Tenant, role kind/scope, existing active assignments and all existing hierarchy rules. It excludes
+out-of-Tenant rows, already-active grants, unsupported target/scope pairs and system roles outside
+current hierarchy authority. The frontend does not own an eligibility matrix.
 
 ## 7. Errors
 

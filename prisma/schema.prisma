@@ -23,6 +23,15 @@ enum ActorRoleCode {
   @@map("actor_role_code")
 }
 
+enum CustomRoleScope {
+  member
+  division
+  company
+  client_contact
+  client
+  @@map("custom_role_scope")
+}
+
 enum WorkspaceTypeCode {
   BID
   PROJECT
@@ -265,6 +274,7 @@ model Tenant {
   updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
 
   users User[]
+  customRoles Role[] @relation("CustomRolesTenant")
   userRoles UserRole[]
   actorProfiles ActorProfile[]
   authSessions AuthSession[]
@@ -347,21 +357,35 @@ model User {
 
 model Role {
   id String @id @db.Uuid @map("id")
-  code ActorRoleCode @unique @map("code")
+  tenantId String? @db.Uuid @map("tenant_id")
   name String @db.VarChar(120) @map("name")
   description String? @db.Text @map("description")
   isSystemRole Boolean @default(true) @map("is_system_role")
+  customCode String? @db.VarChar(120) @map("custom_code")
+  customScope CustomRoleScope? @map("custom_scope")
   createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
 
+  tenant Tenant? @relation("CustomRolesTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  systemRole SystemRole?
   userRolesByRoleId UserRole[] @relation("UserRolesRoleIdRoles")
   actorProfilesByRoleId ActorProfile[] @relation("ActorProfilesRoleIdRoles")
-  workflowTransitionsByFromRoleId WorkflowTransition[] @relation("WorkflowTransitionsFromRoleIdRoles")
-  workflowTransitionsByTargetRoleId WorkflowTransition[] @relation("WorkflowTransitionsTargetRoleIdRoles")
   workflowActionRolePermissionsByRoleId WorkflowActionRolePermission[] @relation("WorkflowActionRolePermissionsRoleIdRoles")
   workflowInfoRequestsByRequestedByRoleId WorkflowInfoRequest[] @relation("WorkflowInfoRequestsRequestedByRoleIdRoles")
-  workflowInfoRequestsByTargetRoleId WorkflowInfoRequest[] @relation("WorkflowInfoRequestsTargetRoleIdRoles")
-  workRequestRevisionRequestsByRequestedToRoleId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRequestedToRoleIdRoles")
+  @@unique([tenantId, customCode])
+  @@index([tenantId])
   @@map("roles")
+}
+
+model SystemRole {
+  roleId String @id @db.Uuid @map("role_id")
+  systemCode ActorRoleCode @unique @map("system_code")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  workflowTransitionsByFromRoleId WorkflowTransition[] @relation("WorkflowTransitionsFromRoleIdSystemRoles")
+  workflowTransitionsByTargetRoleId WorkflowTransition[] @relation("WorkflowTransitionsTargetRoleIdSystemRoles")
+  workflowInfoRequestsByTargetRoleId WorkflowInfoRequest[] @relation("WorkflowInfoRequestsTargetRoleIdSystemRoles")
+  workRequestRevisionRequestsByRequestedToRoleId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRequestedToRoleIdSystemRoles")
+  @@map("system_roles")
 }
 
 model UserRole {
@@ -1244,8 +1268,8 @@ model WorkflowTransition {
   action WorkflowActionDefinition @relation("WorkflowTransitionsActionIdWorkflowActionDefinitions", fields: [actionId], references: [id])
   fromStatus WorkflowStatus? @relation("WorkflowTransitionsFromStatusIdWorkflowStatuses", fields: [fromStatusId], references: [id])
   toStatus WorkflowStatus @relation("WorkflowTransitionsToStatusIdWorkflowStatuses", fields: [toStatusId], references: [id])
-  fromRole Role? @relation("WorkflowTransitionsFromRoleIdRoles", fields: [fromRoleId], references: [id])
-  targetRole Role? @relation("WorkflowTransitionsTargetRoleIdRoles", fields: [targetRoleId], references: [id])
+  fromRole SystemRole? @relation("WorkflowTransitionsFromRoleIdSystemRoles", fields: [fromRoleId], references: [roleId])
+  targetRole SystemRole? @relation("WorkflowTransitionsTargetRoleIdSystemRoles", fields: [targetRoleId], references: [roleId])
   @@index([actionId, fromStatusId, toStatusId])
   @@index([fromRoleId])
   @@index([tenantId])
@@ -1439,7 +1463,7 @@ model WorkflowInfoRequest {
   requestedByActor ActorProfile @relation("WorkflowInfoRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId], references: [id])
   requestedByMember Member? @relation("WorkflowInfoRequestsRequestedByMemberIdMembers", fields: [requestedByMemberId], references: [id])
   requestedByRole Role @relation("WorkflowInfoRequestsRequestedByRoleIdRoles", fields: [requestedByRoleId], references: [id])
-  targetRole Role? @relation("WorkflowInfoRequestsTargetRoleIdRoles", fields: [targetRoleId], references: [id])
+  targetRole SystemRole? @relation("WorkflowInfoRequestsTargetRoleIdSystemRoles", fields: [targetRoleId], references: [roleId])
   targetMember Member? @relation("WorkflowInfoRequestsTargetMemberIdMembers", fields: [targetMemberId], references: [id])
   targetClientContact ClientContact? @relation("WorkflowInfoRequestsTargetClientContactIdClientContacts", fields: [targetClientContactId], references: [id])
   statusAtRequest WorkflowStatus @relation("WorkflowInfoRequestsStatusAtRequestIdWorkflowStatuses", fields: [statusAtRequestId], references: [id])
@@ -1498,7 +1522,7 @@ model WorkRequestRevisionRequest {
   workRequest WorkRequest @relation("WorkRequestRevisionRequestsWorkRequestIdWorkRequests", fields: [workRequestId], references: [id])
   sourceAction WorkflowActionDefinition? @relation("WorkRequestRevisionRequestsSourceActionIdWorkflowActionDefinitions", fields: [sourceActionId], references: [id])
   requestedByActor ActorProfile @relation("WorkRequestRevisionRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId], references: [id])
-  requestedToRole Role? @relation("WorkRequestRevisionRequestsRequestedToRoleIdRoles", fields: [requestedToRoleId], references: [id])
+  requestedToRole SystemRole? @relation("WorkRequestRevisionRequestsRequestedToRoleIdSystemRoles", fields: [requestedToRoleId], references: [roleId])
   requestedToMember Member? @relation("WorkRequestRevisionRequestsRequestedToMemberIdMembers", fields: [requestedToMemberId], references: [id])
   statusAtRequest WorkflowStatus? @relation("WorkRequestRevisionRequestsStatusAtRequestIdWorkflowStatuses", fields: [statusAtRequestId], references: [id])
   revisionStatus RevisionRequestStatus @relation("WorkRequestRevisionRequestsRevisionStatusIdRevisionRequestStatuses", fields: [revisionStatusId], references: [id])

@@ -75,8 +75,10 @@ export class DivisionLeadRepository extends BaseRepository {
           assignedByUserId: input.assignedByUserId,
         });
 
-        const role = await db.role.findUniqueOrThrow({
-          where: { code: ActorRoleCode.division_lead },
+        const role = await db.role.findFirstOrThrow({
+          where: {
+            systemRole: { is: { systemCode: ActorRoleCode.division_lead } },
+          },
           select: { id: true },
         });
         const { actorProfileId } = await ensureUserRoleAndRoleOnlyProfile(db, {

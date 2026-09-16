@@ -35,7 +35,11 @@ import {
 } from '../common/decorators/api-standard-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
-import { AssignUserRoleDto, UserRoleAssignmentResponseDto } from './dtos';
+import {
+  AssignUserRoleDto,
+  RoleOptionResponseDto,
+  UserRoleAssignmentResponseDto,
+} from './dtos';
 import { RolePermissionService } from './role-permission.service';
 
 @ApiTags('role & permission')
@@ -53,9 +57,17 @@ import { RolePermissionService } from './role-permission.service';
 export class UserRoleController {
   constructor(private readonly service: RolePermissionService) {}
 
+  @Get('user/:userId/role-options')
+  @ResponseMessage('Available roles returned successfully')
+  @ApiOperation({ summary: 'List roles available for assignment' })
+  @ApiStandardArrayResponse(RoleOptionResponseDto)
+  findRoleOptions(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.service.findRoleOptions(userId);
+  }
+
   @Get('user/:userId/role')
   @ResponseMessage('User roles returned successfully')
-  @ApiOperation({ summary: "List a user's role assignments" })
+  @ApiOperation({ summary: 'List roles assigned to a user' })
   @ApiQuery({ name: 'includeRevoked', required: false, type: Boolean })
   @ApiStandardArrayResponse(UserRoleAssignmentResponseDto)
   @ApiStandardNotFoundResponse('User was not found')
@@ -84,7 +96,7 @@ export class UserRoleController {
   @Delete('user/:userId/role/:roleId')
   @ResponseMessage('Role revoked successfully')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Revoke an active role assignment' })
+  @ApiOperation({ summary: 'Remove a role from a user' })
   @ApiNoContentResponse({ description: 'Role revoked' })
   @ApiStandardNotFoundResponse('User, role, or active assignment was not found')
   @ApiStandardConflictResponse(

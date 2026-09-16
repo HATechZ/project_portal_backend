@@ -99,7 +99,7 @@ export class TeamService {
     await this.scopeProvider.assertCanManageTeam(actor, company.id, team);
     if (await this.repository.hasAnyMembership(id)) {
       throw teamScopeConflict(
-        'Team has membership history and cannot be deleted',
+        'This team cannot be deleted because it has membership history. Deactivate it or preserve the existing history.',
       );
     }
     await this.repository.delete(id);
@@ -129,7 +129,8 @@ export class TeamService {
       throw new AppException({
         code: AppErrorCode.NotFound,
         status: HttpStatus.NOT_FOUND,
-        message: 'Company was not found for the active Tenant',
+        message:
+          'Company not found. It may have been removed or you may not have access to it.',
       });
     }
     return company;
@@ -160,7 +161,9 @@ export class TeamService {
   ): Promise<void> {
     const member = await this.repository.findMember(memberId, companyId);
     if (!member || member.divisionId !== divisionId || !member.isActive) {
-      throw teamScopeConflict('Member is not eligible for this Team');
+      throw teamScopeConflict(
+        'This member cannot be added to this team. Make sure the member is active and belongs to the same division.',
+      );
     }
   }
 }

@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 import { PaginationQueryDto } from '../../common/pagination/dtos/pagination-query.dto';
 import { PaginatedResult } from '../../common/pagination/paginated-result';
 import { paginate } from '../../common/pagination/paginate';
@@ -24,7 +26,12 @@ export class CompanyQueryProvider {
   async findOne(id: string): Promise<CompanyResponseDto> {
     const company = await this.repository.findById(id);
     if (!company) {
-      throw new NotFoundException(`Company with ID ${id} was not found`);
+      throw new AppException({
+        code: AppErrorCode.NotFound,
+        status: HttpStatus.NOT_FOUND,
+        message:
+          'Company not found. It may have been removed or you may not have access to it.',
+      });
     }
     return toCompanyResponse(company);
   }

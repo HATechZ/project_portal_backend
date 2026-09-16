@@ -1,9 +1,6 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
@@ -43,7 +40,12 @@ export class UserMutationProvider {
       avatarUrl === undefined &&
       isActive === undefined
     ) {
-      throw new BadRequestException('At least one field is required');
+      throw new AppException({
+        code: AppErrorCode.BadRequest,
+        status: HttpStatus.BAD_REQUEST,
+        message:
+          'Some information is invalid. Correct the highlighted fields and try again.',
+      });
     }
     const updated = await this.repository.update(
       id,
@@ -62,9 +64,12 @@ export class UserMutationProvider {
       },
     );
     if (!updated) {
-      throw new ConflictException(
-        'The tenant must retain at least one active system administrator',
-      );
+      throw new AppException({
+        code: AppErrorCode.Conflict,
+        status: HttpStatus.CONFLICT,
+        message:
+          'This role cannot be removed because the workspace must have at least one active System Administrator.',
+      });
     }
     return updated;
   }

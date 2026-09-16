@@ -5,10 +5,9 @@ export class ApiErrorDto {
   code!: string;
 
   @ApiProperty({
-    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
-    example: 'User was not found',
+    example: 'User not found. Check the selected user and try again.',
   })
-  message!: string | string[];
+  message!: string;
 
   @ApiPropertyOptional({ description: 'Additional error context' })
   details?: unknown;

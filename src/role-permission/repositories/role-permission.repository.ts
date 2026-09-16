@@ -30,6 +30,7 @@ export class RolePermissionRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.role.findMany({
+        where: { OR: [{ isSystemRole: true }, { tenantId }] },
         orderBy: { name: 'asc' },
         select: roleSelect(tenantId),
       }),
@@ -39,7 +40,10 @@ export class RolePermissionRepository extends BaseRepository {
   findRole(id: string): Promise<RoleRecord | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
-      db.role.findUnique({ where: { id }, select: roleSelect(tenantId) }),
+      db.role.findFirst({
+        where: { id, OR: [{ isSystemRole: true }, { tenantId }] },
+        select: roleSelect(tenantId),
+      }),
     );
   }
 

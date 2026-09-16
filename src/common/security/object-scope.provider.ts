@@ -1,4 +1,6 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AppErrorCode } from '../exceptions/app-error-code';
+import { AppException } from '../exceptions/app-exception';
 import { ActorRoleCode } from '../../generated/prisma/client';
 import { SessionActor } from './session.types';
 
@@ -33,7 +35,9 @@ export interface ObjectScopeDecision {
 export interface ActorScopeContext {
   actorProfileId: string;
   roleId: string;
-  roleCode: ActorRoleCode;
+  roleCode: ActorRoleCode | null;
+  isSystemRole: boolean;
+  customScope: string | null;
   kind: ActorScopeKind;
   tenantWide: boolean;
   member: {
@@ -60,7 +64,8 @@ export interface ActorScopeContext {
 @Injectable()
 export class ObjectScopeProvider {
   resolve(actor: SessionActor): ActorScopeContext {
-    const tenantWide = actor.role.code === ActorRoleCode.system_admin;
+    const roleCode = actor.role.systemRole?.systemCode ?? null;
+    const tenantWide = roleCode === ActorRoleCode.system_admin;
     const member = actor.member
       ? {
           id: actor.member.id,
@@ -89,7 +94,9 @@ export class ObjectScopeProvider {
     return {
       actorProfileId: actor.id,
       roleId: actor.roleId,
-      roleCode: actor.role.code,
+      roleCode,
+      isSystemRole: actor.role.isSystemRole,
+      customScope: actor.role.customScope,
       kind: this.kind(tenantWide, member, clientContact),
       tenantWide,
       member,
@@ -100,7 +107,7 @@ export class ObjectScopeProvider {
   hasTenantWideScope(actor: SessionActor | ActorScopeContext): boolean {
     return 'tenantWide' in actor
       ? actor.tenantWide
-      : actor.role.code === ActorRoleCode.system_admin;
+      : actor.role.systemRole?.systemCode === ActorRoleCode.system_admin;
   }
 
   canAccess(
@@ -137,7 +144,12 @@ export class ObjectScopeProvider {
     check: ObjectScopeCheck,
   ): void {
     const decision = this.canAccess(actor, check);
-    if (!decision.allowed) throw new ForbiddenException(decision.reason);
+    if (!decision.allowed)
+      throw new AppException({
+        code: AppErrorCode.OutOfScope,
+        status: 403,
+        message: "You don't have access to this resource.",
+      });
   }
 
   private kind(

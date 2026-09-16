@@ -157,8 +157,8 @@ export class MemberService {
       throw new AppException({
         code: AppErrorCode.Conflict,
         status: HttpStatus.CONFLICT,
-        message: 'Member has dependent records and cannot be deleted',
-        details: { blockers },
+        message:
+          'This member cannot be deleted because related records still depend on it. Remove or reassign those records first.',
       });
     }
     await this.repository.delete(id, company.id);

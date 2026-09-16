@@ -12,7 +12,9 @@ const actorProfileSelect = {
   label: true,
   isDefault: true,
   isActive: true,
-  role: { select: { code: true } },
+  role: {
+    select: { customCode: true, systemRole: { select: { systemCode: true } } },
+  },
 } satisfies Prisma.ActorProfileSelect;
 
 export type ActorProfileRecord = Prisma.ActorProfileGetPayload<{

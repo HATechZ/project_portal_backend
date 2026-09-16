@@ -12,6 +12,13 @@ export class TeamScopeProvider {
     companyId: string,
     requestedDivisionId?: string,
   ): Promise<string[]> {
+    if (actor.isSystemRole === false) {
+      return this.resolveCustomRoleDivisionIds(
+        actor,
+        companyId,
+        requestedDivisionId,
+      );
+    }
     if (
       actor.roleCode === ActorRoleCode.system_admin ||
       actor.roleCode === ActorRoleCode.division_head
@@ -52,6 +59,24 @@ export class TeamScopeProvider {
   }
 
   assertCanManageMembership(actor: ActorScopeContext, team: TeamRecord): void {
+    if (actor.isSystemRole === false) {
+      const member = actor.member;
+      if (!member?.active || !member.companyActive) {
+        throw new ForbiddenException('Member actor scope required');
+      }
+      if (
+        actor.customScope === 'division' &&
+        member.divisionActive &&
+        member.divisionId === team.divisionId
+      )
+        return;
+      if (
+        actor.customScope === 'company' &&
+        member.companyId === team.companyId
+      )
+        return;
+      throw new ForbiddenException('Team membership is outside actor scope');
+    }
     if (actor.roleCode === ActorRoleCode.system_admin) return;
     if (actor.roleCode === ActorRoleCode.division_head) return;
     if (
@@ -64,6 +89,34 @@ export class TeamScopeProvider {
       return;
     }
     throw new ForbiddenException('Team membership is outside actor scope');
+  }
+
+  private async resolveCustomRoleDivisionIds(
+    actor: ActorScopeContext,
+    companyId: string,
+    requestedDivisionId?: string,
+  ): Promise<string[]> {
+    const member = actor.member;
+    if (!member?.active || !member.companyActive) {
+      throw new ForbiddenException('Member actor scope required');
+    }
+    if (actor.customScope === 'company' && member.companyId === companyId) {
+      if (requestedDivisionId)
+        await this.requireScopedDivision(requestedDivisionId, companyId);
+      return requestedDivisionId
+        ? [requestedDivisionId]
+        : this.repository.findCompanyDivisionIds(companyId);
+    }
+    if (actor.customScope === 'division' && member.divisionActive) {
+      if (requestedDivisionId && requestedDivisionId !== member.divisionId) {
+        throw new ForbiddenException(
+          'Requested Division is outside actor scope',
+        );
+      }
+      await this.requireScopedDivision(member.divisionId, companyId);
+      return [member.divisionId];
+    }
+    throw new ForbiddenException('Team management is outside actor scope');
   }
 
   /**

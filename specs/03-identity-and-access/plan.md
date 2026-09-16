@@ -111,7 +111,29 @@ Permission replacement uses serializable isolation. Profile switching, role revo
 deactivation retain serializable isolation; shared error mapping yields 409 on transaction
 conflicts. Final-admin checks count active Users, including during competing security changes.
 
-## 8. Verification
+## 8. Custom access-role implementation plan
+
+Database work precedes runtime work and is owned by the database architect: reshape `Role` into
+fixed system identity plus tenant custom identity/scope; backfill system rows; add roles RLS and
+workflow-reference protection; and enforce the approved V1 custom action/scope matrix
+(`ADD_MEMBER`, `ADD_TEAM`, `ASSIGN_MEMBER` for `division`/`company` only).
+No runtime endpoint is implemented until that migration is approved and applied.
+
+`RolePermissionRepository` then reads global system plus current-Tenant custom roles, performs
+serializable custom-role creation with initial grants, and filters/rechecks catalog scope
+eligibility. It does not alter existing system permission replacement semantics. Assignment
+discovery is a target-aware repository/provider path. Custom assignment resolves an existing
+active Member or ClientContact target, validates declared scope, and atomically creates/reuses a
+compatible scoped ActorProfile with the UserRole grant; system-role assignment retains the current
+role-only-profile and hierarchy path.
+
+Controllers remain SystemAdminGuard-protected. DTOs accept only name, optional description, scope,
+and permissionCodes for creation; no tenant, identifier, system flag, actor code, or audit IDs.
+Swagger receives the short summaries in the API contract. Tests cover RLS/non-disclosure,
+workflow-reference rejection, atomicity, scope/profile compatibility, server-side permission
+eligibility, eligible options, history, and unchanged system-role routing.
+
+## 9. Verification
 
 Run focused/full Jest, lint/build/TypeScript, Prisma validate, tenant scope and spec gates.
 `verify-identity-concurrency.cjs` uses real repositories and app_user transactions on temporary

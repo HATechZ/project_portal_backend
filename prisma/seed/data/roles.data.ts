@@ -16,57 +16,57 @@ export const ROLE_IDS: Record<ActorRoleCode, string> = {
 
 export const roles = [
   {
-    code: ActorRoleCode.system_admin,
+    systemCode: ActorRoleCode.system_admin,
     name: 'System Administrator',
     description: 'Full system administration access.',
   },
   {
-    code: ActorRoleCode.ccr_coordinator,
+    systemCode: ActorRoleCode.ccr_coordinator,
     name: 'CCR Coordinator',
     description: 'Coordinates CCR workflow activities.',
   },
   {
-    code: ActorRoleCode.division_head,
+    systemCode: ActorRoleCode.division_head,
     name: 'Division Head',
     description: 'Oversees division operations across a company.',
   },
   {
-    code: ActorRoleCode.division_lead,
+    systemCode: ActorRoleCode.division_lead,
     name: 'Division Lead',
     description: 'Leads division workflow activities.',
   },
   {
-    code: ActorRoleCode.team_lead,
+    systemCode: ActorRoleCode.team_lead,
     name: 'Team Lead',
     description: 'Leads team workflow activities.',
   },
   {
-    code: ActorRoleCode.division_member,
+    systemCode: ActorRoleCode.division_member,
     name: 'Division Member',
     description: 'Performs division workflow activities.',
   },
   {
-    code: ActorRoleCode.tms_manager,
+    systemCode: ActorRoleCode.tms_manager,
     name: 'TMS Manager',
     description: 'Manages the TMS workflow chain.',
   },
   {
-    code: ActorRoleCode.tms_drawing,
+    systemCode: ActorRoleCode.tms_drawing,
     name: 'TMS Drawing',
     description: 'Produces TMS drawings.',
   },
   {
-    code: ActorRoleCode.tms_checking,
+    systemCode: ActorRoleCode.tms_checking,
     name: 'TMS Checking',
     description: 'Checks TMS submissions.',
   },
   {
-    code: ActorRoleCode.tms_approval,
+    systemCode: ActorRoleCode.tms_approval,
     name: 'TMS Approval',
     description: 'Approves TMS submissions.',
   },
   {
-    code: ActorRoleCode.client_owner,
+    systemCode: ActorRoleCode.client_owner,
     name: 'Client Owner',
     description: 'Represents the client in project workflows.',
   },

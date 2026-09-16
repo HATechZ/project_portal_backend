@@ -38,11 +38,35 @@ export class MemberScopeProvider {
     divisionId: string,
   ): Promise<void> {
     await this.requireScopedDivision(divisionId, companyId);
+    if (actorProfile.isSystemRole === false) {
+      this.assertCustomRoleScope(actorProfile, companyId, divisionId);
+      return;
+    }
     if (actorProfile.roleCode === ActorRoleCode.system_admin) return;
     const actorDivisionIds = await this.resolveActorDivisionIds(actorProfile);
     if (!actorDivisionIds.includes(divisionId)) {
       throw new ForbiddenException('Member creation is outside actor scope');
     }
+  }
+
+  private assertCustomRoleScope(
+    actor: ActorScopeContext,
+    companyId: string,
+    divisionId: string,
+  ): void {
+    const member = actor.member;
+    if (!member?.active || !member.companyActive) {
+      throw new ForbiddenException('Member actor scope required');
+    }
+    if (
+      actor.customScope === 'division' &&
+      member.divisionActive &&
+      member.divisionId === divisionId
+    )
+      return;
+    if (actor.customScope === 'company' && member.companyId === companyId)
+      return;
+    throw new ForbiddenException('Member creation is outside actor scope');
   }
 
   assertSystemAdmin(actorProfile: ActorScopeContext): void {

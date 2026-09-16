@@ -48,8 +48,8 @@ export async function establishPortalAccess(
   }
 
   await db.$queryRaw`SELECT id FROM users WHERE id = ${user.id}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE`;
-  const role = await db.role.findUnique({
-    where: { code: ActorRoleCode.client_owner },
+  const role = await db.role.findFirst({
+    where: { systemRole: { is: { systemCode: ActorRoleCode.client_owner } } },
     select: { id: true, name: true },
   });
   if (!role) throw conflict('Client owner role is unavailable');

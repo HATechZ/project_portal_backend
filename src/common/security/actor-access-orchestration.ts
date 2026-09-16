@@ -113,6 +113,7 @@ export async function ensureUserRoleAndRoleOnlyProfile(
       where: { id: profile.id, tenantId: input.tenantId },
       data: {
         isActive: true,
+        ...(input.memberId ? { memberId: input.memberId } : {}),
         ...(!validDefault ? { isDefault: true } : {}),
       },
     });
@@ -138,16 +139,24 @@ export async function linkMemberUserActorProfile(
     },
     select: { id: true, userId: true },
   });
-  if (!member) throw accessNotFound('Member was not found');
+  if (!member)
+    throw accessNotFound(
+      'Member not found. It may have been removed or you may not have access to it.',
+    );
   if (member.userId && member.userId !== input.userId) {
-    throw accessConflict('Member is already linked to a different User');
+    throw accessConflict(
+      'This member is already linked to another user account. Review the existing access before continuing.',
+    );
   }
 
   const user = await db.user.findFirst({
     where: { id: input.userId, tenantId: input.tenantId },
     select: { id: true },
   });
-  if (!user) throw accessNotFound('User was not found');
+  if (!user)
+    throw accessNotFound(
+      'User not found. Check the selected user and try again.',
+    );
 
   const actorProfile = await db.actorProfile.findFirst({
     where: { id: input.actorProfileId, tenantId: input.tenantId },

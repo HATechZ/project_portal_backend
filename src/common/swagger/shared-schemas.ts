@@ -10,12 +10,7 @@ export const sharedSchemas: OpenApiSchemas = {
     required: ['code', 'message'],
     properties: {
       code: { type: 'string' },
-      message: {
-        oneOf: [
-          { type: 'string' },
-          { type: 'array', items: { type: 'string' } },
-        ],
-      },
+      message: { type: 'string' },
       details: {},
     },
   },

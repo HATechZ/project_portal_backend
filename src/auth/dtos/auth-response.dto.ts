@@ -1,8 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  ActorRoleCode,
-  WorkflowActionCode,
-} from '../../generated/prisma/client';
+import { WorkflowActionCode } from '../../generated/prisma/client';
 
 export class AuthUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -11,8 +8,8 @@ export class AuthUserResponseDto {
   @ApiPropertyOptional({ nullable: true }) country!: string | null;
   @ApiPropertyOptional({ nullable: true }) phone!: string | null;
   @ApiPropertyOptional({ nullable: true }) avatarUrl!: string | null;
-  @ApiProperty({ enum: ActorRoleCode, isArray: true })
-  roles!: ActorRoleCode[];
+  @ApiProperty({ type: String, isArray: true })
+  roles!: string[];
   @ApiProperty({ enum: WorkflowActionCode, isArray: true })
   permissions!: WorkflowActionCode[];
 }

@@ -46,7 +46,7 @@ Completion status and counts are maintained in `specs/INDEX.md`.
   - [x] Stamp `lastLoginAt` and create the session in one transaction
         VERIFY: grep -q "recordLoginAndCreateSession" src/auth/repositories/auth-session.repository.ts && grep -q "recordLoginAndCreateSession" src/auth/providers/auth-token.provider.ts
   - [x] Return an identical 401 for unknown email and wrong password (AC-W01)
-        VERIFY: test $(grep -c "Invalid email or password" src/auth/auth.service.ts) -eq 2
+        VERIFY: grep -q "AuthInvalidCredentials" src/auth/auth.service.ts && test $(grep -c "throw invalidCredentials()" src/auth/auth.service.ts) -eq 2
   - [x] Refuse sign-in for inactive users
         VERIFY: grep -q "isActive" src/auth/auth.service.ts
   - [x] Single-use, expiring password reset
@@ -94,7 +94,7 @@ Completion status and counts are maintained in `specs/INDEX.md`.
   - [ ] Keep normal UnitOfWork fail-closed and expose only queryRaw for login resolution
         VERIFY: grep -q "RequestContext.requireTenantId" src/infra/prisma/unit-of-work.service.ts && grep -q "Repository access requires an active unit of work" src/infra/prisma/unit-of-work.service.ts && grep -q "Object.freeze" src/infra/prisma/unit-of-work.service.ts && corepack yarn test --runInBand --testPathPatterns=unit-of-work.service.spec.ts
   - [x] Preserve generic credential failure responses
-        VERIFY: test $(grep -c "Invalid email or password" src/auth/auth.service.ts) -eq 2
+        VERIFY: grep -q "AuthInvalidCredentials" src/auth/auth.service.ts && test $(grep -c "throw invalidCredentials()" src/auth/auth.service.ts) -eq 2
   - [x] Reject normalized duplicate signup atomically with no provisioning remnants
         VERIFY: grep -q "error.code === '23505'" scripts/verify-workspace-sign-in-database.cjs && grep -q "failed duplicate signup left Tenant, Company, or User remnants" scripts/verify-workspace-sign-in-database.cjs
   - [x] Apply global email conflict handling to normal User creation
@@ -131,3 +131,13 @@ Completion status and counts are maintained in `specs/INDEX.md`.
 - [ ] **Phase 8: JWT-derived authenticated Tenant context**
   - [ ] Bind bearer requests to the verified JWT Tenant, ignoring caller Tenant headers
         VERIFY: corepack yarn test --runInBand --testPathPatterns=authenticated-tenant
+
+- [ ] **Phase 9: Custom access roles (approved, unimplemented)**
+  - [ ] Reshape Role for fixed system identity and tenant custom identity/scope through the database-architect path
+        VERIFY: grep -q "customScope" specs/03-identity-and-access/DATA_CONTRACT.md && grep -q "workflow-reference protection" specs/03-identity-and-access/DATA_CONTRACT.md
+  - [ ] Create a custom role and its compatible initial permission grants atomically
+        VERIFY: grep -q "POST /api/v1/role" specs/03-identity-and-access/API_CONTRACT.md && grep -q "same serializable transaction" specs/03-identity-and-access/API_CONTRACT.md
+  - [ ] Enforce catalog custom-scope permission eligibility on create and replacement
+        VERIFY: grep -q "ADD_MEMBER.*,.*ADD_TEAM.*,.*ASSIGN_MEMBER" specs/03-identity-and-access/DATA_CONTRACT.md && grep -q "division.*,.*company" specs/03-identity-and-access/API_CONTRACT.md
+  - [ ] Discover only target-eligible assignment roles and bind scoped custom profiles atomically
+        VERIFY: grep -q "GET /api/v1/user/:userId/role-options" specs/03-identity-and-access/API_CONTRACT.md && grep -q "compatible scoped ActorProfile" specs/03-identity-and-access/plan.md

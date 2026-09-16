@@ -76,8 +76,8 @@ export class DivisionService {
       throw new AppException({
         code: AppErrorCode.Conflict,
         status: HttpStatus.CONFLICT,
-        message: 'Division has dependent records and cannot be deleted',
-        details: { blockers },
+        message:
+          'This division cannot be deleted because related records still depend on it. Remove or reassign those records first.',
       });
     }
     await this.repository.delete(id, company.id);
@@ -131,7 +131,8 @@ export class DivisionService {
       throw new AppException({
         code: AppErrorCode.NotFound,
         status: HttpStatus.NOT_FOUND,
-        message: 'Company was not found for the active Tenant',
+        message:
+          'Company not found. It may have been removed or you may not have access to it.',
       });
     }
     return company;
@@ -143,7 +144,8 @@ export class DivisionService {
       throw new AppException({
         code: AppErrorCode.NotFound,
         status: HttpStatus.NOT_FOUND,
-        message: `Division with ID ${id} was not found`,
+        message:
+          'Division not found. It may have been removed or you may not have access to it.',
       });
     }
     return division;
@@ -156,7 +158,7 @@ export class DivisionService {
     ) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
-        message: 'Unknown divisionTypeId',
+        message: 'The selected value is invalid.',
       });
     }
   }
@@ -169,7 +171,8 @@ export class DivisionService {
     ) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
-        message: 'Supply name, abbr, or divisionTypeId',
+        message:
+          'Some information is invalid. Correct the highlighted fields and try again.',
       });
     }
   }

@@ -75,7 +75,7 @@ export function ApiStandardArrayResponse<TModel extends Type<unknown>>(
 
 interface ErrorExample {
   summary: string;
-  message: string | string[];
+  message: string;
   details?: unknown;
 }
 
@@ -128,34 +128,38 @@ export function ApiStandardBadRequestResponse(
   return errorResponseDecorators(400, AppErrorCode.BadRequest, description, {
     validation: {
       summary: 'Validation failed',
-      message: [
-        'email must be an email',
-        'password must be longer than or equal to 6 characters',
-      ],
+      message:
+        'Some information is invalid. Correct the highlighted fields and try again.',
+      details: [{ field: 'email', message: 'Enter a valid email address.' }],
     },
     tenant: {
       summary: 'Tenant header is missing or invalid',
-      message: 'x-tenant-id is required',
+      message: 'The selected value is invalid.',
     },
   });
 }
 
 export function ApiStandardUnauthorizedResponse(
-  message = 'Authentication required',
+  message = 'Your session has expired or is no longer valid. Sign in again to continue.',
 ) {
-  return errorResponseDecorators(401, AppErrorCode.Unauthorized, message, {
-    unauthorized: { summary: message, message },
-  });
+  return errorResponseDecorators(
+    401,
+    AppErrorCode.AuthSessionExpired,
+    message,
+    {
+      unauthorized: { summary: message, message },
+    },
+  );
 }
 
 export function ApiStandardForbiddenResponse(
-  message = 'Access to this resource is forbidden',
+  message = "You don't have permission to perform this action. Contact your administrator if you need access.",
 ) {
   return errorResponseDecorators(403, AppErrorCode.Forbidden, message, {
     forbidden: { summary: message, message },
     tenantMismatch: {
       summary: 'Tenant does not match the authenticated session',
-      message: 'The requested tenant does not match the authenticated session',
+      message: "You don't have access to this resource.",
     },
   });
 }

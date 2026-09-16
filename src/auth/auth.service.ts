@@ -1,9 +1,4 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import {
   AuthUserResponseDto,
@@ -21,6 +16,8 @@ import {
 import { SessionUser } from '../common/security/session.types';
 import { RequestContext } from '../common/context/request-context';
 import { TenantActivationService } from '../common/tenant/tenant-activation.service';
+import { AppErrorCode } from '../common/exceptions/app-error-code';
+import { AppException } from '../common/exceptions/app-exception';
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
@@ -51,7 +48,7 @@ export class AuthService {
         input.password,
         LOGIN_TIMING_DUMMY_HASH,
       );
-      throw new UnauthorizedException('Invalid email or password');
+      throw invalidCredentials();
     }
     const currentContext = RequestContext.get();
     if (!currentContext) throw new Error('Request context is required');
@@ -75,7 +72,7 @@ export class AuthService {
         credentials.passwordHash,
       ));
     if (!valid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw invalidCredentials();
     }
     const issued = await this.tokenProvider.issueLogin(
       credentials.id,
@@ -94,7 +91,7 @@ export class AuthService {
       this.tokenProvider.hashRefreshToken(refreshToken),
     );
     if (!resolved) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw refreshExpired();
     }
     const currentContext = RequestContext.get();
     if (!currentContext) throw new Error('Request context is required');
@@ -103,7 +100,12 @@ export class AuthService {
       { ...currentContext, tenantId: resolved.tenantId },
       async () => {
         if (!(await this.tenants.isActive(resolved.tenantId))) {
-          throw new ForbiddenException('Tenant is not active');
+          throw new AppException({
+            code: AppErrorCode.TenantInactive,
+            status: 403,
+            message:
+              'This workspace is inactive. Contact your administrator for assistance.',
+          });
         }
         const tokens = await this.tokenProvider.rotate(refreshToken, request);
         return { tokens };
@@ -126,4 +128,21 @@ export class AuthService {
   currentUser(user: SessionUser): AuthUserResponseDto {
     return toAuthUserResponse(user);
   }
+}
+
+function invalidCredentials(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthInvalidCredentials,
+    status: 401,
+    message:
+      'Email or password is incorrect. Check your credentials and try again.',
+  });
+}
+
+function refreshExpired(): AppException {
+  return new AppException({
+    code: AppErrorCode.AuthRefreshExpired,
+    status: 401,
+    message: 'Your session has expired. Sign in again to continue.',
+  });
 }

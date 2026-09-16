@@ -40,10 +40,17 @@ export class MemberOnboardingRepository extends BaseRepository {
       async (db) => {
         const role = await db.role.findUnique({
           where: { id: input.roleId },
-          select: { id: true, name: true, code: true },
+          select: {
+            id: true,
+            name: true,
+            systemRole: { select: { systemCode: true } },
+          },
         });
         if (!role) throw this.notFound('Role was not found');
-        if (disallowedMemberOnboardingRoles.has(role.code)) {
+        if (
+          role.systemRole &&
+          disallowedMemberOnboardingRoles.has(role.systemRole.systemCode)
+        ) {
           throw this.conflict('Role is not eligible for Member onboarding');
         }
 

@@ -19,13 +19,18 @@ export class ClientScopeProvider {
   async requireCompany(): Promise<ScopedCompanyRecord> {
     const company = await this.clients.findScopedCompany();
     if (!company)
-      throw clientNotFound('Company was not found for the active Tenant');
+      throw clientNotFound(
+        'Company not found. It may have been removed or you may not have access to it.',
+      );
     return company;
   }
 
   async requireClient(id: string, companyId: string): Promise<ClientRecord> {
     const client = await this.clients.findById(id, companyId);
-    if (!client) throw clientNotFound('Client was not found');
+    if (!client)
+      throw clientNotFound(
+        'Client not found. It may have been removed or you may not have access to it.',
+      );
     return client;
   }
 
@@ -34,7 +39,10 @@ export class ClientScopeProvider {
     clientId: string,
   ): Promise<ClientContactRecord> {
     const contact = await this.contacts.findById(id, clientId);
-    if (!contact) throw clientNotFound('Client contact was not found');
+    if (!contact)
+      throw clientNotFound(
+        'Client contact not found. Refresh the client details and try again.',
+      );
     return contact;
   }
 }

@@ -1,10 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ActorRoleCode } from '../../generated/prisma/client';
 
 export class ActorProfileResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) roleId!: string;
-  @ApiProperty({ enum: ActorRoleCode }) roleCode!: ActorRoleCode;
+  @ApiProperty() roleCode!: string;
   @ApiProperty() label!: string;
   @ApiProperty({ format: 'uuid', nullable: true }) memberId!: string | null;
   @ApiProperty({ format: 'uuid', nullable: true })

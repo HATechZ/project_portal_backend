@@ -13,14 +13,16 @@ export class CompanyUpdateService {
     if (input.name === undefined && input.companyTypeId === undefined) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
-        message: 'Supply name or companyTypeId',
+        message:
+          'Some information is invalid. Correct the highlighted fields and try again.',
       });
     }
     if (!(await this.repository.findById(id))) {
       throw new AppException({
         code: AppErrorCode.NotFound,
         status: HttpStatus.NOT_FOUND,
-        message: `Company with ID ${id} was not found`,
+        message:
+          'Company not found. It may have been removed or you may not have access to it.',
       });
     }
     if (
@@ -29,7 +31,7 @@ export class CompanyUpdateService {
     ) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
-        message: 'Unknown companyTypeId',
+        message: 'The selected value is invalid.',
       });
     }
     return toCompanyResponse(await this.repository.update(id, input));

@@ -10,7 +10,7 @@ this one, is the authority.
 | Table | Prisma model | Purpose |
 |---|---|---|
 | `users` | `User` | A login. |
-| `roles` | `Role` | The closed set of portal roles, keyed by `ActorRoleCode`. |
+| `roles` | `Role` | System workflow roles plus tenant custom access roles; a schema migration is required before custom rows exist. |
 | `user_roles` | `UserRole` | Grant of a role to a user, revocable without deletion. |
 | `actor_profiles` | `ActorProfile` | A capacity a user acts in. **The audit subject.** |
 | `auth_sessions` | `AuthSession` | A refresh-token session. |
@@ -58,6 +58,42 @@ create/provision or assign `division_lead` only for a Division inside the same C
 subject to the approved Member onboarding rules. Creating a leadership user reuses normal
 Member onboarding: `User -> Member -> UserRole -> Member-backed ActorProfile`; no separate
 leader identity model is introduced.
+
+#### Approved custom-role data-model change (implementation prerequisite)
+
+The current `Role.code ActorRoleCode @unique` cannot represent arbitrary tenant custom roles.
+`POST /role` MUST NOT be implemented against that shape or by adding arbitrary values to
+`ActorRoleCode`. A database-architect-approved migration must retain `roles.id` for every
+existing foreign key while separating fixed system identity from tenant custom identity:
+
+| Required field/constraint | Purpose |
+|---|---|
+| `system_roles(role_id PK/FK, system_code ActorRoleCode UNIQUE)` | the only stored fixed system/workflow identity; no duplicate `Role.systemCode` or enum `Role.code` remains |
+| nullable `tenantId` plus Tenant FK | custom ownership and tenant/RLS boundary; system rows remain global |
+| backend-generated `customCode` text plus unique `(tenantId, customCode)` | tenant-safe identifier; client never submits it |
+| nullable `customScope` constrained to `member`, `division`, `company`, `client_contact`, `client` | explicit enforceable custom access boundary |
+| row-kind CHECK | system: `isSystemRole=true` and custom fields null; custom: `isSystemRole=false` and tenant/custom code/scope present |
+| workflow-reference protection | fixed workflow FKs target `system_roles.role_id`, so custom IDs cannot be configured as routing identities |
+
+The migration must backfill every existing Role unchanged as a system row; preserve existing
+`UserRole`, `ActorProfile`, permission-grant and workflow FKs by `roles.id`; and apply roles RLS
+so a tenant reads global system rows plus only its own custom rows. Writes may target only the
+current Tenant's custom rows. The fixed workflow FKs are `workflow_transitions.from_role_id`,
+`workflow_transitions.target_role_id`, `workflow_info_requests.target_role_id`, and
+`work_request_revision_requests.requested_to_role_id`; universal assignment/profile/grant FKs
+remain on `roles.id`, with no unsafe cross-table CHECK.
+
+Custom permission grants continue to use `workflow_action_role_permissions`. Existing catalog
+fields (`id`, `code`, `name`, `description`, visibility and revision/info/assignment/terminal
+flags) remain the selector data; display tags may be derived only from those existing flags.
+No UI-only grouping persistence is approved. V1 policy is centrally enforced: `ADD_MEMBER`,
+`ADD_TEAM`, and `ASSIGN_MEMBER` allow only `division` and `company`; all other actions are
+ineligible. A policy relation is deferred until its catalog needs exceed this fixed approved matrix.
+
+Custom assignment requires a compatible existing ActorProfile target: Member for `member`,
+`division`, `company`; ClientContact for `client_contact`, `client`. It must create/reuse that
+profile atomically with the UserRole grant and cannot use the current role-only profile path for
+a scoped custom role.
 
 ### `UserRole`
 

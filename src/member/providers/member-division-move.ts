@@ -34,7 +34,8 @@ export async function assertDivisionMove(
     throw new AppException({
       code: AppErrorCode.Conflict,
       status: HttpStatus.CONFLICT,
-      message: 'Member has active Team relations in another Division',
+      message:
+        'This member cannot be moved because they have active team assignments in another division. Remove those assignments first.',
     });
   }
 }

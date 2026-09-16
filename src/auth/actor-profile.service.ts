@@ -30,7 +30,7 @@ export class ActorProfileService {
   ): ActorProfileResponseDto => ({
     id: actor.id,
     roleId: actor.roleId,
-    roleCode: actor.role.code,
+    roleCode: actor.role.systemRole?.systemCode ?? actor.role.customCode!,
     label: actor.label,
     memberId: actor.memberId,
     clientContactId: actor.clientContactId,

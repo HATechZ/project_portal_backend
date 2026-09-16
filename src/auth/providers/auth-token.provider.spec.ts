@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { UnauthorizedException } from '@nestjs/common';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 
 jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
 
@@ -111,7 +112,11 @@ describe('AuthTokenProvider refresh rotation', () => {
     await expect(
       provider.rotate(originalRefreshToken, request),
     ).rejects.toEqual(
-      new UnauthorizedException('Invalid or expired refresh token'),
+      new AppException({
+        code: AppErrorCode.AuthRefreshInvalid,
+        status: 401,
+        message: 'Your session is no longer valid. Sign in again to continue.',
+      }),
     );
     expect(repository.revokeSession).toHaveBeenCalledWith(sessionId);
   });

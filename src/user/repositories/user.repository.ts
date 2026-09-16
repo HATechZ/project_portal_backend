@@ -82,7 +82,11 @@ export class UserRepository extends BaseRepository {
                 some: {
                   tenantId,
                   revokedAt: null,
-                  role: { code: ActorRoleCode.system_admin },
+                  role: {
+                    systemRole: {
+                      is: { systemCode: ActorRoleCode.system_admin },
+                    },
+                  },
                 },
               },
             },
@@ -97,7 +101,11 @@ export class UserRepository extends BaseRepository {
                   some: {
                     tenantId,
                     revokedAt: null,
-                    role: { code: ActorRoleCode.system_admin },
+                    role: {
+                      systemRole: {
+                        is: { systemCode: ActorRoleCode.system_admin },
+                      },
+                    },
                   },
                 },
               },
