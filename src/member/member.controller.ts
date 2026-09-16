@@ -100,10 +100,13 @@ export class MemberController {
 
   @Delete(':id')
   @HttpCode(204)
-  @ResponseMessage('Member deleted successfully')
-  @ApiOperation({ summary: 'Delete a Member' })
+  @ResponseMessage('Member removed successfully')
+  @ApiOperation({
+    summary: 'Remove a member',
+    description: 'Removes the Member from active organization use and revokes Member access. Historical records are preserved.',
+  })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
-  @ApiNoContentResponse({ description: 'Member deleted' })
+  @ApiNoContentResponse({ description: 'Member removed from active organization' })
   delete(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: ObjectScopeRequest,

@@ -110,7 +110,7 @@ export class MemberRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.member.findMany({
-        where: { tenantId, companyId, divisionId: { in: divisionIds } },
+        where: { tenantId, companyId, isActive: true, divisionId: { in: divisionIds } },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip,
         take,
@@ -123,7 +123,7 @@ export class MemberRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.member.count({
-        where: { tenantId, companyId, divisionId: { in: divisionIds } },
+        where: { tenantId, companyId, isActive: true, divisionId: { in: divisionIds } },
       }),
     );
   }
@@ -132,7 +132,7 @@ export class MemberRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.member.findFirst({
-        where: { id, tenantId, companyId },
+        where: { id, tenantId, companyId, isActive: true },
         select: memberSelect,
       }),
     );

@@ -50,6 +50,7 @@ export interface MemberMutationInput {
 
 export type MemberDeleteBlocker =
   | 'actorProfilesByMemberId'
+  | 'divisionLeadsByMemberId'
   | 'teamsByLeadMemberId'
   | 'teamMembersByMemberId'
   | 'workRequestAssignmentsByMemberId'

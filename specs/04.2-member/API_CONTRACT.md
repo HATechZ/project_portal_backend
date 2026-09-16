@@ -30,7 +30,7 @@ not grant general Division administration or all-Division browsing.
 | GET | `/member` | Scoped page, optional `divisionId` filter only after scoped validation; `name asc,id asc`; 200 items/meta. |
 | GET | `/member/:id` | 200 scoped Member or indistinguishable 404. |
 | PATCH | `/member/:id` | Partial `{ name?, email?, roleTitle?, divisionId?, isActive? }`, at least one; 200. No `userId` or security fields. |
-| DELETE | `/member/:id` | Guarded hard delete; 204 only with no relation; otherwise 409. |
+| DELETE | `/member/:id` | Remove a member; atomically marks the Member inactive, ends active Team membership, revokes Member access/profiles/sessions, and disables the linked User only when it has no other active identity. Historical records remain; active Division leadership returns 409. 204. |
 | PUT | `/member/:id/access-link` | `{ userId, actorProfileId? }`; exceptional existing-User path only. Links existing same-Tenant User and optional existing eligible profile; 200. It does not create User, UserRole, ActorProfile, password, or session. |
 
 Member response is `id`, linked `userId` for normal create, read-only Company/Division context,

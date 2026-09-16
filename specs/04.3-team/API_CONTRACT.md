@@ -48,7 +48,7 @@ object scope.
 | PUT | `/team/:id/lead` | system_admin, division_head, or scoped division_lead; `ADD_TEAM`; `{ leadMemberId }`; 200. |
 | GET | `/team/:id/member` | authorized Team scope; list current and, with `includeEnded=true`, ended association history; 200. |
 | POST | `/team/:id/member` | system_admin/division_head/scoped division_lead/exact `team_lead`; `ASSIGN_MEMBER`; `{ memberId, teamRole? }`; 201. Member may be existing or newly created by a prior separate `/member` call; this route never creates the Member. |
-| DELETE | `/team/:id/member/:memberId` | same membership scope; `ASSIGN_MEMBER`; end active membership with 204, never row deletion. |
+| DELETE | `/team/:id/member/:memberId` | same membership scope; `ASSIGN_MEMBER`; ends the Member's active Team assignment with 204. The Member disappears from the active Team list, while the membership row/history remains. It does not delete the Member or change User roles or permissions. |
 
 Team responses expose Team fields, safe lead summary, and membership fields (`id`, member summary,
 `teamRole`, `joinedAt`, `leftAt`) where requested. DTOs reject Tenant/Company/Division changes,

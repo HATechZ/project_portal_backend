@@ -6,6 +6,7 @@ import {
   MemberAccessRepository,
   MemberOnboardingRepository,
   MemberRelationsRepository,
+  MemberRemovalRepository,
   MemberRepository,
 } from './repositories';
 
@@ -17,6 +18,7 @@ import {
     MemberAccessRepository,
     MemberOnboardingRepository,
     MemberRelationsRepository,
+    MemberRemovalRepository,
     MemberScopeProvider,
   ],
 })

@@ -29,6 +29,7 @@ import {
   MemberOnboardingRepository,
   MemberRecord,
   MemberRelationsRepository,
+  MemberRemovalRepository,
   MemberRepository,
   ScopedCompanyRecord,
 } from './repositories';
@@ -42,6 +43,7 @@ export class MemberService {
     private readonly relationsRepository: MemberRelationsRepository,
     private readonly scopeProvider: MemberScopeProvider,
     @Inject(PASSWORD_HASHER) private readonly passwordHasher: PasswordHasher,
+    private readonly removalRepository: MemberRemovalRepository,
   ) {}
 
   async findAll(
@@ -148,20 +150,7 @@ export class MemberService {
   async delete(id: string, actor: ActorScopeContext): Promise<void> {
     this.scopeProvider.assertSystemAdmin(actor);
     const company = await this.requireScopedCompany();
-    await this.requireMember(id, company.id);
-    const blockers = await this.relationsRepository.findDeleteBlockers(
-      id,
-      company.id,
-    );
-    if (blockers.length > 0) {
-      throw new AppException({
-        code: AppErrorCode.Conflict,
-        status: HttpStatus.CONFLICT,
-        message:
-          'This member cannot be deleted because related records still depend on it. Remove or reassign those records first.',
-      });
-    }
-    await this.repository.delete(id, company.id);
+    await this.removalRepository.remove(id, company.id);
   }
 
   async linkAccess(

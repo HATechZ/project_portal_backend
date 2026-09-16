@@ -73,6 +73,7 @@ function uniqueConstraintMessage(
 
 const INVALID_SIGNUP_SQLSTATES = new Set(['22001', '22023', '23503']);
 const UNIQUE_VIOLATION_SQLSTATE = '23505';
+const RESTRICT_VIOLATION_SQLSTATE = '23001';
 
 function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
   const meta = error.meta as
@@ -90,6 +91,15 @@ function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
 
 export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (rawQuerySqlState(error) === RESTRICT_VIOLATION_SQLSTATE) {
+      return new AppException({
+        code: AppErrorCode.DatabaseConstraint,
+        message:
+          'This change cannot be completed because related records still depend on this item. Review those relationships and try again.',
+        status: HttpStatus.CONFLICT,
+        cause: error,
+      });
+    }
     if (error.code === 'P2034') {
       return new AppException({
         code: AppErrorCode.StaleUpdate,

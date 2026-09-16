@@ -67,6 +67,10 @@ only when the profile is active, belongs to that User and Tenant, and its matchi
 is active. Clearing the previous default and setting the selected profile occurs in one
 serializable transaction. An unavailable or unowned profile returns the same 403.
 
+Member removal disables Member-backed profiles, revokes matching active UserRole grants and
+sessions, and deactivates the linked User only when no other active Member or ClientContact
+identity remains. Historical grants, profiles, and sessions remain preserved.
+
 ## 4. User DTOs
 
 `CreateUserDto` requires trimmed `fullName`, canonical email, and an 8–72 byte password; optional

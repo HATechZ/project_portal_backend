@@ -91,10 +91,16 @@ export class TeamMembershipController {
   @Delete(':memberId')
   @HttpCode(204)
   @ResponseMessage('Team member removed successfully')
-  @ApiOperation({ summary: 'End a Member Team assignment' })
+  @ApiOperation({
+    summary: 'Remove a Member from a Team’s active member list',
+    description:
+      'Ends the Member’s current Team membership. The Member is removed from the active Team list, while membership history is retained. This does not delete the Member or change User roles or permissions.',
+  })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiParam({ name: 'memberId', type: String, format: 'uuid' })
-  @ApiNoContentResponse({ description: 'Team member ended' })
+  @ApiNoContentResponse({
+    description: 'Active Team membership ended; historical membership is retained',
+  })
   removeMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('memberId', ParseUUIDPipe) memberId: string,

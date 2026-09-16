@@ -41,7 +41,7 @@ export class TeamMembershipRepository extends BaseRepository {
   addMember(
     teamId: string,
     memberId: string,
-    teamRole?: string,
+    teamRole?: string | null,
   ): Promise<TeamMemberRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
@@ -51,7 +51,7 @@ export class TeamMembershipRepository extends BaseRepository {
           id: randomUUID(),
           teamId,
           memberId,
-          ...(teamRole !== undefined ? { teamRole: teamRole.trim() } : {}),
+          ...(typeof teamRole === 'string' ? { teamRole: teamRole.trim() } : {}),
         },
         select: teamMemberSelect,
       }),

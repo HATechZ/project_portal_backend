@@ -19,6 +19,7 @@ export class MemberRelationsRepository extends BaseRepository {
       const where = { id, tenantId, companyId };
       const [
         actorProfilesByMemberId,
+        divisionLeadsByMemberId,
         teamsByLeadMemberId,
         teamMembersByMemberId,
         workRequestAssignmentsByMemberId,
@@ -28,6 +29,10 @@ export class MemberRelationsRepository extends BaseRepository {
       ] = await Promise.all([
         db.member.findFirst({
           where: { ...where, actorProfilesByMemberId: { some: {} } },
+          select: { id: true },
+        }),
+        db.member.findFirst({
+          where: { ...where, divisionLeadsByMemberId: { some: {} } },
           select: { id: true },
         }),
         db.member.findFirst({
@@ -66,6 +71,7 @@ export class MemberRelationsRepository extends BaseRepository {
       ]);
       return [
         actorProfilesByMemberId ? 'actorProfilesByMemberId' : null,
+        divisionLeadsByMemberId ? 'divisionLeadsByMemberId' : null,
         teamsByLeadMemberId ? 'teamsByLeadMemberId' : null,
         teamMembersByMemberId ? 'teamMembersByMemberId' : null,
         workRequestAssignmentsByMemberId

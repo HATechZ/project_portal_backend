@@ -92,4 +92,26 @@ describe('MemberService onboarding', () => {
       expect.objectContaining({ password: 'secret123' }),
     );
   });
+
+  it('delegates removal to the atomic lifecycle repository', async () => {
+    const repository = {
+      findScopedCompany: jest.fn().mockResolvedValue(company),
+    };
+    const scopeProvider = { assertSystemAdmin: jest.fn() };
+    const removalRepository = { remove: jest.fn().mockResolvedValue(undefined) };
+    const service = new MemberService(
+      repository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      scopeProvider as never,
+      {} as never,
+      removalRepository as never,
+    );
+
+    await service.delete('member-id', actor);
+
+    expect(scopeProvider.assertSystemAdmin).toHaveBeenCalledWith(actor);
+    expect(removalRepository.remove).toHaveBeenCalledWith('member-id', company.id);
+  });
 });

@@ -13,13 +13,15 @@ indexes. Its Division relation is the authoritative composite
 is a nullable current relation to User, not an authentication field and not declared unique;
 the spec therefore does not invent a one-to-one cardinality.
 
-## Relations and deletion audit
+## Relations and removal lifecycle
 
 Member relates to optional `User`, `ActorProfile` by `(memberId,tenantId)`, Teams it leads,
 `team_members`, WorkRequestAssignments, WorkflowInfoRequests as requested/target Member, and
-WorkRequestRevisionRequests as requested-to Member. Before a hard delete, probe each inverse
-relation in the scoped UnitOfWork. Any row blocks deletion with 409. Do not rely on ActorProfile
-`SetNull` to silently erase business context and do not cascade/end team membership or history.
+WorkRequestRevisionRequests as requested-to Member. Removal uses existing `isActive`, `leftAt`,
+and `revokedAt` fields in one transaction: active Team membership ends, Member-backed profiles
+and matching grants/sessions are revoked, and the Member is marked inactive. Active Division or
+Team leadership blocks with 409; workflow, audit, role/profile, Team, and leadership history is
+not deleted or rewritten.
 
 ## Onboarding and access integration boundary
 

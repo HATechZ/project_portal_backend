@@ -18,7 +18,8 @@ role-grant logic; it must not import the Identity module.
 | Operation | Atomic records | Rule |
 |---|---|---|
 | create | Member plus scoped Division and actor profile/member/team context reads | one Tenant UnitOfWork; no Team assignment write |
-| update/delete | Member plus scoped Division/dependency reads | one Tenant UnitOfWork; existing authority unchanged; deletion probes every inverse first |
+| update | Member plus scoped Division/dependency reads | one Tenant UnitOfWork; existing authority unchanged |
+| delete | Member, active leadership/Team membership, access profiles/grants/sessions, and linked User | one Tenant UnitOfWork; active leadership blocks; end active access and retain all history |
 | access link | Member, User/profile/active-role reads; Member user link and optional ActorProfile member target | serializable Tenant UnitOfWork to prevent link races |
 
 Create resolves the Division scoped by Tenant/Company plus actor authority: Company-wide for
@@ -35,7 +36,8 @@ global filter.
 ## Verification
 
 Tests distinguish all four access steps, prove User/role assignment creates no Member, prove
-Member can lack User/Team, cover exact link validations, every delete dependency, two-Tenant
+Member can lack User/Team, cover exact link validations, removal access revocation and active
+leadership dependencies, two-Tenant
 isolation, scoped system_admin/division_head/division_lead/team_lead create cases, and denied
 cross-scope actors. Runtime verification uses app_user/RLS with temporary fixtures and cleanup,
 records every endpoint/error/envelope/request ID in `walkthrough.md`, and does not add DB grants.
