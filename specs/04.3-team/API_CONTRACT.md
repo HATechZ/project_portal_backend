@@ -51,7 +51,8 @@ object scope.
 | POST | `/team/:id/member` | system_admin/division_head/scoped division_lead/exact `team_lead`; `ASSIGN_MEMBER`; `{ memberId, teamRole? }`; 201. Member may be existing or newly created by a prior separate `/member` call; this route never creates the Member. |
 | DELETE | `/team/:id/member/:memberId` | same membership scope; `ASSIGN_MEMBER`; ends the Member's active Team assignment with 204. The Member disappears from the active Team list, while the membership row/history remains. It does not delete the Member or change User roles or permissions. |
 
-Team responses expose Team fields, safe lead summary, and membership fields (`id`, member summary,
-`teamRole`, `joinedAt`, `leftAt`) where requested. DTOs reject Tenant/Company/Division changes,
+Team responses expose Team fields, safe lead/member summaries (`id`, `name`, `email`,
+`designation`), and membership fields (`id`, member summary, `teamRole`, `joinedAt`, `leftAt`)
+where requested. DTOs reject Tenant/Company/Division changes,
 isActive, timestamps, inline Member creation payloads, User/role/password fields, caller `leftAt`,
 and arbitrary member ID arrays. There is no activate/deactivate endpoint.

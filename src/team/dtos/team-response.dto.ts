@@ -9,6 +9,9 @@ export class TeamMemberSummaryDto {
 
   @ApiProperty()
   email!: string;
+
+  @ApiProperty()
+  designation!: string;
 }
 
 export class TeamLeadSummaryDto extends TeamMemberSummaryDto {}
