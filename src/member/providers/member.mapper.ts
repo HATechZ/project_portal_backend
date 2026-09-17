@@ -9,11 +9,9 @@ export function toMemberResponse(member: MemberRecord): MemberResponseDto {
     divisionId: member.divisionId,
     name: member.name,
     email: member.email,
-    roleTitle: member.roleTitle,
+    designation: member.roleTitle,
     isActive: member.isActive,
     createdAt: member.createdAt,
     updatedAt: member.updatedAt,
-    division: member.division,
-    user: member.user,
   };
 }

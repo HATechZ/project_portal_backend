@@ -1,6 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { AppErrorCode } from '../common/exceptions/app-error-code';
-import { AppException } from '../common/exceptions/app-exception';
+import { Inject, Injectable } from '@nestjs/common';
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
 import { ActorScopeContext } from '../common/security/object-scope.provider';
@@ -102,7 +100,6 @@ export class MemberService {
   async create(
     input: CreateMemberDto,
     actor: ActorScopeContext,
-    assignedByUserId: string,
   ): Promise<MemberResponseDto> {
     const company = await this.requireScopedCompany();
     await this.scopeProvider.assertCanCreate(
@@ -117,8 +114,6 @@ export class MemberService {
         email: input.email,
         passwordHash,
         divisionId: input.divisionId,
-        roleId: input.roleId,
-        assignedByUserId,
         designation: input.designation,
         phone: input.phone,
       }),

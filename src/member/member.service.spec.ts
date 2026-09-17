@@ -31,12 +31,6 @@ describe('MemberService onboarding', () => {
         isActive: true,
         createdAt: now,
         updatedAt: now,
-        division: { id: 'division-id', name: 'Division', abbr: 'DIV' },
-        user: {
-          id: 'user-id',
-          fullName: 'Jane Member',
-          email: 'jane@example.com',
-        },
       }),
     };
     const scopeProvider = {
@@ -54,18 +48,16 @@ describe('MemberService onboarding', () => {
       passwordHasher as never,
     );
 
-    await service.create(
+    const result = await service.create(
       {
         name: 'Jane Member',
         email: 'jane@example.com',
         password: 'secret123',
         divisionId: 'division-id',
-        roleId: 'role-id',
         designation: 'Engineer',
         phone: '+1-555-0100',
       },
       actor,
-      'admin-user-id',
     );
 
     expect(passwordHasher.hash).toHaveBeenCalledWith('secret123');
@@ -81,8 +73,6 @@ describe('MemberService onboarding', () => {
         email: 'jane@example.com',
         passwordHash: 'hashed-password',
         divisionId: 'division-id',
-        roleId: 'role-id',
-        assignedByUserId: 'admin-user-id',
         designation: 'Engineer',
         phone: '+1-555-0100',
       },
@@ -91,6 +81,21 @@ describe('MemberService onboarding', () => {
       expect.anything(),
       expect.objectContaining({ password: 'secret123' }),
     );
+    expect(result).toEqual({
+      id: 'member-id',
+      userId: 'user-id',
+      companyId: 'company-id',
+      divisionId: 'division-id',
+      designation: 'Engineer',
+      name: 'Jane Member',
+      email: 'jane@example.com',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(result).not.toHaveProperty('user');
+    expect(result).not.toHaveProperty('division');
+    expect(result).not.toHaveProperty('roleId');
   });
 
   it('delegates removal to the atomic lifecycle repository', async () => {
@@ -98,7 +103,9 @@ describe('MemberService onboarding', () => {
       findScopedCompany: jest.fn().mockResolvedValue(company),
     };
     const scopeProvider = { assertSystemAdmin: jest.fn() };
-    const removalRepository = { remove: jest.fn().mockResolvedValue(undefined) };
+    const removalRepository = {
+      remove: jest.fn().mockResolvedValue(undefined),
+    };
     const service = new MemberService(
       repository as never,
       {} as never,
@@ -108,10 +115,68 @@ describe('MemberService onboarding', () => {
       {} as never,
       removalRepository as never,
     );
-
     await service.delete('member-id', actor);
 
     expect(scopeProvider.assertSystemAdmin).toHaveBeenCalledWith(actor);
-    expect(removalRepository.remove).toHaveBeenCalledWith('member-id', company.id);
+    expect(removalRepository.remove).toHaveBeenCalledWith(
+      'member-id',
+      company.id,
+    );
+  });
+
+  it('uses the same flat response contract for Member detail and list results', async () => {
+    const member = {
+      id: 'member-id',
+      userId: 'user-id',
+      companyId: company.id,
+      divisionId: 'division-id',
+      name: 'Jane Member',
+      email: 'jane@example.com',
+      roleTitle: 'Engineer',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const repository = {
+      findScopedCompany: jest.fn().mockResolvedValue(company),
+      findById: jest.fn().mockResolvedValue(member),
+      findAll: jest.fn().mockResolvedValue([member]),
+      count: jest.fn().mockResolvedValue(1),
+    };
+    const scopeProvider = {
+      resolveReadableDivisionIds: jest.fn().mockResolvedValue(['division-id']),
+    };
+    const service = new MemberService(
+      repository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      scopeProvider as never,
+      {} as never,
+      {} as never,
+    );
+
+    const detail = await service.findOne('member-id', actor);
+    const list = await service.findAll({}, actor);
+
+    expect(detail).toEqual({
+      id: 'member-id',
+      userId: 'user-id',
+      companyId: 'company-id',
+      divisionId: 'division-id',
+      name: 'Jane Member',
+      email: 'jane@example.com',
+      designation: 'Engineer',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(list.items).toEqual([detail]);
+    expect(detail).not.toHaveProperty('user');
+    expect(detail).not.toHaveProperty('division');
+    expect(detail).not.toHaveProperty('roleId');
+    expect(list.items[0]).not.toHaveProperty('user');
+    expect(list.items[0]).not.toHaveProperty('division');
+    expect(list.items[0]).not.toHaveProperty('roleId');
   });
 });

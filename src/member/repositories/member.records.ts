@@ -6,12 +6,6 @@ export const memberDivisionSelect = {
   abbr: true,
 } satisfies Prisma.DivisionSelect;
 
-export const memberUserSelect = {
-  id: true,
-  fullName: true,
-  email: true,
-} satisfies Prisma.UserSelect;
-
 export const memberSelect = {
   id: true,
   userId: true,
@@ -23,8 +17,6 @@ export const memberSelect = {
   isActive: true,
   createdAt: true,
   updatedAt: true,
-  division: { select: memberDivisionSelect },
-  user: { select: memberUserSelect },
 } satisfies Prisma.MemberSelect;
 
 export type MemberRecord = Prisma.MemberGetPayload<{
@@ -43,7 +35,7 @@ export interface ScopedDivisionRecord {
 export interface MemberMutationInput {
   name?: string;
   email?: string;
-  roleTitle?: string;
+  designation?: string;
   divisionId?: string;
   isActive?: boolean;
 }

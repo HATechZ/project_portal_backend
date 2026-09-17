@@ -1,32 +1,10 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
-export class MemberDivisionSummaryDto {
-  @ApiProperty()
-  id!: string;
-
-  @ApiProperty()
-  name!: string;
-
-  @ApiProperty()
-  abbr!: string;
-}
-
-export class MemberUserSummaryDto {
-  @ApiProperty()
-  id!: string;
-
-  @ApiProperty()
-  fullName!: string;
-
-  @ApiProperty()
-  email!: string;
-}
+import { ApiProperty } from '@nestjs/swagger';
 
 export class MemberResponseDto {
   @ApiProperty()
   id!: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiProperty({ format: 'uuid', nullable: true })
   userId!: string | null;
 
   @ApiProperty()
@@ -42,7 +20,7 @@ export class MemberResponseDto {
   email!: string;
 
   @ApiProperty()
-  roleTitle!: string;
+  designation!: string;
 
   @ApiProperty()
   isActive!: boolean;
@@ -52,10 +30,4 @@ export class MemberResponseDto {
 
   @ApiProperty()
   updatedAt!: Date;
-
-  @ApiPropertyOptional({ type: MemberDivisionSummaryDto })
-  division?: MemberDivisionSummaryDto;
-
-  @ApiPropertyOptional({ type: MemberUserSummaryDto, nullable: true })
-  user?: MemberUserSummaryDto | null;
 }

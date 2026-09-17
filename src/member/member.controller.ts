@@ -18,8 +18,6 @@ import {
 } from '../common/decorators/api-standard-response.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
-import { ActiveUser } from '../common/security/active-user.decorator';
-import type { SessionUser } from '../common/security/session.types';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import {
   CreateMemberDto,
@@ -40,12 +38,8 @@ export class MemberController {
   @ResponseMessage('Member created successfully')
   @ApiOperation({ summary: 'Create Member' })
   @ApiStandardCreatedResponse(MemberResponseDto, 'Member created')
-  create(
-    @Body() input: CreateMemberDto,
-    @Req() request: ObjectScopeRequest,
-    @ActiveUser() activeUser: SessionUser,
-  ) {
-    return this.memberService.create(input, request.actorScope!, activeUser.id);
+  create(@Body() input: CreateMemberDto, @Req() request: ObjectScopeRequest) {
+    return this.memberService.create(input, request.actorScope!);
   }
 
   @Get()
@@ -103,10 +97,13 @@ export class MemberController {
   @ResponseMessage('Member removed successfully')
   @ApiOperation({
     summary: 'Remove a member',
-    description: 'Removes the Member from active organization use and revokes Member access. Historical records are preserved.',
+    description:
+      'Removes the Member from active organization use and revokes Member access. Historical records are preserved.',
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
-  @ApiNoContentResponse({ description: 'Member removed from active organization' })
+  @ApiNoContentResponse({
+    description: 'Member removed from active organization',
+  })
   delete(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: ObjectScopeRequest,

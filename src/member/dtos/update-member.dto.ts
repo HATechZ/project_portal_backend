@@ -39,7 +39,7 @@ export class UpdateMemberDto {
   @IsString()
   @MinLength(1)
   @MaxLength(140)
-  roleTitle?: string;
+  designation?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @ValidateIf((_object, value: unknown) => value !== undefined)

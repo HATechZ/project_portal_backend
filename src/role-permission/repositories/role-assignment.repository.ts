@@ -55,18 +55,16 @@ export class RoleAssignmentRepository extends BaseRepository {
           message: 'This custom role is not eligible for assignment.',
         });
       }
-      const member = role.isSystemRole
-        ? null
-        : await db.member.findFirst({
-            where: {
-              tenantId,
-              userId,
-              isActive: true,
-              division: { isActive: true },
-              company: { isActive: true },
-            },
-            select: { id: true },
-          });
+      const member = await db.member.findFirst({
+        where: {
+          tenantId,
+          userId,
+          isActive: true,
+          division: { isActive: true },
+          company: { isActive: true },
+        },
+        select: { id: true },
+      });
       if (!role.isSystemRole && !member) {
         throw new AppException({
           code: AppErrorCode.BadRequest,

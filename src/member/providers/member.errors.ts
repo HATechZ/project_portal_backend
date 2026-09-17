@@ -26,7 +26,7 @@ export function assertMemberUpdateHasFields(input: UpdateMemberDto): void {
   if (
     input.name === undefined &&
     input.email === undefined &&
-    input.roleTitle === undefined &&
+    input.designation === undefined &&
     input.divisionId === undefined &&
     input.isActive === undefined
   ) {

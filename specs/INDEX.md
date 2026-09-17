@@ -50,10 +50,6 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-08 | Codex + verifier | 03 | 1–4 | Provisioning/revocation hardening; runtime blocked by actor_profiles grants |
-| 2026-09-08 | Codex + verifier | 04 | 1–4 | Signup password confirmation at DTO edge; 83 tests pass |
-| 2026-09-08 | Codex + verifier | 03 | 1–5 | JWT-derived Tenant context verified (31 live curls) |
-| 2026-09-08 | Codex + verifier | 04 | 1–5 | Nested signup + admin PATCH; 50/52 curls, UPDATE grant blocks rest |
 | 2026-09-09 | Codex | 04.1–04.3 | 1–3 | Added Division, Member, Team specs |
 | 2026-09-09 | Codex + verifier | 04.1 | 4 | Division CRUD implemented; HTTP blocked by grants |
 | 2026-09-09 | Codex | 04, 04.2, 04.3 | 1–3 | Reconciled Member authority scopes (spec only) |
@@ -61,3 +57,6 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
 | 2026-09-15 | Claude | 00, 01, 01.1, 03, 04 | 5 | 29/30 failing claims resolved: 15 unticked (proof deleted), rest fixed |
 | 2026-09-15 | Claude | 04.1 | 5 | Division DONE 11/11: walkthrough PASS (24 curls); 500-on-unknown-divisionTypeId fixed; recursive `verify:sdd:strict` removed from final VERIFY |
+| 2026-09-17 | Codex | 04.2 | 1–4 | Member response is flat IDs only; focused test/build PASS |
+| 2026-09-17 | Codex | 03, 04.2, 04.3 | 1–4 | Member onboarding now excludes role access; focused tests/build PASS |
+| 2026-09-17 | Codex | 03, 04.2, 04.3 | 4 | Typed test mocks clear lint; focused tests/build PASS |

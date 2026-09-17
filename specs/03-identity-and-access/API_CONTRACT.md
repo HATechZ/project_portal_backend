@@ -56,11 +56,12 @@ Successful login stamps `lastLoginAt` and creates the hashed-refresh-token sessi
 ## 3. ActorProfile behavior
 
 Role assignment is idempotent: an already-active UserRole is returned with 201 and a reusable
-role-only profile is ensured in the same transaction. No Member or ClientContact is fabricated.
-The first eligible profile becomes default only if no eligible default exists. A repeated grant
-does not unexpectedly replace a valid default. Revoked roles make their profiles ineligible.
-Division's `Assign Division Lead` API reuses this same UserRole/role-only ActorProfile
-orchestration and then links the profile to an eligible Member; it is not a new identity model.
+ActorProfile is ensured in the same transaction. When the User already has an active Member, the
+profile is Member-backed; otherwise it remains role-only and no Member or ClientContact is
+fabricated. The first eligible profile becomes default only if no eligible default exists. A
+repeated grant does not unexpectedly replace a valid default. Revoked roles make their profiles
+ineligible. Division's `Assign Division Lead` API reuses this same UserRole/ActorProfile
+orchestration and then validates the eligible Member; it is not a new identity model.
 
 `GET /actor-profiles` returns only profiles owned by the authenticated User. Activation succeeds
 only when the profile is active, belongs to that User and Tenant, and its matching UserRole grant

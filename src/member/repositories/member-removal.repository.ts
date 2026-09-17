@@ -22,7 +22,8 @@ export class MemberRemovalRepository extends BaseRepository {
         throw new AppException({
           code: AppErrorCode.NotFound,
           status: HttpStatus.NOT_FOUND,
-          message: 'Member not found. It may have been removed or you may not have access to it.',
+          message:
+            'Member not found. It may have been removed or you may not have access to it.',
         });
       }
       const [activeDivisionLead, activeTeamLead] = await Promise.all([
@@ -39,7 +40,8 @@ export class MemberRemovalRepository extends BaseRepository {
         throw new AppException({
           code: AppErrorCode.Conflict,
           status: HttpStatus.CONFLICT,
-          message: 'This member cannot be deleted because related records still depend on it. Remove or reassign those records first.',
+          message:
+            'This member cannot be deleted because related records still depend on it. Remove or reassign those records first.',
         });
       }
 
@@ -61,7 +63,13 @@ export class MemberRemovalRepository extends BaseRepository {
       });
 
       if (!member.userId) return;
-      const memberRoleIds = [...new Set(profiles.filter((profile) => profile.userId === member.userId).map((profile) => profile.roleId))];
+      const memberRoleIds = [
+        ...new Set(
+          profiles
+            .filter((profile) => profile.userId === member.userId)
+            .map((profile) => profile.roleId),
+        ),
+      ];
       const otherProfiles = await db.actorProfile.findMany({
         where: {
           tenantId,
@@ -79,11 +87,20 @@ export class MemberRemovalRepository extends BaseRepository {
         },
         select: { id: true, roleId: true },
       });
-      const otherRoleIds = new Set(otherProfiles.map((profile) => profile.roleId));
-      const roleIdsToRevoke = memberRoleIds.filter((roleId) => !otherRoleIds.has(roleId));
+      const otherRoleIds = new Set(
+        otherProfiles.map((profile) => profile.roleId),
+      );
+      const roleIdsToRevoke = memberRoleIds.filter(
+        (roleId) => !otherRoleIds.has(roleId),
+      );
       if (roleIdsToRevoke.length) {
         await db.userRole.updateMany({
-          where: { tenantId, userId: member.userId, roleId: { in: roleIdsToRevoke }, revokedAt: null },
+          where: {
+            tenantId,
+            userId: member.userId,
+            roleId: { in: roleIdsToRevoke },
+            revokedAt: null,
+          },
           data: { revokedAt: new Date() },
         });
       }

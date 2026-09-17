@@ -131,8 +131,9 @@ authoritative.
 
 ## Identity completion acceptance
 
-- Role assignment atomically ensures one reusable role-only ActorProfile for that User/role.
-  It preserves an existing eligible default; revoked grants make their profiles ineligible.
+- Role assignment atomically ensures one reusable ActorProfile for that User/role. It uses an
+  active linked Member as the profile target when present; otherwise the profile remains role-only.
+  It preserves an existing eligible default; revoked grants make profiles ineligible.
 - Operator means a same-Tenant `system_admin`, who may revoke all active sessions of a
   same-Tenant User. Missing or cross-Tenant targets return 404; non-admin callers return 403.
 - Updates reject null fullName, email, password and isActive with 400; avatarUrl remains nullable.

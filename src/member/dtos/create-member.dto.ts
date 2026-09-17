@@ -35,10 +35,6 @@ export class CreateMemberDto {
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  roleId!: string;
-
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
   divisionId!: string;
 
   @ApiPropertyOptional({ maxLength: 140 })

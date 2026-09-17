@@ -4,10 +4,11 @@
 
 `members` / `Member`: Tenant ID, UUID ID, nullable `userId`, Company ID, Division ID,
 `name varchar(160)`, `email varchar(255)`, `roleTitle varchar(140)`, retained `isActive`, and
-timestamps. `designation` and `phone` are accepted by the V1 public create body but have no
-dedicated current Member columns; V1 maps designation to the structurally mandatory existing
-`roleTitle` business field and persists phone on the linked User. Authorization never comes from
-designation. It has unique `(id,tenantId)` and `(tenantId,email)`, plus Division and Company
+timestamps. `designation` and `phone` are accepted by the V1 public Member bodies but have no
+dedicated current Member columns; V1 maps designation (or an absent designation to an empty
+business value) to the structurally mandatory existing `roleTitle` field and persists phone on the
+linked User. Authorization never comes from designation. It has unique `(id,tenantId)` and
+`(tenantId,email)`, plus Division and Company
 indexes. Its Division relation is the authoritative composite
 `(divisionId,tenantId,companyId) -> divisions(id,tenantId,companyId)` relationship. `userId`
 is a nullable current relation to User, not an authentication field and not declared unique;
@@ -26,16 +27,18 @@ not deleted or rewritten.
 ## Onboarding and access integration boundary
 
 The schema permits an unlinked Member for legacy and exceptional linking paths. Normal V1
-`POST /member` must atomically create/link:
+`POST /member` must atomically create/link only:
 
 1. User with request email and existing Auth password hash.
 2. Member linked to that User.
-3. UserRole for the required allowed internal `roleId`.
-4. Member-backed ActorProfile for that UserRole.
 
-The public create body is `name`, `email`, `password`, `divisionId`, `roleId`, optional
-`designation`, and optional `phone`. It never accepts `tenantId`, `companyId`, `userId`,
+The public create body is `name`, `email`, `password`, `divisionId`, optional `designation`, and
+optional `phone`. It never accepts `roleId`, `tenantId`, `companyId`, `userId`,
 `actorProfileId`, `passwordHash`, `confirmPassword`, `isActive`, or `teamId`.
+
+A newly created Member may have no Team membership, UserRole, or Member-backed ActorProfile.
+Later role assignment remains the existing Identity `POST /user/:userId/role` operation; when
+that User has an active Member, it creates or reuses the Member-backed ActorProfile with the grant.
 
 The existing `PUT /member/:id/access-link` endpoint remains the exceptional existing-User path:
 module 03 creates or locates User access under its own User/password policy; this module's link
@@ -52,7 +55,8 @@ app_user/RLS UnitOfWork, not app_relay.
 ## Writes and migration impact
 
 Create derives Tenant/Company and uses an existing actor-scoped Division; it receives name,
-business email, password, role ID, optional designation, optional phone, and Division ID.
+business email, password, optional designation, optional phone, and Division ID. It writes no
+UserRole, ActorProfile, or Team membership.
 `system_admin` can select any own-Company Division and may create/provision or assign
 `division_head`; `division_head` can select any own-Company Division allowed by configured
 permissions and may create/provision or assign `division_lead` only for a Division inside that

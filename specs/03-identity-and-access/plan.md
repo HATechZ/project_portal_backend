@@ -104,7 +104,7 @@ repository, under the existing system_admin guards.
 | ActorProfile activation | previous default clear + selected default set |
 | Role permission replacement | revoked/allowed tenant grant matrix |
 | Role revocation | timestamp update with final-admin protection |
-| Role assignment | active grant + reusable role-only ActorProfile, preserving eligible default |
+| Role assignment | active grant + reusable Member-backed profile when active Member exists, otherwise role-only; preserves eligible default |
 | Operator revocation | User lock + all target session revocations |
 
 Permission replacement uses serializable isolation. Profile switching, role revocation and User
@@ -124,8 +124,8 @@ serializable custom-role creation with initial grants, and filters/rechecks cata
 eligibility. It does not alter existing system permission replacement semantics. Assignment
 discovery is a target-aware repository/provider path. Custom assignment resolves an existing
 active Member or ClientContact target, validates declared scope, and atomically creates/reuses a
-compatible scoped ActorProfile with the UserRole grant; system-role assignment retains the current
-role-only-profile and hierarchy path.
+compatible scoped ActorProfile with the UserRole grant; system-role assignment uses the active
+linked Member when present and otherwise retains the role-only hierarchy path.
 
 Controllers remain SystemAdminGuard-protected. DTOs accept only name, optional description, scope,
 and permissionCodes for creation; no tenant, identifier, system flag, actor code, or audit IDs.

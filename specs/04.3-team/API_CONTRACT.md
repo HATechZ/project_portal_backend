@@ -29,8 +29,9 @@ does not grant general Division administration or all-Division browsing.
 
 ## Leadership Provisioning
 
-Creating or assigning leadership must reuse normal Member onboarding:
-`User -> Member -> UserRole -> Member-backed ActorProfile`. Do not create separate leader
+Creating a leadership candidate reuses normal Member onboarding: `User -> Member`. The later
+existing role-assignment/leadership workflow creates or reuses its UserRole and Member-backed
+ActorProfile; Team membership itself does not assign a role. Do not create separate leader
 identity models. Assignment scope is validated at assignment time:
 system_admin -> own Company; division_head -> own Company / target Division; division_lead ->
 own Division / target Team; team_lead -> exact Team. Role assignment alone never bypasses

@@ -110,7 +110,12 @@ export class MemberRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.member.findMany({
-        where: { tenantId, companyId, isActive: true, divisionId: { in: divisionIds } },
+        where: {
+          tenantId,
+          companyId,
+          isActive: true,
+          divisionId: { in: divisionIds },
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip,
         take,
@@ -123,7 +128,12 @@ export class MemberRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.member.count({
-        where: { tenantId, companyId, isActive: true, divisionId: { in: divisionIds } },
+        where: {
+          tenantId,
+          companyId,
+          isActive: true,
+          divisionId: { in: divisionIds },
+        },
       }),
     );
   }
@@ -149,7 +159,7 @@ export class MemberRepository extends BaseRepository {
           divisionId: input.divisionId,
           name: input.name.trim(),
           email: input.email.trim().toLowerCase(),
-          roleTitle: input.roleTitle.trim(),
+          roleTitle: input.designation.trim(),
           isActive: input.isActive,
         },
         select: memberSelect,
@@ -167,8 +177,8 @@ export class MemberRepository extends BaseRepository {
           ...(input.email !== undefined
             ? { email: input.email.trim().toLowerCase() }
             : {}),
-          ...(input.roleTitle !== undefined
-            ? { roleTitle: input.roleTitle.trim() }
+          ...(input.designation !== undefined
+            ? { roleTitle: input.designation.trim() }
             : {}),
           ...(input.divisionId !== undefined
             ? { divisionId: input.divisionId }

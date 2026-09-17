@@ -55,9 +55,9 @@ Tenant/Company may create/provision or assign `division_head`; `division_head` m
 create/provision or assign `division_lead` only for a Division inside the same Company;
 `division_lead` may create/provision or assign `team_lead` only for a Team inside that Division;
 `team_lead` may manage or create eligible ordinary Members only within its exact Team scope,
-subject to the approved Member onboarding rules. Creating a leadership user reuses normal
-Member onboarding: `User -> Member -> UserRole -> Member-backed ActorProfile`; no separate
-leader identity model is introduced.
+subject to the approved Member onboarding rules. Creating a leadership candidate reuses normal
+Member onboarding: `User -> Member`; later role/leadership assignment creates or reuses the
+UserRole and Member-backed ActorProfile. No separate leader identity model is introduced.
 
 #### Approved custom-role data-model change (implementation prerequisite)
 

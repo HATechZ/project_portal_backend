@@ -99,7 +99,8 @@ export class TeamMembershipController {
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiParam({ name: 'memberId', type: String, format: 'uuid' })
   @ApiNoContentResponse({
-    description: 'Active Team membership ended; historical membership is retained',
+    description:
+      'Active Team membership ended; historical membership is retained',
   })
   removeMember(
     @Param('id', ParseUUIDPipe) id: string,

@@ -51,7 +51,9 @@ export class TeamMembershipRepository extends BaseRepository {
           id: randomUUID(),
           teamId,
           memberId,
-          ...(typeof teamRole === 'string' ? { teamRole: teamRole.trim() } : {}),
+          ...(typeof teamRole === 'string'
+            ? { teamRole: teamRole.trim() }
+            : {}),
         },
         select: teamMemberSelect,
       }),
