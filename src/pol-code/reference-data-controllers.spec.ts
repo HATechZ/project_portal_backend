@@ -59,30 +59,34 @@ describe('Reference Data Swagger contracts', () => {
       'pol-codes',
       'POL',
       'POL Code OptionValue ID',
+      'PolCodeResponseDto',
     ],
     [
       'src/pod-code/pod-code.controller.ts',
       'pod-codes',
       'POD',
       'POD Code OptionValue ID',
+      'PodCodeResponseDto',
     ],
     [
       'src/cargo-code/cargo-code.controller.ts',
       'cargo-codes',
       'cargo',
       'Cargo Code OptionValue ID',
+      'CargoCodeResponseDto',
     ],
     [
       'src/vessel-code/vessel-code.controller.ts',
       'vessel-codes',
       'vessel',
       'Vessel Code OptionValue ID',
+      'VesselCodeResponseDto',
     ],
   ] as const;
 
   it.each(controllerSources)(
-    'documents the %s lifecycle with tag, summaries, and ID parameter',
-    (path, tag, label, idDescription) => {
+    'documents the %s lifecycle with tag, summaries, ID parameter, and response body',
+    (path, tag, label, idDescription, responseDto) => {
       const source = readFileSync(resolve(process.cwd(), path), 'utf8');
 
       expect(source).toContain(`@ApiTags('${tag}')`);
@@ -93,6 +97,22 @@ describe('Reference Data Swagger contracts', () => {
       expect(source).toContain(`Deactivate ${label} code by ID`);
       expect(source).toContain(`Reactivate ${label} code by ID`);
       expect(source.match(new RegExp(idDescription, 'g'))).toHaveLength(4);
+      expect(source.match(new RegExp(responseDto, 'g'))).toHaveLength(7);
+      expect(
+        source.match(/@ApiStandard(?:Array|Created|Ok)Response/g),
+      ).toHaveLength(6);
+      expect(source.match(/@ApiStandardBadRequestResponse\(\)/g)).toHaveLength(
+        1,
+      );
+      expect(
+        source.match(/@ApiStandardUnauthorizedResponse\(\)/g),
+      ).toHaveLength(1);
+      expect(source.match(/@ApiStandardForbiddenResponse\(\)/g)).toHaveLength(
+        1,
+      );
+      expect(source.match(/@ApiStandardNotFoundResponse/g)).toHaveLength(4);
+      expect(source.match(/@ApiStandardConflictResponse/g)).toHaveLength(4);
+      expect(source.match(/@ResponseMessage\(/g)).toHaveLength(6);
     },
   );
 });

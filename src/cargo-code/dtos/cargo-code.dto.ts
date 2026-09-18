@@ -50,3 +50,26 @@ export class CargoCodeQueryDto {
   @IsBoolean()
   includeInactive?: boolean;
 }
+
+export class CargoCodeResponseDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  code!: string;
+
+  @ApiProperty()
+  sortOrder!: number;
+
+  @ApiProperty()
+  isActive!: boolean;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+}
