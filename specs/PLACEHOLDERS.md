@@ -1,7 +1,7 @@
 # Declared Placeholder Surfaces
 
 > Rule artifact for [`RULES.md`](RULES.md) **[Article I, Gate 0](rules/01-lifecycle.md)**.
-> Not a status surface — status lives in [`INDEX.md`](INDEX.md).
+> Not a status surface â€” status lives in [`INDEX.md`](INDEX.md).
 
 Gate 0 forbids implementing a module before its `SPEC.md` exists. The implementation surface
 for this backend is the **NestJS feature module**: every `*.module.ts` under `src/`, except
@@ -15,7 +15,7 @@ Gate 0 applies in full. `yarn verify:sdd` enforces the criteria below on every r
 ## Criteria (all must hold)
 
 1. Listed in the **Placeholder surfaces** table below.
-2. Imports nothing matching `prisma`, `redis`, `repository`, or `.service` — no persistence,
+2. Imports nothing matching `prisma`, `redis`, `repository`, or `.service` â€” no persistence,
    no cache, no domain services.
 3. At or under its declared line cap.
 4. Names the spec that will replace it.
@@ -54,8 +54,12 @@ directory exists, so this table cannot silently rot.
 | `src/member/member.module.ts` | `specs/04.2-member` |
 | `src/team/team.module.ts` | `specs/04.3-team` |
 | `src/client/client.module.ts` | `specs/05-clients` |
+| `src/pol-code/pol-code.module.ts`                         | `specs/06.1-pol`               |
+| `src/pod-code/pod-code.module.ts`                         | `specs/06.2-pod`               |
+| `src/cargo-code/cargo-code.module.ts`           | `specs/06.3-cargo-codes`       |
+| `src/vessel-code/vessel-code.module.ts`         | `specs/06.4-vessel-codes`      |
 
-`src/app.module.ts` is the composition root and is exempt — it registers modules but owns no
+`src/app.module.ts` is the composition root and is exempt â€” it registers modules but owns no
 domain surface of its own.
 
 ## Module numbering
@@ -63,7 +67,7 @@ domain surface of its own.
 Canonical ids. A new module claims the next free number and is added to
 [`INDEX.md`](INDEX.md) in the same commit.
 
-`00` platform-core · `01` persistence · `02` infrastructure · `03` identity-and-access ·
-`04` organization · `05` clients · `06` reference-data · `07` projects-and-bids ·
-`08` documents · `09` workflow-engine · `10` work-requests ·
-`11` info-requests-and-revisions · `12` notifications · `13` audit
+`00` platform-core Â· `01` persistence Â· `02` infrastructure Â· `03` identity-and-access Â·
+`04` organization Â· `05` clients Â· `06` reference-data Â· `07` projects-and-bids Â·
+`08` documents Â· `09` workflow-engine Â· `10` work-requests Â·
+`11` info-requests-and-revisions Â· `12` notifications Â· `13` audit

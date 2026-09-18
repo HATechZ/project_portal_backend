@@ -23,6 +23,10 @@ import { DivisionModule } from './division/division.module';
 import { MemberModule } from './member/member.module';
 import { TeamModule } from './team/team.module';
 import { ClientModule } from './client/client.module';
+import { PolCodeModule } from './pol-code/pol-code.module';
+import { PodCodeModule } from './pod-code/pod-code.module';
+import { CargoCodeModule } from './cargo-code/cargo-code.module';
+import { VesselCodeModule } from './vessel-code/vessel-code.module';
 
 @Module({
   imports: [
@@ -50,6 +54,10 @@ import { ClientModule } from './client/client.module';
     MemberModule,
     TeamModule,
     ClientModule,
+    PolCodeModule,
+    PodCodeModule,
+    CargoCodeModule,
+    VesselCodeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

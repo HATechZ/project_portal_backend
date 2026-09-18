@@ -17,9 +17,13 @@
 | [04.2](04.2-member/) Member | 1 | 4 | 7/10 | `[WIP]` | Grants + seed cleared 2026-09-15; Gate 5 walkthrough re-runnable |
 | [04.3](04.3-team/) Team | 2 | 4 | 9/11 | `[WIP]` | Gate 5 walkthrough pending |
 | [05](05-clients/) Clients | 2 | 3 | 0/22 | `[SPEC APPROVED]` | Ready for implementation |
-| 06 Reference Data | 16 | 0 | — | `[NOT STARTED]` | Blocks 07–11 (all FK into it) |
-| 07 Projects & Bids | 7 | 0 | — | `[NOT STARTED]` | BID/PROJECT share a table via `workspace_type_id` |
-| 08 Documents | 6 | 0 | — | `[NOT STARTED]` | Storage-agnostic |
+| [06](06-reference-data/) Reference Data | 2 shared | 3 | 0/2 | `[SPEC APPROVED]` | Umbrella only; four separate feature modules |
+| [06.1](06.1-pol/) POL Code | OptionValue/POL | 3 | 0/4 | `[SPEC APPROVED]` | Dedicated Port of Loading Code API/module |
+| [06.2](06.2-pod/) POD Code | OptionValue/POD | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Port of Discharge Code API/module |
+| [06.3](06.3-cargo-codes/) Cargo Codes | OptionValue/CARGO_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Cargo Code API/module |
+| [06.4](06.4-vessel-codes/) Vessel Codes | OptionValue/VESSEL_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Vessel Code API/module |
+| 07 Marketing Document Codes | 1 | 3 | — | `[SPEC APPROVED]` | Unchanged; separate from Reference Data |
+| 08 Documents | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
 | 09 Workflow Engine | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
 | 10 Work Requests | 5 | 0 | — | `[NOT STARTED]` | Status derived from latest audit log (Art. VI.2) |
 | 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
@@ -50,7 +54,6 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-09 | Codex + verifier | 04.1 | 4 | Division CRUD implemented; HTTP blocked by grants |
 | 2026-09-09 | Codex | 04, 04.2, 04.3 | 1–3 | Reconciled Member authority scopes (spec only) |
 | 2026-09-09 | Codex | 04.2 | 4–5 | Member leaves 1–7 pass; `POST /member` blocked by grants |
 | 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
@@ -60,3 +63,4 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-09-17 | Codex | 03, 04.2, 04.3 | 1–4 | Member onboarding now excludes role access; focused tests/build PASS |
 | 2026-09-17 | Codex | 03, 04.2, 04.3 | 4 | Typed test mocks clear lint; focused tests/build PASS |
 | 2026-09-17 | Codex | 04.3 | 1–4 | Team lead/member summaries now expose designation; focused tests/build PASS |
+| 2026-09-18 | Codex | 06, 06.1–06.4 | 1–3 | Separate POL/POD/Cargo/Vessel specs; no runtime/data work |
