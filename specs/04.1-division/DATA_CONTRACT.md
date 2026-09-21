@@ -4,7 +4,7 @@
 
 | Table / Prisma model | Fields and constraints this module binds to |
 |---|---|
-| `divisions` / `Division` | `tenantId`, UUID `id`, `companyId`, `name varchar(180)`, `abbr varchar(30)`, nullable `divisionTypeId`, retained `isActive`, `createdAt`, `updatedAt`; unique `(id,tenantId)`, `(id,tenantId,companyId)`, `(tenantId,companyId,abbr)`; index `(companyId,name)`. |
+| `divisions` / `Division` | `tenantId`, UUID `id`, `companyId`, `name varchar(180)`, `abbr varchar(30)`, nullable `divisionTypeId`, retained `isActive`, `createdAt`, `updatedAt`; unique `(id,tenantId)`, `(id,tenantId,companyId)`, `(tenantId,companyId,abbr)`, and proposed normalized unique `(tenantId,companyId,lower(btrim(name)))`; index `(companyId,name)`. |
 | `division_types` / `DivisionType` | Global reference: UUID `id`, globally unique `name`, nullable `description`. This module consumes but does not create/manage values. |
 
 The repository's authoritative DBML file is absent from this working tree. These exact names and
@@ -36,6 +36,11 @@ specification preserves the current nullable field; it does not require callers 
 No write accepts or changes `id`, `tenantId`, `companyId`, `isActive`, timestamps, or any
 relation. Use app_user through the fail-closed UnitOfWork and existing RLS; do not use app_relay.
 Existing constraints map through the shared Prisma exception filter.
+
+Division name uniqueness is tenant/company-local. Create and update trim `name`, compare
+case-insensitively, and exclude the target ID on update; duplicate is 409. Before adding the
+normalized unique index, migration preflight must detect and report existing normalized duplicate
+names. It must not silently merge, delete, or rename existing Divisions.
 
 ## Division Lead orchestration
 

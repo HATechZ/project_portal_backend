@@ -60,6 +60,16 @@ export class VesselCodeController {
   findAll(@Query() q: VesselCodeQueryDto) {
     return this.service.findAll(q.includeInactive);
   }
+  @Get('deactivated')
+  @ApiOperation({ summary: 'List deactivated vessel codes' })
+  @ResponseMessage('Deactivated vessel codes returned successfully')
+  @ApiStandardArrayResponse(
+    VesselCodeResponseDto,
+    'Deactivated vessel codes returned',
+  )
+  findDeactivated() {
+    return this.service.findDeactivated();
+  }
   @Get(':id')
   @ApiOperation({ summary: 'Get vessel code by ID' })
   @ApiParam({ name: 'id', description: 'Vessel Code OptionValue ID' })

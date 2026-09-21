@@ -14,7 +14,7 @@ describe('Team response mapper', () => {
         id: 'lead-id',
         name: 'Lead Member',
         email: 'lead@example.com',
-        roleTitle: 'Team Lead',
+        designation: { name: 'Team Lead' },
       },
       isActive: true,
       createdAt: now,
@@ -31,7 +31,7 @@ describe('Team response mapper', () => {
         id: 'member-id',
         name: 'Team Member',
         email: 'member@example.com',
-        roleTitle: 'Designer',
+        designation: { name: 'Designer' },
       },
     });
 

@@ -18,10 +18,10 @@ adds that exact policy. Caller Tenant/Company IDs or headers have no authority.
 
 | Method | Path | Behavior |
 |---|---|---|
-| POST | `/division` | Create from `{ name, abbr, divisionTypeId? }`; 201. No ownership, activation, identity, lead, Team, or workflow fields. |
+| POST | `/division` | Create from `{ name, abbr, divisionTypeId? }`; trim `name`; normalized same-Tenant/Company duplicate is 409; 201. No ownership, activation, identity, lead, Team, or workflow fields. |
 | GET | `/division` | Scoped paginated list, `page`/`limit`, order `name asc, id asc`; 200 `{ items, meta }`. |
 | GET | `/division/:id` | Scoped detail; 200 or indistinguishable 404. |
-| PATCH | `/division/:id` | Partial `{ name?, abbr?, divisionTypeId? }`, at least one defined; 200. Explicit null is rejected unless a nullable-reference clear is deliberately supported and documented in the implementation review; target default is to reject null. |
+| PATCH | `/division/:id` | Partial `{ name?, abbr?, divisionTypeId? }`, at least one defined; trim supplied `name`, reject normalized duplicate excluding this Division with 409; 200. Explicit null is rejected unless a nullable-reference clear is deliberately supported and documented in the implementation review; target default is to reject null. |
 | PUT | `/division/:id/lead` | Assign Division Lead from `{ memberId }`; same-Company `system_admin` only; orchestrates existing Member/User/UserRole/ActorProfile link; 200. |
 | DELETE | `/division/:id` | Guarded hard delete; 204 only when the full dependency audit is empty, otherwise 409. |
 

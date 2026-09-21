@@ -13,7 +13,7 @@ export function toTeamResponse(team: TeamRecord): TeamResponseDto {
           id: team.leadMember.id,
           name: team.leadMember.name,
           email: team.leadMember.email,
-          designation: team.leadMember.roleTitle,
+          designation: team.leadMember.designation?.name ?? '',
         }
       : null,
     isActive: team.isActive,
@@ -36,7 +36,7 @@ export function toTeamMemberResponse(
       id: record.member.id,
       name: record.member.name,
       email: record.member.email,
-      designation: record.member.roleTitle,
+      designation: record.member.designation?.name ?? '',
     },
   };
 }

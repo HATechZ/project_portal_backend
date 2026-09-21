@@ -11,7 +11,7 @@ export interface MemberOnboardingInput {
   email: string;
   passwordHash: string;
   divisionId: string;
-  designation?: string;
+  designationId: string;
   phone?: string;
 }
 
@@ -49,9 +49,9 @@ export class MemberOnboardingRepository extends BaseRepository {
             userId,
             companyId,
             divisionId: input.divisionId,
+            designationId: input.designationId,
             name: input.name.trim(),
             email: input.email.trim().toLowerCase(),
-            roleTitle: input.designation?.trim() ?? '',
             isActive: true,
           },
           select: memberSelect,

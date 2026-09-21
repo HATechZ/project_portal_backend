@@ -45,6 +45,15 @@ export class ClientController {
     return this.service.findAll(query);
   }
 
+  @Get('deactivated')
+  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @ResponseMessage('Deactivated clients returned successfully')
+  @ApiOperation({ summary: 'List deactivated Clients' })
+  @ApiPaginatedResponse(ClientResponseDto)
+  findDeactivated(@Query() query: PaginationQueryDto) {
+    return this.service.findDeactivated(query);
+  }
+
   @Get(':clientId')
   @Permissions(WorkflowActionCode.MANAGE_CLIENT)
   @ResponseMessage('Client returned successfully')

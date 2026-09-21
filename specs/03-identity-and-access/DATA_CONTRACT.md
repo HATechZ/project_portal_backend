@@ -88,7 +88,9 @@ fields (`id`, `code`, `name`, `description`, visibility and revision/info/assign
 flags) remain the selector data; display tags may be derived only from those existing flags.
 No UI-only grouping persistence is approved. V1 policy is centrally enforced: `ADD_MEMBER`,
 `ADD_TEAM`, and `ASSIGN_MEMBER` allow only `division` and `company`; all other actions are
-ineligible. A policy relation is deferred until its catalog needs exceed this fixed approved matrix.
+ineligible. `MANAGE_DESIGNATIONS` is also ineligible for custom roles: it is reserved to the
+approved provisioned system-role grants. A policy relation is deferred until its catalog needs
+exceed this fixed approved matrix.
 
 Custom assignment requires a compatible existing ActorProfile target: Member for `member`,
 `division`, `company`; ClientContact for `client_contact`, `client`. It must create/reuse that
@@ -218,7 +220,7 @@ Tables/objects:
   - `system_admin`: keep the existing supervisor matrix; it may provision/assign
     `division_head` through existing role assignment.
   - `division_head` confirmed organization permissions only:
-    `ADD_DIVISION`, `ADD_TEAM`, `ASSIGN_LEADER`.
+    `ADD_DIVISION`, `ADD_TEAM`, `ASSIGN_LEADER`, `MANAGE_DESIGNATIONS`.
     `ADD_DIVISION` covers creating, listing/viewing, updating, and guarded-deleting otherwise
     deletable Divisions in the actor's own Tenant/Company Division domain; newly created
     Divisions automatically fall within that Company-wide Division scope. `ADD_TEAM` covers
@@ -231,6 +233,10 @@ Tables/objects:
     Do not grant `UPDATE_SETTINGS`, Client/ClientContact administration, auth/session/security,
     arbitrary user administration, role/permission administration, or unrelated system_admin
     operations.
+  - `MANAGE_DESIGNATIONS` is a new WorkflowActionCode/catalog permission for Designation
+    create/update/delete. Grant it only to `system_admin` and `division_head`; do not grant it to
+    division_lead, team_lead, ordinary/other system roles, or custom roles. Designation GET is
+    authenticated same-Tenant access and needs no grant.
   - `division_lead`: keep own-Division Team management/member assignment permissions. Use
     `ASSIGN_LEADER` only for assigning `team_lead` inside own Division once that assignment flow
     is implemented.

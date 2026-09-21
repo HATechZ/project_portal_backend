@@ -48,6 +48,20 @@ export class ClientService {
     );
   }
 
+  async findDeactivated(
+    query: PaginationQueryDto,
+  ): Promise<PaginatedResult<ClientResponseDto>> {
+    const company = await this.scope.requireCompany();
+    return paginate(
+      query,
+      async (args) =>
+        (await this.clients.findDeactivated(company.id, args)).map(
+          toClientResponse,
+        ),
+      () => this.clients.countDeactivated(company.id),
+    );
+  }
+
   async findOne(id: string): Promise<ClientResponseDto> {
     const company = await this.scope.requireCompany();
     return toClientResponse(await this.scope.requireClient(id, company.id));

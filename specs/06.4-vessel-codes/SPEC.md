@@ -18,6 +18,10 @@ Business identity is required `name` plus required `code`, with ID, sort order, 
 - Management requires `UPDATE_SETTINGS` and tenant-wide settings scope. `tenant_super_admin` never bypasses either configured check.
 - `BidDetail.vesselCodeOptionId` has no Vessel-code snapshot. Referenced identity edits, sortOrder mutation, custom Bid Vessel flow and catalogue population are **OWNER DECISION REQUIRED**. `isDefault` is deferred.
 
+## Bid/Project separation override
+
+The earlier combined wording is superseded. Vessel Code supports independent Bid document naming only; direct Project has no approved Vessel dependency.
+
 ## Boundary and Definition of Done
 
-Vessel Codes supplies a value such as `CA2` for later filenames but creates neither filename nor Project Code and changes no Bid, document, OptionType, schema, migration, RLS, permission, defaults, reorder, import, or data. Done requires isolated six-route lifecycle tests including empty list, code rules, name/code uniqueness, type/tenant isolation, permission/no wildcard and no delete after prerequisites are approved.
+Vessel Codes supplies a value such as `CA2` for later filenames but creates neither filename nor Project Code and changes no Bid, document, OptionType, schema, migration, RLS, permission, defaults, reorder, import, or data. Done requires isolated seven-route lifecycle tests including empty list, code rules, name/code uniqueness, type/tenant isolation, permission/no wildcard and no delete after prerequisites are approved.

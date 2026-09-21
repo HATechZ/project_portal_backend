@@ -24,6 +24,7 @@ const controllers = [
 
 const expectedRoutes = [
   [RequestMethod.GET, '/'],
+  [RequestMethod.GET, 'deactivated'],
   [RequestMethod.GET, ':id'],
   [RequestMethod.POST, '/'],
   [RequestMethod.PATCH, ':id'],
@@ -32,7 +33,7 @@ const expectedRoutes = [
 ];
 
 describe.each(controllers)('%s controller contract', (_path, Controller) => {
-  it('declares UPDATE_SETTINGS and the guarded six-route lifecycle without delete', () => {
+  it('declares UPDATE_SETTINGS and the guarded deactivated-list lifecycle without delete', () => {
     const prototype = Controller.prototype;
     const routes = Object.getOwnPropertyNames(prototype)
       .filter((name) => name !== 'constructor')
@@ -91,16 +92,17 @@ describe('Reference Data Swagger contracts', () => {
 
       expect(source).toContain(`@ApiTags('${tag}')`);
       expect(source).toContain(`List all ${label} codes`);
+      expect(source).toContain(`List deactivated ${label} codes`);
       expect(source).toContain(`Create a new ${label} code`);
       expect(source).toContain(`Get ${label} code by ID`);
       expect(source).toContain(`Update ${label} code by ID`);
       expect(source).toContain(`Deactivate ${label} code by ID`);
       expect(source).toContain(`Reactivate ${label} code by ID`);
       expect(source.match(new RegExp(idDescription, 'g'))).toHaveLength(4);
-      expect(source.match(new RegExp(responseDto, 'g'))).toHaveLength(7);
+      expect(source.match(new RegExp(responseDto, 'g'))).toHaveLength(8);
       expect(
         source.match(/@ApiStandard(?:Array|Created|Ok)Response/g),
-      ).toHaveLength(6);
+      ).toHaveLength(7);
       expect(source.match(/@ApiStandardBadRequestResponse\(\)/g)).toHaveLength(
         1,
       );
@@ -112,7 +114,7 @@ describe('Reference Data Swagger contracts', () => {
       );
       expect(source.match(/@ApiStandardNotFoundResponse/g)).toHaveLength(4);
       expect(source.match(/@ApiStandardConflictResponse/g)).toHaveLength(4);
-      expect(source.match(/@ResponseMessage\(/g)).toHaveLength(6);
+      expect(source.match(/@ResponseMessage\(/g)).toHaveLength(7);
     },
   );
 });

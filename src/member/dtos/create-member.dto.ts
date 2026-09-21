@@ -37,14 +37,9 @@ export class CreateMemberDto {
   @IsUUID()
   divisionId!: string;
 
-  @ApiPropertyOptional({ maxLength: 140 })
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
-  @IsOptional()
-  @IsString()
-  @MaxLength(140)
-  designation?: string;
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  designationId!: string;
 
   @ApiPropertyOptional({ maxLength: 60 })
   @Transform(({ value }: { value: unknown }) =>

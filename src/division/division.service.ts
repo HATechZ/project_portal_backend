@@ -51,6 +51,7 @@ export class DivisionService {
 
   async create(input: CreateDivisionDto): Promise<DivisionResponseDto> {
     const company = await this.requireScopedCompany();
+    await this.assertUniqueName(input.name, company.id);
     await this.assertDivisionType(input.divisionTypeId);
     return toDivisionResponse(await this.repository.create(company.id, input));
   }
@@ -62,6 +63,9 @@ export class DivisionService {
     this.assertUpdateHasFields(input);
     const company = await this.requireScopedCompany();
     await this.requireDivision(id, company.id);
+    if (input.name !== undefined) {
+      await this.assertUniqueName(input.name, company.id, id);
+    }
     await this.assertDivisionType(input.divisionTypeId);
     return toDivisionResponse(
       await this.repository.update(id, company.id, input),
@@ -161,6 +165,20 @@ export class DivisionService {
         message: 'The selected value is invalid.',
       });
     }
+  }
+
+  private async assertUniqueName(
+    name: string,
+    companyId: string,
+    exceptId?: string,
+  ): Promise<void> {
+    if (!(await this.repository.duplicateName(name, companyId, exceptId)))
+      return;
+    throw new AppException({
+      code: AppErrorCode.Conflict,
+      status: HttpStatus.CONFLICT,
+      message: 'A division with the same name already exists.',
+    });
   }
 
   private assertUpdateHasFields(input: UpdateDivisionDto): void {

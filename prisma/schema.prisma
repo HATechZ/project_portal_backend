@@ -134,6 +134,8 @@ enum WorkflowActionCode {
   MANAGE_CLIENT
   MANAGE_CLIENT_CONTACT
   MANAGE_CLIENT_PORTAL_ACCESS
+  MANAGE_GENERAL_DOCUMENT_CODES
+  MANAGE_DESIGNATIONS
   @@map("workflow_action_code")
 }
 
@@ -290,6 +292,7 @@ model Tenant {
   portalConfigs PortalConfig[]
   optionValues OptionValue[]
   documentCodeOptions DocumentCodeOption[]
+  designations Designation[]
   sourceChannels SourceChannel[]
   projects Project[]
   projectStatusEvents ProjectStatusEvent[]
@@ -533,6 +536,7 @@ model Company {
   companyType CompanyType? @relation("CompaniesCompanyTypeIdCompanyTypes", fields: [companyTypeId], references: [id])
   divisionsByCompanyId Division[] @relation("DivisionsCompanyIdCompanies")
   membersByCompanyId Member[] @relation("MembersCompanyIdCompanies")
+  designationsByCompanyId Designation[] @relation("DesignationsCompanyIdCompanies")
   teamsByCompanyId Team[] @relation("TeamsCompanyIdCompanies")
   clientsByCompanyId Client[] @relation("ClientsCompanyIdCompanies")
   @@unique([tenantId, abbr])
@@ -578,6 +582,26 @@ model Division {
   @@map("divisions")
 }
 
+// The normalized designation-name uniqueness is an expression index maintained
+// in 20260922000001_designation_member_division_contract; Prisma cannot model it.
+model Designation {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  companyId String @db.Uuid @map("company_id")
+  name String @db.VarChar(140) @map("name")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+  updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  company Company @relation("DesignationsCompanyIdCompanies", fields: [companyId], references: [id])
+  members Member[] @relation("MembersDesignationIdDesignations")
+
+  @@unique([id, tenantId, companyId])
+  @@index([tenantId])
+  @@index([companyId])
+  @@map("designations")
+}
+
 model Member {
   tenantId String @db.Uuid @map("tenant_id")
   id String @id @db.Uuid @map("id")
@@ -586,7 +610,7 @@ model Member {
   divisionId String @db.Uuid @map("division_id")
   name String @db.VarChar(160) @map("name")
   email String @db.VarChar(255) @map("email")
-  roleTitle String @db.VarChar(140) @map("role_title")
+  designationId String @db.Uuid @map("designation_id")
   isActive Boolean @default(true) @map("is_active")
   createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
   updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
@@ -596,6 +620,7 @@ model Member {
   user User? @relation("MembersUserIdUsers", fields: [userId], references: [id])
   company Company @relation("MembersCompanyIdCompanies", fields: [companyId], references: [id])
   division Division @relation("MembersDivisionIdDivisions", fields: [divisionId, tenantId, companyId], references: [id, tenantId, companyId])
+  designation Designation @relation("MembersDesignationIdDesignations", fields: [designationId, tenantId, companyId], references: [id, tenantId, companyId], onDelete: Restrict)
   divisionLeadsByMemberId DivisionLead[] @relation("DivisionLeadsMemberIdMembers")
   teamsByLeadMemberId Team[] @relation("TeamsLeadMemberIdMembers")
   teamMembersByMemberId TeamMember[] @relation("TeamMembersMemberIdMembers")
@@ -608,6 +633,7 @@ model Member {
   @@index([companyId])
   @@index([divisionId])
   @@index([divisionId, tenantId, companyId])
+  @@index([designationId, tenantId, companyId])
   @@index([tenantId])
   @@map("members")
 }

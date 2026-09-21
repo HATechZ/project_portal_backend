@@ -14,6 +14,9 @@ export class MemberResponseDto {
   divisionId!: string;
 
   @ApiProperty()
+  designationId!: string;
+
+  @ApiProperty()
   name!: string;
 
   @ApiProperty()

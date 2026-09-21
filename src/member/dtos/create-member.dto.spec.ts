@@ -13,6 +13,7 @@ describe('CreateMemberDto', () => {
     email: 'jane@example.com',
     password: 'secret123',
     divisionId: '00000000-0000-4000-8000-000000000001',
+    designationId: '00000000-0000-4000-8000-000000000002',
   };
 
   it('accepts Member onboarding without a role', async () => {

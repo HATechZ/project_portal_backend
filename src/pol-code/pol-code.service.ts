@@ -12,6 +12,11 @@ export class PolCodeService extends PolCodeServiceBase {
       rows.map((row) => PolCodeServiceBase.row(row, false)),
     );
   }
+  findDeactivated() {
+    return this.listDeactivated().then((rows) =>
+      rows.map((row) => PolCodeServiceBase.row(row, false)),
+    );
+  }
   findOne(id: string) {
     return this.one(id).then((row) => PolCodeServiceBase.row(row, false));
   }

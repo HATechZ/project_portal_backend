@@ -17,8 +17,8 @@ role-grant logic; it must not import the Identity module.
 
 | Operation | Atomic records | Rule |
 |---|---|---|
-| create | linked User, Member, and scoped Division/actor context reads | one Tenant UnitOfWork; no UserRole, ActorProfile, or Team assignment write |
-| update | Member plus scoped Division/dependency reads | one Tenant UnitOfWork; existing authority unchanged |
+| create | linked User, Member, and scoped Division/Designation/actor context reads | one Tenant UnitOfWork; no UserRole, ActorProfile, or Team assignment write |
+| update | Member plus scoped Division/Designation/dependency reads | one Tenant UnitOfWork; existing authority unchanged |
 | delete | Member, active leadership/Team membership, access profiles/grants/sessions, and linked User | one Tenant UnitOfWork; active leadership blocks; end active access and retain all history |
 | access link | Member, User/profile/active-role reads; Member user link and optional ActorProfile member target | serializable Tenant UnitOfWork to prevent link races |
 

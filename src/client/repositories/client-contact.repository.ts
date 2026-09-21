@@ -36,10 +36,35 @@ export class ClientContactRepository extends BaseRepository {
     );
   }
 
+  findDeactivated(
+    clientId: string,
+    args: PaginationArgs,
+  ): Promise<ClientContactRecord[]> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.clientContact.findMany({
+        where: { tenantId, clientId, isActive: false },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: args.skip,
+        take: args.take,
+        select: clientContactSelect,
+      }),
+    );
+  }
+
   count(clientId: string): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.clientContact.count({ where: { tenantId, clientId } }),
+    );
+  }
+
+  countDeactivated(clientId: string): Promise<number> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.clientContact.count({
+        where: { tenantId, clientId, isActive: false },
+      }),
     );
   }
 

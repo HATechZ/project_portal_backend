@@ -5,6 +5,7 @@ Base `/api/v1`; platform envelope, Swagger, UUID parsing, `x-request-id`, whitel
 | Method | Path | Contract |
 |---|---|---|
 | GET | `/pod-codes` | Active list; authorized management may use strict boolean `includeInactive`; `sortOrder,name,id`. |
+| GET | `/pod-codes/deactivated` | Authorized management list of inactive POD rows only; `sortOrder,name,id`. |
 | GET | `/pod-codes-codes/:id` | Same-tenant POD only; absent, foreign, or wrong OptionType is 404. |
 | POST | `/pod-codes` | Management create `{ name }`; 201. |
 | PATCH | `/pod-codes-codes/:id` | Management identity update only when referenced-edit decision permits it. |

@@ -15,6 +15,9 @@ export abstract class PodCodeServiceBase {
   protected async list(includeInactive = false) {
     return this.values.list(includeInactive);
   }
+  protected async listDeactivated() {
+    return this.values.listDeactivated();
+  }
   protected async one(id: string) {
     const row = await this.values.find(id);
     if (!row) throw this.notFound();

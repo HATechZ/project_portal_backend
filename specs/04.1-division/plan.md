@@ -15,8 +15,8 @@ uses `this.db` only inside an ambient Tenant UnitOfWork.
 | Operation | Responsibility | Transaction |
 |---|---|---|
 | list/detail | Tenant-scoped query plus total-order pagination | joins ambient read UnitOfWork |
-| create | resolve scoped Company, validate global DivisionType, insert allow-list | one Tenant UnitOfWork |
-| update | find scoped target, precheck supplied type, update allow-list only | one Tenant UnitOfWork |
+| create | resolve scoped Company, normalize/validate name, validate global DivisionType, insert allow-list | one Tenant UnitOfWork |
+| update | find scoped target, normalize/duplicate-check name excluding target, precheck supplied type, update allow-list only | one Tenant UnitOfWork |
 | assign Division Lead | validate Division and same-Division Member, require linked User, ensure `division_lead` UserRole/ActorProfile, link profile to Member | one serializable Tenant UnitOfWork |
 | delete | find scoped target, probe all five inverse relations, hard delete only when clear | one Tenant UnitOfWork; serialization/restrictive FK backstop |
 
@@ -24,6 +24,9 @@ DTOs enforce UUIDs and trimmed field bounds. The service receives trusted contex
 Tenant/Company DTO value. The guard chain enforces active configured `ADD_DIVISION`; it does not
 special-case an ActorRole or bypass permissions. Domain 404/409 are explicit AppExceptions;
 Prisma exceptions remain uncaught until the global mapper.
+
+Before the normalized-name database unique is introduced, implementation must run a blocking
+Tenant/Company duplicate preflight and report collisions without changing existing rows.
 
 ## 3. Events, security, and verification
 

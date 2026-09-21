@@ -27,6 +27,8 @@ import { PolCodeModule } from './pol-code/pol-code.module';
 import { PodCodeModule } from './pod-code/pod-code.module';
 import { CargoCodeModule } from './cargo-code/cargo-code.module';
 import { VesselCodeModule } from './vessel-code/vessel-code.module';
+import { GeneralDocumentCodeModule } from './general-document-code/general-document-code.module';
+import { DesignationModule } from './designation/designation.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { VesselCodeModule } from './vessel-code/vessel-code.module';
     PodCodeModule,
     CargoCodeModule,
     VesselCodeModule,
+    GeneralDocumentCodeModule,
+    DesignationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

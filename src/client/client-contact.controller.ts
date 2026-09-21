@@ -56,6 +56,18 @@ export class ClientContactController {
     return this.service.findContacts(clientId, query);
   }
 
+  @Get(':clientId/contact/deactivated')
+  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @ResponseMessage('Deactivated client contacts returned successfully')
+  @ApiOperation({ summary: 'List deactivated Client Contacts' })
+  @ApiPaginatedResponse(ClientContactResponseDto)
+  findDeactivatedContacts(
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.service.findDeactivatedContacts(clientId, query);
+  }
+
   @Get(':clientId/contact/:contactId')
   @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
   @ResponseMessage('Client contact returned successfully')

@@ -29,7 +29,9 @@ describe('ClientService onboarding', () => {
     findScopedCompany: jest.fn(),
     findById: jest.fn(),
     findAll: jest.fn(),
+    findDeactivated: jest.fn(),
     count: jest.fn(),
+    countDeactivated: jest.fn(),
     update: jest.fn(),
     setActive: jest.fn(),
   };
@@ -37,7 +39,9 @@ describe('ClientService onboarding', () => {
     create: jest.fn(),
     findById: jest.fn(),
     findAll: jest.fn(),
+    findDeactivated: jest.fn(),
     count: jest.fn(),
+    countDeactivated: jest.fn(),
     update: jest.fn(),
     deactivate: jest.fn(),
     reactivate: jest.fn(),
@@ -134,6 +138,29 @@ describe('ClientService onboarding', () => {
       contactService.setPrimary(client.id, contact.id),
     ).rejects.toMatchObject({
       message: 'Active Client contact was not found',
+    });
+  });
+
+  it('lists only deactivated Clients and Contacts with matching totals', async () => {
+    clients.findById.mockResolvedValue(client);
+    clients.findDeactivated.mockResolvedValue([{ ...client, isActive: false }]);
+    clients.countDeactivated.mockResolvedValue(1);
+    contacts.findDeactivated.mockResolvedValue([
+      { ...contact, isActive: false },
+    ]);
+    contacts.countDeactivated.mockResolvedValue(1);
+
+    await expect(
+      service.findDeactivated({ page: 1, limit: 20 }),
+    ).resolves.toMatchObject({
+      items: [{ id: client.id, isActive: false }],
+      meta: { total: 1 },
+    });
+    await expect(
+      contactService.findDeactivatedContacts(client.id, { page: 1, limit: 20 }),
+    ).resolves.toMatchObject({
+      items: [{ id: contact.id, isActive: false }],
+      meta: { total: 1 },
     });
   });
 });

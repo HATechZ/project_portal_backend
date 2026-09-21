@@ -18,6 +18,7 @@ describe('MemberService onboarding', () => {
   it('hashes the create password and delegates atomic onboarding without plaintext password', async () => {
     const repository = {
       findScopedCompany: jest.fn().mockResolvedValue(company),
+      findDesignation: jest.fn().mockResolvedValue({ id: 'designation-id' }),
     };
     const onboardingRepository = {
       createWithAccess: jest.fn().mockResolvedValue({
@@ -25,9 +26,10 @@ describe('MemberService onboarding', () => {
         userId: 'user-id',
         companyId: company.id,
         divisionId: 'division-id',
+        designationId: 'designation-id',
         name: 'Jane Member',
         email: 'jane@example.com',
-        roleTitle: 'Engineer',
+        designation: { name: 'Engineer' },
         isActive: true,
         createdAt: now,
         updatedAt: now,
@@ -54,7 +56,7 @@ describe('MemberService onboarding', () => {
         email: 'jane@example.com',
         password: 'secret123',
         divisionId: 'division-id',
-        designation: 'Engineer',
+        designationId: 'designation-id',
         phone: '+1-555-0100',
       },
       actor,
@@ -73,7 +75,7 @@ describe('MemberService onboarding', () => {
         email: 'jane@example.com',
         passwordHash: 'hashed-password',
         divisionId: 'division-id',
-        designation: 'Engineer',
+        designationId: 'designation-id',
         phone: '+1-555-0100',
       },
     );
@@ -86,6 +88,7 @@ describe('MemberService onboarding', () => {
       userId: 'user-id',
       companyId: 'company-id',
       divisionId: 'division-id',
+      designationId: 'designation-id',
       designation: 'Engineer',
       name: 'Jane Member',
       email: 'jane@example.com',
@@ -130,9 +133,10 @@ describe('MemberService onboarding', () => {
       userId: 'user-id',
       companyId: company.id,
       divisionId: 'division-id',
+      designationId: 'designation-id',
       name: 'Jane Member',
       email: 'jane@example.com',
-      roleTitle: 'Engineer',
+      designation: { name: 'Engineer' },
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -164,6 +168,7 @@ describe('MemberService onboarding', () => {
       userId: 'user-id',
       companyId: 'company-id',
       divisionId: 'division-id',
+      designationId: 'designation-id',
       name: 'Jane Member',
       email: 'jane@example.com',
       designation: 'Engineer',

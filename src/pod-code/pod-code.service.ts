@@ -12,6 +12,11 @@ export class PodCodeService extends PodCodeServiceBase {
       rs.map((r) => PodCodeServiceBase.row(r, false)),
     );
   }
+  findDeactivated() {
+    return this.listDeactivated().then((rs) =>
+      rs.map((r) => PodCodeServiceBase.row(r, false)),
+    );
+  }
   findOne(id: string) {
     return this.one(id).then((r) => PodCodeServiceBase.row(r, false));
   }

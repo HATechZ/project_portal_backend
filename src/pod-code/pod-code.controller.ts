@@ -60,6 +60,16 @@ export class PodCodeController {
   findAll(@Query() q: PodCodeQueryDto) {
     return this.service.findAll(q.includeInactive);
   }
+  @Get('deactivated')
+  @ApiOperation({ summary: 'List deactivated POD codes' })
+  @ResponseMessage('Deactivated POD codes returned successfully')
+  @ApiStandardArrayResponse(
+    PodCodeResponseDto,
+    'Deactivated POD codes returned',
+  )
+  findDeactivated() {
+    return this.service.findDeactivated();
+  }
   @Get(':id')
   @ApiOperation({ summary: 'Get POD code by ID' })
   @ApiParam({ name: 'id', description: 'POD Code OptionValue ID' })

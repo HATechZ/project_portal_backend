@@ -36,10 +36,33 @@ export class ClientRepository extends BaseRepository {
     );
   }
 
+  findDeactivated(
+    companyId: string,
+    args: PaginationArgs,
+  ): Promise<ClientRecord[]> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.client.findMany({
+        where: { tenantId, companyId, isActive: false },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: args.skip,
+        take: args.take,
+        select: clientSelect,
+      }),
+    );
+  }
+
   count(companyId: string): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.client.count({ where: { tenantId, companyId } }),
+    );
+  }
+
+  countDeactivated(companyId: string): Promise<number> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.client.count({ where: { tenantId, companyId, isActive: false } }),
     );
   }
 

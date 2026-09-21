@@ -23,6 +23,10 @@ POL supplies a selected value only. Bid/Project/Naming generates Project Code fr
 
 **Deferred/owner decisions:** referenced identity edits; public sortOrder mutation; `isDefault`; canonicalization beyond trim/current conventions; population method.
 
+## Bid/Project separation override
+
+The earlier combined Bid/Project/Naming wording is superseded. POL is a Bid-only create input for its `projectCode`; direct Project has no approved POL or naming dependency.
+
 ## Definition of Done
 
-Dedicated POL API/lifecycle tests prove empty state, tenant/type isolation, active filtering, permissions, ordering and no delete; DB/RLS prerequisites are approved and independently verified without introducing data.
+Dedicated seven-route POL API/lifecycle tests prove empty state, tenant/type isolation, active filtering, permissions, ordering and no delete; DB/RLS prerequisites are approved and independently verified without introducing data.

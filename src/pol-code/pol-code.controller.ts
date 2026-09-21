@@ -60,6 +60,16 @@ export class PolCodeController {
   findAll(@Query() q: PolCodeQueryDto) {
     return this.service.findAll(q.includeInactive);
   }
+  @Get('deactivated')
+  @ApiOperation({ summary: 'List deactivated POL codes' })
+  @ResponseMessage('Deactivated POL codes returned successfully')
+  @ApiStandardArrayResponse(
+    PolCodeResponseDto,
+    'Deactivated POL codes returned',
+  )
+  findDeactivated() {
+    return this.service.findDeactivated();
+  }
   @Get(':id')
   @ApiOperation({ summary: 'Get POL code by ID' })
   @ApiParam({ name: 'id', description: 'POL Code OptionValue ID' })

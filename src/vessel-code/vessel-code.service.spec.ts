@@ -15,6 +15,7 @@ const manager = { tenantWide: true } as never;
 function createService(overrides: Record<string, unknown> = {}) {
   const repository = {
     list: jest.fn().mockResolvedValue([]),
+    listDeactivated: jest.fn().mockResolvedValue([{ ...row, isActive: false }]),
     find: jest.fn().mockResolvedValue(row),
     duplicate: jest.fn().mockResolvedValue(false),
     create: jest.fn().mockResolvedValue(row),
@@ -34,6 +35,10 @@ describe('VesselCodeService', () => {
       service.create({ name: 'Fixture Vessel', code: 'CA2' }, manager),
     ).resolves.toMatchObject(row);
     await expect(service.findOne(row.id)).resolves.toMatchObject(row);
+    await expect(service.findDeactivated()).resolves.toEqual([
+      expect.objectContaining({ isActive: false }),
+    ]);
+    expect(repository.listDeactivated).toHaveBeenCalledTimes(1);
     await service.update(row.id, { code: 'EXT' }, manager);
     expect(repository.duplicate).toHaveBeenCalledWith(row.name, 'EXT', row.id);
   });

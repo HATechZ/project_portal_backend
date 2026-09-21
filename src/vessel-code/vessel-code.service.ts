@@ -10,6 +10,9 @@ export class VesselCodeService extends VesselCodeServiceBase {
   findAll(i = false) {
     return this.list(i);
   }
+  findDeactivated() {
+    return this.listDeactivated();
+  }
   findOne(id: string) {
     return this.one(id);
   }

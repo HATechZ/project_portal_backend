@@ -50,6 +50,17 @@ export class VesselCodeRepository extends BaseRepository {
       });
     });
   }
+  async listDeactivated(): Promise<OptionValueRecord[]> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const optionTypeId = await this.typeId(db);
+      return db.optionValue.findMany({
+        where: { tenantId, optionTypeId, isActive: false },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+        select: optionValueSelect,
+      });
+    });
+  }
   async find(id: string): Promise<OptionValueRecord | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {

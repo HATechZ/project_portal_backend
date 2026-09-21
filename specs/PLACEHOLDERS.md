@@ -58,6 +58,7 @@ directory exists, so this table cannot silently rot.
 | `src/pod-code/pod-code.module.ts`                         | `specs/06.2-pod`               |
 | `src/cargo-code/cargo-code.module.ts`           | `specs/06.3-cargo-codes`       |
 | `src/vessel-code/vessel-code.module.ts`         | `specs/06.4-vessel-codes`      |
+| `src/general-document-code/general-document-code.module.ts` | `specs/07-general-document-codes` |
 
 `src/app.module.ts` is the composition root and is exempt â€” it registers modules but owns no
 domain surface of its own.
@@ -68,6 +69,6 @@ Canonical ids. A new module claims the next free number and is added to
 [`INDEX.md`](INDEX.md) in the same commit.
 
 `00` platform-core Â· `01` persistence Â· `02` infrastructure Â· `03` identity-and-access Â·
-`04` organization Â· `05` clients Â· `06` reference-data Â· `07` projects-and-bids Â·
+`04` organization Â· `05` clients Â· `06` reference-data Â· `07` general-document-codes Â·
 `08` documents Â· `09` workflow-engine Â· `10` work-requests Â·
 `11` info-requests-and-revisions Â· `12` notifications Â· `13` audit

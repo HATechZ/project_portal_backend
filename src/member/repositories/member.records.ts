@@ -11,9 +11,10 @@ export const memberSelect = {
   userId: true,
   companyId: true,
   divisionId: true,
+  designationId: true,
   name: true,
   email: true,
-  roleTitle: true,
+  designation: { select: { name: true } },
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -35,7 +36,7 @@ export interface ScopedDivisionRecord {
 export interface MemberMutationInput {
   name?: string;
   email?: string;
-  designation?: string;
+  designationId?: string;
   divisionId?: string;
   isActive?: boolean;
 }

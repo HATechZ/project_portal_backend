@@ -31,15 +31,10 @@ export class UpdateMemberDto {
   @MaxLength(255)
   email?: string;
 
-  @ApiPropertyOptional({ minLength: 1, maxLength: 140 })
+  @ApiPropertyOptional({ format: 'uuid' })
   @ValidateIf((_object, value: unknown) => value !== undefined)
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
-  @IsString()
-  @MinLength(1)
-  @MaxLength(140)
-  designation?: string;
+  @IsUUID()
+  designationId?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @ValidateIf((_object, value: unknown) => value !== undefined)

@@ -5,6 +5,7 @@ Base `/api/v1`; platform envelope, Swagger, UUID parsing, validation, `x-request
 | Method | Path | Contract |
 |---|---|---|
 | GET | `/vessel-codes` | Active list; management may use strict boolean `includeInactive`; `sortOrder,name,id`. |
+| GET | `/vessel-codes/deactivated` | Authorized management list of inactive Vessel rows only; `sortOrder,name,id`. |
 | GET | `/vessel-codes/:id` | Same-tenant Vessel Code detail; wrong type/foreign/absent is 404. |
 | POST | `/vessel-codes` | Management create `{ name, code }`; trim/uppercase code; 201. |
 | PATCH | `/vessel-codes/:id` | Management update approved name/code only after referenced-edit policy is approved. |

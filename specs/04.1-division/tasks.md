@@ -1,6 +1,6 @@
 # Tasks: 04.1 - Division
 
-**Status:** Gate 5 - COMPLETE - 11/11 verified 2026-09-15
+**Status:** Gate 4 - implementation delta required - 11/12 previously verified
 **Spec Reference:** `SPEC.md` - **Plan Reference:** `plan.md`
 
 Runtime evidence is separately recorded in `walkthrough.md`. Implement in this module before
@@ -35,3 +35,8 @@ Runtime evidence is separately recorded in `walkthrough.md`. Implement in this m
         VERIFY: test -f specs/04.1-division/walkthrough.md && node scripts/verify-division-evidence.cjs http
   - [x] Run final module/repository boundary checks; depend on walkthrough, confirm no cross-feature import or transport write, lint/build/spec checks, and update INDEX only after independent verification. Complete when all commands pass.
         VERIFY: test $(grep -rlE "from '\.\.?/(\.\./)?(auth|user|company|member|team)/" src/division --include=*.ts | wc -l) -eq 0 && corepack yarn lint && corepack yarn build && corepack yarn verify:spec -- --module 04.1-division && node scripts/verify-division-evidence.cjs http
+
+- [ ] Apply normalized Tenant/Company Division-name uniqueness; preflight and report existing
+  collisions before adding the race-safe normalized unique index, then cover create/update/self
+  exclusion and cross-Tenant reuse without altering rows.
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=division && corepack yarn prisma validate

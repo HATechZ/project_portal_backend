@@ -1,4 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { AppErrorCode } from '../common/exceptions/app-error-code';
+import { AppException } from '../common/exceptions/app-exception';
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
 import { ActorScopeContext } from '../common/security/object-scope.provider';
@@ -107,6 +109,7 @@ export class MemberService {
       company.id,
       input.divisionId,
     );
+    await this.requireDesignation(input.designationId, company.id);
     const passwordHash = await this.passwordHasher.hash(input.password);
     return toMemberResponse(
       await this.onboardingRepository.createWithAccess(company.id, {
@@ -114,7 +117,7 @@ export class MemberService {
         email: input.email,
         passwordHash,
         divisionId: input.divisionId,
-        designation: input.designation,
+        designationId: input.designationId,
         phone: input.phone,
       }),
     );
@@ -129,6 +132,9 @@ export class MemberService {
     assertMemberUpdateHasFields(input);
     const company = await this.requireScopedCompany();
     const member = await this.requireMember(id, company.id);
+    if (input.designationId !== undefined) {
+      await this.requireDesignation(input.designationId, company.id);
+    }
     if (input.divisionId) {
       await assertDivisionMove(
         { repository: this.repository, relations: this.relationsRepository },
@@ -179,5 +185,17 @@ export class MemberService {
     const member = await this.repository.findById(id, companyId);
     if (!member) throw memberNotFound(id);
     return member;
+  }
+
+  private async requireDesignation(
+    id: string,
+    companyId: string,
+  ): Promise<void> {
+    if (await this.repository.findDesignation(id, companyId)) return;
+    throw new AppException({
+      code: AppErrorCode.NotFound,
+      status: HttpStatus.NOT_FOUND,
+      message: 'Designation was not found.',
+    });
   }
 }

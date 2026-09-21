@@ -13,8 +13,9 @@ Identity-owned tables used by portal access:
 - `user_roles`
 - `actor_profiles`
 
-Workflow-owned tables that may reference Client data later:
+Bid/Project-owned tables that may reference Client data later:
 
+- `bids`
 - `projects`
 - `project_credential_deliveries`
 - `workflow_info_requests`
@@ -33,13 +34,13 @@ Workflow-owned tables that may reference Client data later:
 Relationships:
 
 - one Client has many ClientContacts;
-- one Client has many Projects;
+- one Client has many Bids and many Projects; neither makes Bid a Project subtype;
 - Client is tenant-scoped and company-aware.
 
 Lifecycle:
 
 - no normal hard-delete API;
-- deactivation preserves ClientContacts, Bid/Project, Workflow, and audit history;
+- deactivation preserves ClientContacts, Bid, Project, Work Request, and audit history;
 - inactive Clients are readable to authorized administrators;
 - inactive Clients are not selectable for new Bid/Project/Workflow business records.
 

@@ -49,6 +49,19 @@ export class MemberRepository extends BaseRepository {
     );
   }
 
+  findDesignation(
+    id: string,
+    companyId: string,
+  ): Promise<{ id: string } | null> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.designation.findUnique({
+        where: { id_tenantId_companyId: { id, tenantId, companyId } },
+        select: { id: true },
+      }),
+    );
+  }
+
   /**
    * Divisions this Member actively leads. Revoked rows are never returned —
    * they are retained history, not current authority (04.1.1 DR-06).
@@ -157,9 +170,9 @@ export class MemberRepository extends BaseRepository {
           id: randomUUID(),
           companyId,
           divisionId: input.divisionId,
+          designationId: input.designationId,
           name: input.name.trim(),
           email: input.email.trim().toLowerCase(),
-          roleTitle: input.designation.trim(),
           isActive: input.isActive,
         },
         select: memberSelect,
@@ -177,8 +190,8 @@ export class MemberRepository extends BaseRepository {
           ...(input.email !== undefined
             ? { email: input.email.trim().toLowerCase() }
             : {}),
-          ...(input.designation !== undefined
-            ? { roleTitle: input.designation.trim() }
+          ...(input.designationId !== undefined
+            ? { designationId: input.designationId }
             : {}),
           ...(input.divisionId !== undefined
             ? { divisionId: input.divisionId }

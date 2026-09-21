@@ -11,6 +11,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'Company',
   'Division',
   'DivisionLead',
+  'Designation',
   'Member',
   'Team',
   'TeamMember',

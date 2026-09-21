@@ -17,6 +17,10 @@ POD exposes `id`, `name`, `sortOrder`, `isActive`, timestamps, and no public cod
 - Management requires `UPDATE_SETTINGS` and tenant-wide settings scope. `tenant_super_admin` has no permission/scope wildcard.
 - `BidDetail.podOptionId` has no POD-name snapshot. Referenced identity editing, sortOrder mutation, canonicalization beyond current conventions, and catalogue population are **OWNER DECISION REQUIRED**; `isDefault` management is deferred.
 
+## Bid/Project separation override
+
+The earlier combined Bid/Project/Naming wording is superseded. POD is a Bid-only create input for its derived `projectCode`; direct Project has no approved POD or naming dependency.
+
 ## Boundary and Definition of Done
 
-POD supplies a selection to future Bid/Project/Naming only; it does not generate `SKM` or filenames, manage custom Bid input, OptionTypes, RLS, schema, permissions, defaults, reorder, import, or data population. Done requires dedicated six-route API/lifecycle tests, type/tenant isolation, empty state, ordering, active filtering, authorization and no-delete proof after documented DB/RLS prerequisites are resolved.
+POD supplies a selection to future Bid/Project/Naming only; it does not generate `SKM` or filenames, manage custom Bid input, OptionTypes, RLS, schema, permissions, defaults, reorder, import, or data population. Done requires dedicated seven-route API/lifecycle tests, type/tenant isolation, empty state, ordering, active filtering, authorization and no-delete proof after documented DB/RLS prerequisites are resolved.

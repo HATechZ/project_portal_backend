@@ -18,6 +18,10 @@ Business identity is required `name` plus required `code`; response also contain
 - Management requires `UPDATE_SETTINGS` plus tenant-wide settings scope. `tenant_super_admin` is not a wildcard.
 - `BidDetail.cargoCodeOptionId` has no Cargo-code snapshot. Referenced identity edits, sortOrder mutation, custom Bid Cargo behavior and population method are **OWNER DECISION REQUIRED**. `isDefault` management is deferred.
 
+## Bid/Project separation override
+
+The earlier combined wording is superseded. Cargo Code supports independent Bid document naming only; direct Project has no approved Cargo dependency.
+
 ## Boundary and Definition of Done
 
-Cargo Codes supplies valid values for later names such as `SKM-CRA-CA2`; it generates neither Project Code nor filename and implements no Bid, document code, generic OptionType CRUD, schema/migration/RLS/permission work, defaults, reorder, import or data population. Done requires six dedicated routes and focused tests for code normalization, both uniqueness targets, isolation, lifecycle, empty state and authorization after normalized DB gaps are resolved.
+Cargo Codes supplies valid values for later names such as `SKM-CRA-CA2`; it generates neither Project Code nor filename and implements no Bid, document code, generic OptionType CRUD, schema/migration/RLS/permission work, defaults, reorder, import or data population. Done requires seven dedicated routes and focused tests for code normalization, both uniqueness targets, isolation, lifecycle, empty state and authorization after normalized DB gaps are resolved.

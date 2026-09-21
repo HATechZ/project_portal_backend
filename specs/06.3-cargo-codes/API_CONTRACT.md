@@ -5,6 +5,7 @@ Base `/api/v1`; platform envelope, Swagger, UUID parsing, validation, `x-request
 | Method | Path | Contract |
 |---|---|---|
 | GET | `/cargo-codes` | Active list; management may use strict boolean `includeInactive`; order `sortOrder,name,id`. |
+| GET | `/cargo-codes/deactivated` | Authorized management list of inactive Cargo rows only; order `sortOrder,name,id`. |
 | GET | `/cargo-codes/:id` | Same-tenant Cargo Code detail only; wrong type/foreign/absent is 404. |
 | POST | `/cargo-codes` | Management create `{ name, code }`; code trims and uppercases; 201. |
 | PATCH | `/cargo-codes/:id` | Management update approved name/code only when referenced-edit decision permits it. |

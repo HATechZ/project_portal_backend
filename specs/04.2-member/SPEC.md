@@ -48,13 +48,13 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
 | DR-03 | `userId` remains nullable structural truth for legacy/exceptional paths, but every newly created Member through `POST /member` has a linked User. A Member may have no Team, UserRole, or ActorProfile. | nullable relation; onboarding transaction |
 | DR-04 | Member and leadership creation authority is scoped: `system_admin` may create Members and provision/assign `division_head` anywhere in own Company; `division_head` may create/provision or assign `division_lead` only for a Division inside the same Company; `division_lead` may create/provision or assign `team_lead` only for a Team inside that Division; `team_lead` may manage/create eligible ordinary Members only within exact Team scope. All require configured permission, object scope, and same Tenant/Company/Division/Team validation. | guards/permission/object scope |
 | DR-05 | When a UserRole/ActorProfile is later linked to a Member, all records must be same Tenant and the ActorProfile must be active and Member-backed. | role-assignment/linking transaction |
-| DR-06 | Public Member create fields are `name`, `email`, `password`, `divisionId`, optional `designation`, and optional `phone`. `roleId`, Tenant, Company, ID, User/ActorProfile linkage, password hash, Team, and active state are not caller-controlled. | DTO allow-lists |
+| DR-06 | Public Member create fields are `name`, `email`, `password`, `divisionId`, required `designationId`, and optional `phone`. Create/update validate that Designation exists in the current Tenant/Company; arbitrary designation text is not the source of truth. `roleId`, Tenant, Company, ID, User/ActorProfile linkage, password hash, Team, and active state are not caller-controlled. | DTO/service, composite FK |
 | DR-07 | Member email is unique per Tenant. User email uses the same request email and remains the credential login email. | validation/constraint mapping |
 | DR-08 | Delete removes a Member from active organization use atomically: it ends active Team membership, revokes Member-backed UserRoles/sessions, disables Member-backed ActorProfiles, and marks the Member inactive. Historical business/workflow/audit rows remain. Active Division leadership remains a 409 reassignment dependency. | removal transaction |
 | DR-09 | A Division move is allowed only to a scoped same-Company Division and must be blocked while the Member leads a Team or has an active Team membership in a different Division. | update validation and Team relation probes |
 | DR-10 | For `team_lead` Member creation, allowed Team context is derived from authenticated User -> active ActorProfile with `team_lead` role -> Member -> Team where `Team.leadMemberId` equals the actor Member. `Team.leadMemberId` is required object-scope evidence; role alone cannot authorize another Team or Division. | exact Team scope resolver |
 | DR-11 | Creating a Member never assigns that Member to a Team at persistence level. Team assignment is a distinct `04.3-team` operation, even when a product flow performs create then assign sequentially. | service boundaries/tests |
-| DR-12 | Designation and phone are business profile fields only. Designation must never determine authorization or role assignment. | DTO/service validation |
+| DR-12 | Designation is related business data only and must never determine authorization or role assignment. The response may retain flat `designation` as the related name for compatibility and also exposes `designationId`; it returns no nested Designation object. | DTO/service mapping |
 | DR-13 | Read scope is limited: `system_admin` and configured `division_head` read own Company Members; `division_lead` reads own Division Members; `team_lead` may read only exact led-Team context and eligible same-Team Members required for own-Team Member operations. | scoped queries/tests |
 | DR-14 | Creating a leadership candidate reuses normal `User -> Member` onboarding. Its UserRole and Member-backed ActorProfile are assigned later by the existing role/leadership workflow with object-scope validation. | role-assignment/scope validation |
 
@@ -81,6 +81,8 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
 - `[AC-E03]` WHEN a Member is linked to existing access records through `access-link`, the system
   SHALL validate same Tenant and active UserRole/Profile consistency in one transaction and change
   only approved link fields.
+- `[AC-E04]` WHEN a Member is created or updated with `designationId`, THEN the system SHALL
+  require a current-Tenant/current-Company Designation and SHALL reject an absent or foreign ID.
 - `[AC-S01]` WHILE a Member has no Team, UserRole, or Member-backed ActorProfile, the system SHALL
   allow the Member record to remain structurally valid; normal new Member onboarding creates only
   linked login User access.

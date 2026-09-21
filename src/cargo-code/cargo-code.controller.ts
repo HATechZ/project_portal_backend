@@ -60,6 +60,16 @@ export class CargoCodeController {
   findAll(@Query() q: CargoCodeQueryDto) {
     return this.service.findAll(q.includeInactive);
   }
+  @Get('deactivated')
+  @ApiOperation({ summary: 'List deactivated cargo codes' })
+  @ResponseMessage('Deactivated cargo codes returned successfully')
+  @ApiStandardArrayResponse(
+    CargoCodeResponseDto,
+    'Deactivated cargo codes returned',
+  )
+  findDeactivated() {
+    return this.service.findDeactivated();
+  }
   @Get(':id')
   @ApiOperation({ summary: 'Get cargo code by ID' })
   @ApiParam({ name: 'id', description: 'Cargo Code OptionValue ID' })

@@ -4,7 +4,7 @@ export const teamMemberSummarySelect = {
   id: true,
   name: true,
   email: true,
-  roleTitle: true,
+  designation: { select: { name: true } },
 } satisfies Prisma.MemberSelect;
 
 export const teamSelect = {

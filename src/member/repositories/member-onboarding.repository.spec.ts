@@ -26,7 +26,7 @@ describe('MemberOnboardingRepository', () => {
           email: 'jane@example.com',
           passwordHash: 'hashed-password',
           divisionId: 'division-id',
-          designation: 'Engineer',
+          designationId: 'designation-id',
           phone: '+1-555-0100',
         }),
       ),

@@ -15,6 +15,7 @@ const manager = { tenantWide: true } as never;
 function createService(overrides: Record<string, unknown> = {}) {
   const repository = {
     list: jest.fn().mockResolvedValue([]),
+    listDeactivated: jest.fn().mockResolvedValue([{ ...row, isActive: false }]),
     find: jest.fn().mockResolvedValue(row),
     duplicate: jest.fn().mockResolvedValue(false),
     create: jest.fn().mockResolvedValue(row),
@@ -39,6 +40,10 @@ describe('PodCodeService', () => {
     });
     expect(repository.list).toHaveBeenNthCalledWith(1, false);
     expect(repository.list).toHaveBeenNthCalledWith(2, true);
+    await expect(service.findDeactivated()).resolves.toEqual([
+      expect.objectContaining({ isActive: false }),
+    ]);
+    expect(repository.listDeactivated).toHaveBeenCalledTimes(1);
   });
 
   it('updates an unreferenced POD and detects normalized whitespace duplicates', async () => {

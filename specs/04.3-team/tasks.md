@@ -35,3 +35,7 @@ fixture cleanup and `walkthrough.md` evidence.
         VERIFY: test -f specs/04.3-team/walkthrough.md && node scripts/verify-team-evidence.cjs http
   - [ ] Run final checks and update INDEX; depend on walkthrough, run lint/build/spec/strict SDD and change status only after independent verification. Complete when every command passes.
         VERIFY: corepack yarn lint && corepack yarn build && corepack yarn verify:spec -- --module 04.3-team && corepack yarn verify:sdd:strict
+
+- [ ] Map Team safe Member/lead summary `designation` from the related Designation name after
+  04.4 migration, without a nested object or any authorization interpretation.
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=team

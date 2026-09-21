@@ -10,6 +10,9 @@ export class CargoCodeService extends CargoCodeServiceBase {
   findAll(i = false) {
     return this.list(i);
   }
+  findDeactivated() {
+    return this.listDeactivated();
+  }
   findOne(id: string) {
     return this.one(id);
   }

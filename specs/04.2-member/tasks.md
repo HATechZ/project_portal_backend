@@ -1,6 +1,6 @@
 # Tasks: 04.2 — Member
 
-**Status:** Phase 4 · 7/10 implemented; Gate 5 blocked on app_user `members` write privilege  
+**Status:** Phase 4 · implementation delta includes Designation relation; Gate 5 must be re-run after migration
 **Spec Reference:** `SPEC.md` · **Plan Reference:** `plan.md`
 
 All leaves remain unticked. Start only after `04.1-division` is complete. Each runtime task
@@ -33,3 +33,8 @@ requires isolated-fixture cleanup and recorded evidence; static assertions never
         VERIFY: test -f specs/04.2-member/walkthrough.md && node scripts/verify-member-evidence.cjs http
   - [ ] Run final checks and update status; depend on walkthrough, run lint/build/spec/strict SDD and update INDEX only after independent verification. Complete when every command passes.
         VERIFY: corepack yarn lint && corepack yarn build && corepack yarn verify:spec -- --module 04.2-member && corepack yarn verify:sdd:strict
+
+- [ ] Replace legacy Member free-text designation persistence with scoped `designationId` after
+  the 04.4 blocking preflight/backfill; cover same-company validation, compatibility display,
+  and no authorization-role behavior change.
+        VERIFY: corepack yarn test --runInBand --testPathPatterns=member

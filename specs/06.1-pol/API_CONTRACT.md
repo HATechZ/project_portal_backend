@@ -5,6 +5,7 @@ Base `/api/v1`; platform envelopes, UUID parsing, whitelist validation, Swagger,
 | Method | Path | Contract |
 |---|---|---|
 | GET | `/pol-codes` | Active POL list by default; authorized management may request strict boolean `includeInactive`; order `sortOrder,name,id`. |
+| GET | `/pol-codes/deactivated` | Authorized management list of inactive POL rows only; order `sortOrder,name,id`. |
 | GET | `/pol-codes-codes/:id` | Same-tenant POL detail; wrong type/foreign/absent is 404. |
 | POST | `/pol-codes` | Management create `{ name }`; 201. |
 | PATCH | `/pol-codes-codes/:id` | Management update only approved identity fields after owner decision on referenced values; no type/tenant/sort/default/lifecycle fields. |

@@ -63,6 +63,13 @@ Authorization:
 - `client_owner` may access own Client context only through approved client-side workflow
   surfaces.
 
+### List Deactivated Clients
+
+`GET /client/deactivated`
+
+Returns only inactive tenant/company-scoped Clients, paginated using the standard `page` and
+`limit` query parameters. Authorization is the same as List Clients.
+
 ### Get Client
 
 `GET /client/:id`
@@ -172,6 +179,13 @@ Behavior:
 - returns contacts under the route Client only;
 - denies contacts from another Client, Company, or Tenant;
 - supports active-only selector use for workflow communication.
+
+### List Deactivated Client Contacts
+
+`GET /client/:clientId/contact/deactivated`
+
+Returns only inactive Contacts for the in-scope route Client, paginated using the standard
+`page` and `limit` query parameters. Authorization is the same as List Client Contacts.
 
 ### Get Client Contact
 

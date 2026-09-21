@@ -70,6 +70,10 @@ const clientManagementActions: WorkflowActionCode[] = [
   WorkflowActionCode.MANAGE_CLIENT_PORTAL_ACCESS,
 ];
 
+const generalDocumentCodeManagementAction =
+  WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES;
+const designationManagementAction = WorkflowActionCode.MANAGE_DESIGNATIONS;
+
 const supervisorPermissions = [
   ...Object.values(WorkflowActionCode).filter(
     (code) =>
@@ -101,6 +105,8 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.ADD_DIVISION,
       WorkflowActionCode.ADD_TEAM,
       WorkflowActionCode.ASSIGN_LEADER,
+      generalDocumentCodeManagementAction,
+      designationManagementAction,
     ],
     division_lead: [
       WorkflowActionCode.ADD_TEAM,
@@ -111,6 +117,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.FORWARD_TO_TMS,
       WorkflowActionCode.ORIGIN_MANAGER_APPROVE,
       WorkflowActionCode.FORWARD_TO_CCR,
+      generalDocumentCodeManagementAction,
       ...commonCreate,
     ],
     division_member: [

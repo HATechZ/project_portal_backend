@@ -58,6 +58,21 @@ export class ClientContactService {
     );
   }
 
+  async findDeactivatedContacts(
+    clientId: string,
+    query: PaginationQueryDto,
+  ): Promise<PaginatedResult<ClientContactResponseDto>> {
+    await this.requireClient(clientId);
+    return paginate(
+      query,
+      async (args) =>
+        (await this.contacts.findDeactivated(clientId, args)).map(
+          toClientContactResponse,
+        ),
+      () => this.contacts.countDeactivated(clientId),
+    );
+  }
+
   async findContact(
     clientId: string,
     contactId: string,

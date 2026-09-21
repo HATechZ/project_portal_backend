@@ -56,3 +56,6 @@ Team responses expose Team fields, safe lead/member summaries (`id`, `name`, `em
 where requested. DTOs reject Tenant/Company/Division changes,
 isActive, timestamps, inline Member creation payloads, User/role/password fields, caller `leftAt`,
 and arbitrary member ID arrays. There is no activate/deactivate endpoint.
+
+For Member summaries, `designation` is only the flat related `Designation.name` compatibility
+display from 04.4; do not expose a nested Designation object or infer authority from it.

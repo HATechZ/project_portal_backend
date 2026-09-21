@@ -26,17 +26,17 @@ not grant general Division administration or all-Division browsing.
 
 | Method | Path | DTO / result |
 |---|---|---|
-| POST | `/member` | `{ name, email, password, divisionId, designation?, phone? }`; derives Tenant/Company, validates actor-scoped Division, and creates linked User and Member atomically; 201. `roleId`, `tenantId`, `companyId`, `userId`, `actorProfileId`, `passwordHash`, `confirmPassword`, `isActive`, and `teamId` are forbidden. It does not assign a UserRole, ActorProfile, or Team membership. |
+| POST | `/member` | `{ name, email, password, divisionId, designationId, phone? }`; derives Tenant/Company, validates actor-scoped Division and same-Tenant/Company Designation, and creates linked User and Member atomically; 201. `roleId`, `tenantId`, `companyId`, `userId`, `actorProfileId`, `passwordHash`, `confirmPassword`, `isActive`, and `teamId` are forbidden. It does not assign a UserRole, ActorProfile, or Team membership. |
 | GET | `/member` | Scoped page, optional `divisionId` filter only after scoped validation; `name asc,id asc`; 200 items/meta. |
 | GET | `/member/:id` | 200 scoped Member or indistinguishable 404. |
-| PATCH | `/member/:id` | Partial `{ name?, email?, designation?, divisionId?, isActive? }`, at least one; 200. No `userId` or security fields. |
+| PATCH | `/member/:id` | Partial `{ name?, email?, designationId?, divisionId?, isActive? }`, at least one; validate supplied same-Tenant/Company Designation; 200. No `userId`, arbitrary designation text, or security fields. |
 | DELETE | `/member/:id` | Remove a member; atomically marks the Member inactive, ends active Team membership, revokes Member access/profiles/sessions, and disables the linked User only when it has no other active identity. Historical records remain; active Division leadership returns 409. 204. |
 | PUT | `/member/:id/access-link` | `{ userId, actorProfileId? }`; exceptional existing-User path only. Links existing same-Tenant User and optional existing eligible profile; 200. It does not create User, UserRole, ActorProfile, password, or session. |
 
-Member response is exactly `id`, `userId`, `companyId`, `divisionId`, `name`, `email`,
-`designation`, `isActive`, `createdAt`, and `updatedAt`. Relations are represented by IDs only;
-User, Division, and role objects are not embedded by default. `designation` maps to the stored
-`roleTitle` field. Role assignment is a later `POST /user/:userId/role` operation after the
+Member response is exactly `id`, `userId`, `companyId`, `divisionId`, `designationId`, `name`,
+`email`, `designation`, `isActive`, `createdAt`, and `updatedAt`. Relations are represented by
+IDs only; User, Division, Designation, and role objects are not embedded by default.
+`designation` is the related Designation name compatibility display. Role assignment is a later `POST /user/:userId/role` operation after the
 Member exists; it is not part of the Member response or onboarding contract.
 It never returns plaintext password, password hash, session, token, or credential material. 400
 covers malformed/unknown input; 404 conceals foreign IDs; 401/403 are auth failures; 409 covers

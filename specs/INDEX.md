@@ -12,17 +12,20 @@
 | [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | [Art. XI](rules/10-messaging.md); partial index skipped by owner; walkthrough remains |
 | [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/50 | `[WIP]` | 6 unticked: test suites deleted; actor_profiles grant blocker cleared 2026-09-15 |
 | [04](04-organization/) Organization | 2 of 7 | 4 | 29/36 | `[WIP]` | 5 unticked: signup/update test suites deleted; UPDATE grant still missing |
-| [04.1](04.1-division/) Division | 1 (+DivisionType) | 5 | 11/11 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (24 curls, 0 blockers, cleanup PASS) |
+| [04.1](04.1-division/) Division | 1 (+DivisionType) | 4 | 11/12 | `[WIP]` | Normalized Tenant/Company name uniqueness and blocking preflight pending |
 | [04.1.1](04.1.1-division-lead-multiplicity/) Division Lead Multiplicity | 1 applied | 5 | 17/17 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (28 curls, 0 blockers, cleanup PASS) |
-| [04.2](04.2-member/) Member | 1 | 4 | 7/10 | `[WIP]` | Grants + seed cleared 2026-09-15; Gate 5 walkthrough re-runnable |
-| [04.3](04.3-team/) Team | 2 | 4 | 9/11 | `[WIP]` | Gate 5 walkthrough pending |
+| [04.2](04.2-member/) Member | 1 | 4 | 7/11 | `[WIP]` | Designation relation/migration delta pending; Gate 5 must be re-run |
+| [04.3](04.3-team/) Team | 2 | 4 | 9/12 | `[WIP]` | Designation display mapping and Gate 5 walkthrough pending |
+| [04.4](04.4-designation/) Designation | 1 proposed | 3 | 0/5 | `[SPEC APPROVED]` | Internal Member master data; implementation not started |
 | [05](05-clients/) Clients | 2 | 3 | 0/22 | `[SPEC APPROVED]` | Ready for implementation |
 | [06](06-reference-data/) Reference Data | 2 shared | 3 | 0/2 | `[SPEC APPROVED]` | Umbrella only; four separate feature modules |
 | [06.1](06.1-pol/) POL Code | OptionValue/POL | 3 | 0/4 | `[SPEC APPROVED]` | Dedicated Port of Loading Code API/module |
 | [06.2](06.2-pod/) POD Code | OptionValue/POD | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Port of Discharge Code API/module |
 | [06.3](06.3-cargo-codes/) Cargo Codes | OptionValue/CARGO_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Cargo Code API/module |
 | [06.4](06.4-vessel-codes/) Vessel Codes | OptionValue/VESSEL_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Vessel Code API/module |
-| 07 Marketing Document Codes | 1 | 3 | — | `[SPEC APPROVED]` | Unchanged; separate from Reference Data |
+| [07](07-general-document-codes/) General Document Codes | 1 shared | 4 | 0/11 | `[WIP]` | Runtime implemented; independent Gate 5 pending |
+| [14](14-bid/) Bid | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent Bid; replaces combined workspace design |
+| [15](15-project/) Project | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent direct Project; replaces combined workspace design |
 | 08 Documents | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
 | 09 Workflow Engine | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
 | 10 Work Requests | 5 | 0 | — | `[NOT STARTED]` | Status derived from latest audit log (Art. VI.2) |
@@ -30,7 +33,8 @@
 | 12 Notifications | 2 | 0 | — | `[NOT STARTED]` | Consumes 02's mail queue |
 | 13 Audit | 1 | 0 | — | `[NOT STARTED]` | |
 
-All 63 ERD tables are assigned once across 03–13. 02.1's `outbox_messages` /
+The historical ERD allocation covers 03–13 only. Modules 14/15 supersede its combined Bid/Project
+design; their Prisma-first redesign is specified but not applied. 02.1's `outbox_messages` /
 `processed_events` are infrastructure, not ERD tables.
 
 **Phases:** 0 not started · 1 SPEC + contracts · 2 plan · 3 tasks (`[SPEC APPROVED]`) ·
@@ -54,7 +58,7 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-09 | Codex | 04, 04.2, 04.3 | 1–3 | Reconciled Member authority scopes (spec only) |
+| 2026-09-21 | Codex | 14, 15 | 1–3 | Separate Bid/Project specs; persistence redesign specified only |
 | 2026-09-09 | Codex | 04.2 | 4–5 | Member leaves 1–7 pass; `POST /member` blocked by grants |
 | 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
 | 2026-09-15 | Claude | 00, 01, 01.1, 03, 04 | 5 | 29/30 failing claims resolved: 15 unticked (proof deleted), rest fixed |

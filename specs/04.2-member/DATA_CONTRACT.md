@@ -3,11 +3,13 @@
 ## Tables and fields
 
 `members` / `Member`: Tenant ID, UUID ID, nullable `userId`, Company ID, Division ID,
-`name varchar(160)`, `email varchar(255)`, `roleTitle varchar(140)`, retained `isActive`, and
-timestamps. `designation` and `phone` are accepted by the V1 public Member bodies but have no
-dedicated current Member columns; V1 maps designation (or an absent designation to an empty
-business value) to the structurally mandatory existing `roleTitle` field and persists phone on the
-linked User. Authorization never comes from designation. It has unique `(id,tenantId)` and
+proposed required `designationId`, `name varchar(160)`, `email varchar(255)`, retained `isActive`,
+and timestamps. The current structural `roleTitle varchar(140)` is legacy free-text persistence
+to be retired only after the Designation conversion described in `04.4-designation`; it is not the
+future API source of truth. `designationId` has the tenant/company composite relation
+`(designationId,tenantId,companyId) -> designations(id,tenantId,companyId)`. The flat response
+`designation` is the related display name, while `designationId` is returned for mutation.
+Authorization never comes from designation. It has unique `(id,tenantId)` and
 `(tenantId,email)`, plus Division and Company
 indexes. Its Division relation is the authoritative composite
 `(divisionId,tenantId,companyId) -> divisions(id,tenantId,companyId)` relationship. `userId`
@@ -32,8 +34,8 @@ The schema permits an unlinked Member for legacy and exceptional linking paths. 
 1. User with request email and existing Auth password hash.
 2. Member linked to that User.
 
-The public create body is `name`, `email`, `password`, `divisionId`, optional `designation`, and
-optional `phone`. It never accepts `roleId`, `tenantId`, `companyId`, `userId`,
+The public create body is `name`, `email`, `password`, `divisionId`, required `designationId`, and
+optional `phone`. It never accepts arbitrary designation text, `roleId`, `tenantId`, `companyId`, `userId`,
 `actorProfileId`, `passwordHash`, `confirmPassword`, `isActive`, or `teamId`.
 
 A newly created Member may have no Team membership, UserRole, or Member-backed ActorProfile.
@@ -54,8 +56,9 @@ app_user/RLS UnitOfWork, not app_relay.
 
 ## Writes and migration impact
 
-Create derives Tenant/Company and uses an existing actor-scoped Division; it receives name,
-business email, password, optional designation, optional phone, and Division ID. It writes no
+Create derives Tenant/Company and uses an existing actor-scoped Division and same-Tenant/company
+Designation; it receives name, business email, password, designationId, optional phone, and
+Division ID. Update may change `designationId` only after the same scoped validation. It writes no
 UserRole, ActorProfile, or Team membership.
 `system_admin` can select any own-Company Division and may create/provision or assign
 `division_head`; `division_head` can select any own-Company Division allowed by configured

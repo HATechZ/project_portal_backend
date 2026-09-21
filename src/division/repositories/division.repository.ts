@@ -60,6 +60,26 @@ export class DivisionRepository extends BaseRepository {
     );
   }
 
+  async duplicateName(
+    name: string,
+    companyId: string,
+    exceptId?: string,
+  ): Promise<boolean> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(
+      async (db) =>
+        !!(await db.division.findFirst({
+          where: {
+            tenantId,
+            companyId,
+            name: { equals: name.trim(), mode: 'insensitive' },
+            ...(exceptId === undefined ? {} : { NOT: { id: exceptId } }),
+          },
+          select: { id: true },
+        })),
+    );
+  }
+
   create(
     companyId: string,
     input: Required<Pick<DivisionMutationInput, 'name' | 'abbr'>> &
