@@ -1,4 +1,10 @@
 import { DomainEventType } from './domain-event';
+import { BidCreated, BidUpdated } from './bid-events';
+import {
+  ProjectCreated,
+  ProjectStatusChanged,
+  ProjectUpdated,
+} from './project-events';
 
 /**
  * Every contract event in the system, by class.
@@ -13,5 +19,9 @@ import { DomainEventType } from './domain-event';
  * naming an event here (Art. XI).
  */
 export const DOMAIN_EVENT_TYPES: DomainEventType[] = [
-  // Populated as publishing modules land their contracts.
+  BidCreated,
+  BidUpdated,
+  ProjectCreated,
+  ProjectUpdated,
+  ProjectStatusChanged,
 ];

@@ -29,6 +29,9 @@ import { CargoCodeModule } from './cargo-code/cargo-code.module';
 import { VesselCodeModule } from './vessel-code/vessel-code.module';
 import { GeneralDocumentCodeModule } from './general-document-code/general-document-code.module';
 import { DesignationModule } from './designation/designation.module';
+import { StorageModule } from './infra/storage/storage.module';
+import { BidModule } from './bid/bid.module';
+import { ProjectModule } from './project/project.module';
 
 @Module({
   imports: [
@@ -40,6 +43,7 @@ import { DesignationModule } from './designation/designation.module';
     }),
     OpenApiModule.register(),
     PrismaModule,
+    StorageModule,
     RedisModule,
     ThrottlerModule,
     CryptoModule,
@@ -62,6 +66,8 @@ import { DesignationModule } from './designation/designation.module';
     VesselCodeModule,
     GeneralDocumentCodeModule,
     DesignationModule,
+    BidModule,
+    ProjectModule,
   ],
   controllers: [AppController],
   providers: [AppService],

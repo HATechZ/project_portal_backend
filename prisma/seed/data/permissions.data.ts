@@ -73,6 +73,8 @@ const clientManagementActions: WorkflowActionCode[] = [
 const generalDocumentCodeManagementAction =
   WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES;
 const designationManagementAction = WorkflowActionCode.MANAGE_DESIGNATIONS;
+const bidReadAction = WorkflowActionCode.VIEW_BID;
+const bidUpdateAction = WorkflowActionCode.UPDATE_BID;
 
 const supervisorPermissions = [
   ...Object.values(WorkflowActionCode).filter(
@@ -89,6 +91,8 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
     ccr_coordinator: [
       WorkflowActionCode.ADD_PROJECT,
       WorkflowActionCode.ADD_BID,
+      bidReadAction,
+      bidUpdateAction,
       WorkflowActionCode.ADD_CLIENT_DOCUMENT,
       WorkflowActionCode.ADD_WORK_REQUEST,
       WorkflowActionCode.MARKETING_RETURN_TO_PM,
@@ -107,6 +111,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.ASSIGN_LEADER,
       generalDocumentCodeManagementAction,
       designationManagementAction,
+      bidReadAction,
     ],
     division_lead: [
       WorkflowActionCode.ADD_TEAM,
@@ -118,6 +123,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.ORIGIN_MANAGER_APPROVE,
       WorkflowActionCode.FORWARD_TO_CCR,
       generalDocumentCodeManagementAction,
+      bidReadAction,
       ...commonCreate,
     ],
     division_member: [

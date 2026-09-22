@@ -46,6 +46,7 @@ directory exists, so this table cannot silently rot.
 | `src/infra/mail/mail.module.ts` | `specs/02-infrastructure` |
 | `src/infra/mail/mail-workers.module.ts` | `specs/02-infrastructure` |
 | `src/infra/messaging/messaging.module.ts` | `specs/02.1-messaging` |
+| `src/infra/storage/storage.module.ts` | `specs/02-infrastructure` |
 | `src/user/user.module.ts` | `specs/03-identity-and-access` |
 | `src/auth/auth.module.ts` | `specs/03-identity-and-access` |
 | `src/role-permission/role-permission.module.ts` | `specs/03-identity-and-access` |
@@ -53,12 +54,15 @@ directory exists, so this table cannot silently rot.
 | `src/division/division.module.ts` | `specs/04.1-division` |
 | `src/member/member.module.ts` | `specs/04.2-member` |
 | `src/team/team.module.ts` | `specs/04.3-team` |
+| `src/designation/designation.module.ts` | `specs/04.4-designation` |
 | `src/client/client.module.ts` | `specs/05-clients` |
 | `src/pol-code/pol-code.module.ts`                         | `specs/06.1-pol`               |
 | `src/pod-code/pod-code.module.ts`                         | `specs/06.2-pod`               |
 | `src/cargo-code/cargo-code.module.ts`           | `specs/06.3-cargo-codes`       |
 | `src/vessel-code/vessel-code.module.ts`         | `specs/06.4-vessel-codes`      |
 | `src/general-document-code/general-document-code.module.ts` | `specs/07-general-document-codes` |
+| `src/bid/bid.module.ts` | `specs/08-bid` |
+| `src/project/project.module.ts` | `specs/09-project` |
 
 `src/app.module.ts` is the composition root and is exempt â€” it registers modules but owns no
 domain surface of its own.
@@ -70,5 +74,5 @@ Canonical ids. A new module claims the next free number and is added to
 
 `00` platform-core Â· `01` persistence Â· `02` infrastructure Â· `03` identity-and-access Â·
 `04` organization Â· `05` clients Â· `06` reference-data Â· `07` general-document-codes Â·
-`08` documents Â· `09` workflow-engine Â· `10` work-requests Â·
+`08` bid Â· `09` project Â· `10` work-requests Â·
 `11` info-requests-and-revisions Â· `12` notifications Â· `13` audit

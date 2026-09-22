@@ -22,6 +22,10 @@ return {current, ttl, blocked, blockTtl}
 
 @Injectable()
 export class RedisThrottlerStorage implements ThrottlerStorage {
+  private readonly fallback = new Map<
+    string,
+    { hits: number; expiresAt: number; blockedUntil: number }
+  >();
   constructor(private readonly redis: RedisService) {}
 
   async increment(
@@ -37,6 +41,8 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
     timeToBlockExpire: number;
   }> {
     const baseKey = `${THROTTLER_REDIS_PREFIX}:${throttlerName}:${key}`;
+    if (!this.redis.available)
+      return this.incrementFallback(baseKey, ttl, limit, blockDuration);
     const result = (await this.redis.client.eval(
       incrementScript,
       2,
@@ -51,6 +57,29 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
       timeToExpire: Math.max(0, Number(result[1])),
       isBlocked: Number(result[2]) === 1,
       timeToBlockExpire: Math.max(0, Number(result[3])),
+    };
+  }
+  private incrementFallback(
+    key: string,
+    ttl: number,
+    limit: number,
+    blockDuration: number,
+  ) {
+    const now = Date.now();
+    const current = this.fallback.get(key);
+    const entry =
+      !current || current.expiresAt <= now
+        ? { hits: 0, expiresAt: now + ttl, blockedUntil: 0 }
+        : current;
+    entry.hits += 1;
+    if (entry.hits > limit && entry.blockedUntil <= now)
+      entry.blockedUntil = now + blockDuration;
+    this.fallback.set(key, entry);
+    return {
+      totalHits: entry.hits,
+      timeToExpire: Math.max(0, entry.expiresAt - now),
+      isBlocked: entry.blockedUntil > now,
+      timeToBlockExpire: Math.max(0, entry.blockedUntil - now),
     };
   }
 }

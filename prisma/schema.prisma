@@ -87,6 +87,10 @@ enum WorkflowActionCode {
   ADD_MEMBER
   ADD_PROJECT
   ADD_BID
+  VIEW_BID
+  UPDATE_BID
+  VIEW_PROJECT
+  UPDATE_PROJECT
   ADD_CLIENT_DOCUMENT
   ADD_WORK_REQUEST_DOCUMENT
   ADD_WORK_REQUEST
@@ -137,6 +141,11 @@ enum WorkflowActionCode {
   MANAGE_GENERAL_DOCUMENT_CODES
   MANAGE_DESIGNATIONS
   @@map("workflow_action_code")
+}
+
+enum BidStatusCode {
+  BIDDING
+  @@map("bid_status_code")
 }
 
 enum WorkPriorityCode {
@@ -295,7 +304,18 @@ model Tenant {
   designations Designation[]
   sourceChannels SourceChannel[]
   projects Project[]
+  directProjects DirectProject[]
+  bids Bid[]
+  bidStatusEvents BidStatusEvent[]
+  bidDocuments BidDocument[]
+  bidDocumentVersions BidDocumentVersion[]
+  bidDocumentClassificationEvents BidDocumentClassificationEvent[]
+  businessNameClaims BusinessNameClaim[]
   projectStatusEvents ProjectStatusEvent[]
+  directProjectStatusEvents DirectProjectStatusEvent[]
+  directProjectDocuments DirectProjectDocument[]
+  directProjectDocumentVersions DirectProjectDocumentVersion[]
+  directProjectDocumentClassificationEvents DirectProjectDocumentClassificationEvent[]
   bidDetails BidDetail[]
   projectCredentialDeliveries ProjectCredentialDelivery[]
   bidOutcomeEvents BidOutcomeEvent[]
@@ -329,6 +349,8 @@ model Tenant {
   systemAuditLogs SystemAuditLog[]
   outboxMessages OutboxMessage[]
   processedEvents ProcessedEvent[]
+  bidStorageCleanupJobs BidStorageCleanupJob[]
+  directProjectStorageCleanupJobs DirectProjectStorageCleanupJob[]
   @@map("tenants")
 }
 
@@ -427,6 +449,16 @@ model ActorProfile {
   member Member? @relation("ActorProfilesMemberIdMembers", fields: [memberId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
   clientContact ClientContact? @relation("ActorProfilesClientContactIdClientContacts", fields: [clientContactId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
   projectsByCreatedByActorId Project[] @relation("ProjectsCreatedByActorIdActorProfiles")
+  directProjectsByCreatedByActorId DirectProject[] @relation("DirectProjectsCreatedByActorIdActorProfiles")
+  bidsByCreatedByActorId Bid[] @relation("BidsCreatedByActorIdActorProfiles")
+  bidStatusEventsByChangedByActorId BidStatusEvent[] @relation("BidStatusEventsChangedByActorIdActorProfiles")
+  bidDocumentsByUploadedByActorId BidDocument[] @relation("BidDocumentsUploadedByActorIdActorProfiles")
+  bidDocumentVersionsByUploadedByActorId BidDocumentVersion[] @relation("BidDocumentVersionsUploadedByActorIdActorProfiles")
+  bidDocumentClassificationEventsByChangedByActorId BidDocumentClassificationEvent[] @relation("BidDocumentClassificationEventsChangedByActorIdActorProfiles")
+  directProjectStatusEventsByChangedByActorId DirectProjectStatusEvent[] @relation("DirectProjectStatusEventsChangedByActorIdActorProfiles")
+  directProjectDocumentsByUploadedByActorId DirectProjectDocument[] @relation("DirectProjectDocumentsUploadedByActorIdActorProfiles")
+  directProjectDocumentVersionsByUploadedByActorId DirectProjectDocumentVersion[] @relation("DirectProjectDocumentVersionsUploadedByActorIdActorProfiles")
+  directProjectDocumentClassificationEventsByChangedByActorId DirectProjectDocumentClassificationEvent[] @relation("DirectProjectDocumentClassificationEventsChangedByActorIdActorProfiles")
   projectStatusEventsByChangedByActorId ProjectStatusEvent[] @relation("ProjectStatusEventsChangedByActorIdActorProfiles")
   projectCredentialDeliveriesBySentByActorId ProjectCredentialDelivery[] @relation("ProjectCredentialDeliveriesSentByActorIdActorProfiles")
   bidOutcomeEventsByDecidedByActorId BidOutcomeEvent[] @relation("BidOutcomeEventsDecidedByActorIdActorProfiles")
@@ -721,6 +753,9 @@ model Client {
   company Company? @relation("ClientsCompanyIdCompanies", fields: [companyId], references: [id])
   clientContactsByClientId ClientContact[] @relation("ClientContactsClientIdClients")
   projectsByClientId Project[] @relation("ProjectsClientIdClients")
+  directProjectsByClientId DirectProject[] @relation("DirectProjectsClientIdClients")
+  bidsByClientId Bid[] @relation("BidsClientIdClients")
+  @@unique([id, tenantId])
   @@index([name])
   @@index([tenantId])
   @@map("clients")
@@ -796,6 +831,11 @@ model OptionValue {
   bidDetailsByPodOptionId BidDetail[] @relation("BidDetailsPodOptionIdOptionValues")
   bidDetailsByCargoCodeOptionId BidDetail[] @relation("BidDetailsCargoCodeOptionIdOptionValues")
   bidDetailsByVesselCodeOptionId BidDetail[] @relation("BidDetailsVesselCodeOptionIdOptionValues")
+  bidsByPolOptionId Bid[] @relation("BidsPolOptionIdOptionValues")
+  bidsByPodOptionId Bid[] @relation("BidsPodOptionIdOptionValues")
+  bidsByCargoCodeOptionId Bid[] @relation("BidsCargoCodeOptionIdOptionValues")
+  bidsByVesselCodeOptionId Bid[] @relation("BidsVesselCodeOptionIdOptionValues")
+  @@unique([id, tenantId])
   @@unique([tenantId, optionTypeId, name])
   @@index([optionTypeId, code])
   @@index([tenantId])
@@ -816,6 +856,13 @@ model DocumentCodeOption {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   documentsByDocumentCodeOptionId Document[] @relation("DocumentsDocumentCodeOptionIdDocumentCodeOptions")
+  bidDocumentsByDocumentCodeOptionId BidDocument[] @relation("BidDocumentsDocumentCodeOptionIdDocumentCodeOptions")
+  bidDocumentClassificationEventsByFromDocumentCodeOptionId BidDocumentClassificationEvent[] @relation("BidDocumentClassificationEventsFromDocumentCodeOptionIdDocumentCodeOptions")
+  bidDocumentClassificationEventsByToDocumentCodeOptionId BidDocumentClassificationEvent[] @relation("BidDocumentClassificationEventsToDocumentCodeOptionIdDocumentCodeOptions")
+  directProjectDocumentsByDocumentCodeOptionId DirectProjectDocument[] @relation("DirectProjectDocumentsDocumentCodeOptionIdDocumentCodeOptions")
+  directProjectDocumentClassificationEventsByFromDocumentCodeOptionId DirectProjectDocumentClassificationEvent[] @relation("DirectProjectDocumentClassificationEventsFromDocumentCodeOptionIdDocumentCodeOptions")
+  directProjectDocumentClassificationEventsByToDocumentCodeOptionId DirectProjectDocumentClassificationEvent[] @relation("DirectProjectDocumentClassificationEventsToDocumentCodeOptionIdDocumentCodeOptions")
+  @@unique([id, tenantId])
   @@unique([tenantId, documentGroup, code])
   @@index([documentGroup, name])
   @@index([tenantId])
@@ -889,6 +936,7 @@ model Project {
   workRequestsByProjectId WorkRequest[] @relation("WorkRequestsProjectIdProjects")
   registryDocumentsByProjectId RegistryDocument[] @relation("RegistryDocumentsProjectIdProjects")
   notificationsByProjectId Notification[] @relation("NotificationsProjectIdProjects")
+  businessNameClaim BusinessNameClaim? @relation("BusinessNameClaimsProjectIdProjects")
   @@unique([id, tenantId])
   @@unique([tenantId, code])
   @@index([workspaceTypeId])
@@ -947,6 +995,309 @@ model BidDetail {
   @@index([shipmentNumber])
   @@index([tenantId])
   @@map("bid_details")
+}
+
+model BidStatus {
+  id String @id @db.Uuid @map("id")
+  code BidStatusCode @unique @map("code")
+  name String @db.VarChar(100) @map("name")
+  sortOrder Int @default(0) @map("sort_order")
+  isTerminal Boolean @default(false) @map("is_terminal")
+
+  bidStatusEventsByFromStatusId BidStatusEvent[] @relation("BidStatusEventsFromStatusIdBidStatuses")
+  bidStatusEventsByToStatusId BidStatusEvent[] @relation("BidStatusEventsToStatusIdBidStatuses")
+  @@map("bid_statuses")
+}
+
+model Bid {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  clientId String @db.Uuid @map("client_id")
+  name String @db.VarChar(220) @map("name")
+  projectCode String @db.VarChar(40) @map("project_code")
+  biddingNumber String @db.VarChar(60) @map("bidding_number")
+  shipmentNumber String @db.VarChar(10) @map("shipment_number")
+  polOptionId String @db.Uuid @map("pol_option_id")
+  podOptionId String @db.Uuid @map("pod_option_id")
+  cargoCodeOptionId String @db.Uuid @map("cargo_code_option_id")
+  vesselCodeOptionId String @db.Uuid @map("vessel_code_option_id")
+  polNameSnapshot String @db.VarChar(180) @map("pol_name_snapshot")
+  podNameSnapshot String @db.VarChar(180) @map("pod_name_snapshot")
+  cargoCodeSnapshot String @db.VarChar(40) @map("cargo_code_snapshot")
+  vesselCodeSnapshot String @db.VarChar(40) @map("vessel_code_snapshot")
+  createdByActorId String? @db.Uuid @map("created_by_actor_id")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+  updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  client Client @relation("BidsClientIdClients", fields: [clientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  polOption OptionValue @relation("BidsPolOptionIdOptionValues", fields: [polOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  podOption OptionValue @relation("BidsPodOptionIdOptionValues", fields: [podOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  cargoCodeOption OptionValue @relation("BidsCargoCodeOptionIdOptionValues", fields: [cargoCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  vesselCodeOption OptionValue @relation("BidsVesselCodeOptionIdOptionValues", fields: [vesselCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  createdByActor ActorProfile? @relation("BidsCreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
+  statusEvents BidStatusEvent[] @relation("BidStatusEventsBidIdBids")
+  documents BidDocument[] @relation("BidDocumentsBidIdBids")
+  businessNameClaim BusinessNameClaim? @relation("BusinessNameClaimsBidIdBids")
+  @@unique([id, tenantId])
+  @@index([clientId, tenantId])
+  @@index([createdAt])
+  @@index([tenantId])
+  @@map("bids")
+}
+
+model BidStatusEvent {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  bidId String @db.Uuid @map("bid_id")
+  fromStatusId String? @db.Uuid @map("from_status_id")
+  toStatusId String @db.Uuid @map("to_status_id")
+  changedByActorId String? @db.Uuid @map("changed_by_actor_id")
+  reason String? @db.Text @map("reason")
+  occurredAt DateTime @default(now()) @db.Timestamp(6) @map("occurred_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid Bid @relation("BidStatusEventsBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  fromStatus BidStatus? @relation("BidStatusEventsFromStatusIdBidStatuses", fields: [fromStatusId], references: [id])
+  toStatus BidStatus @relation("BidStatusEventsToStatusIdBidStatuses", fields: [toStatusId], references: [id])
+  changedByActor ActorProfile? @relation("BidStatusEventsChangedByActorIdActorProfiles", fields: [changedByActorId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
+  @@index([bidId, occurredAt(sort: Desc), id(sort: Desc)])
+  @@index([toStatusId])
+  @@index([tenantId])
+  @@map("bid_status_events")
+}
+
+model BidDocument {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  bidId String @db.Uuid @map("bid_id")
+  documentCodeOptionId String @db.Uuid @map("document_code_option_id")
+  documentCodeSnapshot String @db.VarChar(20) @map("document_code_snapshot")
+  originalFileName String @db.VarChar(260) @map("original_file_name")
+  generatedFileName String @db.VarChar(260) @map("generated_file_name")
+  storageKey String @db.Text @map("storage_key")
+  mimeType String @db.VarChar(120) @map("mime_type")
+  fileSizeBytes BigInt @map("file_size_bytes")
+  revisionCode String @default("A") @db.VarChar(20) @map("revision_code")
+  uploadedByActorId String @db.Uuid @map("uploaded_by_actor_id")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+  updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid Bid @relation("BidDocumentsBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentCodeOption DocumentCodeOption @relation("BidDocumentsDocumentCodeOptionIdDocumentCodeOptions", fields: [documentCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByActor ActorProfile @relation("BidDocumentsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  versions BidDocumentVersion[] @relation("BidDocumentVersionsBidDocumentIdBidDocuments")
+  classificationEvents BidDocumentClassificationEvent[] @relation("BidDocumentClassificationEventsBidDocumentIdBidDocuments")
+  @@unique([id, tenantId])
+  @@unique([bidId, generatedFileName])
+  @@index([documentCodeOptionId, tenantId])
+  @@index([tenantId])
+  @@map("bid_documents")
+}
+
+model BidDocumentVersion {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  bidDocumentId String @db.Uuid @map("bid_document_id")
+  versionNumber Int @map("version_number")
+  originalFileName String @db.VarChar(260) @map("original_file_name")
+  generatedFileName String @db.VarChar(260) @map("generated_file_name")
+  storageKey String @db.Text @map("storage_key")
+  mimeType String @db.VarChar(120) @map("mime_type")
+  fileSizeBytes BigInt @map("file_size_bytes")
+  revisionCode String @db.VarChar(20) @map("revision_code")
+  uploadedByActorId String @db.Uuid @map("uploaded_by_actor_id")
+  uploadedAt DateTime @default(now()) @db.Timestamp(6) @map("uploaded_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bidDocument BidDocument @relation("BidDocumentVersionsBidDocumentIdBidDocuments", fields: [bidDocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByActor ActorProfile @relation("BidDocumentVersionsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([id, tenantId])
+  @@unique([tenantId, bidDocumentId, versionNumber])
+  @@index([bidDocumentId, uploadedAt])
+  @@index([tenantId])
+  @@map("bid_document_versions")
+}
+
+model BidDocumentClassificationEvent {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  bidDocumentId String @db.Uuid @map("bid_document_id")
+  fromDocumentCodeOptionId String @db.Uuid @map("from_document_code_option_id")
+  toDocumentCodeOptionId String @db.Uuid @map("to_document_code_option_id")
+  fromDocumentCodeSnapshot String @db.VarChar(20) @map("from_document_code_snapshot")
+  toDocumentCodeSnapshot String @db.VarChar(20) @map("to_document_code_snapshot")
+  fromGeneratedFileName String @db.VarChar(260) @map("from_generated_file_name")
+  toGeneratedFileName String @db.VarChar(260) @map("to_generated_file_name")
+  changedByActorId String @db.Uuid @map("changed_by_actor_id")
+  occurredAt DateTime @default(now()) @db.Timestamp(6) @map("occurred_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bidDocument BidDocument @relation("BidDocumentClassificationEventsBidDocumentIdBidDocuments", fields: [bidDocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  fromDocumentCodeOption DocumentCodeOption @relation("BidDocumentClassificationEventsFromDocumentCodeOptionIdDocumentCodeOptions", fields: [fromDocumentCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  toDocumentCodeOption DocumentCodeOption @relation("BidDocumentClassificationEventsToDocumentCodeOptionIdDocumentCodeOptions", fields: [toDocumentCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  changedByActor ActorProfile @relation("BidDocumentClassificationEventsChangedByActorIdActorProfiles", fields: [changedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  @@index([bidDocumentId, occurredAt(sort: Desc), id(sort: Desc)])
+  @@index([tenantId])
+  @@map("bid_document_classification_events")
+}
+
+/// Independent direct Project persistence.  The legacy `Project` model remains
+/// mapped to the historical combined workspace table until its separately
+/// sequenced backfill/contract migration; this model is the Module 09 domain.
+model DirectProjectStatus {
+  id String @id @db.Uuid @map("id")
+  code ProjectStatusCode @unique @map("code")
+  name String @db.VarChar(100) @map("name")
+  sortOrder Int @default(0) @map("sort_order")
+  isTerminal Boolean @default(false) @map("is_terminal")
+
+  directProjectStatusEventsByFromStatusId DirectProjectStatusEvent[] @relation("DirectProjectStatusEventsFromStatusIdDirectProjectStatuses")
+  directProjectStatusEventsByToStatusId DirectProjectStatusEvent[] @relation("DirectProjectStatusEventsToStatusIdDirectProjectStatuses")
+  @@map("direct_project_statuses")
+}
+
+model DirectProject {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  clientId String @db.Uuid @map("client_id")
+  name String @db.VarChar(220) @map("name")
+  createdByActorId String? @db.Uuid @map("created_by_actor_id")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+  updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  client Client @relation("DirectProjectsClientIdClients", fields: [clientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  createdByActor ActorProfile? @relation("DirectProjectsCreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
+  statusEvents DirectProjectStatusEvent[] @relation("DirectProjectStatusEventsDirectProjectIdDirectProjects")
+  documents DirectProjectDocument[] @relation("DirectProjectDocumentsDirectProjectIdDirectProjects")
+  businessNameClaim BusinessNameClaim? @relation("BusinessNameClaimsDirectProjectIdDirectProjects")
+  @@unique([id, tenantId])
+  @@index([clientId, tenantId])
+  @@index([createdAt])
+  @@index([tenantId])
+  @@map("direct_projects")
+}
+
+model DirectProjectStatusEvent {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  directProjectId String @db.Uuid @map("direct_project_id")
+  fromStatusId String? @db.Uuid @map("from_status_id")
+  toStatusId String @db.Uuid @map("to_status_id")
+  changedByActorId String? @db.Uuid @map("changed_by_actor_id")
+  reason String? @db.Text @map("reason")
+  occurredAt DateTime @default(now()) @db.Timestamp(6) @map("occurred_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  directProject DirectProject @relation("DirectProjectStatusEventsDirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  fromStatus DirectProjectStatus? @relation("DirectProjectStatusEventsFromStatusIdDirectProjectStatuses", fields: [fromStatusId], references: [id])
+  toStatus DirectProjectStatus @relation("DirectProjectStatusEventsToStatusIdDirectProjectStatuses", fields: [toStatusId], references: [id])
+  changedByActor ActorProfile? @relation("DirectProjectStatusEventsChangedByActorIdActorProfiles", fields: [changedByActorId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
+  @@index([directProjectId, occurredAt(sort: Desc), id(sort: Desc)])
+  @@index([toStatusId])
+  @@index([tenantId])
+  @@map("direct_project_status_events")
+}
+
+model DirectProjectDocument {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  directProjectId String @db.Uuid @map("direct_project_id")
+  documentCodeOptionId String? @db.Uuid @map("document_code_option_id")
+  documentCodeSnapshot String? @db.VarChar(20) @map("document_code_snapshot")
+  originalFileName String @db.VarChar(260) @map("original_file_name")
+  generatedFileName String? @db.VarChar(260) @map("generated_file_name")
+  storageKey String @db.Text @map("storage_key")
+  mimeType String @db.VarChar(120) @map("mime_type")
+  fileSizeBytes BigInt @map("file_size_bytes")
+  revisionCode String @default("A") @db.VarChar(20) @map("revision_code")
+  uploadedByActorId String @db.Uuid @map("uploaded_by_actor_id")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+  updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  directProject DirectProject @relation("DirectProjectDocumentsDirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentCodeOption DocumentCodeOption? @relation("DirectProjectDocumentsDocumentCodeOptionIdDocumentCodeOptions", fields: [documentCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByActor ActorProfile @relation("DirectProjectDocumentsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  versions DirectProjectDocumentVersion[] @relation("DirectProjectDocumentVersionsDirectProjectDocumentIdDirectProjectDocuments")
+  classificationEvents DirectProjectDocumentClassificationEvent[] @relation("DirectProjectDocumentClassificationEventsDirectProjectDocumentIdDirectProjectDocuments")
+  @@unique([id, tenantId])
+  @@unique([directProjectId, generatedFileName])
+  @@index([documentCodeOptionId, tenantId])
+  @@index([tenantId])
+  @@map("direct_project_documents")
+}
+
+model DirectProjectDocumentVersion {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  directProjectDocumentId String @db.Uuid @map("direct_project_document_id")
+  versionNumber Int @map("version_number")
+  originalFileName String @db.VarChar(260) @map("original_file_name")
+  generatedFileName String? @db.VarChar(260) @map("generated_file_name")
+  storageKey String @db.Text @map("storage_key")
+  mimeType String @db.VarChar(120) @map("mime_type")
+  fileSizeBytes BigInt @map("file_size_bytes")
+  revisionCode String @db.VarChar(20) @map("revision_code")
+  uploadedByActorId String @db.Uuid @map("uploaded_by_actor_id")
+  uploadedAt DateTime @default(now()) @db.Timestamp(6) @map("uploaded_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  directProjectDocument DirectProjectDocument @relation("DirectProjectDocumentVersionsDirectProjectDocumentIdDirectProjectDocuments", fields: [directProjectDocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByActor ActorProfile @relation("DirectProjectDocumentVersionsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([id, tenantId])
+  @@unique([tenantId, directProjectDocumentId, versionNumber])
+  @@index([directProjectDocumentId, uploadedAt])
+  @@index([tenantId])
+  @@map("direct_project_document_versions")
+}
+
+model DirectProjectDocumentClassificationEvent {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  directProjectDocumentId String @db.Uuid @map("direct_project_document_id")
+  fromDocumentCodeOptionId String? @db.Uuid @map("from_document_code_option_id")
+  toDocumentCodeOptionId String? @db.Uuid @map("to_document_code_option_id")
+  fromDocumentCodeSnapshot String? @db.VarChar(20) @map("from_document_code_snapshot")
+  toDocumentCodeSnapshot String? @db.VarChar(20) @map("to_document_code_snapshot")
+  fromGeneratedFileName String? @db.VarChar(260) @map("from_generated_file_name")
+  toGeneratedFileName String? @db.VarChar(260) @map("to_generated_file_name")
+  changedByActorId String @db.Uuid @map("changed_by_actor_id")
+  occurredAt DateTime @default(now()) @db.Timestamp(6) @map("occurred_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  directProjectDocument DirectProjectDocument @relation("DirectProjectDocumentClassificationEventsDirectProjectDocumentIdDirectProjectDocuments", fields: [directProjectDocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  fromDocumentCodeOption DocumentCodeOption? @relation("DirectProjectDocumentClassificationEventsFromDocumentCodeOptionIdDocumentCodeOptions", fields: [fromDocumentCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  toDocumentCodeOption DocumentCodeOption? @relation("DirectProjectDocumentClassificationEventsToDocumentCodeOptionIdDocumentCodeOptions", fields: [toDocumentCodeOptionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  changedByActor ActorProfile @relation("DirectProjectDocumentClassificationEventsChangedByActorIdActorProfiles", fields: [changedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  @@index([directProjectDocumentId, occurredAt(sort: Desc), id(sort: Desc)])
+  @@index([tenantId])
+  @@map("direct_project_document_classification_events")
+}
+
+model BusinessNameClaim {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  normalizedName String @db.VarChar(220) @map("normalized_name")
+  bidId String? @db.Uuid @map("bid_id")
+  projectId String? @db.Uuid @map("project_id")
+  directProjectId String? @db.Uuid @map("direct_project_id")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+  updatedAt DateTime @default(now()) @db.Timestamp(6) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid Bid? @relation("BusinessNameClaimsBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: Cascade)
+  project Project? @relation("BusinessNameClaimsProjectIdProjects", fields: [projectId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: Cascade)
+  directProject DirectProject? @relation("BusinessNameClaimsDirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: Cascade)
+  @@unique([id, tenantId])
+  @@unique([bidId, tenantId])
+  @@unique([projectId, tenantId])
+  @@unique([directProjectId, tenantId])
+  @@unique([tenantId, normalizedName])
+  @@index([tenantId])
+  @@map("business_name_claims")
 }
 
 model ProjectCredentialDelivery {
@@ -1781,4 +2132,42 @@ model ProcessedEvent {
   @@index([processedAt])
   @@index([tenantId])
   @@map("processed_events")
+}
+
+/// A durable record for a Bid binary that was written to protected local
+/// storage but could not be deleted after the enclosing Bid transaction failed.
+/// It deliberately has no Bid FK: a cleanup job exists precisely when no Bid
+/// document must be allowed to claim the orphaned object.
+model BidStorageCleanupJob {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  storageKey String @db.Text @map("storage_key")
+  attempts Int @default(1) @map("attempts")
+  lastError String @db.Text @map("last_error")
+  lastAttemptedAt DateTime @default(now()) @db.Timestamp(6) @map("last_attempted_at")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  @@unique([tenantId, storageKey])
+  @@index([createdAt])
+  @@index([tenantId])
+  @@map("bid_storage_cleanup_jobs")
+}
+
+/// An orphaned direct Project binary is never a Project document.  This queue
+/// records only failed compensation after a Project transaction rolls back.
+model DirectProjectStorageCleanupJob {
+  tenantId String @db.Uuid @map("tenant_id")
+  id String @id @db.Uuid @map("id")
+  storageKey String @db.Text @map("storage_key")
+  attempts Int @default(1) @map("attempts")
+  lastError String @db.Text @map("last_error")
+  lastAttemptedAt DateTime @default(now()) @db.Timestamp(6) @map("last_attempted_at")
+  createdAt DateTime @default(now()) @db.Timestamp(6) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  @@unique([tenantId, storageKey])
+  @@index([createdAt])
+  @@index([tenantId])
+  @@map("direct_project_storage_cleanup_jobs")
 }

@@ -83,6 +83,10 @@ import { REDIS_CLIENT, REDIS_DEFAULT_TTL_SECONDS } from './redis.constants';
 export class RedisService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(RedisService.name);
   private readonly jsonCodec = new JsonRedisCacheCodec<unknown>();
+  private readonly fallback = new Map<
+    string,
+    { value: string; expiresAt: number }
+  >();
   constructor(@Inject(REDIS_CLIENT) readonly client: Redis) {
     this.client.on('error', (error) => {
       this.logger.warn(`Redis client error: ${error.message}`);
@@ -106,7 +110,9 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     key: string,
     codec: RedisCacheCodec<T> = this.jsonCodec as RedisCacheCodec<T>,
   ): Promise<T | null> {
-    const value = await this.client.get(key);
+    const value = this.available
+      ? await this.client.get(key)
+      : this.fallbackGet(key);
     return value === null ? null : codec.decode(value);
   }
   async set<T>(
@@ -115,10 +121,21 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     ttlSeconds = REDIS_DEFAULT_TTL_SECONDS,
     codec: RedisCacheCodec<T> = this.jsonCodec as RedisCacheCodec<T>,
   ): Promise<void> {
-    await this.client.set(key, codec.encode(value), 'EX', ttlSeconds);
+    const encoded = codec.encode(value);
+    if (this.available) await this.client.set(key, encoded, 'EX', ttlSeconds);
+    else
+      this.fallback.set(key, {
+        value: encoded,
+        expiresAt: Date.now() + ttlSeconds * 1000,
+      });
   }
   async delete(...keys: string[]): Promise<number> {
-    return keys.length === 0 ? 0 : this.client.del(...keys);
+    if (keys.length === 0) return 0;
+    if (this.available) return this.client.del(...keys);
+    return keys.reduce(
+      (count, key) => count + Number(this.fallback.delete(key)),
+      0,
+    );
   }
   async remember<T>(
     key: string,
@@ -137,5 +154,17 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
       await this.client.quit();
       this.logger.log('Redis connection closed');
     }
+  }
+  get available(): boolean {
+    return this.client.status === 'ready';
+  }
+  private fallbackGet(key: string): string | null {
+    const entry = this.fallback.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      this.fallback.delete(key);
+      return null;
+    }
+    return entry.value;
   }
 }

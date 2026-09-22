@@ -24,16 +24,16 @@
 | [06.3](06.3-cargo-codes/) Cargo Codes | OptionValue/CARGO_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Cargo Code API/module |
 | [06.4](06.4-vessel-codes/) Vessel Codes | OptionValue/VESSEL_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Vessel Code API/module |
 | [07](07-general-document-codes/) General Document Codes | 1 shared | 4 | 0/11 | `[WIP]` | Runtime implemented; independent Gate 5 pending |
-| [14](14-bid/) Bid | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent Bid; replaces combined workspace design |
-| [15](15-project/) Project | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent direct Project; replaces combined workspace design |
-| 08 Documents | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
-| 09 Workflow Engine | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
+| [08](08-bid/) Bid | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent Bid; replaces combined workspace design |
+| [09](09-project/) Project | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent direct Project; replaces combined workspace design |
+| Documents (future allocation) | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
+| Workflow Engine (future allocation) | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
 | 10 Work Requests | 5 | 0 | — | `[NOT STARTED]` | Status derived from latest audit log (Art. VI.2) |
 | 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
 | 12 Notifications | 2 | 0 | — | `[NOT STARTED]` | Consumes 02's mail queue |
 | 13 Audit | 1 | 0 | — | `[NOT STARTED]` | |
 
-The historical ERD allocation covers 03–13 only. Modules 14/15 supersede its combined Bid/Project
+The historical ERD allocation covers 03–13 only. Modules 08/09 supersede its combined Bid/Project
 design; their Prisma-first redesign is specified but not applied. 02.1's `outbox_messages` /
 `processed_events` are infrastructure, not ERD tables.
 
@@ -58,7 +58,7 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-21 | Codex | 14, 15 | 1–3 | Separate Bid/Project specs; persistence redesign specified only |
+| 2026-09-22 | Codex | 08, 09 | 1–3 | Renumbered and reconciled Bid/Project specs; redesign only |
 | 2026-09-09 | Codex | 04.2 | 4–5 | Member leaves 1–7 pass; `POST /member` blocked by grants |
 | 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
 | 2026-09-15 | Claude | 00, 01, 01.1, 03, 04 | 5 | 29/30 failing claims resolved: 15 unticked (proof deleted), rest fixed |
