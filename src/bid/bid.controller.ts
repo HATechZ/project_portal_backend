@@ -15,6 +15,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
+  ApiExtension,
   ApiOperation,
   ApiParam,
   ApiSecurity,
@@ -76,6 +77,7 @@ export class BidController {
   )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
+    description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeOptionIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "Salina",\n  "clientId": "<uuid>",\n  "biddingNumber": "21128",\n  "polOptionId": "<uuid>",\n  "podOptionId": "<uuid>",\n  "cargoCodeOptionId": "<uuid>",\n  "vesselCodeOptionId": "<uuid>",\n  "shipmentNumber": "01",\n  "documentCodeOptionIds": [\n    "<code-100-uuid>",\n    "<code-100-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = stowage-plan-main.pdf and files[1] = stowage-plan-detail-1.pdf; documentCodeOptionIds[0] maps to files[0], and documentCodeOptionIds[1] maps to files[1].`,
     schema: {
       type: 'object',
       required: [
@@ -105,7 +107,57 @@ export class BidController {
       },
     },
   })
-  @ApiOperation({ summary: 'Create Bid' })
+  @ApiOperation({
+    summary: 'Create Bid',
+    description:
+      'Submit flat business fields as multipart/form-data. Files are optional; upload multiple files with the files picker and provide one documentCodeOptionIds value per file in the same order. Repeated Document Code IDs are valid.',
+  })
+  @ApiExtension('x-codeSamples', [
+    {
+      lang: 'JavaScript',
+      label: 'Frontend (FormData)',
+      source: `const bid = {
+  name: 'Salina',
+  clientId: '<uuid>',
+  biddingNumber: '21128',
+  polOptionId: '<uuid>',
+  podOptionId: '<uuid>',
+  cargoCodeOptionId: '<uuid>',
+  vesselCodeOptionId: '<uuid>',
+  shipmentNumber: '01',
+  // Same Document Code ID is valid for more than one file.
+  documentCodeOptionIds: ['<code-100-uuid>', '<code-100-uuid>'],
+};
+
+// Files are optional. Their indexes must match documentCodeOptionIds.
+const files = [stowagePlanMainFile, stowagePlanDetailFile];
+// files[0] <-> documentCodeOptionIds[0]
+// files[1] <-> documentCodeOptionIds[1]
+
+const formData = new FormData();
+formData.append('name', bid.name);
+formData.append('clientId', bid.clientId);
+formData.append('biddingNumber', bid.biddingNumber);
+formData.append('polOptionId', bid.polOptionId);
+formData.append('podOptionId', bid.podOptionId);
+formData.append('cargoCodeOptionId', bid.cargoCodeOptionId);
+formData.append('vesselCodeOptionId', bid.vesselCodeOptionId);
+formData.append('shipmentNumber', bid.shipmentNumber);
+bid.documentCodeOptionIds.forEach((id) =>
+  formData.append('documentCodeOptionIds', id),
+);
+files.forEach((file) => formData.append('files', file));
+
+const response = await fetch('/api/v1/bids', {
+  method: 'POST',
+  headers: { Authorization: \`Bearer \${accessToken}\` },
+  body: formData,
+});
+
+// Do not set Content-Type manually: the browser supplies the multipart boundary.
+// For a Bid without files, omit both documentCodeOptionIds and files.`,
+    },
+  ])
   @ResponseMessage('Bid created successfully')
   @ApiStandardCreatedResponse(BidResponseDto, 'Bid created')
   create(
@@ -132,7 +184,7 @@ export class BidController {
 
   @Get()
   @Permissions(WorkflowActionCode.VIEW_BID)
-  @ApiOperation({ summary: 'List Bids' })
+  @ApiOperation({ summary: 'Get All Bids' })
   @ResponseMessage('Bids returned successfully')
   @ApiPaginatedResponse(BidResponseDto)
   findAll(@Query() query: PaginationQueryDto) {
@@ -141,7 +193,7 @@ export class BidController {
 
   @Get(':id')
   @Permissions(WorkflowActionCode.VIEW_BID)
-  @ApiOperation({ summary: 'Get Bid' })
+  @ApiOperation({ summary: 'Get Bid by ID' })
   @ResponseMessage('Bid returned successfully')
   @ApiStandardOkResponse(BidResponseDto, 'Bid returned')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
@@ -160,7 +212,7 @@ export class BidController {
 
   @Patch(':id/documents/:documentId/document-code')
   @Permissions(WorkflowActionCode.UPDATE_BID)
-  @ApiOperation({ summary: 'Reclassify a Bid document code' })
+  @ApiOperation({ summary: 'Reclassify Bid Document Code' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Bid ID' })
   @ApiParam({
     name: 'documentId',

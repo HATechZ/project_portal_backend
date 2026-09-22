@@ -15,6 +15,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
+  ApiExtension,
   ApiOperation,
   ApiParam,
   ApiSecurity,
@@ -74,6 +75,7 @@ export class ProjectController {
   )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
+    description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeOptionIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "North Sea Project",\n  "clientId": "<uuid>",\n  "documentCodeOptionIds": [\n    "<code-100-uuid>",\n    "<code-802-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = project-information.pdf and files[1] = contract.pdf; documentCodeOptionIds[0] maps to files[0], and documentCodeOptionIds[1] maps to files[1].`,
     schema: {
       type: 'object',
       required: ['name', 'clientId'],
@@ -88,7 +90,45 @@ export class ProjectController {
       },
     },
   })
-  @ApiOperation({ summary: 'Create Project' })
+  @ApiOperation({
+    summary: 'Create Project',
+    description:
+      'Submit flat business fields as multipart/form-data. Files are optional; upload multiple files with the files picker and provide one documentCodeOptionIds value per file in the same order. Repeated Document Code IDs are valid.',
+  })
+  @ApiExtension('x-codeSamples', [
+    {
+      lang: 'JavaScript',
+      label: 'Frontend (FormData)',
+      source: `const project = {
+  name: 'North Sea Project',
+  clientId: '<uuid>',
+  documentCodeOptionIds: ['<code-100-uuid>', '<code-802-uuid>'],
+};
+
+// Files are optional. Their indexes must match documentCodeOptionIds.
+const files = [projectInformationFile, contractFile];
+// files[0] <-> documentCodeOptionIds[0]
+// files[1] <-> documentCodeOptionIds[1]
+// Multiple files may reuse the same Document Code ID.
+
+const formData = new FormData();
+formData.append('name', project.name);
+formData.append('clientId', project.clientId);
+project.documentCodeOptionIds.forEach((id) =>
+  formData.append('documentCodeOptionIds', id),
+);
+files.forEach((file) => formData.append('files', file));
+
+const response = await fetch('/api/v1/projects', {
+  method: 'POST',
+  headers: { Authorization: \`Bearer \${accessToken}\` },
+  body: formData,
+});
+
+// Do not set Content-Type manually: the browser supplies the multipart boundary.
+// For a Project without files, omit both documentCodeOptionIds and files.`,
+    },
+  ])
   @ResponseMessage('Project created successfully')
   @ApiStandardCreatedResponse(ProjectResponseDto, 'Project created')
   create(
@@ -105,7 +145,7 @@ export class ProjectController {
   }
   @Get()
   @Permissions(WorkflowActionCode.VIEW_PROJECT)
-  @ApiOperation({ summary: 'List Projects' })
+  @ApiOperation({ summary: 'Get All Projects' })
   @ResponseMessage('Projects returned successfully')
   @ApiPaginatedResponse(ProjectResponseDto)
   list(@Query() query: PaginationQueryDto) {
@@ -113,7 +153,7 @@ export class ProjectController {
   }
   @Get(':id')
   @Permissions(WorkflowActionCode.VIEW_PROJECT)
-  @ApiOperation({ summary: 'Get Project' })
+  @ApiOperation({ summary: 'Get Project by ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ResponseMessage('Project returned successfully')
   @ApiStandardOkResponse(ProjectResponseDto, 'Project returned')
@@ -135,7 +175,7 @@ export class ProjectController {
   }
   @Patch(':id/documents/:documentId/document-code')
   @Permissions(WorkflowActionCode.UPDATE_PROJECT)
-  @ApiOperation({ summary: 'Reclassify a Project document code' })
+  @ApiOperation({ summary: 'Reclassify Project Document Code' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ApiParam({
     name: 'documentId',
