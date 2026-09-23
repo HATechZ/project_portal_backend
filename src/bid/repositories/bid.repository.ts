@@ -153,13 +153,31 @@ export class BidRepository extends BaseRepository {
         });
         if (input.files.length) {
           await db.bidDocument.createMany({
-            data: input.files.map((file) => ({
-              ...file,
-              tenantId,
-              bidId: input.id,
-              uploadedByActorId: input.actorId,
-              revisionCode: 'A',
-            })),
+            data: input.files.map(
+              ({
+                id,
+                documentCodeId,
+                documentCodeSnapshot,
+                originalFileName,
+                generatedFileName,
+                storageKey,
+                mimeType,
+                fileSizeBytes,
+              }) => ({
+                id,
+                documentCodeId,
+                documentCodeSnapshot,
+                originalFileName,
+                generatedFileName,
+                storageKey,
+                mimeType,
+                fileSizeBytes,
+                tenantId,
+                bidId: input.id,
+                uploadedByActorId: input.actorId,
+                revisionCode: 'A',
+              }),
+            ),
           });
           await db.bidDocumentVersion.createMany({
             data: input.files.map((file) => ({
