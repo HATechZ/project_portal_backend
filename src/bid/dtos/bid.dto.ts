@@ -25,19 +25,19 @@ export class BidInfoDto {
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  polOptionId!: string;
+  polId!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  podOptionId!: string;
+  podId!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  cargoCodeOptionId!: string;
+  cargoId!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  vesselCodeOptionId!: string;
+  vesselId!: string;
 
   @ApiProperty({ maxLength: 10 })
   @Transform(trim)
@@ -87,10 +87,10 @@ export class CreateBidRequestDto {
   @IsNotEmpty()
   @MaxLength(60)
   biddingNumber!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() polOptionId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() podOptionId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() cargoCodeOptionId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() vesselCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() polId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() podId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() cargoId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() vesselId!: string;
   @ApiProperty({ maxLength: 10 })
   @Transform(trim)
   @IsString()
@@ -121,10 +121,10 @@ export class CreateBidMultipartDto {
   @IsNotEmpty()
   @MaxLength(60)
   biddingNumber!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() polOptionId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() podOptionId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() cargoCodeOptionId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() vesselCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() polId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() podId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() cargoId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() vesselId!: string;
   @ApiProperty({ example: '01' })
   @Transform(trim)
   @IsString()
@@ -140,12 +140,12 @@ export class CreateBidMultipartDto {
   @IsOptional()
   @Transform(multipartArray)
   @IsUUID(undefined, { each: true })
-  documentCodeOptionIds?: string[];
+  documentCodeIds?: string[];
 }
 
 export class DocumentUploadMetadataDto {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) fileIndex!: number;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeId!: string;
 }
 
 export class BidDocumentInputDto {
@@ -156,7 +156,7 @@ export class BidDocumentInputDto {
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  documentCodeOptionId!: string;
+  documentCodeId!: string;
 }
 
 export class UpdateBidDto {
@@ -172,20 +172,20 @@ export class UpdateBidDto {
 export class BidFileMetadataDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  documentCodeOptionId!: string;
+  documentCodeId!: string;
 }
 
 export class ReclassifyBidDocumentDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  documentCodeOptionId!: string;
+  documentCodeId!: string;
 }
 
 export class ReclassifiedBidDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() originalFileName!: string;
   @ApiProperty() generatedFileName!: string;
-  @ApiProperty({ format: 'uuid' }) documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
 }
 
 export class BidResponseDto {
@@ -205,7 +205,7 @@ export class BidResponseDto {
 }
 export class BidDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ format: 'uuid' }) documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
   @ApiProperty() originalFileName!: string;
   @ApiProperty() generatedFileName!: string;
   @ApiProperty() storageKey!: string;

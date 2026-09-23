@@ -20,7 +20,7 @@ const select = {
     orderBy: { createdAt: 'asc' },
     select: {
       id: true,
-      documentCodeOptionId: true,
+      documentCodeId: true,
       originalFileName: true,
       generatedFileName: true,
       storageKey: true,
@@ -35,7 +35,7 @@ export type ProjectRecord = Prisma.DirectProjectGetPayload<{
 }>;
 export interface ProjectFileInput {
   id: string;
-  documentCodeOptionId: string;
+  documentCodeId: string;
   documentCodeSnapshot: string;
   originalFileName: string;
   generatedFileName: string | null;
@@ -173,14 +173,14 @@ export class ProjectRepository extends BaseRepository {
   async reclassifyDocument(input: {
     projectId: string;
     documentId: string;
-    documentCodeOptionId: string;
+    documentCodeId: string;
     actorId: string;
   }): Promise<{
     id: string;
     originalFileName: string;
     storageKey: string;
     generatedFileName: string | null;
-    documentCodeOptionId: string;
+    documentCodeId: string;
   } | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -192,7 +192,7 @@ export class ProjectRepository extends BaseRepository {
         },
         select: {
           id: true,
-          documentCodeOptionId: true,
+          documentCodeId: true,
           documentCodeSnapshot: true,
           originalFileName: true,
           generatedFileName: true,
@@ -202,7 +202,7 @@ export class ProjectRepository extends BaseRepository {
       if (!document) return null;
       const target = await db.documentCodeOption.findFirst({
         where: {
-          id: input.documentCodeOptionId,
+          id: input.documentCodeId,
           tenantId,
           isActive: true,
           documentGroup: DocumentGroupCode.MARKETING,
@@ -216,7 +216,7 @@ export class ProjectRepository extends BaseRepository {
       await db.directProjectDocument.update({
         where: { id: document.id },
         data: {
-          documentCodeOptionId: target.id,
+          documentCodeId: target.id,
           documentCodeSnapshot: target.code,
           generatedFileName,
           updatedAt: new Date(),
@@ -227,8 +227,8 @@ export class ProjectRepository extends BaseRepository {
           id: randomUUID(),
           tenantId,
           directProjectDocumentId: document.id,
-          fromDocumentCodeOptionId: document.documentCodeOptionId,
-          toDocumentCodeOptionId: target.id,
+          fromDocumentCodeId: document.documentCodeId,
+          toDocumentCodeId: target.id,
           fromDocumentCodeSnapshot: document.documentCodeSnapshot,
           toDocumentCodeSnapshot: target.code,
           fromGeneratedFileName: document.generatedFileName,
@@ -241,7 +241,7 @@ export class ProjectRepository extends BaseRepository {
         originalFileName: document.originalFileName,
         storageKey: document.storageKey,
         generatedFileName,
-        documentCodeOptionId: target.id,
+        documentCodeId: target.id,
       };
     });
   }

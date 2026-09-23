@@ -14,13 +14,13 @@ The role labels are grant policy, not direct checks: current system-admin/`ccr_c
 
 ## POST `/api/v1/projects`
 
-`multipart/form-data` requires JSON `payload`:
+`multipart/form-data` uses flat fields:
 
 ```json
-{"name":"North Sea Project","clientId":"uuid"}
+{"name":"North Sea Project","clientId":"uuid","documentCodeIds":["uuid"]}
 ```
 
-Name is trimmed/nonblank; clientId is UUID. Optional actual binary parts use `file.<uploadToken>` and are subject to platform count/size/MIME-extension validation. When files are supplied, `fileMetadata` is a JSON object keyed by unique client upload tokens and each value provides stable `documentCodeOptionId`. Files, tokens, and metadata must match one-for-one; repeated Document Code IDs are valid.
+Name is trimmed/nonblank; clientId is UUID. Optional binary parts use `files[]`; `files[i]` maps to `documentCodeIds[i]`. Both are optional when no files are sent; supplied files and IDs must have matching counts, and repeated Document Code IDs are valid.
 
 Reject tenant/company/actor/id/timestamps, type/workspace, bidInfo/bidding/master-data/shipment/projectCode/sourceChannel/clientEmail/status/Work Request/URL/storage/generated-name/revision fields and every undeclared input. Document Code is per-file classification, not a Project create field.
 
@@ -30,4 +30,4 @@ Create trims/case-folds the name, validates the scoped active Client, creates Pr
 
 ## PATCH `/api/v1/projects/:id/documents/:documentId/document-code`
 
-Accepts `{ "documentCodeOptionId": "uuid" }`. The target must be an active tenant Marketing Document Code. It changes only the per-file classification, records a classification audit event and transactional Project update outbox event, and never re-uploads or changes `originalFileName`, `storageKey`, bytes, or revision. The Project has no owner-defined naming code, so its generated filename remains absent until a later approved Project document workflow has sufficient naming inputs. Multiple files may use the same Document Code.
+Accepts `{ "documentCodeId": "uuid" }`. The target must be an active tenant Marketing Document Code. It changes only the per-file classification, records a classification audit event and transactional Project update outbox event, and never re-uploads or changes `originalFileName`, `storageKey`, bytes, or revision. The Project has no owner-defined naming code, so its generated filename remains absent until a later approved Project document workflow has sufficient naming inputs. Multiple files may use the same Document Code.

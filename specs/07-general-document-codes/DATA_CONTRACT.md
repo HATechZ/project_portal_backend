@@ -2,7 +2,7 @@
 
 ## Current `DocumentCodeOption`
 
-Prisma model `DocumentCodeOption` maps to `document_code_options`: required UUID `tenantId`; UUID primary-key `id`; required `documentGroup DocumentGroupCode`; `code varchar(20)`; `name varchar(180)`; nullable text `description`; `sortOrder Int` defaulting to 0; `isActive Boolean` defaulting to true; and timestamps. It relates to `Tenant` with `onDelete: Restrict` and to `Document[]` through `Document.documentCodeOptionId`.
+Prisma model `DocumentCodeOption` maps to `document_code_options`: required UUID `tenantId`; UUID primary-key `id`; required `documentGroup DocumentGroupCode`; `code varchar(20)`; `name varchar(180)`; nullable text `description`; `sortOrder Int` defaulting to 0; `isActive Boolean` defaulting to true; and timestamps. It relates to `Tenant` with `onDelete: Restrict` and to `Document[]` through `Document.documentCodeId`.
 
 The exact unique key is `(tenantId, documentGroup, code)`; indexes include `(documentGroup, name)` and `(tenantId)`. `DocumentGroupCode` is `MARKETING`, `ENGINEERING`, or `CUSTOM`; this module fixes `MARKETING` internally and never exposes the group. There is no `isDefault`, system-default marker, or name uniqueness.
 
@@ -26,4 +26,4 @@ The current Project-only Document parent is obsolete combined-workspace persiste
 
 ## Document relation and historical behavior
 
-`Document.documentCodeOptionId` is nullable with a raw FK to `DocumentCodeOption.id`; future Document writes must validate the selected option's tenant and fixed General group. Referenced options remain editable and updates apply through that relation. Existing `Document` has no code/name snapshot, while `DocumentVersion` has persisted original/generated filename fields; editing an option must not retroactively rename persisted filenames. No Document or schema redesign is part of Module 07.
+`Document.documentCodeId` is nullable with a raw FK to `DocumentCodeOption.id`; future Document writes must validate the selected option's tenant and fixed General group. Referenced options remain editable and updates apply through that relation. Existing `Document` has no code/name snapshot, while `DocumentVersion` has persisted original/generated filename fields; editing an option must not retroactively rename persisted filenames. No Document or schema redesign is part of Module 07.

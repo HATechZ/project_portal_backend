@@ -13,15 +13,15 @@ The role labels above are grant policy, not hard-coded checks: current system-ad
 
 ## POST `/api/v1/bids`
 
-`multipart/form-data` requires JSON `payload`:
+`multipart/form-data` uses flat fields:
 
 ```json
-{"name":"Salina","clientId":"uuid","bidInfo":{"biddingNumber":"21128","polOptionId":"uuid","podOptionId":"uuid","cargoCodeOptionId":"uuid","vesselCodeOptionId":"uuid","shipmentNumber":"01"}}
+{"name":"Salina","clientId":"uuid","biddingNumber":"21128","polId":"uuid","podId":"uuid","cargoId":"uuid","vesselId":"uuid","shipmentNumber":"01","documentCodeIds":["uuid"]}
 ```
 
-All named fields are required; IDs are UUID; text trims and is nonblank. `shipmentNumber` uses the approved normalization. `documentCodeOptionId` is not a Bid-level input.
+All named business fields are required; IDs are UUID; text trims and is nonblank. `shipmentNumber` uses the approved normalization. `files[]` and `documentCodeIds[]` are optional together; when files are supplied their indexes map one-to-one, and repeated Document Code IDs are valid.
 
-Optional actual binary parts use `file.<uploadToken>` and are subject to platform count/size/MIME-extension policy. When files are present, `fileMetadata` is a JSON object keyed by each unique client upload token; each value supplies its stable `documentCodeOptionId`. Tokens, files, and metadata must match one-for-one. Repeated `documentCodeOptionId` values are valid. This maps every binary to its Document Code without trusting display strings or filename text.
+Optional binary parts use `files[]` and are subject to platform count/size/MIME-extension policy. `files[i]` maps to `documentCodeIds[i]`; counts must match whenever files are present.
 
 Reject `type`, workspace, `sourceChannelId`, `clientEmail`, `projectCode`, status, actor/tenant/company/timestamps, URLs, storage keys, generated filenames, revisions, labels, Work Request fields, a Bid-level document code, and every undeclared input.
 

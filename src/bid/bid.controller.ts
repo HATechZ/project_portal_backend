@@ -77,29 +77,29 @@ export class BidController {
   )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeOptionIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "Salina",\n  "clientId": "<uuid>",\n  "biddingNumber": "21128",\n  "polOptionId": "<uuid>",\n  "podOptionId": "<uuid>",\n  "cargoCodeOptionId": "<uuid>",\n  "vesselCodeOptionId": "<uuid>",\n  "shipmentNumber": "01",\n  "documentCodeOptionIds": [\n    "<code-100-uuid>",\n    "<code-100-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = stowage-plan-main.pdf and files[1] = stowage-plan-detail-1.pdf; documentCodeOptionIds[0] maps to files[0], and documentCodeOptionIds[1] maps to files[1].`,
+    description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "Salina",\n  "clientId": "<uuid>",\n  "biddingNumber": "21128",\n  "polId": "<uuid>",\n  "podId": "<uuid>",\n  "cargoId": "<uuid>",\n  "vesselId": "<uuid>",\n  "shipmentNumber": "01",\n  "documentCodeIds": [\n    "<code-100-uuid>",\n    "<code-100-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = stowage-plan-main.pdf and files[1] = stowage-plan-detail-1.pdf; documentCodeIds[0] maps to files[0], and documentCodeIds[1] maps to files[1].`,
     schema: {
       type: 'object',
       required: [
         'name',
         'clientId',
         'biddingNumber',
-        'polOptionId',
-        'podOptionId',
-        'cargoCodeOptionId',
-        'vesselCodeOptionId',
+        'polId',
+        'podId',
+        'cargoId',
+        'vesselId',
         'shipmentNumber',
       ],
       properties: {
         name: { type: 'string' },
         clientId: { type: 'string', format: 'uuid' },
         biddingNumber: { type: 'string' },
-        polOptionId: { type: 'string', format: 'uuid' },
-        podOptionId: { type: 'string', format: 'uuid' },
-        cargoCodeOptionId: { type: 'string', format: 'uuid' },
-        vesselCodeOptionId: { type: 'string', format: 'uuid' },
+        polId: { type: 'string', format: 'uuid' },
+        podId: { type: 'string', format: 'uuid' },
+        cargoId: { type: 'string', format: 'uuid' },
+        vesselId: { type: 'string', format: 'uuid' },
         shipmentNumber: { type: 'string' },
-        documentCodeOptionIds: {
+        documentCodeIds: {
           type: 'array',
           items: { type: 'string', format: 'uuid' },
         },
@@ -110,7 +110,7 @@ export class BidController {
   @ApiOperation({
     summary: 'Create Bid',
     description:
-      'Submit flat business fields as multipart/form-data. Files are optional; upload multiple files with the files picker and provide one documentCodeOptionIds value per file in the same order. Repeated Document Code IDs are valid.',
+      'Submit flat business fields as multipart/form-data. Files are optional; upload multiple files with the files picker and provide one documentCodeIds value per file in the same order. Repeated Document Code IDs are valid.',
   })
   @ApiExtension('x-codeSamples', [
     {
@@ -120,31 +120,31 @@ export class BidController {
   name: 'Salina',
   clientId: '<uuid>',
   biddingNumber: '21128',
-  polOptionId: '<uuid>',
-  podOptionId: '<uuid>',
-  cargoCodeOptionId: '<uuid>',
-  vesselCodeOptionId: '<uuid>',
+  polId: '<uuid>',
+  podId: '<uuid>',
+  cargoId: '<uuid>',
+  vesselId: '<uuid>',
   shipmentNumber: '01',
   // Same Document Code ID is valid for more than one file.
-  documentCodeOptionIds: ['<code-100-uuid>', '<code-100-uuid>'],
+  documentCodeIds: ['<code-100-uuid>', '<code-100-uuid>'],
 };
 
-// Files are optional. Their indexes must match documentCodeOptionIds.
+// Files are optional. Their indexes must match documentCodeIds.
 const files = [stowagePlanMainFile, stowagePlanDetailFile];
-// files[0] <-> documentCodeOptionIds[0]
-// files[1] <-> documentCodeOptionIds[1]
+// files[0] <-> documentCodeIds[0]
+// files[1] <-> documentCodeIds[1]
 
 const formData = new FormData();
 formData.append('name', bid.name);
 formData.append('clientId', bid.clientId);
 formData.append('biddingNumber', bid.biddingNumber);
-formData.append('polOptionId', bid.polOptionId);
-formData.append('podOptionId', bid.podOptionId);
-formData.append('cargoCodeOptionId', bid.cargoCodeOptionId);
-formData.append('vesselCodeOptionId', bid.vesselCodeOptionId);
+formData.append('polId', bid.polId);
+formData.append('podId', bid.podId);
+formData.append('cargoId', bid.cargoId);
+formData.append('vesselId', bid.vesselId);
 formData.append('shipmentNumber', bid.shipmentNumber);
-bid.documentCodeOptionIds.forEach((id) =>
-  formData.append('documentCodeOptionIds', id),
+bid.documentCodeIds.forEach((id) =>
+  formData.append('documentCodeIds', id),
 );
 files.forEach((file) => formData.append('files', file));
 
@@ -155,7 +155,7 @@ const response = await fetch('/api/v1/bids', {
 });
 
 // Do not set Content-Type manually: the browser supplies the multipart boundary.
-// For a Bid without files, omit both documentCodeOptionIds and files.`,
+// For a Bid without files, omit both documentCodeIds and files.`,
     },
   ])
   @ResponseMessage('Bid created successfully')
@@ -170,9 +170,9 @@ const response = await fetch('/api/v1/bids', {
         name: payload.name,
         clientId: payload.clientId,
         bidInfo: payload,
-        documents: (payload.documentCodeOptionIds ?? []).map(
-          (documentCodeOptionId, fileIndex) => ({
-            documentCodeOptionId,
+        documents: (payload.documentCodeIds ?? []).map(
+          (documentCodeId, fileIndex) => ({
+            documentCodeId,
             fileIndex,
           }),
         ),

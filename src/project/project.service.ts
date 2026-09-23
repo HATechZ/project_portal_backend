@@ -56,30 +56,27 @@ export class ProjectService {
     input: CreateProjectDto,
     uploads: ProjectUploadedFile[],
     actorId: string,
-    documentCodeOptionIds: string[] = [],
+    documentCodeIds: string[] = [],
   ): Promise<ProjectResponseDto> {
-    const documents = documentCodeOptionIds.map(
-      (documentCodeOptionId, fileIndex) => ({
-        fileIndex,
-        documentCodeOptionId,
-      }),
-    );
+    const documents = documentCodeIds.map((documentCodeId, fileIndex) => ({
+      fileIndex,
+      documentCodeId,
+    }));
     this.assertUploadDocuments(uploads, documents);
     uploads.forEach(assertProjectUploadAllowed);
     const codes = await this.projects.documentCodes(
-      documents.map(({ documentCodeOptionId }) => documentCodeOptionId),
+      documents.map(({ documentCodeId }) => documentCodeId),
     );
     const projectId = randomUUID();
     const files = uploads.map((file) => {
-      const documentCodeOptionId =
-        documents[indexOf(uploads, file)].documentCodeOptionId;
-      const documentCodeSnapshot = codes.get(documentCodeOptionId);
+      const documentCodeId = documents[indexOf(uploads, file)].documentCodeId;
+      const documentCodeSnapshot = codes.get(documentCodeId);
       if (!documentCodeSnapshot)
         throw bad('Uploaded file has an invalid Document Code.');
       const originalFileName = safeProjectOriginalName(file.originalname);
       return {
         id: randomUUID(),
-        documentCodeOptionId,
+        documentCodeId,
         documentCodeSnapshot,
         originalFileName,
         generatedFileName: null,
@@ -176,7 +173,7 @@ export class ProjectService {
         const changed = await this.projects.reclassifyDocument({
           projectId,
           documentId,
-          documentCodeOptionId: input.documentCodeOptionId,
+          documentCodeId: input.documentCodeId,
           actorId,
         });
         if (changed)
@@ -196,7 +193,7 @@ export class ProjectService {
   }
   private assertUploadDocuments(
     uploads: ProjectUploadedFile[],
-    documents: { fileIndex: number; documentCodeOptionId: string }[],
+    documents: { fileIndex: number; documentCodeId: string }[],
   ): void {
     if (
       uploads.length !== documents.length ||
@@ -229,7 +226,7 @@ function response(value: ProjectRecord): ProjectResponseDto {
     fileCount: value._count.documents,
     documents: value.documents.map((document) => ({
       id: document.id,
-      documentCodeOptionId: document.documentCodeOptionId!,
+      documentCodeId: document.documentCodeId!,
       originalFileName: document.originalFileName,
       generatedFileName: document.generatedFileName,
       storageKey: document.storageKey,

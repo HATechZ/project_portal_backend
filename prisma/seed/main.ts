@@ -11,6 +11,7 @@ import { tenantSeeder } from './seeders/tenant.seeder';
 import { DEFAULT_TENANT_ID } from './data/tenants.data';
 import { permissionsSeeder } from './seeders/permissions.seeder';
 import { companyTypesSeeder } from './seeders/company-types.seeder';
+import { demoFixtureSeeder } from './seeders/demo-fixture.seeder';
 
 const seeders: Seeder[] = [
   tenantSeeder,
@@ -21,6 +22,7 @@ const seeders: Seeder[] = [
   workflowStatusesSeeder,
   permissionsSeeder,
   adminSeeder,
+  demoFixtureSeeder,
 ];
 
 function adminConfig() {

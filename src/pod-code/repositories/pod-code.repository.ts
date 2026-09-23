@@ -165,10 +165,10 @@ export class PodCodeRepository extends BaseRepository {
           where: {
             tenantId,
             OR: [
-              { polOptionId: id },
-              { podOptionId: id },
-              { cargoCodeOptionId: id },
-              { vesselCodeOptionId: id },
+              { polId: id },
+              { podId: id },
+              { cargoId: id },
+              { vesselId: id },
             ],
           },
         })) > 0,

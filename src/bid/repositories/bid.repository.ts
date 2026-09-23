@@ -31,7 +31,7 @@ const bidSelect = {
     orderBy: { createdAt: 'asc' },
     select: {
       id: true,
-      documentCodeOptionId: true,
+      documentCodeId: true,
       originalFileName: true,
       generatedFileName: true,
       storageKey: true,
@@ -46,7 +46,7 @@ export type BidRecord = Prisma.BidGetPayload<{ select: typeof bidSelect }>;
 
 export interface BidFileInput {
   id: string;
-  documentCodeOptionId: string;
+  documentCodeId: string;
   documentCodeSnapshot: string;
   originalFileName: string;
   generatedFileName: string;
@@ -72,11 +72,11 @@ export class BidRepository extends BaseRepository {
 
   prepareCreate(input: {
     clientId: string;
-    polOptionId: string;
-    podOptionId: string;
-    cargoCodeOptionId: string;
-    vesselCodeOptionId: string;
-    documentCodeOptionIds: string[];
+    polId: string;
+    podId: string;
+    cargoId: string;
+    vesselId: string;
+    documentCodeIds: string[];
   }): Promise<ReferenceSnapshot> {
     return this.transaction((db) => this.references(db, input));
   }
@@ -89,10 +89,10 @@ export class BidRepository extends BaseRepository {
     projectCode: string;
     biddingNumber: string;
     shipmentNumber: string;
-    polOptionId: string;
-    podOptionId: string;
-    cargoCodeOptionId: string;
-    vesselCodeOptionId: string;
+    polId: string;
+    podId: string;
+    cargoId: string;
+    vesselId: string;
     actorId: string;
     files: BidFileInput[];
     snapshots: Omit<ReferenceSnapshot, 'clientId' | 'documentCodes'>;
@@ -102,12 +102,12 @@ export class BidRepository extends BaseRepository {
       async (db) => {
         await this.references(db, {
           clientId: input.clientId,
-          polOptionId: input.polOptionId,
-          podOptionId: input.podOptionId,
-          cargoCodeOptionId: input.cargoCodeOptionId,
-          vesselCodeOptionId: input.vesselCodeOptionId,
-          documentCodeOptionIds: input.files.map(
-            ({ documentCodeOptionId }) => documentCodeOptionId,
+          polId: input.polId,
+          podId: input.podId,
+          cargoId: input.cargoId,
+          vesselId: input.vesselId,
+          documentCodeIds: input.files.map(
+            ({ documentCodeId }) => documentCodeId,
           ),
         });
         const status = await db.bidStatus.findUniqueOrThrow({
@@ -123,10 +123,10 @@ export class BidRepository extends BaseRepository {
             projectCode: input.projectCode,
             biddingNumber: input.biddingNumber,
             shipmentNumber: input.shipmentNumber,
-            polOptionId: input.polOptionId,
-            podOptionId: input.podOptionId,
-            cargoCodeOptionId: input.cargoCodeOptionId,
-            vesselCodeOptionId: input.vesselCodeOptionId,
+            polId: input.polId,
+            podId: input.podId,
+            cargoId: input.cargoId,
+            vesselId: input.vesselId,
             polNameSnapshot: input.snapshots.polName,
             podNameSnapshot: input.snapshots.podName,
             cargoCodeSnapshot: input.snapshots.cargoCode,
@@ -267,7 +267,7 @@ export class BidRepository extends BaseRepository {
   reclassifyDocument(input: {
     bidId: string;
     documentId: string;
-    documentCodeOptionId: string;
+    documentCodeId: string;
     actorId: string;
   }): Promise<{
     biddingNumber: string;
@@ -279,7 +279,7 @@ export class BidRepository extends BaseRepository {
     storageKey: string;
     revisionCode: string;
     documentCode: string;
-    previousDocumentCodeOptionId: string;
+    previousDocumentCodeId: string;
     previousDocumentCode: string;
     previousGeneratedFileName: string;
   } | null> {
@@ -288,7 +288,7 @@ export class BidRepository extends BaseRepository {
       const document = await db.bidDocument.findFirst({
         where: { id: input.documentId, bidId: input.bidId, tenantId },
         select: {
-          documentCodeOptionId: true,
+          documentCodeId: true,
           documentCodeSnapshot: true,
           generatedFileName: true,
           originalFileName: true,
@@ -308,7 +308,7 @@ export class BidRepository extends BaseRepository {
       if (!document) return null;
       const target = await db.documentCodeOption.findFirst({
         where: {
-          id: input.documentCodeOptionId,
+          id: input.documentCodeId,
           tenantId,
           isActive: true,
           documentGroup: DocumentGroupCode.MARKETING,
@@ -326,7 +326,7 @@ export class BidRepository extends BaseRepository {
         storageKey: document.storageKey,
         revisionCode: document.revisionCode,
         documentCode: target.code,
-        previousDocumentCodeOptionId: document.documentCodeOptionId,
+        previousDocumentCodeId: document.documentCodeId,
         previousDocumentCode: document.documentCodeSnapshot,
         previousGeneratedFileName: document.generatedFileName,
       };
@@ -336,11 +336,11 @@ export class BidRepository extends BaseRepository {
   applyReclassification(input: {
     bidId: string;
     documentId: string;
-    documentCodeOptionId: string;
+    documentCodeId: string;
     documentCode: string;
     generatedFileName: string;
     actorId: string;
-    previousDocumentCodeOptionId: string;
+    previousDocumentCodeId: string;
     previousDocumentCode: string;
     previousGeneratedFileName: string;
   }): Promise<void> {
@@ -349,7 +349,7 @@ export class BidRepository extends BaseRepository {
       await db.bidDocument.update({
         where: { id: input.documentId },
         data: {
-          documentCodeOptionId: input.documentCodeOptionId,
+          documentCodeId: input.documentCodeId,
           documentCodeSnapshot: input.documentCode,
           generatedFileName: input.generatedFileName,
           updatedAt: new Date(),
@@ -360,8 +360,8 @@ export class BidRepository extends BaseRepository {
           id: randomUUID(),
           tenantId,
           bidDocumentId: input.documentId,
-          fromDocumentCodeOptionId: input.previousDocumentCodeOptionId,
-          toDocumentCodeOptionId: input.documentCodeOptionId,
+          fromDocumentCodeId: input.previousDocumentCodeId,
+          toDocumentCodeId: input.documentCodeId,
           fromDocumentCodeSnapshot: input.previousDocumentCode,
           toDocumentCodeSnapshot: input.documentCode,
           fromGeneratedFileName: input.previousGeneratedFileName,
@@ -376,11 +376,11 @@ export class BidRepository extends BaseRepository {
     db: PrismaExecutor,
     input: {
       clientId: string;
-      polOptionId: string;
-      podOptionId: string;
-      cargoCodeOptionId: string;
-      vesselCodeOptionId: string;
-      documentCodeOptionIds: string[];
+      polId: string;
+      podId: string;
+      cargoId: string;
+      vesselId: string;
+      documentCodeIds: string[];
     },
   ): Promise<ReferenceSnapshot> {
     const tenantId = RequestContext.requireTenantId();
@@ -390,10 +390,10 @@ export class BidRepository extends BaseRepository {
     });
     if (!client) throw new Error('BID_REFERENCE_CLIENT');
     const requested = new Map<OptionTypeCode, string>([
-      [OptionTypeCode.POL, input.polOptionId],
-      [OptionTypeCode.POD, input.podOptionId],
-      [OptionTypeCode.CARGO_CODE, input.cargoCodeOptionId],
-      [OptionTypeCode.VESSEL_CODE, input.vesselCodeOptionId],
+      [OptionTypeCode.POL, input.polId],
+      [OptionTypeCode.POD, input.podId],
+      [OptionTypeCode.CARGO_CODE, input.cargoId],
+      [OptionTypeCode.VESSEL_CODE, input.vesselId],
     ]);
     const options = await db.optionValue.findMany({
       where: {
@@ -420,11 +420,11 @@ export class BidRepository extends BaseRepository {
         tenantId,
         isActive: true,
         documentGroup: DocumentGroupCode.MARKETING,
-        id: { in: input.documentCodeOptionIds },
+        id: { in: input.documentCodeIds },
       },
       select: { id: true, code: true },
     });
-    if (documentCodes.length !== new Set(input.documentCodeOptionIds).size)
+    if (documentCodes.length !== new Set(input.documentCodeIds).size)
       throw new Error('BID_REFERENCE_DOCUMENT_CODE');
     const cargo = byType.get(OptionTypeCode.CARGO_CODE);
     const vessel = byType.get(OptionTypeCode.VESSEL_CODE);

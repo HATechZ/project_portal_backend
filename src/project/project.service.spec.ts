@@ -100,7 +100,7 @@ describe('ProjectService', () => {
       originalFileName: 'plan.pdf',
       storageKey: 'tenants/t/projects/p/documents/f.pdf',
       generatedFileName: null,
-      documentCodeOptionId: '55555555-5555-4555-8555-555555555555',
+      documentCodeId: '55555555-5555-4555-8555-555555555555',
     };
     const { target, repository, outbox } = service({
       repository: { reclassifyDocument: jest.fn().mockResolvedValue(changed) },
@@ -109,7 +109,7 @@ describe('ProjectService', () => {
       target.reclassifyDocument(
         record.id,
         '66666666-6666-4666-8666-666666666666',
-        { documentCodeOptionId: changed.documentCodeOptionId },
+        { documentCodeId: changed.documentCodeId },
         actorId,
       ),
     );

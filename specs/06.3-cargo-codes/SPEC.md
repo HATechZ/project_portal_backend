@@ -16,7 +16,7 @@ Business identity is required `name` plus required `code`; response also contain
 - Create starts active; normal selection is active-only, management may view inactive; order is `sortOrder,name,id`. Lifecycle preserves historical references; no normal delete.
 - Target uniqueness is normalized name and normalized code within tenant/CARGO_CODE. Same code under a different OptionType does not conflict merely due to this module's rule.
 - Management requires `UPDATE_SETTINGS` plus tenant-wide settings scope. `tenant_super_admin` is not a wildcard.
-- `BidDetail.cargoCodeOptionId` has no Cargo-code snapshot. Referenced identity edits, sortOrder mutation, custom Bid Cargo behavior and population method are **OWNER DECISION REQUIRED**. `isDefault` management is deferred.
+- `BidDetail.cargoId` has no Cargo-code snapshot. Referenced identity edits, sortOrder mutation, custom Bid Cargo behavior and population method are **OWNER DECISION REQUIRED**. `isDefault` management is deferred.
 
 ## Bid/Project separation override
 

@@ -45,11 +45,11 @@ export class CreateProjectMultipartDto {
   @IsOptional()
   @Transform(multipartArray)
   @IsUUID(undefined, { each: true })
-  documentCodeOptionIds?: string[];
+  documentCodeIds?: string[];
 }
 export class ProjectDocumentInputDto {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) fileIndex!: number;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeId!: string;
 }
 export class UpdateProjectDto {
   @ApiPropertyOptional()
@@ -61,16 +61,16 @@ export class UpdateProjectDto {
   name?: string;
 }
 export class ReclassifyProjectDocumentDto {
-  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeId!: string;
 }
 export class ReclassifiedProjectDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() originalFileName!: string;
   @ApiPropertyOptional({ nullable: true }) generatedFileName!: string | null;
-  @ApiProperty({ format: 'uuid' }) documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
 }
 export class ProjectFileMetadataDto {
-  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() documentCodeId!: string;
 }
 export class ProjectResponseDto {
   @ApiProperty() id!: string;
@@ -85,7 +85,7 @@ export class ProjectResponseDto {
 }
 export class ProjectDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ format: 'uuid' }) documentCodeOptionId!: string;
+  @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
   @ApiProperty() originalFileName!: string;
   @ApiPropertyOptional({ nullable: true }) generatedFileName!: string | null;
   @ApiProperty() storageKey!: string;

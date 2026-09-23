@@ -15,7 +15,7 @@ POD exposes `id`, `name`, `sortOrder`, `isActive`, timestamps, and no public cod
 - Create is active; selector lists are active-only; management may include inactive; deterministic order is `sortOrder,name,id`. Deactivate/reactivate preserves rows and references. No normal delete.
 - Name is required, trimmed/nonblank and target-normalized unique within tenant/POD. `OptionValue.code` remains null/not used publicly.
 - Management requires `UPDATE_SETTINGS` and tenant-wide settings scope. `tenant_super_admin` has no permission/scope wildcard.
-- `BidDetail.podOptionId` has no POD-name snapshot. Referenced identity editing, sortOrder mutation, canonicalization beyond current conventions, and catalogue population are **OWNER DECISION REQUIRED**; `isDefault` management is deferred.
+- `BidDetail.podId` has no POD-name snapshot. Referenced identity editing, sortOrder mutation, canonicalization beyond current conventions, and catalogue population are **OWNER DECISION REQUIRED**; `isDefault` management is deferred.
 
 ## Bid/Project separation override
 

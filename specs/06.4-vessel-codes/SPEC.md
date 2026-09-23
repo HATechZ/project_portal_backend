@@ -16,7 +16,7 @@ Business identity is required `name` plus required `code`, with ID, sort order, 
 - Create is active; normal selection excludes inactive, management may include it; stable list order is `sortOrder,name,id`. Lifecycle is deactivate/reactivate only; no hard delete.
 - Target uniqueness is normalized name and normalized code within tenant/VESSEL_CODE. A value under another OptionType is outside this module's code-uniqueness boundary.
 - Management requires `UPDATE_SETTINGS` and tenant-wide settings scope. `tenant_super_admin` never bypasses either configured check.
-- `BidDetail.vesselCodeOptionId` has no Vessel-code snapshot. Referenced identity edits, sortOrder mutation, custom Bid Vessel flow and catalogue population are **OWNER DECISION REQUIRED**. `isDefault` is deferred.
+- `BidDetail.vesselId` has no Vessel-code snapshot. Referenced identity edits, sortOrder mutation, custom Bid Vessel flow and catalogue population are **OWNER DECISION REQUIRED**. `isDefault` is deferred.
 
 ## Bid/Project separation override
 

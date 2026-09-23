@@ -79,7 +79,7 @@ export class GeneralDocumentCodeController {
   @ApiOperation({ summary: 'Get General Document Code by ID' })
   @ApiParam({
     name: 'id',
-    description: 'General Document Code DocumentCodeOption ID',
+    description: 'General Document Code ID',
   })
   @ResponseMessage('General Document Code returned successfully')
   @ApiStandardOkResponse(
@@ -109,7 +109,7 @@ export class GeneralDocumentCodeController {
   @ApiOperation({ summary: 'Update General Document Code by ID' })
   @ApiParam({
     name: 'id',
-    description: 'General Document Code DocumentCodeOption ID',
+    description: 'General Document Code ID',
   })
   @ResponseMessage('General Document Code updated successfully')
   @ApiStandardOkResponse(
@@ -131,7 +131,7 @@ export class GeneralDocumentCodeController {
   @ApiOperation({ summary: 'Deactivate General Document Code by ID' })
   @ApiParam({
     name: 'id',
-    description: 'General Document Code DocumentCodeOption ID',
+    description: 'General Document Code ID',
   })
   @ResponseMessage('General Document Code deactivated successfully')
   @ApiStandardOkResponse(
@@ -148,7 +148,7 @@ export class GeneralDocumentCodeController {
   @ApiOperation({ summary: 'Reactivate General Document Code by ID' })
   @ApiParam({
     name: 'id',
-    description: 'General Document Code DocumentCodeOption ID',
+    description: 'General Document Code ID',
   })
   @ResponseMessage('General Document Code reactivated successfully')
   @ApiStandardOkResponse(

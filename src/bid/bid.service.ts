@@ -58,8 +58,8 @@ export class BidService {
       reference.podName,
     );
     const files = uploads.map((file, index) => {
-      const documentCodeOptionId = documents[index].documentCodeOptionId;
-      const documentCode = reference.documentCodes.get(documentCodeOptionId);
+      const documentCodeId = documents[index].documentCodeId;
+      const documentCode = reference.documentCodes.get(documentCodeId);
       if (!documentCode)
         throw badRequest('Uploaded file has an invalid Document Code.');
       const originalFileName = safeOriginalName(file.originalname);
@@ -74,7 +74,7 @@ export class BidService {
       });
       return {
         id: randomUUID(),
-        documentCodeOptionId,
+        documentCodeId,
         documentCodeSnapshot: documentCode,
         originalFileName,
         generatedFileName,
@@ -107,10 +107,10 @@ export class BidService {
           projectCode,
           biddingNumber: input.bidInfo.biddingNumber,
           shipmentNumber,
-          polOptionId: input.bidInfo.polOptionId,
-          podOptionId: input.bidInfo.podOptionId,
-          cargoCodeOptionId: input.bidInfo.cargoCodeOptionId,
-          vesselCodeOptionId: input.bidInfo.vesselCodeOptionId,
+          polId: input.bidInfo.polId,
+          podId: input.bidInfo.podId,
+          cargoId: input.bidInfo.cargoId,
+          vesselId: input.bidInfo.vesselId,
           actorId,
           files,
           snapshots: reference,
@@ -197,7 +197,7 @@ export class BidService {
     const context = await this.bids.reclassifyDocument({
       bidId,
       documentId,
-      documentCodeOptionId: input.documentCodeOptionId,
+      documentCodeId: input.documentCodeId,
       actorId,
     });
     if (!context) throw notFound('Bid document was not found.');
@@ -214,11 +214,11 @@ export class BidService {
       await this.bids.applyReclassification({
         bidId,
         documentId,
-        documentCodeOptionId: input.documentCodeOptionId,
+        documentCodeId: input.documentCodeId,
         documentCode: context.documentCode,
         generatedFileName,
         actorId,
-        previousDocumentCodeOptionId: context.previousDocumentCodeOptionId,
+        previousDocumentCodeId: context.previousDocumentCodeId,
         previousDocumentCode: context.previousDocumentCode,
         previousGeneratedFileName: context.previousGeneratedFileName,
       });
@@ -234,24 +234,22 @@ export class BidService {
       originalFileName: context.originalFileName,
       storageKey: context.storageKey,
       generatedFileName,
-      documentCodeOptionId: input.documentCodeOptionId,
+      documentCodeId: input.documentCodeId,
     };
   }
 
   private async resolveReferences(
     input: CreateBidDto,
-    documents: { documentCodeOptionId: string }[],
+    documents: { documentCodeId: string }[],
   ) {
     try {
       return await this.bids.prepareCreate({
         clientId: input.clientId,
-        polOptionId: input.bidInfo.polOptionId,
-        podOptionId: input.bidInfo.podOptionId,
-        cargoCodeOptionId: input.bidInfo.cargoCodeOptionId,
-        vesselCodeOptionId: input.bidInfo.vesselCodeOptionId,
-        documentCodeOptionIds: documents.map(
-          ({ documentCodeOptionId }) => documentCodeOptionId,
-        ),
+        polId: input.bidInfo.polId,
+        podId: input.bidInfo.podId,
+        cargoId: input.bidInfo.cargoId,
+        vesselId: input.bidInfo.vesselId,
+        documentCodeIds: documents.map(({ documentCodeId }) => documentCodeId),
       });
     } catch (error) {
       throw mapReferenceError(error);
@@ -260,7 +258,7 @@ export class BidService {
 
   private assertUploadDocuments(
     uploads: BidUploadedFile[],
-    documents: { fileIndex: number; documentCodeOptionId: string }[],
+    documents: { fileIndex: number; documentCodeId: string }[],
   ): void {
     if (
       uploads.length !== documents.length ||
@@ -319,7 +317,7 @@ function response(bid: BidRecord): BidResponseDto {
     fileCount: bid._count.documents,
     documents: bid.documents.map((document) => ({
       id: document.id,
-      documentCodeOptionId: document.documentCodeOptionId,
+      documentCodeId: document.documentCodeId,
       originalFileName: document.originalFileName,
       generatedFileName: document.generatedFileName,
       storageKey: document.storageKey,
