@@ -16,7 +16,7 @@ export class CustomRoleRepository extends BaseRepository {
 
   create(input: {
     name: string;
-    description?: string;
+    description?: string | null;
     scope: CustomRoleScope;
     permissionCodes: WorkflowActionCode[];
   }): Promise<RoleRecord> {
@@ -33,7 +33,7 @@ export class CustomRoleRepository extends BaseRepository {
             id: randomUUID(),
             tenantId,
             name: input.name.trim(),
-            ...(input.description === undefined
+            ...(input.description == null
               ? {}
               : { description: input.description.trim() || null }),
             isSystemRole: false,
