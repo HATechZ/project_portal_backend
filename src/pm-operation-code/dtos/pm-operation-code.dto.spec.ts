@@ -22,7 +22,9 @@ describe('PM & Operation Document Code DTOs', () => {
     const query = plainToInstance(PmOperationDocumentCodeQueryDto, {});
     expect(query.status).toBe('active');
     await expect(
-      validate(plainToInstance(PmOperationDocumentCodeQueryDto, { status: 'unknown' })),
+      validate(
+        plainToInstance(PmOperationDocumentCodeQueryDto, { status: 'unknown' }),
+      ),
     ).resolves.not.toEqual([]);
   });
 
@@ -37,5 +39,3 @@ describe('PM & Operation Document Code DTOs', () => {
     ).resolves.not.toEqual([]);
   });
 });
-
-

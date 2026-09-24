@@ -36,6 +36,7 @@ import { DesignationModule } from './designation/designation.module';
 import { StorageModule } from './infra/storage/storage.module';
 import { BidModule } from './bid/bid.module';
 import { ProjectModule } from './project/project.module';
+import { WorkRequestModule } from './work-request/work-request.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { ProjectModule } from './project/project.module';
     DesignationModule,
     BidModule,
     ProjectModule,
+    WorkRequestModule,
   ],
   controllers: [AppController],
   providers: [AppService],

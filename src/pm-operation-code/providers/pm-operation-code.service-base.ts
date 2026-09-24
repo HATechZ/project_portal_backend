@@ -7,7 +7,9 @@ import {
 } from '../repositories/pm-operation-code.repository';
 
 export abstract class PmOperationDocumentCodeServiceBase {
-  protected constructor(private readonly codes: PmOperationDocumentCodeRepository) {}
+  protected constructor(
+    private readonly codes: PmOperationDocumentCodeRepository,
+  ) {}
 
   findAll(status: PmOperationDocumentCodeStatus = 'active') {
     return this.codes.list(status);
@@ -78,11 +80,8 @@ export abstract class PmOperationDocumentCodeServiceBase {
     throw new AppException({
       code: AppErrorCode.Conflict,
       status: HttpStatus.CONFLICT,
-      message: 'An PM & Operation Document Code with the same code already exists.',
+      message:
+        'An PM & Operation Document Code with the same code already exists.',
     });
   }
 }
-
-
-
-

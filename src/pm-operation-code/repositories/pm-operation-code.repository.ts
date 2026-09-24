@@ -16,9 +16,10 @@ export const pmOperationDocumentCodeSelect = {
   updatedAt: true,
 } satisfies Prisma.DocumentCodeOptionSelect;
 
-export type PmOperationDocumentCodeRecord = Prisma.DocumentCodeOptionGetPayload<{
-  select: typeof pmOperationDocumentCodeSelect;
-}>;
+export type PmOperationDocumentCodeRecord =
+  Prisma.DocumentCodeOptionGetPayload<{
+    select: typeof pmOperationDocumentCodeSelect;
+  }>;
 
 export type PmOperationDocumentCodeStatus = 'active' | 'inactive' | 'all';
 
@@ -30,7 +31,9 @@ export class PmOperationDocumentCodeRepository extends BaseRepository {
     super(unitOfWork);
   }
 
-  list(status: PmOperationDocumentCodeStatus): Promise<PmOperationDocumentCodeRecord[]> {
+  list(
+    status: PmOperationDocumentCodeStatus,
+  ): Promise<PmOperationDocumentCodeRecord[]> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.documentCodeOption.findMany({
@@ -118,7 +121,10 @@ export class PmOperationDocumentCodeRepository extends BaseRepository {
     });
   }
 
-  setActive(id: string, isActive: boolean): Promise<PmOperationDocumentCodeRecord> {
+  setActive(
+    id: string,
+    isActive: boolean,
+  ): Promise<PmOperationDocumentCodeRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const result = await db.documentCodeOption.updateMany({
@@ -133,7 +139,3 @@ export class PmOperationDocumentCodeRepository extends BaseRepository {
     });
   }
 }
-
-
-
-

@@ -80,7 +80,3 @@ export class PmOperationDocumentCodeResponseDto {
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
 }
-
-
-
-

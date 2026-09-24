@@ -26,7 +26,8 @@ describe('PM & Operation Document Code provisioning migration', () => {
     expect(migration).toContain(
       'ON CONFLICT (tenant_id, document_group, code) DO NOTHING',
     );
-    expect(migration).toContain("'PROJECT_MANAGEMENT_OPERATION'::public.document_group_code");
+    expect(migration).toContain(
+      "'PROJECT_MANAGEMENT_OPERATION'::public.document_group_code",
+    );
   });
 });
-

@@ -80,5 +80,3 @@ describe('PmOperationDocumentCodeService', () => {
     expect(repository.setActive).toHaveBeenLastCalledWith(row.id, true);
   });
 });
-
-

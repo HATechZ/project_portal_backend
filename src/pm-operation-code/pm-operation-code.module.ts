@@ -5,10 +5,9 @@ import { PmOperationDocumentCodeRepository } from './repositories/pm-operation-c
 
 @Module({
   controllers: [PmOperationDocumentCodeController],
-  providers: [PmOperationDocumentCodeService, PmOperationDocumentCodeRepository],
+  providers: [
+    PmOperationDocumentCodeService,
+    PmOperationDocumentCodeRepository,
+  ],
 })
 export class PmOperationDocumentCodeModule {}
-
-
-
-

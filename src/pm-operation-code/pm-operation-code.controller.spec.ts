@@ -20,9 +20,9 @@ describe('PmOperationDocumentCodeController', () => {
         Reflect.getMetadata(PATH_METADATA, prototype[name]) ?? '/',
       ]);
 
-    expect(Reflect.getMetadata(PATH_METADATA, PmOperationDocumentCodeController)).toBe(
-      'project-management-operation-document-codes',
-    );
+    expect(
+      Reflect.getMetadata(PATH_METADATA, PmOperationDocumentCodeController),
+    ).toBe('project-management-operation-document-codes');
     expect(
       Reflect.getMetadata(PERMISSIONS_KEY, PmOperationDocumentCodeController),
     ).toEqual([WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES]);
@@ -41,4 +41,3 @@ describe('PmOperationDocumentCodeController', () => {
     expect(Object.getOwnPropertyNames(prototype)).not.toContain('delete');
   });
 });
-

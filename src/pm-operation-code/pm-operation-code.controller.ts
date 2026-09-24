@@ -66,7 +66,9 @@ export class PmOperationDocumentCodeController {
 
   @Get('deactivated')
   @ApiOperation({ summary: 'List deactivated PM & Operation Document Codes' })
-  @ResponseMessage('Deactivated PM & Operation Document Codes returned successfully')
+  @ResponseMessage(
+    'Deactivated PM & Operation Document Codes returned successfully',
+  )
   @ApiStandardArrayResponse(
     PmOperationDocumentCodeResponseDto,
     'Deactivated PM & Operation Document Codes returned',
@@ -130,7 +132,9 @@ export class PmOperationDocumentCodeController {
     'PM & Operation Document Code deactivated',
   )
   @ApiStandardNotFoundResponse('PM & Operation Document Code was not found')
-  @ApiStandardConflictResponse('PM & Operation Document Code is already inactive')
+  @ApiStandardConflictResponse(
+    'PM & Operation Document Code is already inactive',
+  )
   deactivate(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.deactivate(id);
   }
@@ -149,7 +153,3 @@ export class PmOperationDocumentCodeController {
     return this.service.reactivate(id);
   }
 }
-
-
-
-

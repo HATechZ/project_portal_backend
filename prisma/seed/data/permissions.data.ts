@@ -77,19 +77,95 @@ const bidReadAction = WorkflowActionCode.VIEW_BID;
 const bidUpdateAction = WorkflowActionCode.UPDATE_BID;
 const projectReadAction = WorkflowActionCode.VIEW_PROJECT;
 const projectUpdateAction = WorkflowActionCode.UPDATE_PROJECT;
+// Exclude new workflow actions from the supervisor default so the explicit
+// Module 10 matrix below cannot become an implicit tenant-super-admin bypass.
+export const workRequestWorkflowPermissionCodes = new Set<WorkflowActionCode>([
+  WorkflowActionCode.VIEW_WORK_REQUEST,
+  WorkflowActionCode.UPDATE_WORK_REQUEST,
+  WorkflowActionCode.WR_ASSIGN_DIVISION,
+  WorkflowActionCode.WR_ASSIGN_TEAM,
+  WorkflowActionCode.WR_ASSIGN_MEMBER,
+  WorkflowActionCode.WR_SUBMIT,
+  WorkflowActionCode.WR_TEAM_LEAD_APPROVE,
+  WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION,
+  WorkflowActionCode.WR_DIVISION_LEAD_APPROVE,
+  WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION,
+  WorkflowActionCode.WR_DIVISION_HEAD_APPROVE,
+  WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION,
+]);
+
+/**
+ * Approved Module 10 baseline grants. `system_admin` is the persisted enum
+ * backing the tenant-super-admin fixed role; it is not a workflow bypass.
+ * Runtime still enforces tenant, scope, organization, assignment, and state.
+ */
+export const workRequestRolePermissionCodes: Pick<
+  Record<ActorRoleCode, WorkflowActionCode[]>,
+  | 'system_admin'
+  | 'ccr_coordinator'
+  | 'division_head'
+  | 'division_lead'
+  | 'team_lead'
+  | 'division_member'
+> = {
+  system_admin: [
+    WorkflowActionCode.VIEW_WORK_REQUEST,
+    WorkflowActionCode.UPDATE_WORK_REQUEST,
+  ],
+  ccr_coordinator: [WorkflowActionCode.VIEW_WORK_REQUEST],
+  division_head: [
+    WorkflowActionCode.VIEW_WORK_REQUEST,
+    WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+    WorkflowActionCode.RESPOND_WORKFLOW_INFO,
+    WorkflowActionCode.WR_ASSIGN_DIVISION,
+    WorkflowActionCode.WR_DIVISION_HEAD_APPROVE,
+    WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION,
+  ],
+  division_lead: [
+    WorkflowActionCode.VIEW_WORK_REQUEST,
+    WorkflowActionCode.WR_ASSIGN_TEAM,
+    WorkflowActionCode.WR_DIVISION_LEAD_APPROVE,
+    WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION,
+  ],
+  team_lead: [
+    WorkflowActionCode.VIEW_WORK_REQUEST,
+    WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+    WorkflowActionCode.RESPOND_WORKFLOW_INFO,
+    WorkflowActionCode.WR_ASSIGN_MEMBER,
+    WorkflowActionCode.WR_TEAM_LEAD_APPROVE,
+    WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION,
+  ],
+  division_member: [
+    WorkflowActionCode.VIEW_WORK_REQUEST,
+    WorkflowActionCode.WR_SUBMIT,
+  ],
+};
+
+export const workRequestPermissionCodes = new Set<WorkflowActionCode>([
+  WorkflowActionCode.ADD_WORK_REQUEST,
+  WorkflowActionCode.ADD_WORK_REQUEST_DOCUMENT,
+  WorkflowActionCode.ADD_WORK_REQUEST_NOTE,
+  WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+  WorkflowActionCode.RESPOND_WORKFLOW_INFO,
+  ...workRequestWorkflowPermissionCodes,
+]);
 
 const supervisorPermissions = [
   ...Object.values(WorkflowActionCode).filter(
     (code) =>
       code !== WorkflowActionCode.DECIDE_BID_OUTCOME &&
-      !clientManagementActions.includes(code),
+      !clientManagementActions.includes(code) &&
+      !workRequestWorkflowPermissionCodes.has(code),
   ),
   ...clientManagementActions,
 ];
 
 export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
   {
-    system_admin: supervisorPermissions,
+    system_admin: [
+      ...supervisorPermissions,
+      ...workRequestRolePermissionCodes.system_admin,
+    ],
     ccr_coordinator: [
       WorkflowActionCode.ADD_PROJECT,
       WorkflowActionCode.ADD_BID,
@@ -99,6 +175,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       bidUpdateAction,
       WorkflowActionCode.ADD_CLIENT_DOCUMENT,
       WorkflowActionCode.ADD_WORK_REQUEST,
+      ...workRequestRolePermissionCodes.ccr_coordinator,
       WorkflowActionCode.MARKETING_RETURN_TO_PM,
       WorkflowActionCode.MARKETING_ESCALATE_TO_CLIENT,
       WorkflowActionCode.MARKETING_SUBMIT_TO_CLIENT,
@@ -117,6 +194,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       designationManagementAction,
       projectReadAction,
       bidReadAction,
+      ...workRequestRolePermissionCodes.division_head,
     ],
     division_lead: [
       WorkflowActionCode.ADD_TEAM,
@@ -131,6 +209,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       projectReadAction,
       bidReadAction,
       ...commonCreate,
+      ...workRequestRolePermissionCodes.division_lead,
     ],
     division_member: [
       WorkflowActionCode.MEMBER_REQUEST_INFO,
@@ -138,6 +217,7 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
       WorkflowActionCode.ORIGIN_MEMBER_APPROVE,
       WorkflowActionCode.ORIGIN_MEMBER_REJECT,
       ...commonCreate,
+      ...workRequestRolePermissionCodes.division_member,
     ],
     tms_manager: [
       WorkflowActionCode.ASSIGN_TMS_CHAIN,
@@ -177,5 +257,6 @@ export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
     team_lead: [
       WorkflowActionCode.ADD_MEMBER,
       WorkflowActionCode.ASSIGN_MEMBER,
+      ...workRequestRolePermissionCodes.team_lead,
     ],
   };

@@ -22,6 +22,7 @@ import { BidRecord, BidRepository } from '../repositories/bid.repository';
 import { BidStorageCleanupRepository } from '../repositories/bid-storage-cleanup.repository';
 import { OutboxService } from '../../infra/messaging/outbox.service';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import { formatBidDocumentFileName } from '../../common/utils/bid-document-file-name';
 
 export interface BidUploadedFile {
   fieldname: string;
@@ -344,12 +345,7 @@ export function bidFileName(input: {
   documentCode: string;
   originalFileName: string;
 }): string {
-  const extension = extname(input.originalFileName);
-  const base = input.originalFileName.slice(
-    0,
-    input.originalFileName.length - extension.length,
-  );
-  const result = `${input.biddingNumber} ${input.projectCode}-${input.cargoCode}-${input.vesselCode}-${input.shipmentNumber}-${input.documentCode}-A ${base}${extension}`;
+  const result = formatBidDocumentFileName({ ...input, revisionCode: 'A' });
   if (result.length > 260) throw badRequest('Generated filename is too long.');
   return result;
 }

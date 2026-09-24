@@ -1,5 +1,9 @@
 import { ROLE_IDS } from '../data/roles.data';
-import { permissions, rolePermissionCodes } from '../data/permissions.data';
+import {
+  permissions,
+  rolePermissionCodes,
+  workRequestWorkflowPermissionCodes,
+} from '../data/permissions.data';
 import { Seeder } from '../types';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '../../../src/generated/prisma/client';
@@ -37,7 +41,11 @@ export async function initializeTenantPermissions(
           roleId,
           allowed: granted.has(permission.code),
         },
-        update: {},
+        // Existing grants remain administrator-managed. Converge only newly
+        // introduced Module 10 workflow rows for already-provisioned tenants.
+        update: workRequestWorkflowPermissionCodes.has(permission.code)
+          ? { allowed: granted.has(permission.code) }
+          : {},
       });
     }
   }
