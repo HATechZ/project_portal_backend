@@ -28,6 +28,10 @@ import { PodCodeModule } from './pod-code/pod-code.module';
 import { CargoCodeModule } from './cargo-code/cargo-code.module';
 import { VesselCodeModule } from './vessel-code/vessel-code.module';
 import { GeneralDocumentCodeModule } from './general-document-code/general-document-code.module';
+import { MarketingDocumentCodeModule } from './marketing-document-code/marketing-document-code.module';
+import { EtcDocumentCodeModule } from './etc-document-code/etc-document-code.module';
+import { EngineeringDocumentCodeModule } from './engineering-document-code/engineering-document-code.module';
+import { PmOperationDocumentCodeModule } from './pm-operation-code/pm-operation-code.module';
 import { DesignationModule } from './designation/designation.module';
 import { StorageModule } from './infra/storage/storage.module';
 import { BidModule } from './bid/bid.module';
@@ -65,6 +69,10 @@ import { ProjectModule } from './project/project.module';
     CargoCodeModule,
     VesselCodeModule,
     GeneralDocumentCodeModule,
+    MarketingDocumentCodeModule,
+    EtcDocumentCodeModule,
+    EngineeringDocumentCodeModule,
+    PmOperationDocumentCodeModule,
     DesignationModule,
     BidModule,
     ProjectModule,

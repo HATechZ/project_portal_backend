@@ -24,6 +24,10 @@
 | [06.3](06.3-cargo-codes/) Cargo Codes | OptionValue/CARGO_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Cargo Code API/module |
 | [06.4](06.4-vessel-codes/) Vessel Codes | OptionValue/VESSEL_CODE | 3 | 0/3 | `[SPEC APPROVED]` | Dedicated Vessel Code API/module |
 | [07](07-general-document-codes/) General Document Codes | 1 shared | 4 | 0/11 | `[WIP]` | Runtime implemented; independent Gate 5 pending |
+| [07.1](07.1-marketing-document-codes/) Marketing Document Codes | shared | 4 | 3/3 | `[WIP]` | Runtime/tests pass; Gate 5 walkthrough pending |
+| [07.2](07.2-etc-document-codes/) ETC Document Codes | shared | 4 | 3/3 | `[WIP]` | Runtime/tests pass; Gate 5 walkthrough pending |
+| [07.3](07.3-engineering-document-codes/) Engineering Document Codes | shared | 4 | 3/3 | `[WIP]` | Runtime/tests pass; Gate 5 walkthrough pending |
+| [07.4](07.4-pm-operation-codes/) PM & Operation Document Codes | shared | 4 | 3/3 | `[WIP]` | Runtime/tests pass; Gate 5 walkthrough pending |
 | [08](08-bid/) Bid | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent Bid; replaces combined workspace design |
 | [09](09-project/) Project | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent direct Project; replaces combined workspace design |
 | Documents (future allocation) | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
@@ -63,8 +67,8 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
 | 2026-09-15 | Claude | 00, 01, 01.1, 03, 04 | 5 | 29/30 failing claims resolved: 15 unticked (proof deleted), rest fixed |
 | 2026-09-15 | Claude | 04.1 | 5 | Division DONE 11/11: walkthrough PASS (24 curls); 500-on-unknown-divisionTypeId fixed; recursive `verify:sdd:strict` removed from final VERIFY |
-| 2026-09-17 | Codex | 04.2 | 1–4 | Member response is flat IDs only; focused test/build PASS |
 | 2026-09-17 | Codex | 03, 04.2, 04.3 | 1–4 | Member onboarding now excludes role access; focused tests/build PASS |
 | 2026-09-17 | Codex | 03, 04.2, 04.3 | 4 | Typed test mocks clear lint; focused tests/build PASS |
 | 2026-09-17 | Codex | 04.3 | 1–4 | Team lead/member summaries now expose designation; focused tests/build PASS |
-| 2026-09-18 | Codex | 06, 06.1–06.4 | 1–3 | Separate POL/POD/Cargo/Vessel specs; no runtime/data work |
+| 2026-09-24 | Codex | 07.1–07.3 | 4 | Focused tests + build PASS; walkthroughs pending |
+| 2026-09-24 | Codex + db-architect | 07.4 | 4 | Runtime/tests pass; walkthrough pending |

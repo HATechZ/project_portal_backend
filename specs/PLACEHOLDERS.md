@@ -61,6 +61,10 @@ directory exists, so this table cannot silently rot.
 | `src/cargo-code/cargo-code.module.ts`           | `specs/06.3-cargo-codes`       |
 | `src/vessel-code/vessel-code.module.ts`         | `specs/06.4-vessel-codes`      |
 | `src/general-document-code/general-document-code.module.ts` | `specs/07-general-document-codes` |
+| `src/marketing-document-code/marketing-document-code.module.ts` | `specs/07.1-marketing-document-codes` |
+| `src/etc-document-code/etc-document-code.module.ts` | `specs/07.2-etc-document-codes` |
+| `src/engineering-document-code/engineering-document-code.module.ts` | `specs/07.3-engineering-document-codes` |
+| `src/pm-operation-code/pm-operation-code.module.ts` | `specs/07.4-pm-operation-codes` |
 | `src/bid/bid.module.ts` | `specs/08-bid` |
 | `src/project/project.module.ts` | `specs/09-project` |
 

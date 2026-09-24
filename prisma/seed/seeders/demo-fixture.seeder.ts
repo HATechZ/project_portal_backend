@@ -4,7 +4,11 @@ import {
   demoCompany,
   demoDesignation,
   demoDivision,
-  documentCodes,
+  engineeringDocumentCodes,
+  etcDocumentCodes,
+  generalDocumentCodes,
+  marketingDocumentCodes,
+  pmOperationDocumentCodes,
   optionTypes,
   optionValues,
 } from '../data/demo.data';
@@ -44,7 +48,7 @@ export const demoFixtureSeeder: Seeder = {
         update: { name: optionValue.name, code: optionValue.code, optionTypeId: optionType.id, isActive: true },
       });
     }
-    for (const item of documentCodes) {
+    for (const item of [...generalDocumentCodes, ...marketingDocumentCodes, ...etcDocumentCodes, ...engineeringDocumentCodes, ...pmOperationDocumentCodes]) {
       await prisma.documentCodeOption.upsert({
         where: { tenantId_documentGroup_code: { tenantId: item.tenantId, documentGroup: item.documentGroup, code: item.code } },
         create: item,

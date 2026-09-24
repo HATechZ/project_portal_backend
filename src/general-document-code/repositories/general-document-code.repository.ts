@@ -24,7 +24,7 @@ export type GeneralDocumentCodeStatus = 'active' | 'inactive' | 'all';
 
 @Injectable()
 export class GeneralDocumentCodeRepository extends BaseRepository {
-  private readonly group = DocumentGroupCode.MARKETING;
+  private readonly group = DocumentGroupCode.GENERAL;
 
   constructor(unitOfWork: UnitOfWorkService) {
     super(unitOfWork);

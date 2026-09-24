@@ -1,0 +1,7 @@
+# SPEC: 07.3 — Engineering Document Codes
+
+**Status:** WIP — Gate 4. Engineering Document Code is an independent tenant master-data module. Ownership is explicit and never inferred from code value. The following extendable starter records are separate records (including every paired code):
+
+`100 Stowage Plan`; `101 Shipment Calculation`; `110 Intereference Check`; `130 Berthing Feasibility Check`; `200 Loading Condition-Voyage Condition`; `211 Stern Ballast Plan for Loading`; `212 Stern Ballast Plan for Discharging`; `221 Side Ballast Plan for Loading`; `222 Side Ballast Plan for Discharging`; `231 Ballast Plan for Float On`; `232 Ballast Plan for Float Off`; `250 Stability Report (Intact, Damage)`; `301 Mooring Arrangement Plan at POL`; `302 Mooring Arrangement Plan at POD`; `341 Mooring Procedure Plan at POL`; `342 Mooring Procedure Plan at POD`; `351 Mooring Analysis Report at POL`; `352 Mooring Analysis Report at POD`; `361 Port Entry Plan at POL`; `362 Port Entry Plan at POD`; `371 Berthing Procedure Report at POL`; `372 Berthing Procedure Report at POD`; `400 Voyage Route Analysis`; `410 Summary of Motion Analysis Report`; `411 Speed vs Acceleration`; `412 Static Applied Wind Pressure Trim Calculation`; `420 RAO`; `430 Critical Motion Curve`; `440 Green Water Analysis`.
+
+Users may create additional Engineering records later. No 100–599 validation exists. Future list/detail/create/update/active lifecycle behavior is independently owned.

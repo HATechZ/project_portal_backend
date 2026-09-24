@@ -180,8 +180,11 @@ enum AttachmentFileGroupCode {
 }
 
 enum DocumentGroupCode {
+  GENERAL
   MARKETING
+  ETC
   ENGINEERING
+  PROJECT_MANAGEMENT_OPERATION
   CUSTOM
 
   @@map("document_group_code")

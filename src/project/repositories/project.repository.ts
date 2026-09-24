@@ -101,7 +101,6 @@ export class ProjectRepository extends BaseRepository {
                 versions: {
                   create: {
                     id: randomUUID(),
-                    tenantId,
                     versionNumber: 1,
                     originalFileName,
                     generatedFileName,
