@@ -1,15 +1,18 @@
 import { ensureUserRoleAndRoleOnlyProfile } from './actor-access-orchestration';
 
 function dbWithExistingState() {
+  type UserRoleCreateCall = { data: { teamId?: string } };
   return {
     $queryRaw: jest.fn().mockResolvedValue([{ id: 'user-1' }]),
     user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'user-1' }) },
     role: {
-      findUniqueOrThrow: jest.fn().mockResolvedValue({ name: 'Division Lead' }),
+      findFirstOrThrow: jest.fn().mockResolvedValue({ name: 'Division Lead' }),
     },
     userRole: {
-      findFirst: jest.fn().mockResolvedValue({ id: 'user-role-1' }),
-      create: jest.fn(),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue({ id: 'user-role-1', teamId: null }),
+      create: jest.fn<Promise<{ id: string }>, [UserRoleCreateCall]>(),
     },
     actorProfile: {
       findFirst: jest
@@ -64,6 +67,49 @@ describe('actor access orchestration', () => {
     });
     expect(db.userRole.create).toHaveBeenCalledTimes(1);
     expect(db.actorProfile.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists the approved Team binding on a newly created TEAM grant', async () => {
+    const db = dbWithExistingState();
+    db.userRole.findFirst.mockResolvedValueOnce(null);
+    db.userRole.create.mockResolvedValueOnce({ id: 'user-role-new' });
+    db.actorProfile.findFirst.mockReset();
+    db.actorProfile.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    db.actorProfile.create.mockResolvedValueOnce({ id: 'actor-profile-new' });
+
+    await ensureUserRoleAndRoleOnlyProfile(db as never, {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      roleId: 'role-1',
+      assignedByUserId: 'admin-1',
+      memberId: 'member-1',
+      teamId: 'team-1',
+    });
+
+    expect(db.userRole.create.mock.calls[0]?.[0]?.data.teamId).toBe('team-1');
+  });
+
+  it('does not reuse an active TEAM grant with a different Team binding', async () => {
+    const db = dbWithExistingState();
+    db.userRole.findFirst.mockResolvedValueOnce({
+      id: 'user-role-1',
+      teamId: 'team-a',
+    });
+
+    await expect(
+      ensureUserRoleAndRoleOnlyProfile(db as never, {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        roleId: 'role-1',
+        assignedByUserId: 'admin-1',
+        teamId: 'team-b',
+      }),
+    ).rejects.toMatchObject({
+      message: 'This active role is already bound to a different Team.',
+    });
+    expect(db.userRole.create).not.toHaveBeenCalled();
   });
 
   it('reuses an already member-linked ActorProfile for repeat business assignment', async () => {

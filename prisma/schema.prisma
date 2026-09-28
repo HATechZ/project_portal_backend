@@ -28,6 +28,7 @@ enum CustomRoleScope {
   member
   division
   company
+  team
   client_contact
   client
 
@@ -501,6 +502,7 @@ model UserRole {
   id               String    @id @map("id") @db.Uuid
   userId           String    @map("user_id") @db.Uuid
   roleId           String    @map("role_id") @db.Uuid
+  teamId           String?   @map("team_id") @db.Uuid
   assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
   assignedAt       DateTime  @default(now()) @map("assigned_at") @db.Timestamp(6)
   revokedAt        DateTime? @map("revoked_at") @db.Timestamp(6)
@@ -508,10 +510,12 @@ model UserRole {
   tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   user           User   @relation("UserRolesUserIdUsers", fields: [userId], references: [id])
   role           Role   @relation("UserRolesRoleIdRoles", fields: [roleId], references: [id])
+  team           Team?  @relation("UserRolesTeamIdTeams", fields: [teamId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   assignedByUser User?  @relation("UserRolesAssignedByUserIdUsers", fields: [assignedByUserId], references: [id])
 
   @@index([userId, roleId, revokedAt])
   @@index([tenantId])
+  @@index([tenantId, teamId, revokedAt])
   @@map("user_roles")
 }
 
@@ -822,6 +826,7 @@ model Team {
   division            Division     @relation("TeamsDivisionIdDivisions", fields: [divisionId, tenantId, companyId], references: [id, tenantId, companyId])
   leadMember          Member?      @relation("TeamsLeadMemberIdMembers", fields: [leadMemberId], references: [id])
   teamMembersByTeamId TeamMember[] @relation("TeamMembersTeamIdTeams")
+  userRolesByTeamId   UserRole[]   @relation("UserRolesTeamIdTeams")
   workRequestV1Assignments WorkRequestV1Assignment[] @relation("WorkRequestV1AssignmentsTeamIdTeams")
 
   @@unique([tenantId, divisionId, name])

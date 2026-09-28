@@ -12,7 +12,11 @@ import {
 } from '../dtos';
 import { RolePermissionRepository, RoleRecord } from '../repositories';
 import { CustomRoleRepository } from '../repositories/custom-role.repository';
-import { isCustomRolePermissionAllowed } from './custom-role-policy';
+import {
+  isCustomRolePermissionAllowed,
+  isCustomRoleScope,
+  type CustomRoleScope,
+} from './custom-role-policy';
 import {
   toRoleResponse,
   toUserRoleAssignmentResponse,
@@ -35,36 +39,26 @@ export class RolePermissionMutationProvider {
     id: string,
     input: SetRolePermissionsDto,
   ): Promise<RoleResponseDto> {
-    await this.requireRole(id);
-    if (new Set(input.permissionCodes).size !== input.permissionCodes.length)
-      throw new AppException({
-        code: AppErrorCode.BadRequest,
-        status: HttpStatus.BAD_REQUEST,
-        message:
-          'The same permission was selected more than once. Remove duplicates and try again.',
-      });
-    const existingCodes = new Set(
-      (await this.repository.findPermissions()).map(({ code }) => code),
-    );
-    const missing = input.permissionCodes.filter(
-      (code) => !existingCodes.has(code),
-    );
-    if (missing.length)
-      throw new AppException({
-        code: AppErrorCode.BadRequest,
-        status: HttpStatus.BAD_REQUEST,
-        message:
-          'Some selected permissions are not available. Refresh the permissions and try again.',
-      });
+    this.assertUniquePermissionCodes(input.permissionCodes);
     const role = await this.requireRole(id);
     if (!role.isSystemRole) {
-      await this.assertValidCustomPermissions(
-        role.customScope as Parameters<
-          typeof this.assertValidCustomPermissions
-        >[0],
-        input.permissionCodes,
+      const scope = input.scope ?? (role.customScope as CustomRoleScope);
+      await this.assertValidCustomPermissions(scope, input.permissionCodes);
+      return toRoleResponse(
+        await this.repository.replaceRolePermissions(
+          id,
+          input.permissionCodes,
+          input.scope,
+        ),
       );
     }
+    if (input.scope)
+      throw new AppException({
+        code: AppErrorCode.BadRequest,
+        status: HttpStatus.BAD_REQUEST,
+        message: 'System roles do not have a configurable custom role scope.',
+      });
+    await this.assertPermissionsExist(input.permissionCodes);
     return toRoleResponse(
       await this.repository.replaceRolePermissions(id, input.permissionCodes),
     );
@@ -85,6 +79,7 @@ export class RolePermissionMutationProvider {
         userId,
         input.roleId,
         assignedByUserId,
+        input.teamId,
       ),
     );
   }
@@ -155,25 +150,15 @@ export class RolePermissionMutationProvider {
     scope: Parameters<typeof isCustomRolePermissionAllowed>[0],
     codes: SetRolePermissionsDto['permissionCodes'],
   ): Promise<void> {
-    if (new Set(codes).size !== codes.length) {
+    if (!isCustomRoleScope(scope)) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
         status: HttpStatus.BAD_REQUEST,
-        message:
-          'The same permission was selected more than once. Remove duplicates and try again.',
+        message: 'Custom roles must use a company, division, or team scope.',
       });
     }
-    const catalog = new Set(
-      (await this.repository.findPermissions()).map(({ code }) => code),
-    );
-    if (codes.some((code) => !catalog.has(code))) {
-      throw new AppException({
-        code: AppErrorCode.BadRequest,
-        status: HttpStatus.BAD_REQUEST,
-        message:
-          'Some selected permissions are not available. Refresh the permissions and try again.',
-      });
-    }
+    this.assertUniquePermissionCodes(codes);
+    await this.assertPermissionsExist(codes);
     if (codes.some((code) => !isCustomRolePermissionAllowed(scope, code))) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
@@ -182,5 +167,32 @@ export class RolePermissionMutationProvider {
           'The selected permission is not available for this custom role scope.',
       });
     }
+  }
+
+  private assertUniquePermissionCodes(
+    codes: SetRolePermissionsDto['permissionCodes'],
+  ): void {
+    if (new Set(codes).size !== codes.length)
+      throw new AppException({
+        code: AppErrorCode.BadRequest,
+        status: HttpStatus.BAD_REQUEST,
+        message:
+          'The same permission was selected more than once. Remove duplicates and try again.',
+      });
+  }
+
+  private async assertPermissionsExist(
+    codes: SetRolePermissionsDto['permissionCodes'],
+  ): Promise<void> {
+    const catalog = new Set(
+      (await this.repository.findPermissions()).map(({ code }) => code),
+    );
+    if (codes.some((code) => !catalog.has(code)))
+      throw new AppException({
+        code: AppErrorCode.BadRequest,
+        status: HttpStatus.BAD_REQUEST,
+        message:
+          'Some selected permissions are not available. Refresh the permissions and try again.',
+      });
   }
 }

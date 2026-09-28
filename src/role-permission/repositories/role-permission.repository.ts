@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma, WorkflowActionCode } from '../../generated/prisma/client';
+import {
+  Prisma,
+  WorkflowActionCode,
+  CustomRoleScope,
+} from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
@@ -78,6 +82,7 @@ export class RolePermissionRepository extends BaseRepository {
   async replaceRolePermissions(
     roleId: string,
     permissionCodes: WorkflowActionCode[],
+    customScope?: CustomRoleScope,
   ): Promise<RoleRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
@@ -90,6 +95,12 @@ export class RolePermissionRepository extends BaseRepository {
           where: { tenantId, roleId },
           data: { allowed: false },
         });
+        if (customScope) {
+          await transaction.role.updateMany({
+            where: { id: roleId, tenantId, isSystemRole: false },
+            data: { customScope },
+          });
+        }
         for (const action of actions) {
           await transaction.workflowActionRolePermission.upsert({
             where: {
@@ -131,7 +142,11 @@ export class RolePermissionRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.userRole.findMany({
-        where: { userId, ...(includeRevoked ? {} : { revokedAt: null }) },
+        where: {
+          tenantId,
+          userId,
+          ...(includeRevoked ? {} : { revokedAt: null }),
+        },
         orderBy: { assignedAt: 'desc' },
         select: assignmentSelect(tenantId),
       }),
@@ -145,7 +160,7 @@ export class RolePermissionRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.userRole.findFirst({
-        where: { userId, roleId, revokedAt: null },
+        where: { tenantId, userId, roleId, revokedAt: null },
         select: assignmentSelect(tenantId),
       }),
     );

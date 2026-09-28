@@ -1,12 +1,34 @@
 name: project-portal
 
 services:
-  redis:
+  redis-cache:
     image: redis:7.4-alpine
-    container_name: project-portal-redis
+    container_name: project-portal-redis-cache
     restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
+    command:
+      - redis-server
+      - --appendonly
+      - "no"
+      - --save
+      - ""
+    volumes:
+      - redis-cache-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    stop_grace_period: 10s
+
+  redis-queue:
+    image: redis:7.4-alpine
+    container_name: project-portal-redis-queue
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6380:6379"
     command:
       - redis-server
       - --appendonly
@@ -17,7 +39,7 @@ services:
       - "60"
       - "1000"
     volumes:
-      - redis-data:/data
+      - redis-queue-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -57,7 +79,9 @@ services:
     stop_grace_period: 30s
 
 volumes:
-  redis-data:
-    name: project-portal-redis-data
+  redis-cache-data:
+    name: project-portal-redis-cache-data
+  redis-queue-data:
+    name: project-portal-redis-queue-data
   rabbitmq-data:
     name: project-portal-rabbitmq-data

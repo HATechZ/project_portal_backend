@@ -71,7 +71,7 @@ existing foreign key while separating fixed system identity from tenant custom i
 | `system_roles(role_id PK/FK, system_code ActorRoleCode UNIQUE)` | the only stored fixed system/workflow identity; no duplicate `Role.systemCode` or enum `Role.code` remains |
 | nullable `tenantId` plus Tenant FK | custom ownership and tenant/RLS boundary; system rows remain global |
 | backend-generated `customCode` text plus unique `(tenantId, customCode)` | tenant-safe identifier; client never submits it |
-| nullable `customScope` constrained to `member`, `division`, `company`, `client_contact`, `client` | explicit enforceable custom access boundary |
+| nullable `customScope` constrained to the persisted enum (including legacy values); tenant custom-role APIs accept only `company`, `division`, `team` | explicit enforceable custom access boundary |
 | row-kind CHECK | system: `isSystemRole=true` and custom fields null; custom: `isSystemRole=false` and tenant/custom code/scope present |
 | workflow-reference protection | fixed workflow FKs target `system_roles.role_id`, so custom IDs cannot be configured as routing identities |
 
@@ -86,21 +86,24 @@ remain on `roles.id`, with no unsafe cross-table CHECK.
 Custom permission grants continue to use `workflow_action_role_permissions`. Existing catalog
 fields (`id`, `code`, `name`, `description`, visibility and revision/info/assignment/terminal
 flags) remain the selector data; display tags may be derived only from those existing flags.
-No UI-only grouping persistence is approved. V1 policy is centrally enforced: `ADD_MEMBER`,
-`ADD_TEAM`, and `ASSIGN_MEMBER` allow only `division` and `company`; all other actions are
-ineligible. `MANAGE_DESIGNATIONS` is also ineligible for custom roles: it is reserved to the
+No UI-only grouping persistence is approved. The centrally enforced policy permits `ADD_MEMBER`
+and `ASSIGN_MEMBER` at `company`, `division`, and `team`; `ADD_TEAM` at `company` and
+`division` only. All other actions are ineligible. `MANAGE_DESIGNATIONS` is also ineligible for custom roles: it is reserved to the
 approved provisioned system-role grants. A policy relation is deferred until its catalog needs
 exceed this fixed approved matrix.
 
-Custom assignment requires a compatible existing ActorProfile target: Member for `member`,
-`division`, `company`; ClientContact for `client_contact`, `client`. It must create/reuse that
+Custom assignment requires a compatible existing ActorProfile target: Member for tenant custom-role
+scopes `company`, `division`, `team`; legacy persisted scopes retain their existing data only and
+are not tenant-custom-role API inputs. ClientContact for `client_contact`, `client`. It must create/reuse that
 profile atomically with the UserRole grant and cannot use the current role-only profile path for
 a scoped custom role.
 
 ### `UserRole`
 
-`userId`, `roleId`, `assignedByUserId?`, `assignedAt`, `revokedAt?`.
-Index `[userId, roleId, revokedAt]`. **A grant is revoked by setting `revokedAt`**, so an
+`userId`, `roleId`, nullable `teamId`, `assignedByUserId?`, `assignedAt`, `revokedAt?`.
+`teamId` is a tenant-local composite relation to `Team[id, tenantId]`; it is required only for a
+non-system custom role with `customScope = team`, and null for every other grant. Indexes include
+`[userId, roleId, revokedAt]` and `[tenantId, teamId, revokedAt]`. **A grant is revoked by setting `revokedAt`**, so an
 "active roles" query must filter `revokedAt: null`.
 
 Note `assignedByUserId` references a **user**, not an actor — the one deliberate exception to

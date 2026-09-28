@@ -17,6 +17,7 @@ export async function ensureUserRoleAndRoleOnlyProfile(
     roleId: string;
     assignedByUserId: string;
     memberId?: string;
+    teamId?: string;
   },
 ): Promise<EnsuredRoleProfile> {
   await db.$queryRaw`SELECT id FROM users WHERE id = ${input.userId}::uuid AND tenant_id = ${input.tenantId}::uuid FOR UPDATE`;
@@ -38,8 +39,13 @@ export async function ensureUserRoleAndRoleOnlyProfile(
       roleId: input.roleId,
       revokedAt: null,
     },
-    select: { id: true },
+    select: { id: true, teamId: true },
   });
+  if (existing && existing.teamId !== (input.teamId ?? null)) {
+    throw accessConflict(
+      'This active role is already bound to a different Team.',
+    );
+  }
   const assignment =
     existing ??
     (await db.userRole.create({
@@ -49,6 +55,7 @@ export async function ensureUserRoleAndRoleOnlyProfile(
         userId: input.userId,
         roleId: input.roleId,
         assignedByUserId: input.assignedByUserId,
+        ...(input.teamId ? { teamId: input.teamId } : {}),
       },
       select: { id: true },
     }));

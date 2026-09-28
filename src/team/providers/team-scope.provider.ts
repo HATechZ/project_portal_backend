@@ -48,6 +48,16 @@ export class TeamScopeProvider {
     companyId: string,
     team: TeamRecord,
   ): Promise<void> {
+    if (actor.isSystemRole === false && actor.customScope === 'team') {
+      if (
+        actor.member?.active &&
+        actor.member.companyActive &&
+        actor.boundTeamId === team.id
+      ) {
+        return;
+      }
+      throw new ForbiddenException('Team is outside actor scope');
+    }
     const allowedDivisionIds = await this.resolveManageDivisionIds(
       actor,
       companyId,
@@ -63,6 +73,10 @@ export class TeamScopeProvider {
       const member = actor.member;
       if (!member?.active || !member.companyActive) {
         throw new ForbiddenException('Member actor scope required');
+      }
+      if (actor.customScope === 'team') {
+        if (actor.boundTeamId === team.id) return;
+        throw new ForbiddenException('Team membership is outside actor scope');
       }
       if (
         actor.customScope === 'division' &&

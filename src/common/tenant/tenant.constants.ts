@@ -28,6 +28,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'DirectProjectDocumentVersion',
   'DirectProjectDocumentClassificationEvent',
   'DirectProjectStorageCleanupJob',
+  'WorkRequestStorageCleanupJob',
   'ProjectStatusEvent',
   'BidDetail',
   'Bid',

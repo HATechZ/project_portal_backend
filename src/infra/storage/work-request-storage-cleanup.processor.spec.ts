@@ -1,19 +1,45 @@
+import {
+  Prisma,
+  WorkRequestStorageCleanupJob,
+} from '../../generated/prisma/client';
 import { WorkRequestStorageCleanupProcessor } from './work-request-storage-cleanup.processor';
 
 describe('WorkRequestStorageCleanupProcessor', () => {
-  const job = {
+  const job: WorkRequestStorageCleanupJob = {
+    tenantId: '00000000-0000-4000-8000-000000000001',
     id: '00000000-0000-4000-8000-000000000001',
     storageKey: 'tenant/work-requests/orphan',
+    attempts: 1,
+    lastError: 'locked',
+    lastAttemptedAt: new Date(),
+    createdAt: new Date(),
   };
 
   function subject() {
     const cleanupJobs = {
-      findMany: jest.fn().mockResolvedValue([job]),
-      delete: jest.fn().mockResolvedValue(undefined),
-      update: jest.fn().mockResolvedValue(undefined),
+      findMany: jest
+        .fn<
+          Promise<WorkRequestStorageCleanupJob[]>,
+          [Prisma.WorkRequestStorageCleanupJobFindManyArgs]
+        >()
+        .mockResolvedValue([job]),
+      delete: jest
+        .fn<
+          Promise<WorkRequestStorageCleanupJob>,
+          [Prisma.WorkRequestStorageCleanupJobDeleteArgs]
+        >()
+        .mockResolvedValue(job),
+      update: jest
+        .fn<
+          Promise<WorkRequestStorageCleanupJob>,
+          [Prisma.WorkRequestStorageCleanupJobUpdateArgs]
+        >()
+        .mockResolvedValue(job),
     };
     const prisma = { unscoped: { workRequestStorageCleanupJob: cleanupJobs } };
-    const storage = { remove: jest.fn().mockResolvedValue(undefined) };
+    const storage = {
+      remove: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
+    };
     return {
       processor: new WorkRequestStorageCleanupProcessor(
         prisma as never,
@@ -51,16 +77,13 @@ describe('WorkRequestStorageCleanupProcessor', () => {
     });
 
     expect(cleanupJobs.delete).not.toHaveBeenCalled();
-    expect(cleanupJobs.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: job.id },
-        data: expect.objectContaining({
-          attempts: { increment: 1 },
-          lastError: 'still locked',
-          lastAttemptedAt: expect.any(Date),
-        }),
-      }),
-    );
+    const update = cleanupJobs.update.mock.calls[0]?.[0];
+    expect(update?.where).toEqual({ id: job.id });
+    expect(update?.data).toMatchObject({
+      attempts: { increment: 1 },
+      lastError: 'still locked',
+    });
+    expect(update?.data).toHaveProperty('lastAttemptedAt');
   });
 
   it('uses the relay-only unscoped persistence path for retry work', async () => {

@@ -93,6 +93,7 @@ const scalarAuthorizationNormalizationScript = `
 export function generateDocsHtml(jsonPath: string): string {
   const configuration = {
     url: jsonPath,
+    defaultRequestBodyView: 'form',
     withDefaultFonts: true,
     showSidebar: true,
     persistAuth: true,

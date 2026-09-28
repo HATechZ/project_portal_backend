@@ -22,6 +22,7 @@ export class RoleAssignmentRepository extends BaseRepository {
     userId: string,
     roleId: string,
     assignedByUserId: string,
+    teamId?: string,
   ): Promise<UserRoleAssignment> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -47,7 +48,7 @@ export class RoleAssignmentRepository extends BaseRepository {
       if (
         !role.isSystemRole &&
         (role.workflowActionRolePermissionsByRoleId.length === 0 ||
-          !['division', 'company'].includes(role.customScope ?? ''))
+          !['division', 'company', 'team'].includes(role.customScope ?? ''))
       ) {
         throw new AppException({
           code: AppErrorCode.BadRequest,
@@ -73,12 +74,50 @@ export class RoleAssignmentRepository extends BaseRepository {
             'This user needs an active Member record before this custom role can be assigned.',
         });
       }
+      if (role.customScope === 'team') {
+        if (!teamId) {
+          throw new AppException({
+            code: AppErrorCode.BadRequest,
+            status: HttpStatus.BAD_REQUEST,
+            message: 'A Team is required for a TEAM-scoped custom role.',
+          });
+        }
+        const team = await db.team.findFirst({
+          where: { id: teamId, tenantId, isActive: true },
+          select: { id: true },
+        });
+        if (!team) {
+          throw new AppException({
+            code: AppErrorCode.BadRequest,
+            status: HttpStatus.BAD_REQUEST,
+            message: 'The selected Team is unavailable.',
+          });
+        }
+        const membership = await db.teamMember.findFirst({
+          where: { tenantId, teamId, memberId: member!.id, leftAt: null },
+          select: { id: true },
+        });
+        if (!membership) {
+          throw new AppException({
+            code: AppErrorCode.BadRequest,
+            status: HttpStatus.BAD_REQUEST,
+            message: 'The selected Member is not active on the selected Team.',
+          });
+        }
+      } else if (teamId) {
+        throw new AppException({
+          code: AppErrorCode.BadRequest,
+          status: HttpStatus.BAD_REQUEST,
+          message: 'A Team can only be supplied for a TEAM-scoped custom role.',
+        });
+      }
       const { assignmentId } = await ensureUserRoleAndRoleOnlyProfile(db, {
         tenantId,
         userId,
         roleId,
         assignedByUserId,
         ...(member ? { memberId: member.id } : {}),
+        ...(teamId ? { teamId } : {}),
       });
       return db.userRole.findUniqueOrThrow({
         where: { id: assignmentId, tenantId },

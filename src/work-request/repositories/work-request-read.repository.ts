@@ -49,7 +49,16 @@ export class WorkRequestReadRepository extends BaseRepository {
   parentScope(record: WorkRequestRecord): WorkRequestParentScope {
     const parent = record.bid ?? record.directProject;
     if (!parent) throw new Error('WR_PARENT');
-    return { clientId: parent.clientId, companyId: parent.client.companyId };
+    return {
+      clientId: parent.clientId,
+      companyId: parent.client.companyId,
+      divisionId:
+        record.assignments.find((assignment) => assignment.level === 'DIVISION')
+          ?.divisionId ?? null,
+      teamId:
+        record.assignments.find((assignment) => assignment.level === 'TEAM')
+          ?.teamId ?? null,
+    };
   }
   private scopedWhere(scope: WorkRequestScope): Prisma.WorkRequestV1WhereInput {
     if (scope.tenantWide) return {};
@@ -60,6 +69,30 @@ export class WorkRequestReadRepository extends BaseRepository {
           { directProject: { clientId: scope.clientId } },
         ],
       };
+    if (scope.teamId) {
+      return {
+        assignments: {
+          some: {
+            level: 'TEAM',
+            teamId: scope.teamId,
+            unassignedAt: null,
+            replacedAt: null,
+          },
+        },
+      };
+    }
+    if (scope.divisionId) {
+      return {
+        assignments: {
+          some: {
+            level: 'DIVISION',
+            divisionId: scope.divisionId,
+            unassignedAt: null,
+            replacedAt: null,
+          },
+        },
+      };
+    }
     if (scope.companyId)
       return {
         OR: [

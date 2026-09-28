@@ -54,6 +54,55 @@ function provider() {
 }
 
 describe('TeamScopeProvider Division sets', () => {
+  it('permits TEAM custom-role membership operations only for its bound Team', () => {
+    const scoped = {
+      ...actor([]),
+      isSystemRole: false,
+      customScope: 'team',
+      boundTeamId: 'team-a',
+    };
+    const scope = provider();
+
+    expect(() =>
+      scope.assertCanManageMembership(scoped, {
+        ...teamIn(DIVISION_A),
+        id: 'team-a',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      scope.assertCanManageMembership(scoped, {
+        ...teamIn(DIVISION_A),
+        id: 'team-b',
+      }),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('permits management of the exact bound Team but no division-wide Team management', async () => {
+    const scoped = {
+      ...actor([]),
+      isSystemRole: false,
+      customScope: 'team',
+      boundTeamId: 'team-a',
+    };
+    const scope = provider();
+
+    await expect(
+      scope.assertCanManageTeam(scoped, COMPANY, {
+        ...teamIn(DIVISION_A),
+        id: 'team-a',
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      scope.assertCanManageTeam(scoped, COMPANY, {
+        ...teamIn(DIVISION_A),
+        id: 'team-b',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      scope.resolveManageDivisionIds(scoped, COMPANY),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('manages Teams in every led Division', async () => {
     await expect(
       provider().resolveManageDivisionIds(

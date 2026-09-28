@@ -12,8 +12,8 @@ import { RedisService } from './redis.service';
       provide: REDIS_CLIENT,
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfiguration, true>) =>
-        new Redis(config.get('redis.url', { infer: true }), {
-          keyPrefix: config.get('redis.keyPrefix', { infer: true }),
+        new Redis(config.get('redis.cache.url', { infer: true }), {
+          keyPrefix: config.get('redis.cache.keyPrefix', { infer: true }),
           lazyConnect: true,
           maxRetriesPerRequest: 3,
           enableReadyCheck: true,

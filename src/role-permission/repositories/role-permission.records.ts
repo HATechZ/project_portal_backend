@@ -35,6 +35,7 @@ export const assignmentSelect = (tenantId: string) =>
     id: true,
     userId: true,
     roleId: true,
+    teamId: true,
     assignedByUserId: true,
     assignedAt: true,
     revokedAt: true,

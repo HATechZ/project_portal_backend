@@ -15,7 +15,10 @@ export interface AppConfiguration {
     corsOrigins: string[];
   };
   database: { url: string; privilegedUrl: string };
-  redis: { url: string; keyPrefix: string };
+  redis: {
+    cache: { url: string; keyPrefix: string };
+    queue: { url: string };
+  };
   jwt: {
     secret: string;
     issuer: string;
@@ -63,8 +66,13 @@ export default function configuration(): AppConfiguration {
       privilegedUrl: process.env.DATABASE_URL_PRIVILEGED ?? '',
     },
     redis: {
-      url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
-      keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'project-portal:',
+      cache: {
+        url: process.env.CACHE_REDIS_URL ?? 'redis://127.0.0.1:6379',
+        keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'project-portal:',
+      },
+      queue: {
+        url: process.env.QUEUE_REDIS_URL ?? 'redis://127.0.0.1:6380',
+      },
     },
     jwt: {
       secret: process.env.JWT_SECRET ?? 'development-only-jwt-secret-change-me',

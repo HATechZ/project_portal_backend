@@ -163,4 +163,19 @@ describe('ClientService onboarding', () => {
       meta: { total: 1 },
     });
   });
+
+  it('keeps normal Client editing available for initialized Clients', async () => {
+    clients.findById.mockResolvedValue(client);
+    clients.update.mockResolvedValue({ ...client, name: 'Renamed Client' });
+
+    await expect(
+      service.update(client.id, { name: 'Renamed Client' }),
+    ).resolves.toMatchObject({ name: 'Renamed Client' });
+
+    expect(clients.update).toHaveBeenCalledWith(
+      client.id,
+      'company-id',
+      'Renamed Client',
+    );
+  });
 });

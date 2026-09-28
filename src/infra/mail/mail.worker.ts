@@ -33,14 +33,16 @@ export class MailWorker implements OnModuleInit, OnApplicationShutdown {
 
   onModuleInit(): void {
     const mail = this.config.getOrThrow('mail', { infer: true });
-    const redis = this.config.getOrThrow('redis', { infer: true });
+    const queueRedis = this.config.getOrThrow('redis.queue', {
+      infer: true,
+    });
     if (!mail.workerEnabled) return;
     this.worker = new Worker<MailJobData>(
       mail.queueName,
       (job) => this.process(job),
       {
         connection: {
-          url: redis.url,
+          url: queueRedis.url,
           maxRetriesPerRequest: null,
         },
         concurrency: 5,

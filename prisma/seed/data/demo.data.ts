@@ -26,23 +26,6 @@ export const demoDesignation = {
   name: 'Coordinator',
 } as const;
 
-export const demoClient = {
-  id: '70000000-0000-4000-8000-000000000004',
-  tenantId: DEFAULT_TENANT_ID,
-  companyId: demoCompany.id,
-  name: 'Demo Client',
-} as const;
-
-export const demoClientContact = {
-  id: '70000000-0000-4000-8000-000000000005',
-  tenantId: DEFAULT_TENANT_ID,
-  clientId: demoClient.id,
-  name: 'Demo Client Contact',
-  email: 'contact@demo-client.local',
-  designation: 'Primary Contact',
-  isPrimary: true,
-} as const;
-
 export const optionTypes = [
   { id: '71000000-0000-4000-8000-000000000001', code: OptionTypeCode.POL, name: 'Port of Loading' },
   { id: '71000000-0000-4000-8000-000000000002', code: OptionTypeCode.POD, name: 'Port of Discharge' },

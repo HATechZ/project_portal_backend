@@ -50,6 +50,7 @@ import {
   WorkRequestService,
   type WorkRequestUploadedFile,
 } from './work-request.service';
+import { workRequestCreateMultipartBody } from './work-request.swagger';
 @ApiTags('work requests')
 @ApiSecurity('bearer')
 @Controller('work-requests')
@@ -73,32 +74,7 @@ export class WorkRequestController {
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
   @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['title', 'priority'],
-      properties: {
-        bidId: {
-          type: 'string',
-          format: 'uuid',
-          description: 'Exactly one of bidId or projectId is required.',
-        },
-        projectId: {
-          type: 'string',
-          format: 'uuid',
-          description: 'Exactly one of bidId or projectId is required.',
-        },
-        title: { type: 'string' },
-        priority: { type: 'string', enum: ['Low', 'Medium', 'High'] },
-        notes: { type: 'string' },
-        documentCodeIds: {
-          type: 'array',
-          items: { type: 'string', format: 'uuid' },
-        },
-        files: { type: 'array', items: { type: 'string', format: 'binary' } },
-      },
-    },
-  })
+  @ApiBody(workRequestCreateMultipartBody)
   @ApiOperation({
     summary: 'Create Work Request',
     description:

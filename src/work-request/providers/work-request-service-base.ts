@@ -114,7 +114,11 @@ export abstract class WorkRequestServiceBase {
         (await this.reads.list(skip, take, scope)).map((r) =>
           toWorkRequestResponse(
             r,
-            this.actions.available(actor, r.events[0]?.resultingState ?? null),
+            this.actions.available(
+              actor,
+              r.events[0]?.resultingState ?? null,
+              r,
+            ),
           ),
         ),
       () => this.reads.count(scope),
@@ -126,15 +130,15 @@ export abstract class WorkRequestServiceBase {
     this.scope.assert(actor, this.reads.parentScope(record));
     return toWorkRequestResponse(
       record,
-      this.actions.available(actor, record.events[0]?.resultingState ?? null),
+      this.actions.available(
+        actor,
+        record.events[0]?.resultingState ?? null,
+        record,
+      ),
     );
   }
   async update(id: string, input: UpdateWorkRequestDto, actor: SessionActor) {
-    if (
-      input.title === undefined &&
-      input.priority === undefined &&
-      input.notes === undefined
-    )
+    if (input.title === undefined && input.notes === undefined)
       throw bad('Supply metadata to update.');
     const current = await this.reads.find(id);
     if (!current) throw notFound();
@@ -145,7 +149,11 @@ export abstract class WorkRequestServiceBase {
     if (!record) throw notFound();
     return toWorkRequestResponse(
       record,
-      this.actions.available(actor, record.events[0]?.resultingState ?? null),
+      this.actions.available(
+        actor,
+        record.events[0]?.resultingState ?? null,
+        record,
+      ),
     );
   }
   async events(id: string, query: PaginationQueryDto, actor: SessionActor) {
@@ -165,6 +173,7 @@ export abstract class WorkRequestServiceBase {
     return this.actions.available(
       actor,
       record.events[0]?.resultingState ?? null,
+      record,
     );
   }
   async documents(id: string, actor: SessionActor) {

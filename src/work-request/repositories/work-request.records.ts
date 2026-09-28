@@ -31,6 +31,20 @@ export const workRequestSelect = {
       fileSizeBytes: true,
     },
   },
+  assignments: {
+    where: { unassignedAt: null, replacedAt: null },
+    select: {
+      level: true,
+      divisionId: true,
+      teamId: true,
+      memberId: true,
+      team: { select: { leadMemberId: true, isActive: true } },
+    },
+  },
+  infoRequests: {
+    where: { status: 'OPEN' },
+    select: { targetActorId: true },
+  },
 } satisfies Prisma.WorkRequestV1Select;
 
 export type WorkRequestRecord = Prisma.WorkRequestV1GetPayload<{

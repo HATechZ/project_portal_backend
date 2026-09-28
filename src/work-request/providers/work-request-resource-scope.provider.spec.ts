@@ -1,4 +1,10 @@
 import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
+import {
+  ActorScopeKind,
+  type ActorScopeContext,
+  type ObjectScopeCheck,
+} from '../../common/security/object-scope.provider';
+import type { SessionActor } from '../../common/security/session.types';
 
 describe('WorkRequestResourceScopeProvider', () => {
   it('derives SQL scope from an active member company', () => {
@@ -28,14 +34,105 @@ describe('WorkRequestResourceScopeProvider', () => {
     ).toEqual({ tenantWide: true });
   });
   it('turns off the ObjectScopeProvider tenant-admin wildcard for a parent check', () => {
-    const assertCanAccess = jest.fn();
+    const resolve = jest
+      .fn<ActorScopeContext, [SessionActor]>()
+      .mockReturnValue({
+        actorProfileId: 'actor-id',
+        roleId: 'role-id',
+        roleCode: null,
+        isSystemRole: true,
+        customScope: null,
+        boundTeamId: null,
+        kind: ActorScopeKind.TenantAdmin,
+        tenantWide: true,
+        member: null,
+        clientContact: null,
+      });
+    const assertCanAccess = jest.fn<void, [SessionActor, ObjectScopeCheck]>();
     const provider = new WorkRequestResourceScopeProvider({
+      resolve,
       assertCanAccess,
     } as never);
-    provider.assert({} as never, { clientId: 'client', companyId: 'company' });
+    provider.assert({} as never, {
+      clientId: 'client',
+      companyId: 'company',
+      divisionId: null,
+      teamId: null,
+    });
     expect(assertCanAccess).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ allowTenantAdmin: false }),
     );
+  });
+
+  it('uses only the bound Team for a TEAM-scoped custom role', () => {
+    const scopes = {
+      resolve: jest.fn().mockReturnValue({
+        tenantWide: false,
+        isSystemRole: false,
+        customScope: 'team',
+        boundTeamId: 'team-a',
+      }),
+    };
+    const provider = new WorkRequestResourceScopeProvider(scopes as never);
+
+    expect(provider.scopeFor({} as never)).toEqual({ teamId: 'team-a' });
+    expect(() =>
+      provider.assert({} as never, {
+        clientId: 'client',
+        companyId: 'company',
+        divisionId: 'division-a',
+        teamId: 'team-b',
+      }),
+    ).toThrow();
+    expect(() =>
+      provider.assert({} as never, {
+        clientId: 'client',
+        companyId: 'company',
+        divisionId: 'division-a',
+        teamId: 'team-a',
+      }),
+    ).not.toThrow();
+  });
+
+  it('fails closed when a TEAM-scoped custom role has no grant binding', () => {
+    const provider = new WorkRequestResourceScopeProvider({
+      resolve: jest.fn().mockReturnValue({
+        tenantWide: false,
+        isSystemRole: false,
+        customScope: 'team',
+        boundTeamId: null,
+      }),
+    } as never);
+
+    expect(() => provider.scopeFor({} as never)).toThrow();
+  });
+
+  it('uses only the active Division for a DIVISION-scoped custom role', () => {
+    const provider = new WorkRequestResourceScopeProvider({
+      resolve: jest.fn().mockReturnValue({
+        tenantWide: false,
+        isSystemRole: false,
+        customScope: 'division',
+        member: {
+          active: true,
+          companyActive: true,
+          divisionActive: true,
+          divisionId: 'division-a',
+        },
+      }),
+    } as never);
+
+    expect(provider.scopeFor({} as never)).toEqual({
+      divisionId: 'division-a',
+    });
+    expect(() =>
+      provider.assert({} as never, {
+        clientId: 'client',
+        companyId: 'company',
+        divisionId: 'division-b',
+        teamId: null,
+      }),
+    ).toThrow();
   });
 });

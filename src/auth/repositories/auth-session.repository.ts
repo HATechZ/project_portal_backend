@@ -9,6 +9,7 @@ import {
   SessionUser,
   sessionActorSelect,
   sessionUserSelect,
+  withBoundTeamId,
 } from '../../common/security/session.types';
 
 export type UserCredentials = Prisma.UserGetPayload<Record<string, never>>;
@@ -46,9 +47,10 @@ export class AuthSessionRepository extends BaseRepository {
 
   findActiveActor(userId: string): Promise<SessionActor | null> {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction((db) =>
-      db.actorProfile.findFirst({
+    return this.transaction(async (db) => {
+      const actor = await db.actorProfile.findFirst({
         where: {
+          tenantId,
           userId,
           isActive: true,
           role: {
@@ -58,9 +60,10 @@ export class AuthSessionRepository extends BaseRepository {
           },
         },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-        select: sessionActorSelect(tenantId),
-      }),
-    );
+        select: sessionActorSelect(tenantId, userId),
+      });
+      return actor ? withBoundTeamId(actor) : null;
+    });
   }
 
   recordLoginAndCreateSession(

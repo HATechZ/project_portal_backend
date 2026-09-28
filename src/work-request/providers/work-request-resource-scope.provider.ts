@@ -8,10 +8,14 @@ export type WorkRequestScope = {
   tenantWide?: boolean;
   clientId?: string;
   companyId?: string;
+  divisionId?: string;
+  teamId?: string;
 };
 export type WorkRequestParentScope = {
   clientId: string;
   companyId: string | null;
+  divisionId: string | null;
+  teamId: string | null;
 };
 @Injectable()
 export class WorkRequestResourceScopeProvider {
@@ -19,6 +23,19 @@ export class WorkRequestResourceScopeProvider {
   scopeFor(actor: SessionActor): WorkRequestScope {
     const scope = this.scopes.resolve(actor);
     if (scope.tenantWide) return { tenantWide: true };
+    if (scope.isSystemRole === false && scope.customScope === 'team') {
+      if (!scope.boundTeamId) throw denied();
+      return { teamId: scope.boundTeamId };
+    }
+    if (scope.isSystemRole === false && scope.customScope === 'division') {
+      if (
+        !scope.member?.active ||
+        !scope.member.companyActive ||
+        !scope.member.divisionActive
+      )
+        throw denied();
+      return { divisionId: scope.member.divisionId };
+    }
     if (scope.clientContact?.active && scope.clientContact.clientActive)
       return { clientId: scope.clientContact.clientId };
     if (scope.member?.active && scope.member.companyActive)
@@ -26,6 +43,22 @@ export class WorkRequestResourceScopeProvider {
     throw denied();
   }
   assert(actor: SessionActor, parent: WorkRequestParentScope): void {
+    const scope = this.scopes.resolve(actor);
+    if (scope.isSystemRole === false && scope.customScope === 'team') {
+      if (!scope.boundTeamId || parent.teamId !== scope.boundTeamId)
+        throw denied();
+      return;
+    }
+    if (scope.isSystemRole === false && scope.customScope === 'division') {
+      if (
+        !scope.member?.active ||
+        !scope.member.companyActive ||
+        !scope.member.divisionActive ||
+        parent.divisionId !== scope.member.divisionId
+      )
+        throw denied();
+      return;
+    }
     this.scopes.assertCanAccess(actor, {
       anyOf: [
         { kind: 'client', clientId: parent.clientId },

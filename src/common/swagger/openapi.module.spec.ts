@@ -121,6 +121,7 @@ describe('Scalar docs security configuration', () => {
       '#api-reference',
       expect.objectContaining({
         url: '/docs-json',
+        defaultRequestBodyView: 'form',
         onRequestBuilt: expect.any(Function) as unknown,
       }),
     );

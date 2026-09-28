@@ -25,7 +25,7 @@ Only module-specific behavior is stated here.
 | `GET` | `/api/v1/role` | 200 | `system_admin` |
 | `GET` | `/api/v1/role/:id` | 200 · 404 | `system_admin` |
 | `PUT` | `/api/v1/role/:id/permission` | 200 | `system_admin` |
-| `GET` | `/api/v1/permission` | 200 | `system_admin` |
+| `GET` | `/api/v1/permission` | 200 · 400 | `system_admin` |
 | `GET` | `/api/v1/permission/:id` | 200 · 404 | `system_admin` |
 | `GET` | `/api/v1/user/:userId/role` | 200 | `system_admin` |
 | `POST` | `/api/v1/user/:userId/role` | 201 · 409 | `system_admin` |
@@ -62,6 +62,12 @@ fabricated. The first eligible profile becomes default only if no eligible defau
 repeated grant does not unexpectedly replace a valid default. Revoked roles make their profiles
 ineligible. Division's `Assign Division Lead` API reuses this same UserRole/ActorProfile
 orchestration and then validates the eligible Member; it is not a new identity model.
+
+A TEAM-scoped tenant custom-role assignment additionally requires `teamId`. The Team must be
+active and tenant-local, and the target User's active Member must have an active exact
+TeamMember row. `teamId` is forbidden for every COMPANY/DIVISION custom role and every fixed
+system role. The session resolves that binding from its exact active UserRole grant; it never
+derives a Team from an arbitrary membership.
 
 `GET /actor-profiles` returns only profiles owned by the authenticated User. Activation succeeds
 only when the profile is active, belongs to that User and Tenant, and its matching UserRole grant
@@ -128,8 +134,8 @@ Swagger summaries are deliberately short and use these endpoint purposes:
 | `GET /role` | List available roles | Lists retrievable global system roles and same-Tenant custom roles. |
 | `GET /role/:id` | Get role details | Returns one safe role detail. |
 | `POST /role` | Create a custom role | Atomically creates a custom role and initial compatible grants. |
-| `PUT /role/:id/permission` | Update permissions for a role | Retains existing full replacement semantics. |
-| `GET /permission` | List available permissions | Lists the existing selector catalog. |
+| `PUT /role/:id/permission` | Update permissions for a role | Retains full replacement semantics and may replace a custom role scope when all submitted permissions are eligible. |
+| `GET /permission` | List available permissions | `customRole=true&scope=company|division|team` lists only assignable permissions eligible for that exact scope; otherwise lists the existing selector catalog. |
 | `GET /permission/:id` | Get permission details | Returns one catalog definition. |
 | `GET /user/:userId/role` | List roles assigned to a user | Retains existing active/history behavior. |
 | `GET /user/:userId/role-options` | List roles available for assignment | Is the target-aware dropdown source. |
@@ -154,7 +160,7 @@ System code is the existing fixed actor code; custom code is backend-generated a
 }
 ```
 
-`name` is required; `description` is optional; V1 `scope` is one of `division`, `company`;
+`name` is required; `description` is optional; V1 `scope` is one of `company`, `division`, `team`;
 and `permissionCodes` is a non-duplicate non-empty array of
 existing catalog codes. Reject `tenantId`, `roleId`, `isSystemRole`, `createdByUserId`, `code`,
 `systemCode`, custom-code input, workflow actor code, and every undeclared property. The backend
@@ -164,10 +170,12 @@ grants in the same serializable transaction.
 ### Scope-compatible permissions
 
 The backend filters and validates every requested permission through the authoritative
-`workflow action -> custom scope` policy. In V1 `ADD_MEMBER`, `ADD_TEAM`, and `ASSIGN_MEMBER`
-are eligible only for `division` and `company`; every other action is ineligible. Frontend
-filtering is UX only. Eligibility expands only when the owning protected operation supports
-generic permission plus object-scope authorization; there is no wildcard.
+`workflow action -> custom scope` policy. `ADD_MEMBER` and `ASSIGN_MEMBER` are eligible for
+`company`, `division`, and `team`; `ADD_TEAM` is eligible only for `company` and `division`.
+Every other action, including system-only `ADD_COMPANY`, is ineligible. `GET /permission` with
+`customRole=true` requires one exact supported `scope` and returns only that scope's eligible
+permissions. Frontend filtering is UX only. Eligibility expands only when the owning protected
+operation supports generic permission plus object-scope authorization; there is no wildcard.
 
 ### `GET /api/v1/user/:userId/role-options`
 

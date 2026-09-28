@@ -47,7 +47,7 @@ export type SessionUser = Prisma.UserGetPayload<{
   select: ReturnType<typeof sessionUserSelect>;
 }>;
 
-export const sessionActorSelect = (tenantId: string) =>
+export const sessionActorSelect = (tenantId: string, userId: string) =>
   ({
     id: true,
     roleId: true,
@@ -64,6 +64,11 @@ export const sessionActorSelect = (tenantId: string) =>
         workflowActionRolePermissionsByRoleId: {
           where: { tenantId, allowed: true },
           select: { action: { select: { code: true } } },
+        },
+        userRolesByRoleId: {
+          where: { tenantId, userId, revokedAt: null },
+          select: { teamId: true },
+          take: 1,
         },
       },
     },
@@ -118,6 +123,15 @@ export const sessionActorSelect = (tenantId: string) =>
     },
   }) satisfies Prisma.ActorProfileSelect;
 
-export type SessionActor = Prisma.ActorProfileGetPayload<{
+type SessionActorRecord = Prisma.ActorProfileGetPayload<{
   select: ReturnType<typeof sessionActorSelect>;
 }>;
+
+export type SessionActor = SessionActorRecord & { boundTeamId: string | null };
+
+export function withBoundTeamId(actor: SessionActorRecord): SessionActor {
+  return {
+    ...actor,
+    boundTeamId: actor.role.userRolesByRoleId[0]?.teamId ?? null,
+  };
+}

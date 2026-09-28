@@ -1,6 +1,4 @@
 import {
-  demoClient,
-  demoClientContact,
   demoCompany,
   demoDesignation,
   demoDivision,
@@ -12,6 +10,7 @@ import {
   optionTypes,
   optionValues,
 } from '../data/demo.data';
+import { initializeDefaultClients } from '../default-clients';
 import { Seeder } from '../types';
 
 export const demoFixtureSeeder: Seeder = {
@@ -55,15 +54,11 @@ export const demoFixtureSeeder: Seeder = {
         update: { name: item.name, sortOrder: item.sortOrder, isActive: true },
       });
     }
-    await prisma.client.upsert({
-      where: { id: demoClient.id },
-      create: demoClient,
-      update: { companyId: demoClient.companyId, name: demoClient.name, isActive: true },
+    const companies = await prisma.company.findMany({
+      select: { id: true, tenantId: true },
     });
-    await prisma.clientContact.upsert({
-      where: { tenantId_clientId_email: { tenantId: demoClientContact.tenantId, clientId: demoClientContact.clientId, email: demoClientContact.email } },
-      create: demoClientContact,
-      update: { name: demoClientContact.name, designation: demoClientContact.designation, isPrimary: true, isActive: true },
-    });
+    for (const company of companies) {
+      await initializeDefaultClients(prisma, company);
+    }
   },
 };

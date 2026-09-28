@@ -19,7 +19,10 @@ export class RoleResponseDto {
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty() isSystemRole!: boolean;
-  @ApiPropertyOptional({ enum: ['division', 'company'], nullable: true })
+  @ApiPropertyOptional({
+    enum: ['company', 'division', 'team'],
+    nullable: true,
+  })
   scope!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: () => PermissionResponseDto, isArray: true })
@@ -30,6 +33,8 @@ export class UserRoleAssignmentResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) userId!: string;
   @ApiProperty({ format: 'uuid' }) roleId!: string;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  teamId!: string | null;
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   assignedByUserId!: string | null;
   @ApiProperty({ format: 'date-time' }) assignedAt!: Date;

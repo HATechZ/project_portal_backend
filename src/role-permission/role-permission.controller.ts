@@ -26,6 +26,7 @@ import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import {
   PermissionResponseDto,
+  PermissionQueryDto,
   RoleResponseDto,
   SetRolePermissionsDto,
   CreateCustomRoleDto,
@@ -78,7 +79,7 @@ export class RolePermissionController {
   @ApiOperation({
     summary: 'Update permissions for a role',
     description:
-      'This operation performs full replacement. Permission codes omitted from the request are revoked for this tenant and role.',
+      'This operation performs full replacement. Permission codes omitted from the request are revoked for this tenant and role. A custom role scope may be changed only when every replacement permission is eligible for the requested scope.',
   })
   @ApiStandardOkResponse(RoleResponseDto, 'Role permissions replaced')
   @ApiStandardNotFoundResponse('Role was not found')
@@ -93,13 +94,15 @@ export class RolePermissionController {
   @ResponseMessage('Permissions returned successfully')
   @ApiOperation({
     summary: 'List available permissions',
+    description:
+      'Use customRole=true with scope=company, division, or team to receive only custom-role-assignable permissions eligible for that exact scope. Without customRole=true, the existing visible permission catalogue is returned.',
   })
   @ApiStandardArrayResponse(PermissionResponseDto)
-  findPermissions(
-    @Query('customRole') customRole?: string,
-    @Query('scope') scope?: string,
-  ) {
-    return this.service.findPermissions(customRole === 'true', scope);
+  findPermissions(@Query() query: PermissionQueryDto) {
+    return this.service.findPermissions(
+      query.customRole === 'true',
+      query.scope,
+    );
   }
 
   @Get('permission/:id')

@@ -38,6 +38,7 @@ export interface ActorScopeContext {
   roleCode: ActorRoleCode | null;
   isSystemRole: boolean;
   customScope: string | null;
+  boundTeamId?: string | null;
   kind: ActorScopeKind;
   tenantWide: boolean;
   member: {
@@ -97,6 +98,7 @@ export class ObjectScopeProvider {
       roleCode,
       isSystemRole: actor.role.isSystemRole,
       customScope: actor.role.customScope,
+      boundTeamId: actor.boundTeamId,
       kind: this.kind(tenantWide, member, clientContact),
       tenantWide,
       member,

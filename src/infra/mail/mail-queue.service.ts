@@ -7,9 +7,9 @@ import { AppConfiguration } from '../../config/configuration';
 export class MailQueueService extends Queue implements OnApplicationShutdown {
   constructor(config: ConfigService<AppConfiguration, true>) {
     const mail = config.getOrThrow('mail', { infer: true });
-    const redis = config.getOrThrow('redis', { infer: true });
+    const queueRedis = config.getOrThrow('redis.queue', { infer: true });
     super(mail.queueName, {
-      connection: { url: redis.url, maxRetriesPerRequest: null },
+      connection: { url: queueRedis.url, maxRetriesPerRequest: null },
       defaultJobOptions: {
         attempts: 5,
         backoff: { type: 'exponential', delay: 1000 },

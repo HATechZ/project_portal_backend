@@ -42,6 +42,8 @@ export class WorkRequestRepository extends BaseRepository {
           parent: {
             clientId: parent.clientId,
             companyId: parent.client.companyId,
+            divisionId: null,
+            teamId: null,
             state: parent.statusEvents[0]?.toStatus.code ?? '',
           },
           bidNaming: {
@@ -63,6 +65,8 @@ export class WorkRequestRepository extends BaseRepository {
         parent: {
           clientId: parent.clientId,
           companyId: parent.client.companyId,
+          divisionId: null,
+          teamId: null,
           state: parent.statusEvents[0]?.toStatus.code ?? '',
         },
         bidNaming: null,
@@ -173,6 +177,5 @@ type WorkRequestCreateInput = {
 };
 type WorkRequestUpdateInput = {
   title?: string;
-  priority?: WorkRequestV1PriorityCode;
   notes?: string;
 };
