@@ -66,7 +66,10 @@ export class WorkRequestResourceScopeProvider {
           ? [{ kind: 'memberCompany', companyId: parent.companyId } as const]
           : []),
       ],
-      allowTenantAdmin: false,
+      // The parent was read through the current RequestContext tenant. Within
+      // that tenant, tenant_super_admin has tenant-wide object scope; custom
+      // Division and Team branches above remain more restrictive.
+      allowTenantAdmin: true,
     });
   }
 }

@@ -13,6 +13,11 @@ import { WorkflowActionCode } from '../../generated/prisma/client';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
+const optionalTrim = ({ value }: { value: unknown }) => {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim();
+  return normalized === '' ? undefined : normalized;
+};
 const array = ({ value }: { value: unknown }) =>
   value === undefined || value === ''
     ? undefined
@@ -25,10 +30,12 @@ export type WorkRequestPriority = (typeof WORK_REQUEST_PRIORITIES)[number];
 
 export class CreateWorkRequestDto {
   @ApiPropertyOptional({ format: 'uuid' })
+  @Transform(optionalTrim)
   @IsOptional()
   @IsUUID()
   bidId?: string;
   @ApiPropertyOptional({ format: 'uuid' })
+  @Transform(optionalTrim)
   @IsOptional()
   @IsUUID()
   projectId?: string;
@@ -43,7 +50,7 @@ export class CreateWorkRequestDto {
   priority!: WorkRequestPriority;
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(trim)
+  @Transform(optionalTrim)
   @IsString()
   @MaxLength(10000)
   notes?: string;

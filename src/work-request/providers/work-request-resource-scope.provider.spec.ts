@@ -53,7 +53,33 @@ describe('WorkRequestResourceScopeProvider', () => {
 
     expect(provider.scopeFor(actor)).toEqual({ tenantWide: true });
   });
-  it('turns off the ObjectScopeProvider tenant-admin wildcard for a parent check', () => {
+  it('allows tenant_super_admin to access a parent within the active tenant', () => {
+    const provider = new WorkRequestResourceScopeProvider(
+      new ObjectScopeProvider(),
+    );
+    const actor = {
+      id: 'actor-id',
+      roleId: 'role-id',
+      role: {
+        isSystemRole: true,
+        customScope: null,
+        systemRole: { systemCode: ActorRoleCode.tenant_super_admin },
+      },
+      member: null,
+      clientContact: null,
+    } as never;
+
+    expect(() =>
+      provider.assert(actor, {
+        clientId: 'client',
+        companyId: 'company',
+        divisionId: null,
+        teamId: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it('enables the established tenant-admin scope only for parent checks', () => {
     const resolve = jest
       .fn<ActorScopeContext, [SessionActor]>()
       .mockReturnValue({
@@ -81,7 +107,36 @@ describe('WorkRequestResourceScopeProvider', () => {
     });
     expect(assertCanAccess).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ allowTenantAdmin: false }),
+      expect.objectContaining({ allowTenantAdmin: true }),
+    );
+  });
+
+  it('keeps ordinary Member and Client Contact parent requirements intact', () => {
+    const assertCanAccess = jest.fn<void, [SessionActor, ObjectScopeCheck]>();
+    const provider = new WorkRequestResourceScopeProvider({
+      resolve: jest.fn().mockReturnValue({
+        isSystemRole: true,
+        customScope: null,
+      }),
+      assertCanAccess,
+    } as never);
+
+    provider.assert({} as never, {
+      clientId: 'client-a',
+      companyId: 'company-a',
+      divisionId: null,
+      teamId: null,
+    });
+
+    expect(assertCanAccess).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        anyOf: [
+          { kind: 'client', clientId: 'client-a' },
+          { kind: 'memberCompany', companyId: 'company-a' },
+        ],
+        allowTenantAdmin: true,
+      }),
     );
   });
 

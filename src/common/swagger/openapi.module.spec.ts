@@ -101,6 +101,34 @@ describe('Scalar docs security configuration', () => {
     expect(request.headers.get('x-tenant-id')).toBe('tenant-id-value');
   });
 
+  it("removes Scalar's boundary-less multipart header so FormData can supply it", () => {
+    const request = new Request('https://example.test', {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    normalizeScalarFinalAuthorization({
+      request,
+      requestBuilder: {},
+    });
+
+    expect(request.headers.has('Content-Type')).toBe(false);
+  });
+
+  it('preserves a multipart header that already includes its boundary', () => {
+    const request = new Request('https://example.test', {
+      headers: { 'Content-Type': 'multipart/form-data; boundary=ScalarForm' },
+    });
+
+    normalizeScalarFinalAuthorization({
+      request,
+      requestBuilder: {},
+    });
+
+    expect(request.headers.get('Content-Type')).toBe(
+      'multipart/form-data; boundary=ScalarForm',
+    );
+  });
+
   it('passes the final-request normalization hook to the pinned browser runtime', () => {
     const html = generateDocsHtml('/docs-json');
     const createApiReference = jest.fn();
@@ -109,7 +137,7 @@ describe('Scalar docs security configuration', () => {
     )?.[1];
 
     expect(html).toContain(
-      'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.68.0',
+      'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.71.0',
     );
     expect(inlineScript).toBeDefined();
 

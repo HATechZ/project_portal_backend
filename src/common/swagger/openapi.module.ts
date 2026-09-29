@@ -58,6 +58,15 @@ export function normalizeScalarFinalAuthorization({
   request,
   requestBuilder,
 }: ScalarRequestBuiltPayload): void {
+  // Scalar presents multipart as a header value without a boundary. Leaving
+  // that header in place prevents the browser from generating the boundary
+  // for its FormData body, and Multer rejects the request before the route.
+  if (
+    request.headers.get('Content-Type')?.trim().toLowerCase() ===
+    'multipart/form-data'
+  )
+    request.headers.delete('Content-Type');
+
   const hasBearerSecurity = requestBuilder.security?.some(
     (entry) =>
       entry?.in === 'header' &&
@@ -111,7 +120,7 @@ export function generateDocsHtml(jsonPath: string): string {
   </head>
   <body>
     <div id="api-reference"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.68.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.71.0"></script>
     <script>
       var configuration = ${serializeForScript(configuration)};
 ${scalarAuthorizationNormalizationScript}

@@ -1,5 +1,25 @@
 import type { ApiBodyOptions } from '@nestjs/swagger';
 
+const multipartProperties = {
+  bidId: { type: 'string', format: 'uuid' },
+  projectId: { type: 'string', format: 'uuid' },
+  title: { type: 'string' },
+  priority: { type: 'string', enum: ['Low', 'Medium', 'High'] },
+  notes: { type: 'string' },
+  documentCodeIds: {
+    type: 'array',
+    description:
+      'Optional. When files are supplied, provide one UUID for each file in matching order.',
+    items: { type: 'string', format: 'uuid' },
+  },
+  files: {
+    type: 'array',
+    description:
+      'Optional. When supplied, each file requires a matching documentCodeIds entry.',
+    items: { type: 'string', format: 'binary' },
+  },
+};
+
 export const workRequestCreateMultipartBody: ApiBodyOptions = {
   encoding: {
     bidId: { contentType: 'text/plain' },
@@ -21,25 +41,14 @@ export const workRequestCreateMultipartBody: ApiBodyOptions = {
   schema: {
     type: 'object',
     required: ['title', 'priority'],
-    properties: {
-      bidId: {
-        type: 'string',
-        format: 'uuid',
-        description: 'Exactly one of bidId or projectId is required.',
+    properties: multipartProperties,
+    oneOf: [
+      {
+        required: ['bidId'],
       },
-      projectId: {
-        type: 'string',
-        format: 'uuid',
-        description: 'Exactly one of bidId or projectId is required.',
+      {
+        required: ['projectId'],
       },
-      title: { type: 'string' },
-      priority: { type: 'string', enum: ['Low', 'Medium', 'High'] },
-      notes: { type: 'string' },
-      documentCodeIds: {
-        type: 'array',
-        items: { type: 'string', format: 'uuid' },
-      },
-      files: { type: 'array', items: { type: 'string', format: 'binary' } },
-    },
+    ],
   },
 };
