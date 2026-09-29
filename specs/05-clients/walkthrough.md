@@ -14,21 +14,21 @@ When implementing Module 05, start the API and record each focused HTTP/RLS chec
 
 Required checks:
 
-- system_admin creates Client plus initial active Primary ClientContact in own Company.
+- tenant_super_admin creates Client plus initial active Primary ClientContact in own Company.
 - Create Client derives Tenant/Company and rejects caller identity/password control fields.
 - Create Client with portal access disabled creates no portal identity or setup state.
 - Create Client with portal access enabled provisions or establishes client_owner access and
   initiates one-time password setup without exposing password or token material.
-- system_admin lists only in-scope Clients.
-- system_admin gets and updates in-scope Client.
-- system_admin deactivates and reactivates Client.
+- tenant_super_admin lists only in-scope Clients.
+- tenant_super_admin gets and updates in-scope Client.
+- tenant_super_admin deactivates and reactivates Client.
 - inactive Client is not selectable for new business records.
 - cross-tenant/cross-company Client access is denied.
-- system_admin adds ClientContact under in-scope Client.
+- tenant_super_admin adds ClientContact under in-scope Client.
 - duplicate Contact email in same Client is denied.
 - same Contact email under another Client follows approved uniqueness behavior.
 - cross-Client Contact route mismatch is denied.
-- system_admin deactivates and reactivates ClientContact.
+- tenant_super_admin deactivates and reactivates ClientContact.
 - inactive ClientContact cannot be used for new portal/workflow operations.
 - Set Primary Client Contact succeeds for one active contact.
 - setting a new primary atomically unsets the previous primary.

@@ -11,7 +11,7 @@ import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import { PermissionsGuard } from '../common/security/permissions.guard';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 
 /** Route prefix, guard chain, and shared error docs for every Client controller. */
@@ -25,12 +25,12 @@ export function ClientApiController(): ClassDecorator {
       TenantContextGuard,
       AuthenticationGuard,
       ObjectScopeGuard,
-      SystemAdminGuard,
+      TenantSuperAdminGuard,
       PermissionsGuard,
     ),
     ApiStandardBadRequestResponse(),
     ApiStandardUnauthorizedResponse(),
-    ApiStandardForbiddenResponse('System administrator access required'),
+    ApiStandardForbiddenResponse('tenant super administrator access required'),
     ApiStandardNotFoundResponse('Client was not found'),
     ApiStandardConflictResponse('Client request conflicts with current data'),
   );

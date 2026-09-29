@@ -15,7 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import {
   ApiStandardBadRequestResponse,
@@ -32,7 +32,7 @@ import { SessionAdministrationService } from './session-administration.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  SystemAdminGuard,
+  TenantSuperAdminGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()

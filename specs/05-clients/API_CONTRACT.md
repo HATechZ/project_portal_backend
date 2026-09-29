@@ -42,7 +42,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT`.
 
 ### List Clients
 
@@ -58,7 +58,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT`;
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT`;
 - CCR may read/select active Clients only in authorized Bid/Project/workflow context;
 - `client_owner` may access own Client context only through approved client-side workflow
   surfaces.
@@ -102,7 +102,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT`.
 
 ### Deactivate Client
 
@@ -118,7 +118,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT`.
 
 ### Reactivate Client
 
@@ -133,7 +133,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT`.
 
 ## Client Contact
 
@@ -166,7 +166,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
 
 ### List Client Contacts
 
@@ -223,7 +223,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
 
 ### Deactivate Client Contact
 
@@ -241,7 +241,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
 
 ### Reactivate Client Contact
 
@@ -257,7 +257,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
 
 ### Set Primary Client Contact
 
@@ -274,7 +274,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_CONTACT`.
 
 ## Portal Access
 
@@ -324,14 +324,14 @@ User provisioning and setup:
 
 - The backend provisions or establishes the User under the existing Identity model; Client does
   not accept an existing User ID as a prerequisite.
-- System Admin never creates, chooses, sees, or knows the password.
+- tenant super admin never creates, chooses, sees, or knows the password.
 - The Client user chooses a password from the one-time, expiring setup link. Token handling,
   hashing, expiry, single use, and production email delivery reuse the approved Identity reset
   lifecycle; development may use its safe delivery inspection path.
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_PORTAL_ACCESS`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_PORTAL_ACCESS`.
 
 ### Revoke Client Portal Access
 
@@ -349,7 +349,7 @@ Behavior:
 
 Authorization:
 
-- `system_admin` in own Tenant/Company with `MANAGE_CLIENT_PORTAL_ACCESS`.
+- `tenant_super_admin` in own Tenant/Company with `MANAGE_CLIENT_PORTAL_ACCESS`.
 
 ## Forbidden Client-Side Routes
 

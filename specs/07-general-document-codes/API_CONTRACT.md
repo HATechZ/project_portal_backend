@@ -2,7 +2,7 @@
 
 Base is `/api/v1/general-document-codes`. Platform envelopes, UUID parsing, whitelist validation, `x-request-id`, centralized `AppException`, and `ApiStandard*Response` apply. Response fields are `id`, `code`, `name`, `description`, `sortOrder`, `isActive`, `createdAt`, and `updatedAt`; never `tenantId` or `documentGroup`.
 
-Every route requires the standard authenticated active TenantContext/actor guard chain and the controller-wide `MANAGE_GENERAL_DOCUMENT_CODES` permission. It is granted only to the current `system_admin` runtime role, `division_head`, and `division_lead`; role identity is never checked directly, and custom roles receive no grant. The module uses no Module 06 `tenantWide` service restriction: a current TenantContext plus the configured permission is sufficient for those approved roles.
+Every route requires the standard authenticated active TenantContext/actor guard chain and the controller-wide `MANAGE_GENERAL_DOCUMENT_CODES` permission. It is granted only to the current `tenant_super_admin` runtime role, `division_head`, and `division_lead`; role identity is never checked directly, and custom roles receive no grant. The module uses no Module 06 `tenantWide` service restriction: a current TenantContext plus the configured permission is sufficient for those approved roles.
 
 | Method | Path | Exact Swagger summary | Behavior |
 |---|---|---|---|

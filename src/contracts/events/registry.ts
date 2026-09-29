@@ -5,6 +5,7 @@ import {
   ProjectStatusChanged,
   ProjectUpdated,
 } from './project-events';
+import { WorkRequestTransitioned } from './work-request-events';
 
 /**
  * Every contract event in the system, by class.
@@ -24,4 +25,5 @@ export const DOMAIN_EVENT_TYPES: DomainEventType[] = [
   ProjectCreated,
   ProjectUpdated,
   ProjectStatusChanged,
+  WorkRequestTransitioned,
 ];

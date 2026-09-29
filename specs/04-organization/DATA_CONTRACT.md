@@ -15,7 +15,7 @@ No enums or derived workflow state are owned by this slice.
 ## Writes and isolation
 
 Signup calls the existing narrow `public.provision_company_workspace` function as app_user.
-It generates UUID v4 IDs and atomically provisions Tenant, Company, initial User, system_admin
+It generates UUID v4 IDs and atomically provisions Tenant, Company, initial User, tenant_super_admin
 UserRole, default role-only ActorProfile and approved permission matrix. Only a password hash
 crosses the provisioning boundary; password confirmation is validation-only.
 

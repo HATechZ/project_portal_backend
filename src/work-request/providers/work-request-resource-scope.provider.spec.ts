@@ -1,9 +1,11 @@
 import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
 import {
   ActorScopeKind,
+  ObjectScopeProvider,
   type ActorScopeContext,
   type ObjectScopeCheck,
 } from '../../common/security/object-scope.provider';
+import { ActorRoleCode } from '../../generated/prisma/client';
 import type { SessionActor } from '../../common/security/session.types';
 
 describe('WorkRequestResourceScopeProvider', () => {
@@ -32,6 +34,24 @@ describe('WorkRequestResourceScopeProvider', () => {
         {} as never,
       ),
     ).toEqual({ tenantWide: true });
+  });
+  it('derives the tenant-wide list scope for tenant_super_admin only', () => {
+    const provider = new WorkRequestResourceScopeProvider(
+      new ObjectScopeProvider(),
+    );
+    const actor = {
+      id: 'actor-id',
+      roleId: 'role-id',
+      role: {
+        isSystemRole: true,
+        customScope: null,
+        systemRole: { systemCode: ActorRoleCode.tenant_super_admin },
+      },
+      member: null,
+      clientContact: null,
+    } as never;
+
+    expect(provider.scopeFor(actor)).toEqual({ tenantWide: true });
   });
   it('turns off the ObjectScopeProvider tenant-admin wildcard for a parent check', () => {
     const resolve = jest

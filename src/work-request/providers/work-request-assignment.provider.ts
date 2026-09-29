@@ -2,12 +2,14 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   WorkflowActionCode,
   WorkRequestV1AssignmentLevelCode,
-  WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
+import { RequestContext } from '../../common/context/request-context';
 import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
+import { WorkRequestTransitioned } from '../../contracts/events/work-request-events';
+import { OutboxService } from '../../infra/messaging/outbox.service';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import {
   AssignDivisionDto,
@@ -19,6 +21,10 @@ import type { WorkRequestAssignmentSnapshot } from '../repositories/work-request
 import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
 import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
 import { WorkRequestAssignmentReadRepository } from '../repositories/work-request-assignment-read.repository';
+import {
+  assignmentTransitionFor,
+  workRequestTransitionRequestMetadata,
+} from './work-request-transition.definitions';
 
 @Injectable()
 export class WorkRequestAssignmentProvider {
@@ -29,6 +35,7 @@ export class WorkRequestAssignmentProvider {
     private readonly scopes: ObjectScopeProvider,
     private readonly reads: WorkRequestReadRepository,
     private readonly historyReads: WorkRequestAssignmentReadRepository,
+    private readonly outbox: OutboxService,
   ) {}
 
   division(id: string, input: AssignDivisionDto, actor: SessionActor) {
@@ -61,6 +68,12 @@ export class WorkRequestAssignmentProvider {
   ) {
     return this.uow.execute(
       async () => {
+        const metadata = workRequestTransitionRequestMetadata();
+        if (
+          metadata.idempotencyKey &&
+          (await this.repository.findByIdempotencyKey(metadata.idempotencyKey))
+        )
+          throw conflict('This assignment request has already been applied.');
         const snapshot = await this.repository.prepare(
           workRequestId,
           level,
@@ -70,21 +83,52 @@ export class WorkRequestAssignmentProvider {
         if (!snapshot) throw notFound('Work Request was not found.');
         if (!snapshot.target)
           throw notFound('Assignment target was not found or is inactive.');
-        const transition = transitionFor(
+        if (snapshot.active[level] === targetId)
+          throw conflict('Work Request is already assigned to this target.');
+        const transition = assignmentTransitionFor(
           level,
           snapshot.state,
           !!snapshot.active[level],
         );
+        if (!transition)
+          throw conflict('Work Request is not in a valid assignment state.');
         this.assertHierarchy(snapshot, level);
         this.assertAuthorized(actor, snapshot, level);
-        return this.repository.write({
+        const written = await this.repository.write({
           workRequestId,
           level,
           targetId,
           actorId: actor.id,
           note,
           ...transition,
+          ...metadata,
         });
+        await this.outbox.enqueue(
+          new WorkRequestTransitioned(
+            {
+              tenantId: RequestContext.requireTenantId(),
+              actorId: actor.id,
+              eventId: written.event.id,
+              occurredAt: written.event.occurredAt.toISOString(),
+              correlationId: metadata.correlationId,
+            },
+            {
+              workRequestId,
+              action: written.event.action,
+              priorState: transition.priorState,
+              resultingState: transition.resultingState,
+            },
+          ),
+        );
+        return {
+          id: written.id,
+          level: written.level,
+          divisionId: written.divisionId,
+          teamId: written.teamId,
+          memberId: written.memberId,
+          assignedAt: written.assignedAt,
+          currentState: written.currentState,
+        };
       },
       { isolationLevel: 'Serializable' },
     );
@@ -170,41 +214,6 @@ export class WorkRequestAssignmentProvider {
       allowTenantAdmin: false,
     });
   }
-}
-
-function transitionFor(
-  level: WorkRequestV1AssignmentLevelCode,
-  state: WorkRequestV1StateCode | null,
-  replacing: boolean,
-) {
-  const rule = {
-    [WorkRequestV1AssignmentLevelCode.DIVISION]: {
-      initial: WorkRequestV1StateCode.CREATED,
-      assigned: WorkRequestV1StateCode.DIVISION_ASSIGNED,
-      assign: 'DIVISION_ASSIGNED',
-      reassign: 'DIVISION_REASSIGNED',
-    },
-    [WorkRequestV1AssignmentLevelCode.TEAM]: {
-      initial: WorkRequestV1StateCode.DIVISION_ASSIGNED,
-      assigned: WorkRequestV1StateCode.TEAM_ASSIGNED,
-      assign: 'TEAM_ASSIGNED',
-      reassign: 'TEAM_REASSIGNED',
-    },
-    [WorkRequestV1AssignmentLevelCode.MEMBER]: {
-      initial: WorkRequestV1StateCode.TEAM_ASSIGNED,
-      assigned: WorkRequestV1StateCode.MEMBER_ASSIGNED,
-      assign: 'MEMBER_ASSIGNED',
-      reassign: 'MEMBER_REASSIGNED',
-    },
-  }[level];
-  if (state !== (replacing ? rule.assigned : rule.initial))
-    throw conflict('Work Request is not in a valid assignment state.');
-  return {
-    priorState: state as WorkRequestV1StateCode,
-    resultingState: rule.assigned,
-    action: replacing ? rule.reassign : rule.assign,
-    replacing,
-  };
 }
 
 function permissionFor(level: WorkRequestV1AssignmentLevelCode) {

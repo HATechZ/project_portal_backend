@@ -66,7 +66,7 @@ export interface ActorScopeContext {
 export class ObjectScopeProvider {
   resolve(actor: SessionActor): ActorScopeContext {
     const roleCode = actor.role.systemRole?.systemCode ?? null;
-    const tenantWide = roleCode === ActorRoleCode.system_admin;
+    const tenantWide = roleCode === ActorRoleCode.tenant_super_admin;
     const member = actor.member
       ? {
           id: actor.member.id,
@@ -109,7 +109,7 @@ export class ObjectScopeProvider {
   hasTenantWideScope(actor: SessionActor | ActorScopeContext): boolean {
     return 'tenantWide' in actor
       ? actor.tenantWide
-      : actor.role.systemRole?.systemCode === ActorRoleCode.system_admin;
+      : actor.role.systemRole?.systemCode === ActorRoleCode.tenant_super_admin;
   }
 
   canAccess(

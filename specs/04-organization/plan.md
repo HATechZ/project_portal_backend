@@ -18,7 +18,7 @@ Contracts: SPEC.md, API_CONTRACT.md, DATA_CONTRACT.md. Status belongs in ../INDE
 ## Authorization and persistence
 
 CompanyController applies AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard ->
-ObjectScopeGuard -> SystemAdminGuard -> PermissionsGuard to reads/updates. system_admin is
+ObjectScopeGuard -> TenantSuperAdminGuard -> PermissionsGuard to reads/updates. tenant_super_admin is
 required; no additional workflow action permission is attached. JWT Tenant is authoritative.
 
 CompanyRepository extends BaseRepository. Operations join/open the normal Tenant UnitOfWork
@@ -27,7 +27,7 @@ abbreviation, slug, Tenant and activation are never included. Prechecks improve 
 FK/unique constraints and RLS remain authoritative under races. Same-field updates use last
 commit wins, and omitted fields are preserved. Shared Prisma translation handles conflicts.
 
-Signup's existing SECURITY DEFINER function is its atomic boundary. It resolves system_admin,
+Signup's existing SECURITY DEFINER function is its atomic boundary. It resolves tenant_super_admin,
 creates the default role-only profile and approved permission matrix. No schema/function/grant
 changes or cross-feature imports are introduced; app_relay remains outside this module.
 

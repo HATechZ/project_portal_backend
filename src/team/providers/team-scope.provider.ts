@@ -20,7 +20,7 @@ export class TeamScopeProvider {
       );
     }
     if (
-      actor.roleCode === ActorRoleCode.system_admin ||
+      actor.roleCode === ActorRoleCode.tenant_super_admin ||
       actor.roleCode === ActorRoleCode.division_head
     ) {
       if (requestedDivisionId) {
@@ -91,7 +91,7 @@ export class TeamScopeProvider {
         return;
       throw new ForbiddenException('Team membership is outside actor scope');
     }
-    if (actor.roleCode === ActorRoleCode.system_admin) return;
+    if (actor.roleCode === ActorRoleCode.tenant_super_admin) return;
     if (actor.roleCode === ActorRoleCode.division_head) return;
     if (
       actor.roleCode === ActorRoleCode.division_lead &&

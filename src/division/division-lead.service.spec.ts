@@ -1,7 +1,7 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { ALLOW_ACTOR_ROLES_KEY } from '../common/security/allow-actor-roles.decorator';
 import { PERMISSIONS_KEY } from '../common/security/permissions.decorator';
 import { ActorRoleCode, WorkflowActionCode } from '../generated/prisma/client';
@@ -58,7 +58,7 @@ describe('Division Lead assignment', () => {
       service.assignLead(
         'division-1',
         { memberId: 'member-1' },
-        'system-admin-user',
+        'tenant-super-admin-user',
       ),
     ).resolves.toMatchObject({
       division: { id: 'division-1' },
@@ -71,7 +71,7 @@ describe('Division Lead assignment', () => {
       companyId: company.id,
       divisionId: 'division-1',
       memberId: 'member-1',
-      assignedByUserId: 'system-admin-user',
+      assignedByUserId: 'tenant-super-admin-user',
     });
   });
 
@@ -108,10 +108,10 @@ describe('Division Lead assignment', () => {
     ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
   });
 
-  it('keeps the route system_admin guarded', () => {
+  it('keeps the route tenant_super_admin guarded', () => {
     const guards = (Reflect.getMetadata(GUARDS_METADATA, DivisionController) ??
       []) as unknown[];
-    expect(guards).toContain(SystemAdminGuard);
+    expect(guards).toContain(TenantSuperAdminGuard);
   });
 });
 
@@ -141,7 +141,7 @@ describe('Division Lead route authorization', () => {
     expect(typeof routeHandler(route)).toBe('function');
   });
 
-  it('leaves Division CRUD on ADD_DIVISION, admitting system_admin only', () => {
+  it('leaves Division CRUD on ADD_DIVISION, admitting tenant_super_admin only', () => {
     expect(Reflect.getMetadata(PERMISSIONS_KEY, DivisionController)).toEqual([
       WorkflowActionCode.ADD_DIVISION,
     ]);

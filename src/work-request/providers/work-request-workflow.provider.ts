@@ -2,69 +2,24 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   WorkflowActionCode,
   WorkRequestV1AssignmentLevelCode as Level,
-  WorkRequestV1StateCode as State,
 } from '../../generated/prisma/client';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
+import { RequestContext } from '../../common/context/request-context';
 import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
+import { WorkRequestTransitioned } from '../../contracts/events/work-request-events';
+import { OutboxService } from '../../infra/messaging/outbox.service';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import type { WorkRequestWorkflowNoteDto } from '../dtos/work-request.dto';
 import {
   WorkRequestWorkflowRepository,
   type WorkRequestWorkflowSnapshot,
 } from '../repositories/work-request-workflow.repository';
-
-const rules: Record<
-  WorkflowActionCode,
-  { from: State; to: State; event: string; responsibility: Level }
-> = {
-  [WorkflowActionCode.WR_SUBMIT]: {
-    from: State.MEMBER_ASSIGNED,
-    to: State.MEMBER_SUBMITTED,
-    event: 'WORK_SUBMITTED',
-    responsibility: Level.MEMBER,
-  },
-  [WorkflowActionCode.WR_TEAM_LEAD_APPROVE]: {
-    from: State.MEMBER_SUBMITTED,
-    to: State.TEAM_LEAD_APPROVED,
-    event: 'TEAM_LEAD_APPROVED',
-    responsibility: Level.TEAM,
-  },
-  [WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION]: {
-    from: State.MEMBER_SUBMITTED,
-    to: State.MEMBER_ASSIGNED,
-    event: 'REVISION_REQUESTED',
-    responsibility: Level.TEAM,
-  },
-  [WorkflowActionCode.WR_DIVISION_LEAD_APPROVE]: {
-    from: State.TEAM_LEAD_APPROVED,
-    to: State.DIVISION_LEAD_APPROVED,
-    event: 'DIVISION_LEAD_APPROVED',
-    responsibility: Level.DIVISION,
-  },
-  [WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION]: {
-    from: State.TEAM_LEAD_APPROVED,
-    to: State.TEAM_ASSIGNED,
-    event: 'REVISION_REQUESTED',
-    responsibility: Level.DIVISION,
-  },
-  [WorkflowActionCode.WR_DIVISION_HEAD_APPROVE]: {
-    from: State.DIVISION_LEAD_APPROVED,
-    to: State.DIVISION_HEAD_APPROVED,
-    event: 'DIVISION_HEAD_APPROVED',
-    responsibility: Level.DIVISION,
-  },
-  [WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION]: {
-    from: State.DIVISION_LEAD_APPROVED,
-    to: State.DIVISION_ASSIGNED,
-    event: 'REVISION_REQUESTED',
-    responsibility: Level.DIVISION,
-  },
-} as Record<
-  WorkflowActionCode,
-  { from: State; to: State; event: string; responsibility: Level }
->;
+import {
+  reviewTransitionFor,
+  workRequestTransitionRequestMetadata,
+} from './work-request-transition.definitions';
 
 @Injectable()
 export class WorkRequestWorkflowProvider {
@@ -72,6 +27,7 @@ export class WorkRequestWorkflowProvider {
     private readonly repository: WorkRequestWorkflowRepository,
     private readonly uow: UnitOfWorkService,
     private readonly scopes: ObjectScopeProvider,
+    private readonly outbox: OutboxService,
   ) {}
 
   submit(id: string, input: WorkRequestWorkflowNoteDto, actor: SessionActor) {
@@ -106,23 +62,48 @@ export class WorkRequestWorkflowProvider {
     note: string | undefined,
     actor: SessionActor,
   ) {
-    const rule = rules[action];
+    const rule = reviewTransitionFor(action);
     if (!rule) throw forbidden();
     return this.uow.execute(
       async () => {
+        const metadata = workRequestTransitionRequestMetadata();
+        if (
+          metadata.idempotencyKey &&
+          (await this.repository.findByIdempotencyKey(metadata.idempotencyKey))
+        )
+          throw conflict('This workflow request has already been applied.');
         const snapshot = await this.repository.prepare(id);
         if (!snapshot) throw notFound('Work Request was not found.');
         if (snapshot.state !== rule.from)
           throw conflict('Work Request is not in a valid workflow state.');
         this.assertAuthorized(actor, action, rule.responsibility, snapshot);
-        return this.repository.append({
+        const event = await this.repository.append({
           workRequestId: id,
           actorId: actor.id,
           action: rule.event,
           priorState: rule.from,
           resultingState: rule.to,
           note,
+          ...metadata,
         });
+        await this.outbox.enqueue(
+          new WorkRequestTransitioned(
+            {
+              tenantId: RequestContext.requireTenantId(),
+              actorId: actor.id,
+              eventId: event.eventId,
+              occurredAt: event.occurredAt.toISOString(),
+              correlationId: metadata.correlationId,
+            },
+            {
+              workRequestId: id,
+              action: event.action,
+              priorState: rule.from,
+              resultingState: rule.to,
+            },
+          ),
+        );
+        return event;
       },
       { isolationLevel: 'Serializable' },
     );
@@ -187,10 +168,8 @@ export class WorkRequestWorkflowProvider {
   }
 }
 
-function isPhaseThreeAction(
-  action: WorkflowActionCode,
-): action is keyof typeof rules {
-  return action in rules;
+function isPhaseThreeAction(action: WorkflowActionCode): boolean {
+  return reviewTransitionFor(action) !== undefined;
 }
 function notFound(message: string) {
   return new AppException({

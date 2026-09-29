@@ -16,7 +16,7 @@ Member may lead several Divisions**, while keeping **one active Lead per Divisio
 introduces a `division_leads` join table as the single source of truth for who leads what, and
 moves every authorization decision off `Member.divisionId` and onto that table.
 
-Actors: `system_admin` (assign/revoke within own Company), `division_head` (assign/revoke
+Actors: `tenant_super_admin` (assign/revoke within own Company), `division_head` (assign/revoke
 within own Company), `division_lead` (the subject of the assignment; gains scope over each
 Division it leads).
 
@@ -40,11 +40,11 @@ lead-derived Work Request assignment.
 
 ## 2. User Stories
 
-- **US-01:** As a `system_admin`, I want to assign one Member as Lead of several Divisions so
+- **US-01:** As a `tenant_super_admin`, I want to assign one Member as Lead of several Divisions so
   a single manager can cover multiple Divisions without duplicate Member records.
 - **US-02:** As a `division_lead` leading two Divisions, I want my Member and Team operations
   to succeed in **both**, so authorization matches the assignments that were actually granted.
-- **US-03:** As a `system_admin`, I want assigning a new Lead to a Division to retire the
+- **US-03:** As a `tenant_super_admin`, I want assigning a new Lead to a Division to retire the
   previous one automatically, so "who leads this Division" always has exactly one answer.
 - **US-04:** As an auditor, I want revoked leadership retained with its timestamp so history
   is never destroyed.
@@ -64,7 +64,7 @@ lead-derived Work Request assignment.
 | DR-09 | Every actor Division scope resolves to a **set** of Division IDs, never a single value. Any comparison of the form `actor.member.divisionId === target` is a defect. | scope providers; static assertion |
 | DR-10 | Revoking the last active Lead of a Division is permitted; a Division may be Lead-less. No operation requires a Lead to exist. | no NOT NULL on any Division column |
 | DR-11 | Division hard-delete must probe `division_leads` alongside the existing five inverse relations. Lead rows are dependents and block deletion. | delete dependency probe (extends `04.1` DR-06) |
-| DR-12 | Assignment and revocation are Company-scoped operations: `system_admin` and `division_head` act only within their own Company. Role alone never bypasses object scope. | guard chain; assign/revoke service validation |
+| DR-12 | Assignment and revocation are Company-scoped operations: `tenant_super_admin` and `division_head` act only within their own Company. Role alone never bypasses object scope. | guard chain; assign/revoke service validation |
 
 ## 4. Failure Modes
 

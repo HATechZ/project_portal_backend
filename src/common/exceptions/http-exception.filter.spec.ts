@@ -35,7 +35,7 @@ describe('HttpExceptionFilter', () => {
       'Your session has expired or is no longer valid. Sign in again to continue.',
     ],
     [
-      new ForbiddenException('System administrator access required'),
+      new ForbiddenException('tenant super administrator access required'),
       HttpStatus.FORBIDDEN,
       "You don't have permission to perform this action. Contact your administrator if you need access.",
     ],

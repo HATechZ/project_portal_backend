@@ -21,6 +21,6 @@ The current combined `projects` workspace root is prohibited for this future dom
 
 ## Authorization and Work Request boundary
 
-Authorization uses Module 03's current permission/action-grant and object-scope architecture, not hard-coded role comparisons. `ADD_PROJECT` protects create; future required read/update action definitions and grants use that catalog. Grant policy is locked: current system-administrator tenant role (owner label `tenant_super_admin`) and `ccr_coordinator` (CCR) may create/update; those two plus `division_head` and `division_lead` may list/read/detail. Division Head and Division Lead are read-only. No `prime_consultant`, invented admin role, or wildcard bypass.
+Authorization uses Module 03's current permission/action-grant and object-scope architecture, not hard-coded role comparisons. `ADD_PROJECT` protects create; future required read/update action definitions and grants use that catalog. Grant policy is locked: current tenant-super-administrator tenant role (owner label `tenant_super_admin`) and `ccr_coordinator` (CCR) may create/update; those two plus `division_head` and `division_lead` may list/read/detail. Division Head and Division Lead are read-only. No `prime_consultant`, invented admin role, or wildcard bypass.
 
 Future Work Requests are one-to-many through tenant-qualified `project_id`; Bid has a distinct relation. No Work Request workflow/routing/audit logic is included.

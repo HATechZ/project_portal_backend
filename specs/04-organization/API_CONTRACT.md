@@ -4,9 +4,9 @@ Base: `/api/v1`. Completion tracking: `../INDEX.md`.
 
 ## Authentication and envelopes
 
-Company list/detail/update are same-Tenant system_admin only. Controller guard order:
+Company list/detail/update are same-Tenant tenant_super_admin only. Controller guard order:
 AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard -> ObjectScopeGuard ->
-SystemAdminGuard -> PermissionsGuard. No additional workflow action permission is required.
+TenantSuperAdminGuard -> PermissionsGuard. No additional workflow action permission is required.
 Bearer JWT establishes Tenant context; no frontend x-tenant-id is required or trusted.
 Missing/invalid credentials return 401; authenticated non-admin returns 403.
 
@@ -70,7 +70,7 @@ companyType (nullable object with id/name/description), isActive, createdAt, upd
 
 ## PATCH /api/v1/company/:id
 
-Same-Tenant system_admin only. Body accepts optional name (trimmed, 1–180) and companyTypeId
+Same-Tenant tenant_super_admin only. Body accepts optional name (trimmed, 1–180) and companyTypeId
 (existing UUID). At least one is required. Null, unknown and immutable fields return 400.
 Only supplied fields change, plus updatedAt. Abbreviation, workspaceSlug, Tenant, IDs and
 activation cannot be changed. Unknown Company is checked before type existence.

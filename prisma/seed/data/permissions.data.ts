@@ -95,20 +95,20 @@ export const workRequestWorkflowPermissionCodes = new Set<WorkflowActionCode>([
 ]);
 
 /**
- * Approved Module 10 baseline grants. `system_admin` is the persisted enum
- * backing the tenant-super-admin fixed role; it is not a workflow bypass.
+ * Approved Module 10 baseline grants. `tenant_super_admin` is the fixed role;
+ * it is not a workflow bypass.
  * Runtime still enforces tenant, scope, organization, assignment, and state.
  */
 export const workRequestRolePermissionCodes: Pick<
   Record<ActorRoleCode, WorkflowActionCode[]>,
-  | 'system_admin'
+  | 'tenant_super_admin'
   | 'ccr_coordinator'
   | 'division_head'
   | 'division_lead'
   | 'team_lead'
   | 'division_member'
 > = {
-  system_admin: [
+  tenant_super_admin: [
     WorkflowActionCode.VIEW_WORK_REQUEST,
     WorkflowActionCode.UPDATE_WORK_REQUEST,
   ],
@@ -162,9 +162,9 @@ const supervisorPermissions = [
 
 export const rolePermissionCodes: Record<ActorRoleCode, WorkflowActionCode[]> =
   {
-    system_admin: [
+    tenant_super_admin: [
       ...supervisorPermissions,
-      ...workRequestRolePermissionCodes.system_admin,
+      ...workRequestRolePermissionCodes.tenant_super_admin,
     ],
     ccr_coordinator: [
       WorkflowActionCode.ADD_PROJECT,

@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- [ ] Add `MANAGE_GENERAL_DOCUMENT_CODES`; seed it only to `system_admin`, `division_head`, and `division_lead`, with no custom-role grant.
-      VERIFY: `Select-String -Path prisma/schema.prisma,prisma/seed/data/permissions.data.ts -Pattern 'MANAGE_GENERAL_DOCUMENT_CODES|system_admin|division_head|division_lead'`
+- [ ] Add `MANAGE_GENERAL_DOCUMENT_CODES`; seed it only to `tenant_super_admin`, `division_head`, and `division_lead`, with no custom-role grant.
+      VERIFY: `Select-String -Path prisma/schema.prisma,prisma/seed/data/permissions.data.ts -Pattern 'MANAGE_GENERAL_DOCUMENT_CODES|tenant_super_admin|division_head|division_lead'`
 - [ ] Grant `app_user` only SELECT, INSERT, UPDATE on `document_code_options`, retaining RLS and withholding DELETE, ALL, and BYPASSRLS.
       VERIFY: `Select-String -Path prisma/migrations/*/migration.sql -Pattern 'GRANT SELECT, INSERT, UPDATE ON TABLE document_code_options TO app_user|BYPASSRLS'`
 

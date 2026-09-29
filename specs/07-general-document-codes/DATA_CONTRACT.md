@@ -18,7 +18,7 @@ New tenants automatically receive the eight rows. Existing tenants receive a mis
 
 RLS is enabled through `tenant_isolation_document_code_options` for `app_user`, with tenant-id `USING` and `WITH CHECK` predicates. Repository predicates must still constrain tenant + fixed `MARKETING` (+ ID where applicable).
 
-Runtime implementation requires a migration granting **only** `SELECT`, `INSERT`, and `UPDATE` on `document_code_options` to `app_user`; it must not grant `DELETE`, `ALL`, or `BYPASSRLS`, and must retain RLS. It also requires the dedicated `MANAGE_GENERAL_DOCUMENT_CODES` workflow action and seed grants only for `system_admin` (the current runtime equivalent of tenant super admin), `division_head`, and `division_lead`; custom roles receive no direct grant. These are approved future implementation prerequisites, not changes made by this spec-only task.
+Runtime implementation requires a migration granting **only** `SELECT`, `INSERT`, and `UPDATE` on `document_code_options` to `app_user`; it must not grant `DELETE`, `ALL`, or `BYPASSRLS`, and must retain RLS. It also requires the dedicated `MANAGE_GENERAL_DOCUMENT_CODES` workflow action and seed grants only for `tenant_super_admin` (the current runtime equivalent of tenant super admin), `division_head`, and `division_lead`; custom roles receive no direct grant. These are approved future implementation prerequisites, not changes made by this spec-only task.
 
 ## Bid/Project separation override
 

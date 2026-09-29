@@ -14,7 +14,7 @@ actor layer was not ready, every audit query in 10–13 inherits the mistake.
 **Current state:** Tenant-scoped User administration, universal email-only Sign In, JWT and
 refresh-session lifecycle, password reset, role/permission administration, and authenticated
 ActorProfile listing/activation are implemented. User administration is restricted to
-`system_admin`; normal repository access remains fail-closed outside a Tenant unit of work.
+`tenant_super_admin`; normal repository access remains fail-closed outside a Tenant unit of work.
 
 ## User stories
 
@@ -22,11 +22,11 @@ ActorProfile listing/activation are implemented. User administration is restrict
 |---|---|---|---|
 | US-01 | any user | to sign in and receive a session | I can act in the portal |
 | US-02 | multi-capacity user | to act under a chosen actor profile | permissions and audit reflect the hat I wear |
-| US-03 | `system_admin` | to grant/revoke roles without deleting history | "who could do what, when" stays answerable |
+| US-03 | `tenant_super_admin` | to grant/revoke roles without deleting history | "who could do what, when" stays answerable |
 | US-04 | user who forgot a password | a single-use expiring reset link | |
 | US-05 | operator | to revoke a stolen session immediately | |
-| US-06 | `system_admin` | to create a tenant custom access role with initial compatible permissions | access can be delegated without creating a workflow identity |
-| US-07 | `system_admin` | to see only roles eligible for a selected User | assignment dropdowns cannot grant irrelevant roles |
+| US-06 | `tenant_super_admin` | to create a tenant custom access role with initial compatible permissions | access can be delegated without creating a workflow identity |
+| US-07 | `tenant_super_admin` | to see only roles eligible for a selected User | assignment dropdowns cannot grant irrelevant roles |
 
 ## Domain rules
 
@@ -86,11 +86,11 @@ System roles remain application-defined workflow and organizational identities. 
 `ActorRoleCode`, existing grants, ActorProfiles, permission grants, workflow transitions, and
 routing behavior remain unchanged. A custom access role is tenant-created, permission-configured
 access only: it never creates a workflow stage, routing identity, transition endpoint, or
-System Administrator bypass. `prime_consultant` is not restored.
+Tenant Super Administrator bypass. `prime_consultant` is not restored.
 
-Only a same-Tenant `system_admin` may create, administer permissions for, discover, assign, or
+Only a same-Tenant `tenant_super_admin` may create, administer permissions for, discover, assign, or
 revoke a custom access role. A custom role cannot administer roles merely by being custom or by
-holding a workflow permission. Existing hierarchy rules for `system_admin`, `ccr_coordinator`,
+holding a workflow permission. Existing hierarchy rules for `tenant_super_admin`, `ccr_coordinator`,
 `division_head`, `division_lead`, `team_lead`, `division_member`, TMS roles, `client_owner`, and
 workflow transitions are preserved.
 
@@ -134,7 +134,7 @@ authoritative.
 - Role assignment atomically ensures one reusable ActorProfile for that User/role. It uses an
   active linked Member as the profile target when present; otherwise the profile remains role-only.
   It preserves an existing eligible default; revoked grants make profiles ineligible.
-- Operator means a same-Tenant `system_admin`, who may revoke all active sessions of a
+- Operator means a same-Tenant `tenant_super_admin`, who may revoke all active sessions of a
   same-Tenant User. Missing or cross-Tenant targets return 404; non-admin callers return 403.
 - Updates reject null fullName, email, password and isActive with 400; avatarUrl remains nullable.
 - Recovery always returns its generic accepted response on mail/queue failure. Failed enqueue

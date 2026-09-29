@@ -3,6 +3,7 @@ import {
   WorkRequestV1AssignmentLevelCode as Level,
   WorkRequestV1StateCode as State,
 } from '../../generated/prisma/client';
+import { RequestContext } from '../../common/context/request-context';
 import { WorkRequestAssignmentProvider } from './work-request-assignment.provider';
 
 describe('WorkRequestAssignmentProvider', () => {
@@ -45,7 +46,15 @@ describe('WorkRequestAssignmentProvider', () => {
   const subject = (prepared = snapshot(State.CREATED)) => {
     const repository = {
       prepare: jest.fn().mockResolvedValue(prepared),
-      write: jest.fn().mockResolvedValue({ id: 'history-a' }),
+      findByIdempotencyKey: jest.fn().mockResolvedValue(null),
+      write: jest.fn().mockResolvedValue({
+        id: 'history-a',
+        event: {
+          id: 'event-a',
+          action: 'DIVISION_ASSIGNED',
+          occurredAt: new Date(),
+        },
+      }),
     };
     const resourceScope = { assert: jest.fn() };
     const scopes = {
@@ -54,6 +63,7 @@ describe('WorkRequestAssignmentProvider', () => {
         .mockReturnValue({ isSystemRole: true, customScope: null }),
       assertCanAccess: jest.fn(),
     };
+    const outbox = { enqueue: jest.fn() };
     const provider = new WorkRequestAssignmentProvider(
       repository as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
@@ -61,8 +71,9 @@ describe('WorkRequestAssignmentProvider', () => {
       scopes as never,
       { find: jest.fn(), parentScope: jest.fn() } as never,
       { history: jest.fn() } as never,
+      outbox as never,
     );
-    return { provider, repository, resourceScope, scopes };
+    return { provider, repository, resourceScope, scopes, outbox };
   };
   const assign = (
     provider: WorkRequestAssignmentProvider,
@@ -73,21 +84,29 @@ describe('WorkRequestAssignmentProvider', () => {
   ) => {
     const activeActor = actor(permission, customScope);
     if (level === Level.DIVISION)
-      return provider.division(
-        'request-a',
-        { divisionId: 'target-a', note },
-        activeActor,
+      return RequestContext.run(
+        { requestId: 'request-a', tenantId: 'tenant-a' },
+        () =>
+          provider.division(
+            'request-a',
+            { divisionId: 'target-a', note },
+            activeActor,
+          ),
       );
     if (level === Level.TEAM)
-      return provider.team(
-        'request-a',
-        { teamId: 'target-a', note },
-        activeActor,
+      return RequestContext.run(
+        { requestId: 'request-a', tenantId: 'tenant-a' },
+        () =>
+          provider.team('request-a', { teamId: 'target-a', note }, activeActor),
       );
-    return provider.member(
-      'request-a',
-      { memberId: 'target-a', note },
-      activeActor,
+    return RequestContext.run(
+      { requestId: 'request-a', tenantId: 'tenant-a' },
+      () =>
+        provider.member(
+          'request-a',
+          { memberId: 'target-a', note },
+          activeActor,
+        ),
     );
   };
 
@@ -236,5 +255,62 @@ describe('WorkRequestAssignmentProvider', () => {
       ),
     ).rejects.toThrow();
     expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      Level.DIVISION,
+      State.DIVISION_ASSIGNED,
+      { DIVISION: 'target-a' },
+      WorkflowActionCode.WR_ASSIGN_DIVISION,
+    ],
+    [
+      Level.TEAM,
+      State.TEAM_ASSIGNED,
+      { DIVISION: 'division-a', TEAM: 'target-a' },
+      WorkflowActionCode.WR_ASSIGN_TEAM,
+    ],
+    [
+      Level.MEMBER,
+      State.MEMBER_ASSIGNED,
+      { DIVISION: 'division-a', TEAM: 'team-a', MEMBER: 'target-a' },
+      WorkflowActionCode.WR_ASSIGN_MEMBER,
+    ],
+  ])(
+    'rejects a same-target %s retry without replacing history',
+    async (level, state, active, permission) => {
+      const { provider, repository } = subject(snapshot(state, active));
+      await expect(assign(provider, level, permission)).rejects.toThrow(
+        'already assigned to this target',
+      );
+      expect(repository.write).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a repeated assignment idempotency key before writing history', async () => {
+    const { provider, repository } = subject();
+    repository.findByIdempotencyKey = jest
+      .fn()
+      .mockResolvedValue({ id: 'event-a' });
+    await expect(
+      RequestContext.run({ requestId: 'retry-key', tenantId: 'tenant-a' }, () =>
+        provider.division(
+          'request-a',
+          { divisionId: 'target-a' },
+          actor(WorkflowActionCode.WR_ASSIGN_DIVISION),
+        ),
+      ),
+    ).rejects.toThrow('already been applied');
+    expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it('enqueues the assignment transition fact in the assignment transaction', async () => {
+    const { provider, outbox } = subject();
+    await assign(
+      provider,
+      Level.DIVISION,
+      WorkflowActionCode.WR_ASSIGN_DIVISION,
+    );
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1);
   });
 });

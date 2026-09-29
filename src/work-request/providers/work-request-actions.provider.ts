@@ -5,6 +5,10 @@ import {
 } from '../../generated/prisma/client';
 import type { SessionActor } from '../../common/security/session.types';
 import type { WorkRequestRecord } from '../repositories/work-request.records';
+import {
+  assignmentTransitionFor,
+  WORK_REQUEST_REVIEW_TRANSITIONS,
+} from './work-request-transition.definitions';
 @Injectable()
 export class WorkRequestActionsProvider {
   available(
@@ -63,8 +67,7 @@ export class WorkRequestActionsProvider {
     }[];
     if (
       canDivision &&
-      (state === WorkRequestV1StateCode.CREATED ||
-        state === WorkRequestV1StateCode.DIVISION_ASSIGNED)
+      assignmentTransitionFor('DIVISION', state, active.DIVISION !== undefined)
     )
       actions.push({
         code: WorkflowActionCode.WR_ASSIGN_DIVISION,
@@ -73,8 +76,7 @@ export class WorkRequestActionsProvider {
       });
     if (
       canTeam &&
-      (state === WorkRequestV1StateCode.DIVISION_ASSIGNED ||
-        state === WorkRequestV1StateCode.TEAM_ASSIGNED)
+      assignmentTransitionFor('TEAM', state, active.TEAM !== undefined)
     )
       actions.push({
         code: WorkflowActionCode.WR_ASSIGN_TEAM,
@@ -83,8 +85,7 @@ export class WorkRequestActionsProvider {
       });
     if (
       canMember &&
-      (state === WorkRequestV1StateCode.TEAM_ASSIGNED ||
-        state === WorkRequestV1StateCode.MEMBER_ASSIGNED)
+      assignmentTransitionFor('MEMBER', state, active.MEMBER !== undefined)
     )
       actions.push({
         code: WorkflowActionCode.WR_ASSIGN_MEMBER,
@@ -106,62 +107,23 @@ export class WorkRequestActionsProvider {
       : customDivision
         ? !!active.DIVISION && sameDivision(active.DIVISION)
         : true;
-    if (
-      state === WorkRequestV1StateCode.MEMBER_ASSIGNED &&
-      assignedMember &&
-      grants.has(WorkflowActionCode.WR_SUBMIT)
-    )
-      actions.push({
-        code: WorkflowActionCode.WR_SUBMIT,
-        label: 'Submit Work Request',
-        targetKind: 'submit',
-      });
-    if (state === WorkRequestV1StateCode.MEMBER_SUBMITTED && canReviewTeam) {
-      if (grants.has(WorkflowActionCode.WR_TEAM_LEAD_APPROVE))
+    for (const [code, transition] of Object.entries(
+      WORK_REQUEST_REVIEW_TRANSITIONS,
+    ) as [
+      WorkflowActionCode,
+      (typeof WORK_REQUEST_REVIEW_TRANSITIONS)[keyof typeof WORK_REQUEST_REVIEW_TRANSITIONS],
+    ][]) {
+      const authorized =
+        transition.responsibility === 'MEMBER'
+          ? assignedMember
+          : transition.responsibility === 'TEAM'
+            ? canReviewTeam
+            : canReviewDivision;
+      if (state === transition.from && authorized && grants.has(code))
         actions.push({
-          code: WorkflowActionCode.WR_TEAM_LEAD_APPROVE,
-          label: 'Approve by Team Lead',
-          targetKind: 'workflow',
-        });
-      if (grants.has(WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION))
-        actions.push({
-          code: WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION,
-          label: 'Request Revision by Team Lead',
-          targetKind: 'workflow',
-        });
-    }
-    if (
-      state === WorkRequestV1StateCode.TEAM_LEAD_APPROVED &&
-      canReviewDivision
-    ) {
-      if (grants.has(WorkflowActionCode.WR_DIVISION_LEAD_APPROVE))
-        actions.push({
-          code: WorkflowActionCode.WR_DIVISION_LEAD_APPROVE,
-          label: 'Approve by Division Lead',
-          targetKind: 'workflow',
-        });
-      if (grants.has(WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION))
-        actions.push({
-          code: WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION,
-          label: 'Request Revision by Division Lead',
-          targetKind: 'workflow',
-        });
-    }
-    if (
-      state === WorkRequestV1StateCode.DIVISION_LEAD_APPROVED &&
-      canReviewDivision
-    ) {
-      if (grants.has(WorkflowActionCode.WR_DIVISION_HEAD_APPROVE))
-        actions.push({
-          code: WorkflowActionCode.WR_DIVISION_HEAD_APPROVE,
-          label: 'Approve by Division Head',
-          targetKind: 'workflow',
-        });
-      if (grants.has(WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION))
-        actions.push({
-          code: WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION,
-          label: 'Request Revision by Division Head',
-          targetKind: 'workflow',
+          code,
+          label: transition.label,
+          targetKind: transition.targetKind,
         });
     }
     if (

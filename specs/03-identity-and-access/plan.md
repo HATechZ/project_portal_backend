@@ -59,7 +59,7 @@ Authenticated business requests pass through access-token verification and JWT T
 Tenant activation, active-session/User resolution, and active ActorProfile resolution.
 The caller's Tenant header is ignored on these routes. Only refresh/recovery still resolve an
 explicit header. Request interception preserves the established Tenant and acting profile.
-The selected actor id is stored in `RequestContext`. `SystemAdminGuard` protects User and
+The selected actor id is stored in `RequestContext`. `TenantSuperAdminGuard` protects User and
 role/permission administration. `PermissionsGuard` evaluates configured grants without a
 wildcard bypass. Object/workflow rules remain owned by their business modules.
 
@@ -77,9 +77,9 @@ they are an owner prerequisite and are not added by application code.
 
 ## 5. User and role administration
 
-User CRUD is paginated and restricted to `system_admin`. IDs are application-generated, email is
+User CRUD is paginated and restricted to `tenant_super_admin`. IDs are application-generated, email is
 canonical and globally unique, and password hashes never enter response DTOs. Role grants are
-created with history and revoked by timestamp. The final active System Administrator grant cannot
+created with history and revoked by timestamp. The final active Tenant Super Administrator grant cannot
 be removed.
 
 ## 6. Password recovery
@@ -92,7 +92,7 @@ Tenant detail is a separate product decision.
 `PasswordRecoveryRepository` serializes token issuance/reset on the User row. A failed enqueue
 retires only its own token; the provider logs a generic failure and fulfills the public request.
 `SessionAdministrationController` delegates same-Tenant target revocation to its service and
-repository, under the existing system_admin guards.
+repository, under the existing tenant_super_admin guards.
 
 ## 7. Transaction boundaries
 
@@ -127,7 +127,7 @@ active Member or ClientContact target, validates declared scope, and atomically 
 compatible scoped ActorProfile with the UserRole grant; system-role assignment uses the active
 linked Member when present and otherwise retains the role-only hierarchy path.
 
-Controllers remain SystemAdminGuard-protected. DTOs accept only name, optional description, scope,
+Controllers remain TenantSuperAdminGuard-protected. DTOs accept only name, optional description, scope,
 and permissionCodes for creation; no tenant, identifier, system flag, actor code, or audit IDs.
 Swagger receives the short summaries in the API contract. Tests cover RLS/non-disclosure,
 workflow-reference rejection, atomicity, scope/profile compatibility, server-side permission

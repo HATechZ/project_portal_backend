@@ -11,7 +11,7 @@ ordinary active-context path. The two GET routes use only that authenticated sam
 and a tenant-scoped repository; they do **not** require `MANAGE_DESIGNATIONS`. Mutation routes
 also use the established `ObjectScopeGuard -> PermissionsGuard` pattern and require
 `WorkflowActionCode.MANAGE_DESIGNATIONS` method-by-method. Permission provisioning, rather than
-controller/service role branches, grants it only to `system_admin` and `division_head`.
+controller/service role branches, grants it only to `tenant_super_admin` and `division_head`.
 
 | Method | Path | Input / behavior |
 |---|---|---|

@@ -33,7 +33,7 @@ import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.d
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { UserService } from './user.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
@@ -45,11 +45,11 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  SystemAdminGuard,
+  TenantSuperAdminGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('System administrator access required')
+@ApiStandardForbiddenResponse('tenant super administrator access required')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 

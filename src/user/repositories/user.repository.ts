@@ -73,7 +73,7 @@ export class UserRepository extends BaseRepository {
     return this.transaction(
       async (transaction) => {
         if (security.deactivating) {
-          const targetIsSystemAdmin = await transaction.user.findFirst({
+          const targetIsTenantSuperAdmin = await transaction.user.findFirst({
             where: {
               tenantId,
               id,
@@ -84,7 +84,7 @@ export class UserRepository extends BaseRepository {
                   revokedAt: null,
                   role: {
                     systemRole: {
-                      is: { systemCode: ActorRoleCode.system_admin },
+                      is: { systemCode: ActorRoleCode.tenant_super_admin },
                     },
                   },
                 },
@@ -92,25 +92,26 @@ export class UserRepository extends BaseRepository {
             },
             select: { id: true },
           });
-          if (targetIsSystemAdmin) {
-            const activeSystemAdministrators = await transaction.user.count({
-              where: {
-                tenantId,
-                isActive: true,
-                userRolesByUserId: {
-                  some: {
-                    tenantId,
-                    revokedAt: null,
-                    role: {
-                      systemRole: {
-                        is: { systemCode: ActorRoleCode.system_admin },
+          if (targetIsTenantSuperAdmin) {
+            const activeTenantSuperAdministrators =
+              await transaction.user.count({
+                where: {
+                  tenantId,
+                  isActive: true,
+                  userRolesByUserId: {
+                    some: {
+                      tenantId,
+                      revokedAt: null,
+                      role: {
+                        systemRole: {
+                          is: { systemCode: ActorRoleCode.tenant_super_admin },
+                        },
                       },
                     },
                   },
                 },
-              },
-            });
-            if (activeSystemAdministrators <= 1) return null;
+              });
+            if (activeTenantSuperAdministrators <= 1) return null;
           }
         }
 

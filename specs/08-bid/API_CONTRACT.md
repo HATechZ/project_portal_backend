@@ -9,7 +9,7 @@ Inherits Module 00 envelopes/errors/request ID and Module 03 authenticated Tenan
 | GET | `/api/v1/bids/:id` | Tenant/object-scoped detail | `VIEW_BID` grant; tenant_super_admin, CCR, division_head, division_lead policy |
 | PATCH | `/api/v1/bids/:id` | Approved mutable Bid fields only | `UPDATE_BID` grant; tenant_super_admin or CCR policy |
 
-The role labels above are grant policy, not hard-coded checks: current system-admin/`ccr_coordinator` identities and the existing action-grant/object-scope pipeline decide access. Division Head and Division Lead receive no create/update grant. No delete, archive, outcome, conversion, client-decision, source-channel, document reclassification, or download endpoint is approved in V1.
+The role labels above are grant policy, not hard-coded checks: current tenant-super-admin/`ccr_coordinator` identities and the existing action-grant/object-scope pipeline decide access. Division Head and Division Lead receive no create/update grant. No delete, archive, outcome, conversion, client-decision, source-channel, document reclassification, or download endpoint is approved in V1.
 
 ## POST `/api/v1/bids`
 

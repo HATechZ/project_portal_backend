@@ -6,10 +6,10 @@ mapping, and `x-request-id` behavior from `00-platform-core`.
 ## Authorization
 
 Every route requires verified bearer Tenant context, active session/User/ActorProfile, ordinary
-object scope, an active same-Tenant `system_admin` ActorProfile, and configured
+object scope, an active same-Tenant `tenant_super_admin` ActorProfile, and configured
 `WorkflowActionCode.ADD_DIVISION`. Guard ordering follows the established pattern:
 `AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard -> ObjectScopeGuard ->
-SystemAdminGuard -> PermissionsGuard`. `system_admin` is Company/Tenant administration, not a
+TenantSuperAdminGuard -> PermissionsGuard`. `tenant_super_admin` is Company/Tenant administration, not a
 platform super-admin: permission and scope checks still execute. `division_head`,
 `division_lead`, and `team_lead` are denied for Division-master CRUD unless later owner approval
 adds that exact policy. Caller Tenant/Company IDs or headers have no authority.
@@ -22,7 +22,7 @@ adds that exact policy. Caller Tenant/Company IDs or headers have no authority.
 | GET | `/division` | Scoped paginated list, `page`/`limit`, order `name asc, id asc`; 200 `{ items, meta }`. |
 | GET | `/division/:id` | Scoped detail; 200 or indistinguishable 404. |
 | PATCH | `/division/:id` | Partial `{ name?, abbr?, divisionTypeId? }`, at least one defined; trim supplied `name`, reject normalized duplicate excluding this Division with 409; 200. Explicit null is rejected unless a nullable-reference clear is deliberately supported and documented in the implementation review; target default is to reject null. |
-| PUT | `/division/:id/lead` | Assign Division Lead from `{ memberId }`; same-Company `system_admin` only; orchestrates existing Member/User/UserRole/ActorProfile link; 200. |
+| PUT | `/division/:id/lead` | Assign Division Lead from `{ memberId }`; same-Company `tenant_super_admin` only; orchestrates existing Member/User/UserRole/ActorProfile link; 200. |
 | DELETE | `/division/:id` | Guarded hard delete; 204 only when the full dependency audit is empty, otherwise 409. |
 
 Responses expose `id`, `name`, `abbr`, `divisionTypeId`, nullable DivisionType summary,

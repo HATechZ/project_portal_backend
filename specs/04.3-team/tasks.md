@@ -21,7 +21,7 @@ fixture cleanup and `walkthrough.md` evidence.
         VERIFY: grep -qE "leftAt.*null|null.*leftAt" src/team/repositories/team-membership.repository.ts && ! grep -q "teamMember.delete" src/team/repositories/team-membership.repository.ts && corepack yarn test --runInBand --testPathPatterns=team
 
 - [x] **Phase 3: exact authorization scopes**
-  - [x] Enforce system_admin Team management with configured `ADD_TEAM`; depend on CRUD/lead routes, preserve ordinary object scope and no wildcard bypass, and test own-Company allow plus absent-action/non-admin/foreign denial. Complete when guard tests pass.
+  - [x] Enforce tenant_super_admin Team management with configured `ADD_TEAM`; depend on CRUD/lead routes, preserve ordinary object scope and no wildcard bypass, and test own-Company allow plus absent-action/non-admin/foreign denial. Complete when guard tests pass.
         VERIFY: grep -q "ObjectScopeGuard" src/team/team.controller.ts && grep -q "ADD_TEAM" src/team/team.controller.ts && corepack yarn test --runInBand --testPathPatterns=team
   - [x] Enforce division_lead own-Division Team scope; depend on actor context, resolve active ActorProfile -> Member -> Division for every create/manage/lead operation, deny other Division even with permission, and test both cases. Complete when resolver tests pass.
         VERIFY: grep -qE "division_lead|actorProfile|memberId|divisionId" src/team/providers/team-scope.provider.ts && corepack yarn test --runInBand --testPathPatterns=team

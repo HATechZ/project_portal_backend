@@ -11,7 +11,7 @@ async function main() {
   const record=name=>{results.push({name,result:'PASS'});console.log('PASS',name);};
   try {
     const admins=[await f.createUser(),await f.createUser(f.tenantIds[1])];
-    const adminRole=f.roles.find(x=>x.code==='system_admin'),memberRole=f.roles.find(x=>x.code==='division_member'),leadRole=f.roles.find(x=>x.code==='division_lead');
+    const adminRole=f.roles.find(x=>x.code==='tenant_super_admin'),memberRole=f.roles.find(x=>x.code==='division_member'),leadRole=f.roles.find(x=>x.code==='division_lead');
     const assignments=new RoleAssignmentRepository(f.uow);
     for(const user of admins) await f.run(()=>assignments.ensureAssignment(user.id,adminRole.id,user.id),user.tenantId);
     h=await host(); const {call,mail}=h;

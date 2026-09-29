@@ -128,7 +128,7 @@ export class MemberService {
     input: UpdateMemberDto,
     actor: ActorScopeContext,
   ): Promise<MemberResponseDto> {
-    this.scopeProvider.assertSystemAdmin(actor);
+    this.scopeProvider.assertTenantSuperAdmin(actor);
     assertMemberUpdateHasFields(input);
     const company = await this.requireScopedCompany();
     const member = await this.requireMember(id, company.id);
@@ -149,7 +149,7 @@ export class MemberService {
   }
 
   async delete(id: string, actor: ActorScopeContext): Promise<void> {
-    this.scopeProvider.assertSystemAdmin(actor);
+    this.scopeProvider.assertTenantSuperAdmin(actor);
     const company = await this.requireScopedCompany();
     await this.removalRepository.remove(id, company.id);
   }
@@ -159,7 +159,7 @@ export class MemberService {
     input: MemberAccessLinkDto,
     actor: ActorScopeContext,
   ): Promise<MemberResponseDto> {
-    this.scopeProvider.assertSystemAdmin(actor);
+    this.scopeProvider.assertTenantSuperAdmin(actor);
     const company = await this.requireScopedCompany();
     await this.requireMember(id, company.id);
     return toMemberResponse(

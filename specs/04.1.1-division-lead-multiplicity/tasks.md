@@ -42,7 +42,7 @@ and land Phase 3 before Phase 2 is exposed through a route (see `plan.md` §0).
         VERIFY: test $(grep -rc 'member.divisionId' src/member/providers/member-scope.provider.ts src/team/providers/team-scope.provider.ts | grep -v ':0$' | wc -l) -eq 0 && corepack yarn test --runInBand --testPathPatterns='member-scope|team-scope'
 
 - [x] **Phase 4: routes and deletion audit**
-  - [x] Add the revoke and lead-read routes behind the Company-scoped guard chain; depend on the repository paths, require `ASSIGN_LEADER` rather than `ADD_DIVISION`, admit `system_admin` and `division_head` only, and return `data: null` rather than 404 for a Lead-less Division. Complete when routes and authorization tests pass.
+  - [x] Add the revoke and lead-read routes behind the Company-scoped guard chain; depend on the repository paths, require `ASSIGN_LEADER` rather than `ADD_DIVISION`, admit `tenant_super_admin` and `division_head` only, and return `data: null` rather than 404 for a Lead-less Division. Complete when routes and authorization tests pass.
         VERIFY: grep -q "@Delete(':id/lead')" src/division/division-lead.controller.ts && grep -q "@Get(':id/lead')" src/division/division-lead.controller.ts && grep -q 'ASSIGN_LEADER' src/division/division-lead.controller.ts && corepack yarn test --runInBand --testPathPatterns=division
   - [x] Add the Member led-Divisions read; depend on the repository read path, order `name asc, id asc`, return an empty array when the Member leads none, and expose no revoked row. Complete when the route and focused tests pass.
         VERIFY: grep -q "divisions" src/member/member.controller.ts && corepack yarn test --runInBand --testPathPatterns=member

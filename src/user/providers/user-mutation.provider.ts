@@ -68,7 +68,7 @@ export class UserMutationProvider {
         code: AppErrorCode.Conflict,
         status: HttpStatus.CONFLICT,
         message:
-          'This role cannot be removed because the workspace must have at least one active System Administrator.',
+          'This role cannot be removed because the workspace must have at least one active Tenant Super Administrator.',
       });
     }
     return updated;

@@ -36,7 +36,7 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
 - **US-01:** As an authorized organization actor, I want to create an internal Member only inside
   my approved Tenant/Company/Division scope and give that Member a linked login identity before
   later Team and role assignment.
-- **US-02:** As a same-Company `system_admin`, I want to link an existing appropriate identity and
+- **US-02:** As a same-Company `tenant_super_admin`, I want to link an existing appropriate identity and
   its existing eligible ActorProfile to a Member without duplicating identity logic.
 
 ## 3. Domain Rules
@@ -46,7 +46,7 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
 | DR-01 | Member belongs to authenticated Tenant, the one scoped Company, and a scoped Division; caller controls none of those ownership values. | context/service, Division composite FK, RLS |
 | DR-02 | Member and User are distinct. Normal V1 Member creation atomically creates and links User and Member only; UserRole and Member-backed ActorProfile are later role-assignment records. | DTOs/services/tests |
 | DR-03 | `userId` remains nullable structural truth for legacy/exceptional paths, but every newly created Member through `POST /member` has a linked User. A Member may have no Team, UserRole, or ActorProfile. | nullable relation; onboarding transaction |
-| DR-04 | Member and leadership creation authority is scoped: `system_admin` may create Members and provision/assign `division_head` anywhere in own Company; `division_head` may create/provision or assign `division_lead` only for a Division inside the same Company; `division_lead` may create/provision or assign `team_lead` only for a Team inside that Division; `team_lead` may manage/create eligible ordinary Members only within exact Team scope. All require configured permission, object scope, and same Tenant/Company/Division/Team validation. | guards/permission/object scope |
+| DR-04 | Member and leadership creation authority is scoped: `tenant_super_admin` may create Members and provision/assign `division_head` anywhere in own Company; `division_head` may create/provision or assign `division_lead` only for a Division inside the same Company; `division_lead` may create/provision or assign `team_lead` only for a Team inside that Division; `team_lead` may manage/create eligible ordinary Members only within exact Team scope. All require configured permission, object scope, and same Tenant/Company/Division/Team validation. | guards/permission/object scope |
 | DR-05 | When a UserRole/ActorProfile is later linked to a Member, all records must be same Tenant and the ActorProfile must be active and Member-backed. | role-assignment/linking transaction |
 | DR-06 | Public Member create fields are `name`, `email`, `password`, `divisionId`, required `designationId`, and optional `phone`. Create/update validate that Designation exists in the current Tenant/Company; arbitrary designation text is not the source of truth. `roleId`, Tenant, Company, ID, User/ActorProfile linkage, password hash, Team, and active state are not caller-controlled. | DTO/service, composite FK |
 | DR-07 | Member email is unique per Tenant. User email uses the same request email and remains the credential login email. | validation/constraint mapping |
@@ -55,7 +55,7 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
 | DR-10 | For `team_lead` Member creation, allowed Team context is derived from authenticated User -> active ActorProfile with `team_lead` role -> Member -> Team where `Team.leadMemberId` equals the actor Member. `Team.leadMemberId` is required object-scope evidence; role alone cannot authorize another Team or Division. | exact Team scope resolver |
 | DR-11 | Creating a Member never assigns that Member to a Team at persistence level. Team assignment is a distinct `04.3-team` operation, even when a product flow performs create then assign sequentially. | service boundaries/tests |
 | DR-12 | Designation is related business data only and must never determine authorization or role assignment. The response may retain flat `designation` as the related name for compatibility and also exposes `designationId`; it returns no nested Designation object. | DTO/service mapping |
-| DR-13 | Read scope is limited: `system_admin` and configured `division_head` read own Company Members; `division_lead` reads own Division Members; `team_lead` may read only exact led-Team context and eligible same-Team Members required for own-Team Member operations. | scoped queries/tests |
+| DR-13 | Read scope is limited: `tenant_super_admin` and configured `division_head` read own Company Members; `division_lead` reads own Division Members; `team_lead` may read only exact led-Team context and eligible same-Team Members required for own-Team Member operations. | scoped queries/tests |
 | DR-14 | Creating a leadership candidate reuses normal `User -> Member` onboarding. Its UserRole and Member-backed ActorProfile are assigned later by the existing role/leadership workflow with object-scope validation. | role-assignment/scope validation |
 
 ## 4. Failure Modes
@@ -72,8 +72,8 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
 
 - `[AC-U01]` The module SHALL preserve User and Member as separate records.
 - `[AC-U02]` The module SHALL use app_user, normal Tenant UnitOfWork, RLS, configured permission,
-  and object scope; system administration is not a wildcard bypass.
-- `[AC-E01]` WHEN an eligible `system_admin`, `division_head`, `division_lead`, or `team_lead` creates a
+  and object scope; tenant super administration is not a wildcard bypass.
+- `[AC-E01]` WHEN an eligible `tenant_super_admin`, `division_head`, `division_lead`, or `team_lead` creates a
   Member, the system SHALL atomically persist linked User and Member inside the actor's approved
   Tenant/Company/Division scope, without UserRole, ActorProfile, or Team membership.
 - `[AC-E02]` WHEN `POST /member` succeeds, the response SHALL not include plaintext password,

@@ -13,9 +13,9 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
 | Story | Actor | Requirement |
 |---|---|---|
 | US-01 | Prospective administrator | Create a Company workspace through public signup |
-| US-02 | Same-Tenant system_admin | List and retrieve the Tenant's Company |
+| US-02 | Same-Tenant tenant_super_admin | List and retrieve the Tenant's Company |
 | US-03 | Public visitor | Read CompanyType options before signup |
-| US-04 | Same-Tenant system_admin | Rename/retype the Company without changing identity or slug |
+| US-04 | Same-Tenant tenant_super_admin | Rename/retype the Company without changing identity or slug |
 
 ## Domain rules
 
@@ -25,7 +25,7 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
 - DR-03: Abbreviations are unique per Tenant, not globally. Signup trims name and abbreviation.
 - DR-04: Signup/retype require an existing CompanyType UUID. Legacy null types remain readable.
 - DR-05: The existing provisioning function generates UUID v4 IDs in PostgreSQL.
-- DR-06: Company reads/updates require an active same-Tenant system_admin actor/session.
+- DR-06: Company reads/updates require an active same-Tenant tenant_super_admin actor/session.
   Verified JWT establishes Tenant; caller x-tenant-id cannot override it. Signup/type reads
   are public and require neither a token nor a Tenant header.
 - DR-07: Required company/admin objects reject omission, null, arrays and primitives with 400
@@ -37,7 +37,7 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
   future Divisions in the actor's own Company; `division_lead` covers one Division; `team_lead`
   covers only exact Team(s) where object-scope evidence proves the actor legitimately leads.
   Role alone is not object scope.
-- DR-08b: Leadership creation/assignment follows that hierarchy: system_admin may provision or
+- DR-08b: Leadership creation/assignment follows that hierarchy: tenant_super_admin may provision or
   assign division_head in own Company; division_head may provision or assign division_lead for a
   same-Company Division; division_lead may provision or assign team_lead for a Team in that
   Division; team_lead may manage/create eligible ordinary Members only in exact Team scope.
@@ -48,14 +48,14 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
   unknown fields are rejected. Only supplied fields and updatedAt change. Concurrent writes
   to the same field use last committed write wins; omitted fields are never overwritten.
 
-Signup's existing atomic function creates Tenant, Company, initial User, system_admin UserRole,
+Signup's existing atomic function creates Tenant, Company, initial User, tenant_super_admin UserRole,
 default active role-only ActorProfile and approved permission matrix. It creates no fake Member
 or ClientContact. Any failure rolls everything back. Only a password hash reaches provisioning;
 confirmPassword must match exactly and is never hashed, persisted or passed to the function.
 
 ## Acceptance criteria
 
-- AC-U01: Every Company read/update is confined to the verified JWT Tenant and system_admin.
+- AC-U01: Every Company read/update is confined to the verified JWT Tenant and tenant_super_admin.
 - AC-U02: CompanyTypes are publicly readable and unscoped.
 - AC-E01: Signup returns 201; duplicate normalized administrator email returns 409 and leaves
   no partial workspace.

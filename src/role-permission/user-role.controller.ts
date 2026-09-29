@@ -22,7 +22,7 @@ import {
 import { ActiveUser } from '../common/security/active-user.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import type { SessionUser } from '../common/security/session.types';
 import {
   ApiStandardBadRequestResponse,
@@ -49,11 +49,11 @@ import { RolePermissionService } from './role-permission.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  SystemAdminGuard,
+  TenantSuperAdminGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('System administrator access required')
+@ApiStandardForbiddenResponse('tenant super administrator access required')
 export class UserRoleController {
   constructor(private readonly service: RolePermissionService) {}
 

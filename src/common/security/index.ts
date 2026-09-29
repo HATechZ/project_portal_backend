@@ -9,4 +9,4 @@ export * from './permissions.guard';
 export * from './security.module';
 export * from './session-authenticator.port';
 export * from './session.types';
-export * from './system-admin.guard';
+export * from './tenant-super-admin.guard';

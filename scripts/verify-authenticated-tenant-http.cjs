@@ -7,7 +7,7 @@ async function main() {
   const f=await fixture(); let h; let cleaned=false;
   try {
     const a=await f.createUser(), b=await f.createUser(f.tenantIds[1]), ordinary=await f.createUser();
-    const adminRole=f.roles.find(x=>x.code==='system_admin'), memberRole=f.roles.find(x=>x.code==='division_member');
+    const adminRole=f.roles.find(x=>x.code==='tenant_super_admin'), memberRole=f.roles.find(x=>x.code==='division_member');
     // Fixture setup only: application actor writes still need owner privileges.
     // All tested HTTP requests use production repositories under app_user/RLS.
     for(const [user,role] of [[a,adminRole],[b,adminRole],[ordinary,memberRole]]) {

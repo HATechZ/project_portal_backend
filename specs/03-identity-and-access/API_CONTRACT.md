@@ -7,13 +7,13 @@ Only module-specific behavior is stated here.
 
 | Method | Path | Status | Authorization |
 |---|---|---|---|
-| `POST` | `/api/v1/role` | 201 / 400 / 409 | `system_admin` |
-| `GET` | `/api/v1/user/:userId/role-options` | 200 / 404 | `system_admin` |
-| `POST` | `/api/v1/user` | 201 · 409 | `system_admin` |
-| `GET` | `/api/v1/user` | 200 | `system_admin` |
-| `GET` | `/api/v1/user/:id` | 200 · 404 | `system_admin` |
-| `PATCH` | `/api/v1/user/:id` | 200 · 404 · 409 | `system_admin` |
-| `DELETE` | `/api/v1/user/:id` | 204 · 404 · 409 | `system_admin` |
+| `POST` | `/api/v1/role` | 201 / 400 / 409 | `tenant_super_admin` |
+| `GET` | `/api/v1/user/:userId/role-options` | 200 / 404 | `tenant_super_admin` |
+| `POST` | `/api/v1/user` | 201 · 409 | `tenant_super_admin` |
+| `GET` | `/api/v1/user` | 200 | `tenant_super_admin` |
+| `GET` | `/api/v1/user/:id` | 200 · 404 | `tenant_super_admin` |
+| `PATCH` | `/api/v1/user/:id` | 200 · 404 · 409 | `tenant_super_admin` |
+| `DELETE` | `/api/v1/user/:id` | 204 · 404 · 409 | `tenant_super_admin` |
 | `POST` | `/api/v1/auth/login` | 200 · 401 | public |
 | `POST` | `/api/v1/auth/refresh` | 200 · 401 | valid refresh-token session |
 | `POST` | `/api/v1/auth/logout` | 204 · 401 | authenticated |
@@ -22,20 +22,20 @@ Only module-specific behavior is stated here.
 | `POST` | `/api/v1/auth/reset-password` | 204 · 400 | Tenant context |
 | `GET` | `/api/v1/actor-profiles` | 200 | authenticated |
 | `POST` | `/api/v1/actor-profiles/:id/activate` | 200 · 403 | profile owner |
-| `GET` | `/api/v1/role` | 200 | `system_admin` |
-| `GET` | `/api/v1/role/:id` | 200 · 404 | `system_admin` |
-| `PUT` | `/api/v1/role/:id/permission` | 200 | `system_admin` |
-| `GET` | `/api/v1/permission` | 200 · 400 | `system_admin` |
-| `GET` | `/api/v1/permission/:id` | 200 · 404 | `system_admin` |
-| `GET` | `/api/v1/user/:userId/role` | 200 | `system_admin` |
-| `POST` | `/api/v1/user/:userId/role` | 201 · 409 | `system_admin` |
-| `DELETE` | `/api/v1/user/:userId/role/:roleId` | 204 · 409 | `system_admin` |
-| `DELETE` | `/api/v1/auth/users/:userId/sessions` | 204 · 404 | same-Tenant `system_admin` |
+| `GET` | `/api/v1/role` | 200 | `tenant_super_admin` |
+| `GET` | `/api/v1/role/:id` | 200 · 404 | `tenant_super_admin` |
+| `PUT` | `/api/v1/role/:id/permission` | 200 | `tenant_super_admin` |
+| `GET` | `/api/v1/permission` | 200 · 400 | `tenant_super_admin` |
+| `GET` | `/api/v1/permission/:id` | 200 · 404 | `tenant_super_admin` |
+| `GET` | `/api/v1/user/:userId/role` | 200 | `tenant_super_admin` |
+| `POST` | `/api/v1/user/:userId/role` | 201 · 409 | `tenant_super_admin` |
+| `DELETE` | `/api/v1/user/:userId/role/:roleId` | 204 · 409 | `tenant_super_admin` |
+| `DELETE` | `/api/v1/auth/users/:userId/sessions` | 204 · 404 | same-Tenant `tenant_super_admin` |
 
 Authenticated business endpoints derive Tenant context exclusively from the verified access-token
 Tenant claim; no `x-tenant-id` is required or trusted, even when supplied. They require an active
 Tenant, an active session, an active User and an eligible ActorProfile. User, role and session
-administration additionally require `system_admin`. Login requires credentials only. Refresh
+administration additionally require `tenant_super_admin`. Login requires credentials only. Refresh
 derives Tenant context from its valid refresh-token session. Forgot/reset require Tenant context without
 an access token; reset additionally requires a valid reset token.
 
@@ -120,10 +120,10 @@ derives its Tenant from the persisted refresh-token session; recovery still vali
 Tenant header. Email-only login is unchanged.
 
 Authentication resolves the active default ActorProfile and stores its id in
-`RequestContext.actorId`. Coarse account administration is enforced by `SystemAdminGuard`.
+`RequestContext.actorId`. Coarse account administration is enforced by `TenantSuperAdminGuard`.
 Fine-grained workflow actions are enforced through configured `WorkflowActionCode` grants and
 the workflow modules that own their state transitions; this module does not create a wildcard
-System Administrator bypass.
+Tenant Super Administrator bypass.
 
 ## 6a. Role and permission administration
 
@@ -179,7 +179,7 @@ operation supports generic permission plus object-scope authorization; there is 
 
 ### `GET /api/v1/user/:userId/role-options`
 
-Returns only roles assignable by the authenticated System Administrator to the same-Tenant target
+Returns only roles assignable by the authenticated Tenant Super Administrator to the same-Tenant target
 User, as dropdown items: `id`, `code`, `name`, `description`, `isSystemRole`, nullable `scope`.
 Server-side eligibility considers assigning actor, target active Member/ClientContact context,
 Tenant, role kind/scope, existing active assignments and all existing hierarchy rules. It excludes

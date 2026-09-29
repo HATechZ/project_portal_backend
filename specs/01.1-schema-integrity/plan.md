@@ -56,7 +56,7 @@ to report true.
   folders, or API payloads are removed.
 - Nullable workflow roles remain nullable. Exact duplicate prevention includes every current
   transition configuration field and is limited to active rows.
-- System Administrator stays representable by an ActorProfile with neither business target.
+- Tenant Super Administrator stays representable by an ActorProfile with neither business target.
 - WorkPriority changes only the generated Prisma API spelling; table/column mappings stay fixed.
 - Prime Consultant and the removed PM client-revision route are not reintroduced.
 

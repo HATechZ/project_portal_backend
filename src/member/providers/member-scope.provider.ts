@@ -12,7 +12,7 @@ export class MemberScopeProvider {
     companyId: string,
     requestedDivisionId?: string,
   ): Promise<string[]> {
-    if (actorProfile.roleCode === ActorRoleCode.system_admin) {
+    if (actorProfile.roleCode === ActorRoleCode.tenant_super_admin) {
       if (requestedDivisionId) {
         await this.requireScopedDivision(requestedDivisionId, companyId);
         return [requestedDivisionId];
@@ -42,7 +42,7 @@ export class MemberScopeProvider {
       this.assertCustomRoleScope(actorProfile, companyId, divisionId);
       return;
     }
-    if (actorProfile.roleCode === ActorRoleCode.system_admin) return;
+    if (actorProfile.roleCode === ActorRoleCode.tenant_super_admin) return;
     const actorDivisionIds = await this.resolveActorDivisionIds(actorProfile);
     if (!actorDivisionIds.includes(divisionId)) {
       throw new ForbiddenException('Member creation is outside actor scope');
@@ -69,9 +69,11 @@ export class MemberScopeProvider {
     throw new ForbiddenException('Member creation is outside actor scope');
   }
 
-  assertSystemAdmin(actorProfile: ActorScopeContext): void {
-    if (actorProfile.roleCode !== ActorRoleCode.system_admin) {
-      throw new ForbiddenException('System administrator access required');
+  assertTenantSuperAdmin(actorProfile: ActorScopeContext): void {
+    if (actorProfile.roleCode !== ActorRoleCode.tenant_super_admin) {
+      throw new ForbiddenException(
+        'tenant super administrator access required',
+      );
     }
   }
 

@@ -1,7 +1,7 @@
 # Member HTTP walkthrough
 
 Attempted: 2026-09-09. App started with the production AppModule and normal app_user/RLS
-path. Login as the seeded system administrator succeeded and reported `ADD_MEMBER`.
+path. Login as the seeded tenant super administrator succeeded and reported `ADD_MEMBER`.
 
 Result: BLOCKED before valid Member CRUD evidence. Fixture setup confirmed the Tenant has one
 Company and no Divisions. A Division fixture was created through `POST /api/v1/division`; retry
@@ -16,7 +16,7 @@ owner-side app_user Member write privilege prerequisite.
 | Case | Evidence |
 |---|---|
 | App startup | PASS: Member routes mapped under `/api/v1/member`; database and Redis connected |
-| Authentication | PASS: seeded `system_admin` login returned `ADD_MEMBER` |
+| Authentication | PASS: seeded `tenant_super_admin` login returned `ADD_MEMBER` |
 | Scoped Company read | PASS: `GET /api/v1/company` returned one same-Tenant Company |
 | Division fixture cleanup | PASS: final `GET /api/v1/division` returned zero items |
 | Member create | BLOCKED: `POST /api/v1/member` returned 500 due to app_user lacking `members` write privilege |

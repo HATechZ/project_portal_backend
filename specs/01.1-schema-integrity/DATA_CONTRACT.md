@@ -83,7 +83,7 @@ ClientContact keep name/email and optional User links. Do not add Person, UserAc
 ### 2.6 Phase 11 — ActorProfile invariants
 
 - Add CHECK `actor_profiles_at_most_one_business_target`: Member and ClientContact cannot both
-  be populated. Both null is valid for role-only/System Administrator profiles.
+  be populated. Both null is valid for role-only/Tenant Super Administrator profiles.
 - Add partial unique index `actor_profiles_one_default_per_user` on `(tenant_id,user_id)` where
   `user_id IS NOT NULL AND is_default = true`.
 - Retain `label`; do not add ActorKind or Person dependencies.

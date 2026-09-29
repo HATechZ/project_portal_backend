@@ -31,11 +31,11 @@ The current action catalogue supplies `ADD_WORK_REQUEST`, `ADD_WORK_REQUEST_DOCU
 
 ### Fixed-role permission baseline
 
-The fixed system-role code `system_admin` is the persisted backing code for the tenant-super-admin role. It is not an authorization bypass. The following baseline grants are only the Work Request permissions; every command additionally requires authenticated tenant context, an active ActorProfile and role assignment, the permission, current Work Request state, object scope, organization relationship, and an active Work Request assignment where the transition requires one.
+The canonical fixed system-role code is `tenant_super_admin`. It is not an authorization bypass. The following baseline grants are only the Work Request permissions; every command additionally requires authenticated tenant context, an active ActorProfile and role assignment, the permission, current Work Request state, object scope, organization relationship, and an active Work Request assignment where the transition requires one.
 
 | Fixed role | Work Request permission baseline |
 |---|---|
-| tenant_super_admin (`system_admin`) | `ADD_WORK_REQUEST`, `ADD_WORK_REQUEST_DOCUMENT`, `ADD_WORK_REQUEST_NOTE`, `REQUEST_WORKFLOW_INFO`, `RESPOND_WORKFLOW_INFO`, `VIEW_WORK_REQUEST`, `UPDATE_WORK_REQUEST` |
+| tenant_super_admin | `ADD_WORK_REQUEST`, `ADD_WORK_REQUEST_DOCUMENT`, `ADD_WORK_REQUEST_NOTE`, `REQUEST_WORKFLOW_INFO`, `RESPOND_WORKFLOW_INFO`, `VIEW_WORK_REQUEST`, `UPDATE_WORK_REQUEST` |
 | ccr_coordinator | `ADD_WORK_REQUEST`, `ADD_WORK_REQUEST_DOCUMENT`, `ADD_WORK_REQUEST_NOTE`, `REQUEST_WORKFLOW_INFO`, `RESPOND_WORKFLOW_INFO`, `VIEW_WORK_REQUEST` |
 | division_head | `VIEW_WORK_REQUEST`, `REQUEST_WORKFLOW_INFO`, `RESPOND_WORKFLOW_INFO`, `WR_ASSIGN_DIVISION`, `WR_DIVISION_HEAD_APPROVE`, `WR_DIVISION_HEAD_REQUEST_REVISION` |
 | division_lead | `ADD_WORK_REQUEST_DOCUMENT`, `ADD_WORK_REQUEST_NOTE`, `REQUEST_WORKFLOW_INFO`, `RESPOND_WORKFLOW_INFO`, `VIEW_WORK_REQUEST`, `WR_ASSIGN_TEAM`, `WR_DIVISION_LEAD_APPROVE`, `WR_DIVISION_LEAD_REQUEST_REVISION` |

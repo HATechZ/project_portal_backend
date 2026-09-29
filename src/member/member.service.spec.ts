@@ -7,8 +7,8 @@ describe('MemberService onboarding', () => {
   const company = { id: 'company-id' };
   const actor = {
     actorProfileId: 'actor-profile-id',
-    roleId: 'system-admin-role-id',
-    roleCode: ActorRoleCode.system_admin,
+    roleId: 'tenant-super-admin-role-id',
+    roleCode: ActorRoleCode.tenant_super_admin,
     kind: ActorScopeKind.TenantAdmin,
     tenantWide: true,
     member: null,
@@ -105,7 +105,7 @@ describe('MemberService onboarding', () => {
     const repository = {
       findScopedCompany: jest.fn().mockResolvedValue(company),
     };
-    const scopeProvider = { assertSystemAdmin: jest.fn() };
+    const scopeProvider = { assertTenantSuperAdmin: jest.fn() };
     const removalRepository = {
       remove: jest.fn().mockResolvedValue(undefined),
     };
@@ -120,7 +120,7 @@ describe('MemberService onboarding', () => {
     );
     await service.delete('member-id', actor);
 
-    expect(scopeProvider.assertSystemAdmin).toHaveBeenCalledWith(actor);
+    expect(scopeProvider.assertTenantSuperAdmin).toHaveBeenCalledWith(actor);
     expect(removalRepository.remove).toHaveBeenCalledWith(
       'member-id',
       company.id,

@@ -101,5 +101,5 @@ this Company tasks list.
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-signup
   - [ ] Validate partial updates and preserve immutable Company fields
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-update
-  - [ ] Restrict Company reads and updates to same-Tenant system administrators
+  - [ ] Restrict Company reads and updates to same-Tenant tenant super administrators
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-http

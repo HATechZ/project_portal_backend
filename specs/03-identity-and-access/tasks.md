@@ -55,8 +55,8 @@ Completion status and counts are maintained in `specs/INDEX.md`.
 - [ ] **Phase 4: Authorization**
   - [x] Guard every `/user` route behind authentication
         VERIFY: grep -q "AccessTokenGuard" src/user/user.controller.ts && grep -q "AuthenticationGuard" src/user/user.controller.ts
-  - [x] Restrict role administration to `system_admin`
-        VERIFY: grep -q "SystemAdminGuard" src/role-permission/role-permission.controller.ts && grep -q "SystemAdminGuard" src/user/user.controller.ts
+  - [x] Restrict role administration to `tenant_super_admin`
+        VERIFY: grep -q "TenantSuperAdminGuard" src/role-permission/role-permission.controller.ts && grep -q "TenantSuperAdminGuard" src/user/user.controller.ts
   - [x] Populate `RequestContext.actorId` from the acting profile
         VERIFY: grep -q "setActorId" src/common/security/authentication.guard.ts && grep -q "actorId" src/common/context/request-context.ts
   - [x] Revoke role grants by timestamp, never by delete (DR-02)
@@ -113,7 +113,7 @@ Completion status and counts are maintained in `specs/INDEX.md`.
 - [ ] **Phase 7: Identity completion**
   - [ ] Provision an idempotent eligible role-only ActorProfile with role assignment
         VERIFY: corepack yarn test --runInBand --testPathPatterns=role-assignment.repository.spec.ts && node scripts/verify-identity-evidence.cjs http
-  - [ ] Revoke same-Tenant target User sessions through a system_admin endpoint
+  - [ ] Revoke same-Tenant target User sessions through a tenant_super_admin endpoint
         VERIFY: corepack yarn test --runInBand --testPathPatterns=session-administration.service.spec.ts
   - [ ] Reject non-nullable update fields before mutation while allowing null avatarUrl
         VERIFY: corepack yarn test --runInBand --testPathPatterns=update-user.dto.spec.ts

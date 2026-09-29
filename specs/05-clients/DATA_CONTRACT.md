@@ -144,4 +144,4 @@ These are administration capabilities and must remain separate from workflow act
 - All repository reads and writes include TenantContext.
 - Object-scope checks prevent cross-Client `client_owner` access.
 - Cross-tenant, cross-company, and cross-Client contact leakage is denied.
-- No business API uses BYPASSRLS, `app_relay`, broad grants, or wildcard system_admin bypass.
+- No business API uses BYPASSRLS, `app_relay`, broad grants, or wildcard tenant_super_admin bypass.

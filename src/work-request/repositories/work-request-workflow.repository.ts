@@ -84,6 +84,16 @@ export class WorkRequestWorkflowRepository extends BaseRepository {
     );
   }
 
+  findByIdempotencyKey(idempotencyKey: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestV1Event.findFirst({
+        where: { tenantId, idempotencyKey },
+        select: { id: true },
+      }),
+    );
+  }
+
   append(input: {
     workRequestId: string;
     actorId: string;
@@ -91,6 +101,8 @@ export class WorkRequestWorkflowRepository extends BaseRepository {
     priorState: WorkRequestV1StateCode;
     resultingState: WorkRequestV1StateCode;
     note?: string;
+    idempotencyKey?: string;
+    correlationId?: string;
   }) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -106,6 +118,8 @@ export class WorkRequestWorkflowRepository extends BaseRepository {
           performedByActorId: input.actorId,
           occurredAt,
           note: input.note,
+          idempotencyKey: input.idempotencyKey,
+          correlationId: input.correlationId,
         },
         select: {
           id: true,

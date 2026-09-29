@@ -34,7 +34,7 @@ import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import { Permissions } from '../common/security/permissions.decorator';
 import { PermissionsGuard } from '../common/security/permissions.guard';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { WorkflowActionCode } from '../generated/prisma/client';
@@ -53,13 +53,13 @@ import {
   TenantContextGuard,
   AuthenticationGuard,
   ObjectScopeGuard,
-  SystemAdminGuard,
+  TenantSuperAdminGuard,
   PermissionsGuard,
 )
 @Permissions(WorkflowActionCode.ADD_DIVISION)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('System administrator access required')
+@ApiStandardForbiddenResponse('tenant super administrator access required')
 @ApiStandardNotFoundResponse('Division was not found')
 @ApiStandardConflictResponse('Division request conflicts with current data')
 export class DivisionController {

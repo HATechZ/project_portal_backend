@@ -32,10 +32,10 @@ function actor(
     roleId: 'role-id',
     roleCode,
     kind:
-      roleCode === ActorRoleCode.system_admin
+      roleCode === ActorRoleCode.tenant_super_admin
         ? ActorScopeKind.TenantAdmin
         : ActorScopeKind.Member,
-    tenantWide: roleCode === ActorRoleCode.system_admin,
+    tenantWide: roleCode === ActorRoleCode.tenant_super_admin,
     member: member
       ? {
           id: member.id,
@@ -156,13 +156,13 @@ describe('TeamService scopes', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('assigns Team Lead for system_admin and same-Division division_lead', async () => {
+  it('assigns Team Lead for tenant_super_admin and same-Division division_lead', async () => {
     const { service } = serviceWithRepository();
     await expect(
       service.assignLead(
         teamA.id,
         { leadMemberId: 'member-a' },
-        actor(ActorRoleCode.system_admin),
+        actor(ActorRoleCode.tenant_super_admin),
       ),
     ).resolves.toMatchObject({ leadMemberId: 'member-a' });
 
@@ -201,7 +201,7 @@ describe('TeamService scopes', () => {
       service.assignLead(
         teamA.id,
         { leadMemberId: 'member-b' },
-        actor(ActorRoleCode.system_admin),
+        actor(ActorRoleCode.tenant_super_admin),
       ),
     ).rejects.toMatchObject({ status: 409 });
   });
@@ -263,7 +263,7 @@ describe('TeamService scopes', () => {
       membershipService.addMember(
         teamA.id,
         { memberId: 'member-b' },
-        actor(ActorRoleCode.system_admin),
+        actor(ActorRoleCode.tenant_super_admin),
       ),
     ).rejects.toMatchObject({ status: 409 });
   });

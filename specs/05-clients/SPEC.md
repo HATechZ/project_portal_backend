@@ -92,7 +92,7 @@ and object-scope checks.
 
 ### Create Client
 
-System Admin performs one Client onboarding action. It creates the Client organization and its
+tenant super admin performs one Client onboarding action. It creates the Client organization and its
 initial active Primary ClientContact in one business operation.
 
 Request fields:
@@ -121,7 +121,7 @@ The initial contact is created active with `isPrimary = true`. The request must 
 When `enablePortalAccess = false`, no User, UserRole, ActorProfile, password, session, or setup
 token is created. When it is true, the backend provisions or establishes the ClientContact's User
 identity under the existing Identity rules, assigns `client_owner`, creates the ClientContact-linked
-ActorProfile, and initiates the secure password setup flow described below. System Admin never
+ActorProfile, and initiates the secure password setup flow described below. tenant super admin never
 creates, chooses, receives, or sees that password.
 
 ### List Clients
@@ -287,7 +287,7 @@ for the same link flow; the setup token is never exposed in the API response or 
 
 ### Revoke Client Portal Access
 
-System Admin may revoke Client portal access for a ClientContact. Revocation must use existing
+tenant super admin may revoke Client portal access for a ClientContact. Revocation must use existing
 Identity/UserRole/ActorProfile behavior and preserve historical references. It must not delete the
 ClientContact, User, or Client.
 
@@ -298,7 +298,7 @@ workflow actions. Existing workflow/history references remain intact.
 
 ### Client Administration
 
-`system_admin`, within own Tenant/Company and through configured permissions, may:
+`tenant_super_admin`, within own Tenant/Company and through configured permissions, may:
 
 - create/list/get/update Clients;
 - deactivate/reactivate Clients;
@@ -307,7 +307,7 @@ workflow actions. Existing workflow/history references remain intact.
 - set/change Primary Contact;
 - grant/revoke Client portal access.
 
-No wildcard system_admin bypass is allowed.
+No wildcard tenant_super_admin bypass is allowed.
 
 ### CCR
 
@@ -375,6 +375,6 @@ administration.
 - One Client may have multiple `client_owner` actors.
 - A Client may have zero or one active Primary Contact.
 - Primary Contact does not imply User, portal access, or `client_owner`.
-- System Admin only grants/revokes Client portal access.
+- tenant super admin only grants/revokes Client portal access.
 - `client_owner` has own-Client workflow access only, not Client administration.
 - CCR has active Client/ClientContact selection only in authorized Bid/Project/workflow context.

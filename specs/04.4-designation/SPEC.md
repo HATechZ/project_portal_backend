@@ -20,7 +20,7 @@ unticked.
 |---|---|---|
 | DR-01 | A Designation belongs to the authenticated Tenant and scoped Company. Those values are never request input. | TenantContext, scoped repository, RLS, composite FK/unique backstops |
 | DR-02 | `name` is required, trimmed, and case-insensitively unique within `(tenantId, companyId)`. Another Tenant/Company may reuse it. | DTO/service duplicate check and normalized DB unique index |
-| DR-03 | Create, update, and delete require `MANAGE_DESIGNATIONS`; it is granted only to `system_admin` (the current runtime Tenant System Admin equivalent) and `division_head`. No direct role check occurs in controller/service. | permission guard and provisioned system-role grants |
+| DR-03 | Create, update, and delete require `MANAGE_DESIGNATIONS`; it is granted only to `tenant_super_admin` (the current runtime Tenant tenant super admin equivalent) and `division_head`. No direct role check occurs in controller/service. | permission guard and provisioned system-role grants |
 | DR-04 | Any authenticated active same-Tenant user with TenantContext may list or view a Designation. Reads do not require `MANAGE_DESIGNATIONS`. | authentication/context/scoped repository |
 | DR-05 | An internal Member persists `designationId`, not arbitrary designation text. The referenced Designation must be in that Member's current Tenant/Company. | DTO/service validation and composite FK |
 | DR-06 | A referenced Designation cannot be deleted. Delete returns 409, changes neither Designation nor Members, and the restrictive FK is the race backstop. | dependency probe and restrictive FK |

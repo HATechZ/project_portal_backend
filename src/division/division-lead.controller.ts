@@ -26,7 +26,7 @@ import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import { Permissions } from '../common/security/permissions.decorator';
 import { PermissionsGuard } from '../common/security/permissions.guard';
 import type { SessionUser } from '../common/security/session.types';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ActorRoleCode, WorkflowActionCode } from '../generated/prisma/client';
 import { DivisionService } from './division.service';
@@ -39,7 +39,7 @@ import {
 /**
  * Division Lead assignment (04.1.1). Separate from Division CRUD because the
  * authority differs: these routes require ASSIGN_LEADER and admit
- * division_head, while CRUD stays ADD_DIVISION and system_admin-only.
+ * division_head, while CRUD stays ADD_DIVISION and tenant_super_admin-only.
  */
 @ApiTags('division')
 @ApiSecurity('bearer')
@@ -49,7 +49,7 @@ import {
   TenantContextGuard,
   AuthenticationGuard,
   ObjectScopeGuard,
-  SystemAdminGuard,
+  TenantSuperAdminGuard,
   PermissionsGuard,
 )
 @Permissions(WorkflowActionCode.ASSIGN_LEADER)
@@ -71,7 +71,7 @@ export class DivisionLeadController {
     description:
       'Assign an eligible same-Company Member as Division Lead. The Member need ' +
       'not belong to this Division. Revokes the incumbent Lead, and is a no-op ' +
-      'when the Member already leads it. System Admin or Division Head.',
+      'when the Member already leads it. tenant super admin or Division Head.',
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiStandardOkResponse(DivisionLeadResponseDto, 'Division Lead assigned')

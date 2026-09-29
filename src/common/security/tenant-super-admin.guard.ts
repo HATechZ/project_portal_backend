@@ -7,7 +7,7 @@ import { AppErrorCode } from '../exceptions/app-error-code';
 import { AppException } from '../exceptions/app-exception';
 
 @Injectable()
-export class SystemAdminGuard implements CanActivate {
+export class TenantSuperAdminGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -15,9 +15,9 @@ export class SystemAdminGuard implements CanActivate {
       .switchToHttp()
       .getRequest<{ actor?: SessionActor }>().actor;
     const roleCode = actor?.role.systemRole?.systemCode;
-    if (roleCode === ActorRoleCode.system_admin) return true;
+    if (roleCode === ActorRoleCode.tenant_super_admin) return true;
 
-    // Opt-in only: absent metadata means system_admin alone, as before.
+    // Opt-in only: absent metadata means tenant_super_admin alone, as before.
     const allowed =
       this.reflector.getAllAndOverride<ActorRoleCode[]>(ALLOW_ACTOR_ROLES_KEY, [
         context.getHandler(),
@@ -28,7 +28,7 @@ export class SystemAdminGuard implements CanActivate {
     throw new AppException({
       code: AppErrorCode.Forbidden,
       status: 403,
-      message: 'Only a system administrator can perform this action.',
+      message: 'Only a tenant super administrator can perform this action.',
     });
   }
 }

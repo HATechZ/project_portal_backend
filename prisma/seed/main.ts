@@ -34,7 +34,7 @@ function adminConfig() {
   }
   return {
     email: process.env.SEED_ADMIN_EMAIL ?? 'admin@project-portal.local',
-    fullName: process.env.SEED_ADMIN_FULL_NAME ?? 'System Administrator',
+    fullName: process.env.SEED_ADMIN_FULL_NAME ?? 'tenant super administrator',
     password,
     tenantId: process.env.SEED_TENANT_ID ?? DEFAULT_TENANT_ID,
   };

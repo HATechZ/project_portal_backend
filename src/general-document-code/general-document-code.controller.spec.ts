@@ -41,7 +41,7 @@ describe('GeneralDocumentCodeController', () => {
 
   it('provisions the permission only to approved system roles', () => {
     const action = WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES;
-    expect(rolePermissionCodes.system_admin).toContain(action);
+    expect(rolePermissionCodes.tenant_super_admin).toContain(action);
     expect(rolePermissionCodes.division_head).toContain(action);
     expect(rolePermissionCodes.division_lead).toContain(action);
     expect(rolePermissionCodes.division_member).not.toContain(action);

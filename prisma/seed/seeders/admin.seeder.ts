@@ -52,7 +52,7 @@ export const adminSeeder: Seeder = {
         });
 
     const systemRole = await prisma.systemRole.findUniqueOrThrow({
-      where: { systemCode: ActorRoleCode.system_admin },
+      where: { systemCode: ActorRoleCode.tenant_super_admin },
     });
     const roleId = systemRole.roleId;
     await prisma.userRole.upsert({

@@ -46,6 +46,19 @@ describe('ProjectService', () => {
     );
     expect(outbox.enqueue).toHaveBeenCalledTimes(2);
   });
+  it('returns the latest ordered direct Project status event as the current status', async () => {
+    const { target } = service({
+      repository: {
+        find: jest.fn().mockResolvedValue({
+          ...record,
+          statusEvents: [{ toStatus: { code: 'COMPLETED' } }],
+        }),
+      },
+    });
+    await expect(target.findOne(record.id)).resolves.toEqual(
+      expect.objectContaining({ status: 'COMPLETED' }),
+    );
+  });
   it('does not enqueue an outbox event when the Project transaction fails', async () => {
     const { target, outbox } = service({
       repository: {

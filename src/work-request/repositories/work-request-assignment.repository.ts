@@ -74,6 +74,16 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
     });
   }
 
+  findByIdempotencyKey(idempotencyKey: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestV1Event.findFirst({
+        where: { tenantId, idempotencyKey },
+        select: { id: true },
+      }),
+    );
+  }
+
   write(input: {
     workRequestId: string;
     level: WorkRequestV1AssignmentLevelCode;
@@ -84,6 +94,8 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
     resultingState: WorkRequestV1StateCode;
     action: string;
     replacing: boolean;
+    idempotencyKey?: string;
+    correlationId?: string;
   }) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -125,7 +137,7 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
           assignedAt: true,
         },
       });
-      await db.workRequestV1Event.create({
+      const event = await db.workRequestV1Event.create({
         data: {
           id: randomUUID(),
           tenantId,
@@ -136,9 +148,12 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
           performedByActorId: input.actorId,
           occurredAt: at,
           note: input.note,
+          idempotencyKey: input.idempotencyKey,
+          correlationId: input.correlationId,
         },
+        select: { id: true, action: true, occurredAt: true },
       });
-      return { ...assignment, currentState: input.resultingState };
+      return { ...assignment, currentState: input.resultingState, event };
     });
   }
 

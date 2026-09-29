@@ -3,6 +3,7 @@ import {
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import { WorkRequestActionsProvider } from './work-request-actions.provider';
+import { WORK_REQUEST_REVIEW_TRANSITIONS } from './work-request-transition.definitions';
 
 describe('WorkRequestActionsProvider', () => {
   const provider = new WorkRequestActionsProvider();
@@ -147,5 +148,28 @@ describe('WorkRequestActionsProvider', () => {
         ]),
       ),
     ).toEqual([]);
+  });
+
+  it('uses the shared review transition definitions for available actions', () => {
+    const transition =
+      WORK_REQUEST_REVIEW_TRANSITIONS[WorkflowActionCode.WR_TEAM_LEAD_APPROVE];
+    expect(
+      provider.available(
+        actor([WorkflowActionCode.WR_TEAM_LEAD_APPROVE], 'team-lead-a'),
+        transition.from,
+        record(transition.from, [
+          {
+            level: 'TEAM',
+            teamId: 'team-a',
+            team: { isActive: true, leadMemberId: 'team-lead-a' },
+          },
+        ]),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        code: WorkflowActionCode.WR_TEAM_LEAD_APPROVE,
+        label: transition.label,
+      }),
+    ]);
   });
 });

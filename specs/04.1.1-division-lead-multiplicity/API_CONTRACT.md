@@ -8,18 +8,18 @@ from `04.1-division`'s contract ([Art. III](../rules/03-contracts.md)).
 
 Guard ordering is unchanged:
 `AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard -> ObjectScopeGuard ->
-SystemAdminGuard -> PermissionsGuard`.
+TenantSuperAdminGuard -> PermissionsGuard`.
 
-**Deviation from `04.1`:** the lead routes are not `system_admin`-only. `division_head` may
-assign and revoke Leads within its own Company (SPEC DR-12), so `SystemAdminGuard` is replaced
-on these two routes by a same-Company check admitting `system_admin` and `division_head`. The
+**Deviation from `04.1`:** the lead routes are not `tenant_super_admin`-only. `division_head` may
+assign and revoke Leads within its own Company (SPEC DR-12), so `TenantSuperAdminGuard` is replaced
+on these two routes by a same-Company check admitting `tenant_super_admin` and `division_head`. The
 required permission is `WorkflowActionCode.ASSIGN_LEADER`, not `ADD_DIVISION`.
 
 > `ASSIGN_LEADER` already exists and needs no owner action. It is in the
 > `WorkflowActionCode` enum, seeded as an assignment action in
 > `prisma/seed/data/permissions.data.ts`, and already granted to `division_head` both there
 > and in the applied `20260910163000_align_company_signup_role_bootstrap` migration.
-> `system_admin` holds every action except `DECIDE_BID_OUTCOME`, so it holds this one too.
+> `tenant_super_admin` holds every action except `DECIDE_BID_OUTCOME`, so it holds this one too.
 > An earlier draft of this contract invented a separate `ASSIGN_DIVISION_LEAD` code; that
 > was a duplicate of this one and was withdrawn 2026-09-15 before any migration was written.
 

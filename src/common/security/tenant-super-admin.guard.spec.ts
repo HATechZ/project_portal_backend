@@ -1,7 +1,7 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ActorRoleCode } from '../../generated/prisma/client';
-import { SystemAdminGuard } from './system-admin.guard';
+import { TenantSuperAdminGuard } from './tenant-super-admin.guard';
 import { AppException } from '../exceptions/app-exception';
 
 function contextFor(roleCode?: ActorRoleCode): ExecutionContext {
@@ -21,15 +21,15 @@ function guardAllowing(allowed: ActorRoleCode[] | undefined) {
   const reflector = {
     getAllAndOverride: jest.fn().mockReturnValue(allowed),
   } as unknown as Reflector;
-  return new SystemAdminGuard(reflector);
+  return new TenantSuperAdminGuard(reflector);
 }
 
-describe('SystemAdminGuard', () => {
+describe('TenantSuperAdminGuard', () => {
   describe('without the opt-in decorator (every pre-existing route)', () => {
-    it('admits system_admin', () => {
+    it('admits tenant_super_admin', () => {
       expect(
         guardAllowing(undefined).canActivate(
-          contextFor(ActorRoleCode.system_admin),
+          contextFor(ActorRoleCode.tenant_super_admin),
         ),
       ).toBe(true);
     });
@@ -65,10 +65,10 @@ describe('SystemAdminGuard', () => {
       ).toBe(true);
     });
 
-    it('still admits system_admin', () => {
+    it('still admits tenant_super_admin', () => {
       expect(
         guardAllowing(allowed).canActivate(
-          contextFor(ActorRoleCode.system_admin),
+          contextFor(ActorRoleCode.tenant_super_admin),
         ),
       ).toBe(true);
     });

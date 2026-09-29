@@ -39,7 +39,7 @@ credentials are delivered (`project_credential_deliveries`, module 07).
 
 ### `Role`
 
-`code` is `ActorRoleCode @unique`: `system_admin`, `ccr_coordinator`, `division_head`,
+`code` is `ActorRoleCode @unique`: `tenant_super_admin`, `ccr_coordinator`, `division_head`,
 `division_lead`, `team_lead`, `division_member`, `tms_manager`, `tms_drawing`,
 `tms_checking`, `tms_approval`, `client_owner`. `isSystemRole` defaults true — seeded,
 not user-created.
@@ -50,7 +50,7 @@ active ActorProfile, role/permission, and relevant Division/Team/assignment evid
 Company; `division_lead` is scoped to one Division; `team_lead` is scoped only to exact Teams
 legitimately led by the actor, with `Team.leadMemberId` as required object-scope evidence.
 
-Leadership creation/assignment authority follows the hierarchy. `system_admin` of the current
+Leadership creation/assignment authority follows the hierarchy. `tenant_super_admin` of the current
 Tenant/Company may create/provision or assign `division_head`; `division_head` may
 create/provision or assign `division_lead` only for a Division inside the same Company;
 `division_lead` may create/provision or assign `team_lead` only for a Team inside that Division;
@@ -120,7 +120,7 @@ DR-01, because a grant is an account-administration act rather than a workflow a
 | `label` | `VarChar(180)`, human-readable |
 | `isDefault` / `isActive` | at most one default for each non-null `(tenantId, userId)`, database-enforced |
 
-An ActorProfile may have neither business target (for example, a System Administrator) or
+An ActorProfile may have neither business target (for example, a Tenant Super Administrator) or
 exactly one of `memberId` and `clientContactId`; both populated is rejected by
 `actor_profiles_at_most_one_business_target`. The partial unique index
 `actor_profiles_one_default_per_user` enforces one default where both tenant and user are
@@ -220,7 +220,7 @@ Tables/objects:
   - `division_head`: `10000000-0000-4000-8000-000000000011`
   - `team_lead`: `10000000-0000-4000-8000-000000000012`
 - Permission seed matrix proposal:
-  - `system_admin`: keep the existing supervisor matrix; it may provision/assign
+  - `tenant_super_admin`: keep the existing supervisor matrix; it may provision/assign
     `division_head` through existing role assignment.
   - `division_head` confirmed organization permissions only:
     `ADD_DIVISION`, `ADD_TEAM`, `ASSIGN_LEADER`, `MANAGE_DESIGNATIONS`.
@@ -229,15 +229,15 @@ Tables/objects:
     Divisions automatically fall within that Company-wide Division scope. `ADD_TEAM` covers
     approved Team management and deletion of otherwise-deletable Teams across own-Company
     Divisions through object scope. `ASSIGN_LEADER` covers provisioning/assigning
-    `division_lead`; none of these grants imply system_admin inheritance or broad role
+    `division_lead`; none of these grants imply tenant_super_admin inheritance or broad role
     administration.
     Do not grant `ASSIGN_MEMBER` for Division routing because Division Head does not directly
     assign Members.
     Do not grant `UPDATE_SETTINGS`, Client/ClientContact administration, auth/session/security,
-    arbitrary user administration, role/permission administration, or unrelated system_admin
+    arbitrary user administration, role/permission administration, or unrelated tenant_super_admin
     operations.
   - `MANAGE_DESIGNATIONS` is a new WorkflowActionCode/catalog permission for Designation
-    create/update/delete. Grant it only to `system_admin` and `division_head`; do not grant it to
+    create/update/delete. Grant it only to `tenant_super_admin` and `division_head`; do not grant it to
     division_lead, team_lead, ordinary/other system roles, or custom roles. Designation GET is
     authenticated same-Tenant access and needs no grant.
   - `division_lead`: keep own-Division Team management/member assignment permissions. Use

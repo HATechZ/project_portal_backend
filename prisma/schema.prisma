@@ -9,7 +9,7 @@ datasource db {
 }
 
 enum ActorRoleCode {
-  system_admin
+  tenant_super_admin
   ccr_coordinator
   division_head
   division_lead
@@ -701,15 +701,15 @@ model Division {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  tenant                           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  company                          Company        @relation("DivisionsCompanyIdCompanies", fields: [companyId], references: [id])
-  divisionType                     DivisionType?  @relation("DivisionsDivisionTypeIdDivisionTypes", fields: [divisionTypeId], references: [id])
-  membersByDivisionId              Member[]       @relation("MembersDivisionIdDivisions")
-  divisionLeadsByDivisionId        DivisionLead[] @relation("DivisionLeadsDivisionIdDivisions")
-  teamsByDivisionId                Team[]         @relation("TeamsDivisionIdDivisions")
-  projectsByOriginDivisionId       Project[]      @relation("ProjectsOriginDivisionIdDivisions")
-  workRequestsByAssignedDivisionId WorkRequest[]  @relation("WorkRequestsAssignedDivisionIdDivisions")
-  workRequestsByOriginDivisionId   WorkRequest[]  @relation("WorkRequestsOriginDivisionIdDivisions")
+  tenant                           Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  company                          Company                   @relation("DivisionsCompanyIdCompanies", fields: [companyId], references: [id])
+  divisionType                     DivisionType?             @relation("DivisionsDivisionTypeIdDivisionTypes", fields: [divisionTypeId], references: [id])
+  membersByDivisionId              Member[]                  @relation("MembersDivisionIdDivisions")
+  divisionLeadsByDivisionId        DivisionLead[]            @relation("DivisionLeadsDivisionIdDivisions")
+  teamsByDivisionId                Team[]                    @relation("TeamsDivisionIdDivisions")
+  projectsByOriginDivisionId       Project[]                 @relation("ProjectsOriginDivisionIdDivisions")
+  workRequestsByAssignedDivisionId WorkRequest[]             @relation("WorkRequestsAssignedDivisionIdDivisions")
+  workRequestsByOriginDivisionId   WorkRequest[]             @relation("WorkRequestsOriginDivisionIdDivisions")
   workRequestV1Assignments         WorkRequestV1Assignment[] @relation("WorkRequestV1AssignmentsDivisionIdDivisions")
 
   @@unique([id, tenantId])
@@ -821,12 +821,12 @@ model Team {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  tenant              Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  company             Company      @relation("TeamsCompanyIdCompanies", fields: [companyId], references: [id])
-  division            Division     @relation("TeamsDivisionIdDivisions", fields: [divisionId, tenantId, companyId], references: [id, tenantId, companyId])
-  leadMember          Member?      @relation("TeamsLeadMemberIdMembers", fields: [leadMemberId], references: [id])
-  teamMembersByTeamId TeamMember[] @relation("TeamMembersTeamIdTeams")
-  userRolesByTeamId   UserRole[]   @relation("UserRolesTeamIdTeams")
+  tenant                   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  company                  Company                   @relation("TeamsCompanyIdCompanies", fields: [companyId], references: [id])
+  division                 Division                  @relation("TeamsDivisionIdDivisions", fields: [divisionId, tenantId, companyId], references: [id, tenantId, companyId])
+  leadMember               Member?                   @relation("TeamsLeadMemberIdMembers", fields: [leadMemberId], references: [id])
+  teamMembersByTeamId      TeamMember[]              @relation("TeamMembersTeamIdTeams")
+  userRolesByTeamId        UserRole[]                @relation("UserRolesTeamIdTeams")
   workRequestV1Assignments WorkRequestV1Assignment[] @relation("WorkRequestV1AssignmentsTeamIdTeams")
 
   @@unique([tenantId, divisionId, name])
@@ -1310,7 +1310,7 @@ model DirectProject {
   statusEvents      DirectProjectStatusEvent[] @relation("DirectProjectStatusEventsDirectProjectIdDirectProjects")
   documents         DirectProjectDocument[]    @relation("DirectProjectDocumentsDirectProjectIdDirectProjects")
   businessNameClaim BusinessNameClaim?         @relation("BusinessNameClaimsDirectProjectIdDirectProjects")
-  workRequestsV1    WorkRequestV1[]           @relation("WorkRequestV1DirectProjectIdDirectProjects")
+  workRequestsV1    WorkRequestV1[]            @relation("WorkRequestV1DirectProjectIdDirectProjects")
 
   @@unique([id, tenantId])
   @@index([clientId, tenantId])
@@ -1423,25 +1423,25 @@ model DirectProjectDocumentClassificationEvent {
 /// Module 10 V1 aggregate. Its state is intentionally absent: callers derive
 /// it from the newest state-bearing event, ordered by occurredAt then id.
 model WorkRequestV1 {
-  tenantId           String                    @map("tenant_id") @db.Uuid
-  id                 String                    @id @map("id") @db.Uuid
-  bidId              String?                   @map("bid_id") @db.Uuid
-  directProjectId    String?                   @map("direct_project_id") @db.Uuid
-  title              String                    @map("title") @db.VarChar(260)
-  priority           WorkRequestV1PriorityCode @map("priority")
-  notes              String?                   @map("notes") @db.Text
-  createdByActorId   String                    @map("created_by_actor_id") @db.Uuid
-  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt          DateTime                  @default(now()) @map("updated_at") @db.Timestamp(6)
+  tenantId         String                    @map("tenant_id") @db.Uuid
+  id               String                    @id @map("id") @db.Uuid
+  bidId            String?                   @map("bid_id") @db.Uuid
+  directProjectId  String?                   @map("direct_project_id") @db.Uuid
+  title            String                    @map("title") @db.VarChar(260)
+  priority         WorkRequestV1PriorityCode @map("priority")
+  notes            String?                   @map("notes") @db.Text
+  createdByActorId String                    @map("created_by_actor_id") @db.Uuid
+  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime                  @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  tenant         Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  bid            Bid?                         @relation("WorkRequestV1BidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  directProject  DirectProject?               @relation("WorkRequestV1DirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  createdByActor ActorProfile                  @relation("WorkRequestV1CreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  assignments    WorkRequestV1Assignment[]    @relation("WorkRequestV1AssignmentsWorkRequestIdWorkRequestsV1")
-  events         WorkRequestV1Event[]         @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1")
-  documents      WorkRequestV1Document[]      @relation("WorkRequestV1DocumentsWorkRequestIdWorkRequestsV1")
-  infoRequests   WorkRequestV1InfoRequest[]   @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1")
+  tenant         Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid            Bid?                       @relation("WorkRequestV1BidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  directProject  DirectProject?             @relation("WorkRequestV1DirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  createdByActor ActorProfile               @relation("WorkRequestV1CreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  assignments    WorkRequestV1Assignment[]  @relation("WorkRequestV1AssignmentsWorkRequestIdWorkRequestsV1")
+  events         WorkRequestV1Event[]       @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1")
+  documents      WorkRequestV1Document[]    @relation("WorkRequestV1DocumentsWorkRequestIdWorkRequestsV1")
+  infoRequests   WorkRequestV1InfoRequest[] @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1")
 
   @@unique([id, tenantId])
   @@index([tenantId, bidId])
@@ -1484,17 +1484,17 @@ model WorkRequestV1Assignment {
 /// Append-only audit/event stream. action is intentionally open rather than a
 /// closed enum so later configured transitions do not require a schema change.
 model WorkRequestV1Event {
-  tenantId           String                   @map("tenant_id") @db.Uuid
-  id                 String                   @id @map("id") @db.Uuid
-  workRequestId      String                   @map("work_request_id") @db.Uuid
-  action             String                   @map("action") @db.VarChar(120)
-  priorState         WorkRequestV1StateCode?  @map("prior_state")
-  resultingState     WorkRequestV1StateCode?  @map("resulting_state")
-  performedByActorId String                   @map("performed_by_actor_id") @db.Uuid
-  occurredAt         DateTime                 @default(now()) @map("occurred_at") @db.Timestamp(6)
-  note               String?                  @map("note") @db.Text
-  correlationId      String?                  @map("correlation_id") @db.Uuid
-  idempotencyKey     String?                  @map("idempotency_key") @db.VarChar(160)
+  tenantId           String                  @map("tenant_id") @db.Uuid
+  id                 String                  @id @map("id") @db.Uuid
+  workRequestId      String                  @map("work_request_id") @db.Uuid
+  action             String                  @map("action") @db.VarChar(120)
+  priorState         WorkRequestV1StateCode? @map("prior_state")
+  resultingState     WorkRequestV1StateCode? @map("resulting_state")
+  performedByActorId String                  @map("performed_by_actor_id") @db.Uuid
+  occurredAt         DateTime                @default(now()) @map("occurred_at") @db.Timestamp(6)
+  note               String?                 @map("note") @db.Text
+  correlationId      String?                 @map("correlation_id") @db.Uuid
+  idempotencyKey     String?                 @map("idempotency_key") @db.VarChar(160)
 
   tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   workRequest      WorkRequestV1 @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
@@ -1536,22 +1536,22 @@ model WorkRequestV1Document {
 }
 
 model WorkRequestV1DocumentVersion {
-  tenantId                String                @map("tenant_id") @db.Uuid
-  id                      String                @id @map("id") @db.Uuid
-  workRequestV1DocumentId String                @map("work_request_v1_document_id") @db.Uuid
-  versionNumber           Int                   @map("version_number")
-  originalFileName        String                @map("original_file_name") @db.VarChar(260)
-  generatedFileName       String?               @map("generated_file_name") @db.VarChar(260)
-  storageKey              String                @map("storage_key") @db.Text
-  mimeType                String                @map("mime_type") @db.VarChar(120)
-  fileSizeBytes           BigInt                @map("file_size_bytes")
-  revisionCode            String                @map("revision_code") @db.VarChar(20)
-  uploadedByActorId       String                @map("uploaded_by_actor_id") @db.Uuid
-  uploadedAt              DateTime              @default(now()) @map("uploaded_at") @db.Timestamp(6)
+  tenantId                String   @map("tenant_id") @db.Uuid
+  id                      String   @id @map("id") @db.Uuid
+  workRequestV1DocumentId String   @map("work_request_v1_document_id") @db.Uuid
+  versionNumber           Int      @map("version_number")
+  originalFileName        String   @map("original_file_name") @db.VarChar(260)
+  generatedFileName       String?  @map("generated_file_name") @db.VarChar(260)
+  storageKey              String   @map("storage_key") @db.Text
+  mimeType                String   @map("mime_type") @db.VarChar(120)
+  fileSizeBytes           BigInt   @map("file_size_bytes")
+  revisionCode            String   @map("revision_code") @db.VarChar(20)
+  uploadedByActorId       String   @map("uploaded_by_actor_id") @db.Uuid
+  uploadedAt              DateTime @default(now()) @map("uploaded_at") @db.Timestamp(6)
 
-  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  document              WorkRequestV1Document @relation("WorkRequestV1DocumentVersionsWorkRequestV1DocumentIdWorkRequestV1Documents", fields: [workRequestV1DocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  uploadedByActor       ActorProfile          @relation("WorkRequestV1DocumentVersionsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  document        WorkRequestV1Document @relation("WorkRequestV1DocumentVersionsWorkRequestV1DocumentIdWorkRequestV1Documents", fields: [workRequestV1DocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByActor ActorProfile          @relation("WorkRequestV1DocumentVersionsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([id, tenantId])
   @@unique([tenantId, workRequestV1DocumentId, versionNumber])
@@ -1560,45 +1560,45 @@ model WorkRequestV1DocumentVersion {
 }
 
 model WorkRequestV1DocumentClassificationEvent {
-  tenantId                 String                @map("tenant_id") @db.Uuid
-  id                       String                @id @map("id") @db.Uuid
-  workRequestV1DocumentId  String                @map("work_request_v1_document_id") @db.Uuid
-  fromDocumentCodeId       String?               @map("from_document_code_id") @db.Uuid
-  toDocumentCodeId         String?               @map("to_document_code_id") @db.Uuid
-  fromDocumentCodeSnapshot String?               @map("from_document_code_snapshot") @db.VarChar(20)
-  toDocumentCodeSnapshot   String?               @map("to_document_code_snapshot") @db.VarChar(20)
-  fromGeneratedFileName    String?               @map("from_generated_file_name") @db.VarChar(260)
-  toGeneratedFileName      String?               @map("to_generated_file_name") @db.VarChar(260)
-  changedByActorId         String                @map("changed_by_actor_id") @db.Uuid
-  occurredAt               DateTime              @default(now()) @map("occurred_at") @db.Timestamp(6)
+  tenantId                 String   @map("tenant_id") @db.Uuid
+  id                       String   @id @map("id") @db.Uuid
+  workRequestV1DocumentId  String   @map("work_request_v1_document_id") @db.Uuid
+  fromDocumentCodeId       String?  @map("from_document_code_id") @db.Uuid
+  toDocumentCodeId         String?  @map("to_document_code_id") @db.Uuid
+  fromDocumentCodeSnapshot String?  @map("from_document_code_snapshot") @db.VarChar(20)
+  toDocumentCodeSnapshot   String?  @map("to_document_code_snapshot") @db.VarChar(20)
+  fromGeneratedFileName    String?  @map("from_generated_file_name") @db.VarChar(260)
+  toGeneratedFileName      String?  @map("to_generated_file_name") @db.VarChar(260)
+  changedByActorId         String   @map("changed_by_actor_id") @db.Uuid
+  occurredAt               DateTime @default(now()) @map("occurred_at") @db.Timestamp(6)
 
-  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  document              WorkRequestV1Document @relation("WorkRequestV1DocumentClassificationEventsWorkRequestV1DocumentIdWorkRequestV1Documents", fields: [workRequestV1DocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  fromDocumentCode      DocumentCodeOption?   @relation("WorkRequestV1DocumentClassificationEventsFromDocumentCodeIdDocumentCodeOptions", fields: [fromDocumentCodeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  toDocumentCode        DocumentCodeOption?   @relation("WorkRequestV1DocumentClassificationEventsToDocumentCodeIdDocumentCodeOptions", fields: [toDocumentCodeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  changedByActor        ActorProfile          @relation("WorkRequestV1DocumentClassificationEventsChangedByActorIdActorProfiles", fields: [changedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  document         WorkRequestV1Document @relation("WorkRequestV1DocumentClassificationEventsWorkRequestV1DocumentIdWorkRequestV1Documents", fields: [workRequestV1DocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  fromDocumentCode DocumentCodeOption?   @relation("WorkRequestV1DocumentClassificationEventsFromDocumentCodeIdDocumentCodeOptions", fields: [fromDocumentCodeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  toDocumentCode   DocumentCodeOption?   @relation("WorkRequestV1DocumentClassificationEventsToDocumentCodeIdDocumentCodeOptions", fields: [toDocumentCodeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  changedByActor   ActorProfile          @relation("WorkRequestV1DocumentClassificationEventsChangedByActorIdActorProfiles", fields: [changedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([workRequestV1DocumentId, occurredAt(sort: Desc), id(sort: Desc)])
   @@map("work_request_v1_document_classification_events")
 }
 
 model WorkRequestV1InfoRequest {
-  tenantId           String                  @map("tenant_id") @db.Uuid
-  id                 String                  @id @map("id") @db.Uuid
-  workRequestId      String                  @map("work_request_id") @db.Uuid
-  requestedByActorId String                  @map("requested_by_actor_id") @db.Uuid
-  targetActorId      String                  @map("target_actor_id") @db.Uuid
-  message            String                  @map("message") @db.Text
-  stateAtRequest     WorkRequestV1StateCode  @map("state_at_request")
-  status             InfoRequestStatusCode   @default(OPEN) @map("status")
-  requestedAt        DateTime                @default(now()) @map("requested_at") @db.Timestamp(6)
-  closedAt           DateTime?               @map("closed_at") @db.Timestamp(6)
+  tenantId           String                 @map("tenant_id") @db.Uuid
+  id                 String                 @id @map("id") @db.Uuid
+  workRequestId      String                 @map("work_request_id") @db.Uuid
+  requestedByActorId String                 @map("requested_by_actor_id") @db.Uuid
+  targetActorId      String                 @map("target_actor_id") @db.Uuid
+  message            String                 @map("message") @db.Text
+  stateAtRequest     WorkRequestV1StateCode @map("state_at_request")
+  status             InfoRequestStatusCode  @default(OPEN) @map("status")
+  requestedAt        DateTime               @default(now()) @map("requested_at") @db.Timestamp(6)
+  closedAt           DateTime?              @map("closed_at") @db.Timestamp(6)
 
-  tenant           Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  workRequest      WorkRequestV1                @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  requestedByActor ActorProfile                  @relation("WorkRequestV1InfoRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  targetActor      ActorProfile                  @relation("WorkRequestV1InfoRequestsTargetActorIdActorProfiles", fields: [targetActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  responses        WorkRequestV1InfoResponse[]  @relation("WorkRequestV1InfoResponsesInfoRequestIdWorkRequestV1InfoRequests")
+  tenant           Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  workRequest      WorkRequestV1               @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  requestedByActor ActorProfile                @relation("WorkRequestV1InfoRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  targetActor      ActorProfile                @relation("WorkRequestV1InfoRequestsTargetActorIdActorProfiles", fields: [targetActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  responses        WorkRequestV1InfoResponse[] @relation("WorkRequestV1InfoResponsesInfoRequestIdWorkRequestV1InfoRequests")
 
   @@unique([id, tenantId])
   @@index([workRequestId, requestedAt])
@@ -1607,16 +1607,16 @@ model WorkRequestV1InfoRequest {
 }
 
 model WorkRequestV1InfoResponse {
-  tenantId          String                 @map("tenant_id") @db.Uuid
-  id                String                 @id @map("id") @db.Uuid
-  infoRequestId     String                 @map("info_request_id") @db.Uuid
-  respondedByActorId String                @map("responded_by_actor_id") @db.Uuid
-  message           String                 @map("message") @db.Text
-  respondedAt       DateTime               @default(now()) @map("responded_at") @db.Timestamp(6)
+  tenantId           String   @map("tenant_id") @db.Uuid
+  id                 String   @id @map("id") @db.Uuid
+  infoRequestId      String   @map("info_request_id") @db.Uuid
+  respondedByActorId String   @map("responded_by_actor_id") @db.Uuid
+  message            String   @map("message") @db.Text
+  respondedAt        DateTime @default(now()) @map("responded_at") @db.Timestamp(6)
 
-  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   infoRequest      WorkRequestV1InfoRequest @relation("WorkRequestV1InfoResponsesInfoRequestIdWorkRequestV1InfoRequests", fields: [infoRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
-  respondedByActor ActorProfile           @relation("WorkRequestV1InfoResponsesRespondedByActorIdActorProfiles", fields: [respondedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  respondedByActor ActorProfile             @relation("WorkRequestV1InfoResponsesRespondedByActorIdActorProfiles", fields: [respondedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([id, tenantId])
   @@index([infoRequestId, respondedAt])

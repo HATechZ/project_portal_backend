@@ -13,7 +13,7 @@ import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { ObjectScopeGuard } from '../common/security/object-scope.guard';
 import { PermissionsGuard } from '../common/security/permissions.guard';
-import { SystemAdminGuard } from '../common/security/system-admin.guard';
+import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import {
   ApiStandardBadRequestResponse,
   ApiStandardForbiddenResponse,
@@ -37,12 +37,12 @@ import { UpdateCompanyDto } from './dtos/update-company.dto';
   TenantContextGuard,
   AuthenticationGuard,
   ObjectScopeGuard,
-  SystemAdminGuard,
+  TenantSuperAdminGuard,
   PermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('System administrator access required')
+@ApiStandardForbiddenResponse('tenant super administrator access required')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
@@ -70,7 +70,7 @@ export class CompanyController {
   @Patch('company/:id')
   @ResponseMessage('Company updated successfully')
   @ApiOperation({
-    summary: 'Rename or retype your Company (system_admin only)',
+    summary: 'Rename or retype your Company (tenant_super_admin only)',
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiStandardOkResponse(CompanyResponseDto, 'Company updated')

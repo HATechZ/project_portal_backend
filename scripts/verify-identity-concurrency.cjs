@@ -32,7 +32,7 @@ async function main() {
   const record = (name, detail) => { results.push({name, result:'PASS', detail}); console.log('PASS',name,JSON.stringify(detail)); };
   try {
     const user = await f.createUser();
-    const member = f.roles.find(x=>x.code==='division_member'), lead=f.roles.find(x=>x.code==='division_lead'), adminRole=f.roles.find(x=>x.code==='system_admin');
+    const member = f.roles.find(x=>x.code==='division_member'), lead=f.roles.find(x=>x.code==='division_lead'), adminRole=f.roles.find(x=>x.code==='tenant_super_admin');
     const assignmentRace = await race([1,2].map(()=>f.run(()=>assignments.ensureAssignment(user.id,member.id,user.id))));
     assert.equal((await query('SELECT count(*)::int n FROM actor_profiles WHERE user_id=$1',[user.id])).rows[0].n,1);
     assert.equal((await query('SELECT count(*)::int n FROM user_roles WHERE user_id=$1 AND revoked_at IS NULL',[user.id])).rows[0].n,1);

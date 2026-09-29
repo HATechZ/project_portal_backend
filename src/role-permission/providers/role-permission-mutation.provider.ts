@@ -93,13 +93,13 @@ export class RolePermissionMutationProvider {
     const role = await this.requireRole(roleId);
     if (
       userId === performedByUserId &&
-      role.systemRole?.systemCode === ActorRoleCode.system_admin
+      role.systemRole?.systemCode === ActorRoleCode.tenant_super_admin
     )
       throw new AppException({
         code: AppErrorCode.Conflict,
         status: HttpStatus.CONFLICT,
         message:
-          'You cannot remove your own System Administrator role. Ask another administrator to make this change.',
+          'You cannot remove your own Tenant Super Administrator role. Ask another administrator to make this change.',
       });
     const assignment = await this.repository.findActiveAssignment(
       userId,
@@ -114,14 +114,14 @@ export class RolePermissionMutationProvider {
     const revoked = await this.repository.revokeAssignment(
       assignment.id,
       roleId,
-      role.systemRole?.systemCode === ActorRoleCode.system_admin,
+      role.systemRole?.systemCode === ActorRoleCode.tenant_super_admin,
     );
     if (!revoked) {
       throw new AppException({
         code: AppErrorCode.Conflict,
         status: HttpStatus.CONFLICT,
         message:
-          'This role cannot be removed because the workspace must have at least one active System Administrator.',
+          'This role cannot be removed because the workspace must have at least one active Tenant Super Administrator.',
       });
     }
   }

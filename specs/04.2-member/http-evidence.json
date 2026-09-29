@@ -6,7 +6,7 @@
   ],
   "checks": [
     "App started with production AppModule and Member routes mapped",
-    "Seeded system_admin login succeeded with ADD_MEMBER permission",
+    "Seeded tenant_super_admin login succeeded with ADD_MEMBER permission",
     "Scoped Company read succeeded through app_user Tenant context",
     "Division fixture was cleaned up through HTTP"
   ],

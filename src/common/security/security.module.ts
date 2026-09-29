@@ -4,7 +4,7 @@ import { AuthenticationGuard } from './authentication.guard';
 import { ObjectScopeGuard } from './object-scope.guard';
 import { ObjectScopeProvider } from './object-scope.provider';
 import { PermissionsGuard } from './permissions.guard';
-import { SystemAdminGuard } from './system-admin.guard';
+import { TenantSuperAdminGuard } from './tenant-super-admin.guard';
 
 /**
  * The guards every module protects its routes with.
@@ -22,7 +22,7 @@ import { SystemAdminGuard } from './system-admin.guard';
     AuthenticationGuard,
     ObjectScopeGuard,
     PermissionsGuard,
-    SystemAdminGuard,
+    TenantSuperAdminGuard,
   ],
   exports: [
     ObjectScopeProvider,
@@ -30,7 +30,7 @@ import { SystemAdminGuard } from './system-admin.guard';
     AuthenticationGuard,
     ObjectScopeGuard,
     PermissionsGuard,
-    SystemAdminGuard,
+    TenantSuperAdminGuard,
   ],
 })
 export class SecurityModule {}

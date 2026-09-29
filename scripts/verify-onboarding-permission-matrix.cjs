@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const source = fs.readFileSync('prisma/seed/data/permissions.data.ts', 'utf8');
 
 // Later migrations redefine the provisioning function; compare against the newest definition.
-const MATRIX_MARKER = "WHEN 'system_admin'::public.actor_role_code THEN";
+const MATRIX_MARKER = "WHEN 'tenant_super_admin'::public.actor_role_code THEN";
 const migrationDir = fs
   .readdirSync('prisma/migrations')
   .filter((dir) => fs.existsSync(`prisma/migrations/${dir}/migration.sql`))
@@ -35,18 +35,18 @@ const supervisorSource = source.match(
   /const supervisorPermissions =[\s\S]*?code !== WorkflowActionCode\.([A-Z][A-Z0-9_]*)/,
 );
 const supervisorSql = migration.match(
-  /WHEN 'system_admin'::public\.actor_role_code THEN\s*action_definition\.code <> '([A-Z][A-Z0-9_]*)'::public\.workflow_action_code/,
+  /WHEN 'tenant_super_admin'::public\.actor_role_code THEN\s*action_definition\.code <> '([A-Z][A-Z0-9_]*)'::public\.workflow_action_code/,
 );
 if (!supervisorSource || !supervisorSql) {
-  throw new Error('Cannot resolve system_admin permission rule');
+  throw new Error('Cannot resolve tenant_super_admin permission rule');
 }
 if (supervisorSource[1] !== supervisorSql[1]) {
   throw new Error(
-    `system_admin drift: source excludes ${supervisorSource[1]}, SQL excludes ${supervisorSql[1]}`,
+    `tenant_super_admin drift: source excludes ${supervisorSource[1]}, SQL excludes ${supervisorSql[1]}`,
   );
 }
 
-for (const role of roles.filter((code) => code !== 'system_admin')) {
+for (const role of roles.filter((code) => code !== 'tenant_super_admin')) {
   const sourceBlock = source.match(new RegExp(`${role}: \\[([\\s\\S]*?)\\n    \\]`));
   if (!sourceBlock) throw new Error(`Cannot locate seed matrix for ${role}`);
   const expected = new Set(codes(sourceBlock[1]));

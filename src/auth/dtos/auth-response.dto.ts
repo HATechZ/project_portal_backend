@@ -3,7 +3,7 @@ import { WorkflowActionCode } from '../../generated/prisma/client';
 
 export class AuthUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ example: 'System Administrator' }) fullName!: string;
+  @ApiProperty({ example: 'Tenant Super Administrator' }) fullName!: string;
   @ApiProperty({ example: 'admin@project-portal.local' }) email!: string;
   @ApiPropertyOptional({ nullable: true }) country!: string | null;
   @ApiPropertyOptional({ nullable: true }) phone!: string | null;

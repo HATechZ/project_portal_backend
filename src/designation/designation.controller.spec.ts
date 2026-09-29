@@ -47,9 +47,9 @@ describe('DesignationController authorization contract', () => {
     ]);
   });
 
-  it('provisions mutations only to system_admin and division_head', () => {
+  it('provisions mutations only to tenant_super_admin and division_head', () => {
     const action = WorkflowActionCode.MANAGE_DESIGNATIONS;
-    expect(rolePermissionCodes.system_admin).toContain(action);
+    expect(rolePermissionCodes.tenant_super_admin).toContain(action);
     expect(rolePermissionCodes.division_head).toContain(action);
     expect(rolePermissionCodes.division_lead).not.toContain(action);
     expect(rolePermissionCodes.team_lead).not.toContain(action);

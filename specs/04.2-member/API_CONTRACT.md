@@ -7,17 +7,17 @@ Base `/api/v1`; inherits platform envelope, pagination, UUID validation, central
 
 Routes require authenticated JWT-derived Tenant context, active session/User/ActorProfile,
 ordinary object scope, configured permissions, and no caller-controlled Tenant/Company. Member
-creation is scoped by actor authority: `system_admin` may create anywhere in own Company and may
+creation is scoped by actor authority: `tenant_super_admin` may create anywhere in own Company and may
 create/provision or assign `division_head`; `division_head` may create/provision or assign
 `division_lead` only for a Division inside the same Company; `division_lead` may create/provision
 or assign `team_lead` only for a Team inside that Division; `team_lead` may manage/create eligible
 ordinary Members only within exact Team scope. Team Lead context is derived from authenticated
 User -> active ActorProfile with `team_lead` role -> Member -> Team where `Team.leadMemberId`
 equals the actor Member. Role assignment alone does not bypass object scope. Ordinary
-update/delete and access linking remain same-Company `system_admin` operations unless a later
+update/delete and access linking remain same-Company `tenant_super_admin` operations unless a later
 contract explicitly approves more. There is no wildcard: configured action/scope remain required.
 
-Read scope is equally bounded. `system_admin` and configured `division_head` read own Company
+Read scope is equally bounded. `tenant_super_admin` and configured `division_head` read own Company
 Members, `division_lead` reads own Division Members, and `team_lead` may read only their exact
 led-Team context and eligible same-Team Members needed for own-Team Member operations. This does
 not grant general Division administration or all-Division browsing.

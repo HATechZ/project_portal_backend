@@ -22,6 +22,6 @@ The current combined workspace `Project`, `BidDetail`, shared status events, and
 
 ## Authorization and Work Request boundary
 
-Authorization uses the existing Module 03 permission/action-grant and object-scope architecture, not controller role comparisons. `ADD_BID` protects create, `VIEW_BID` protects list/detail, and `UPDATE_BID` protects PATCH. Grant policy is locked: the current system-administrator tenant role (owner label `tenant_super_admin`) and current `ccr_coordinator` (CCR) may create and update; those two plus `division_head` and `division_lead` may list/read/detail. Division Head and Division Lead are read-only. No `prime_consultant`, invented admin role, or wildcard bypass is allowed.
+Authorization uses the existing Module 03 permission/action-grant and object-scope architecture, not controller role comparisons. `ADD_BID` protects create, `VIEW_BID` protects list/detail, and `UPDATE_BID` protects PATCH. Grant policy is locked: the current tenant-super-administrator tenant role (owner label `tenant_super_admin`) and current `ccr_coordinator` (CCR) may create and update; those two plus `division_head` and `division_lead` may list/read/detail. Division Head and Division Lead are read-only. No `prime_consultant`, invented admin role, or wildcard bypass is allowed.
 
 Future Work Request may relate one-to-many through a tenant-qualified `bid_id`, or through a DB-enforced exclusive Bid/Project parent. It must not use Project as a Bid surrogate. No Work Request workflow is defined here.

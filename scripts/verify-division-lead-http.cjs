@@ -289,7 +289,7 @@ async function main() {
     });
     checks.push('Foreign Tenant lead access is indistinguishable from missing');
 
-    // --- 403: a role holding neither ASSIGN_LEADER nor system_admin ---------
+    // --- 403: a role holding neither ASSIGN_LEADER nor tenant_super_admin ---------
     const ordinaryRole = (
       await admin.query("SELECT id FROM roles WHERE code='division_member'")
     ).rows[0].id;

@@ -19,7 +19,7 @@ Code trims then uppercases, preserving string semantics and leading zeroes (`" a
 
 ## Authorization, tenancy, and uniqueness
 
-Every query/write/lifecycle predicate is tenant + fixed `MARKETING` (+ ID). Foreign, absent, and wrong-group IDs are undisclosed. The whole controller requires `MANAGE_GENERAL_DOCUMENT_CODES` using the standard authenticated TenantContext/actor, object-scope, and permissions guard chain. Grant it only to current `system_admin`, `division_head`, and `division_lead`; there are no direct role checks or custom-role grants. Do not impose Module 06's `tenantWide` service restriction: current TenantContext plus configured permission authorizes these approved roles.
+Every query/write/lifecycle predicate is tenant + fixed `MARKETING` (+ ID). Foreign, absent, and wrong-group IDs are undisclosed. The whole controller requires `MANAGE_GENERAL_DOCUMENT_CODES` using the standard authenticated TenantContext/actor, object-scope, and permissions guard chain. Grant it only to current `tenant_super_admin`, `division_head`, and `division_lead`; there are no direct role checks or custom-role grants. Do not impose Module 06's `tenantWide` service restriction: current TenantContext plus configured permission authorizes these approved roles.
 
 Current uniqueness is `(tenantId, documentGroup, code)` after code normalization; name is not unique. RLS exists. Runtime requires a narrowly scoped `app_user` grant of `SELECT`, `INSERT`, and `UPDATE` on `document_code_options`, retaining RLS and withholding `DELETE`, `ALL`, and `BYPASSRLS`.
 

@@ -23,7 +23,7 @@ database change.
 
 ## 2. User Stories
 
-- **US-01:** As a same-Company `system_admin`, I want to manage Teams in the Company.
+- **US-01:** As a same-Company `tenant_super_admin`, I want to manage Teams in the Company.
 - **US-02:** As a `division_head`, I want to manage Teams across own-Company Divisions according
   to configured permissions.
 - **US-03:** As a `division_lead`, I want to manage Teams, leads, and eligible Members only
@@ -36,11 +36,11 @@ database change.
 | # | Rule | Enforced by |
 |---|---|---|
 | DR-01 | A Team belongs to authenticated Tenant, its one Company, and a scoped Division; ownership is never caller input. | context/service, composite Division FK, RLS |
-| DR-02 | `system_admin` manages Teams only in own Company with `ADD_TEAM`; no platform/wildcard bypass exists. | guard/permission/object scope |
+| DR-02 | `tenant_super_admin` manages Teams only in own Company with `ADD_TEAM`; no platform/wildcard bypass exists. | guard/permission/object scope |
 | DR-03 | `division_head` manages Teams across own-Company Divisions according to configured permissions and may delete any otherwise-deletable Team in those Divisions. | role/permission/object scope |
 | DR-04 | `division_lead` creates/manages Teams and assigns/changes Team Lead only where active ActorProfile -> Member -> `divisionId` equals target Team Division. It requires configured `ADD_TEAM`. | Division scope resolver |
 | DR-05 | `team_lead` may add/end Member membership and route Team work only where actor Member ID equals exact Team `leadMemberId`, and only with configured permission. `Team.leadMemberId` is required object-scope evidence; role alone cannot control another Team. | exact Team scope resolver and permissions |
-| DR-06 | Leadership assignment scope is validated at assignment time: system_admin -> own Company; division_head -> own Company / target Division; division_lead -> own Division / target Team; team_lead -> exact Team. Role assignment alone never bypasses object scope. | assignment service validation |
+| DR-06 | Leadership assignment scope is validated at assignment time: tenant_super_admin -> own Company; division_head -> own Company / target Division; division_lead -> own Division / target Team; team_lead -> exact Team. Role assignment alone never bypasses object scope. | assignment service validation |
 | DR-07 | Team Lead cannot create Division; cannot manage another Team; and cannot assign cross-Team Members. Team Lead Member creation authority lives in `04.2-member` and is limited to exact led-Team scope. | route authorization/tests |
 | DR-08 | Selected Team Lead and every Team Member must be active Members of same Tenant, Company, and Division as Team before assignment. User access is not required. | service validation; existing structural keys/RLS |
 | DR-09 | `team_members` preserves `joinedAt`, nullable `leftAt`, and nullable `teamRole`. Adding creates an active association; ending sets `leftAt`, never deletes history. Re-adding after end creates a new association. | membership transaction |
@@ -63,7 +63,7 @@ database change.
 
 - `[AC-U01]` The module SHALL use app_user, Tenant UnitOfWork, RLS, configured permission, and object scope; caller Tenant/Company cannot affect scope.
 - `[AC-U02]` The module SHALL never create a Member, a User, or a TeamMember feature/module, and SHALL never infer Team object scope from `team_lead` role alone.
-- `[AC-E01]` WHEN system_admin creates a valid Team in own Company, the system SHALL persist it under the scoped Division.
+- `[AC-E01]` WHEN tenant_super_admin creates a valid Team in own Company, the system SHALL persist it under the scoped Division.
 - `[AC-E02]` WHEN division_lead manages a Team or assigns its lead, the system SHALL verify the active actor Member's Division equals the Team Division.
 - `[AC-E03]` WHEN `team_lead` adds or ends membership, the system SHALL verify exact `leadMemberId` equality plus `ASSIGN_MEMBER`, then preserve membership history.
 - `[AC-E04]` WHEN `division_head` deletes a Team, the system SHALL allow it only for an otherwise-deletable Team in own-Company Divisions with configured permission and SHALL deny cross-Tenant or cross-Company targets.

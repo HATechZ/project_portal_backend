@@ -60,7 +60,7 @@ Create derives Tenant/Company and uses an existing actor-scoped Division and sam
 Designation; it receives name, business email, password, designationId, optional phone, and
 Division ID. Update may change `designationId` only after the same scoped validation. It writes no
 UserRole, ActorProfile, or Team membership.
-`system_admin` can select any own-Company Division and may create/provision or assign
+`tenant_super_admin` can select any own-Company Division and may create/provision or assign
 `division_head`; `division_head` can select any own-Company Division allowed by configured
 permissions and may create/provision or assign `division_lead` only for a Division inside that
 Company; `division_lead` can select only the active actor Member's Division and may

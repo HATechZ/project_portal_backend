@@ -21,7 +21,7 @@ describe('Work Request fixed-role permission grants', () => {
   };
 
   it('assigns the approved baseline without workflow bypasses', () => {
-    expectAssigned(ActorRoleCode.system_admin, [
+    expectAssigned(ActorRoleCode.tenant_super_admin, [
       WorkflowActionCode.ADD_WORK_REQUEST_DOCUMENT,
       WorkflowActionCode.ADD_WORK_REQUEST,
       WorkflowActionCode.ADD_WORK_REQUEST_NOTE,
