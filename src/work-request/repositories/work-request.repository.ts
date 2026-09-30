@@ -102,7 +102,14 @@ export class WorkRequestRepository extends BaseRepository {
       if (input.files.length)
         await db.workRequestV1Document.createMany({
           data: input.files.map((file) => ({
-            ...file,
+            id: file.id,
+            documentCodeId: file.documentCodeId,
+            documentCodeSnapshot: file.documentCodeSnapshot,
+            originalFileName: file.originalFileName,
+            generatedFileName: file.generatedFileName,
+            storageKey: file.storageKey,
+            mimeType: file.mimeType,
+            fileSizeBytes: file.fileSizeBytes,
             tenantId,
             workRequestId: input.id,
             uploadedByActorId: input.actorId,
