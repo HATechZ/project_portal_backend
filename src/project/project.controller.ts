@@ -75,13 +75,14 @@ export class ProjectController {
   )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "North Sea Project",\n  "clientId": "<uuid>",\n  "documentCodeIds": [\n    "<code-100-uuid>",\n    "<code-802-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = project-information.pdf and files[1] = contract.pdf; documentCodeIds[0] maps to files[0], and documentCodeIds[1] maps to files[1].`,
+    description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "North Sea Project",\n  "clientId": "<uuid>",\n  "shipmentNumber": "01",\n  "documentCodeIds": [\n    "<code-100-uuid>",\n    "<code-802-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = project-information.pdf and files[1] = contract.pdf; documentCodeIds[0] maps to files[0], and documentCodeIds[1] maps to files[1].`,
     schema: {
       type: 'object',
-      required: ['name', 'clientId'],
+      required: ['name', 'clientId', 'shipmentNumber'],
       properties: {
         name: { type: 'string' },
         clientId: { type: 'string', format: 'uuid' },
+        shipmentNumber: { type: 'string', maxLength: 10 },
         documentCodeIds: {
           type: 'array',
           items: { type: 'string', format: 'uuid' },
@@ -102,6 +103,7 @@ export class ProjectController {
       source: `const project = {
   name: 'North Sea Project',
   clientId: '<uuid>',
+  shipmentNumber: '01',
   documentCodeIds: ['<code-100-uuid>', '<code-802-uuid>'],
 };
 
@@ -114,6 +116,7 @@ const files = [projectInformationFile, contractFile];
 const formData = new FormData();
 formData.append('name', project.name);
 formData.append('clientId', project.clientId);
+formData.append('shipmentNumber', project.shipmentNumber);
 project.documentCodeIds.forEach((id) =>
   formData.append('documentCodeIds', id),
 );

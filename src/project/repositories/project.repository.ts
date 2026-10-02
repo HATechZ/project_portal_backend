@@ -9,6 +9,7 @@ const select = {
   id: true,
   name: true,
   clientId: true,
+  shipmentNumber: true,
   createdAt: true,
   updatedAt: true,
   statusEvents: {
@@ -55,6 +56,7 @@ export class ProjectRepository extends BaseRepository {
     name: string;
     normalizedName: string;
     clientId: string;
+    shipmentNumber: string;
     actorId: string;
     files: ProjectFileInput[];
   }): Promise<ProjectRecord> {
@@ -75,6 +77,7 @@ export class ProjectRepository extends BaseRepository {
           tenantId,
           name: input.name,
           clientId: input.clientId,
+          shipmentNumber: input.shipmentNumber,
           createdByActorId: input.actorId,
           documents: {
             create: input.files.map(

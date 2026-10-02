@@ -55,6 +55,7 @@ describe('ProjectRepository lifecycle foundation', () => {
       repository.create({
         id: 'project-a',
         clientId: 'client-a',
+        shipmentNumber: '01',
         name: 'Meridian Project',
         normalizedName: 'meridian project',
         actorId: 'actor-a',
@@ -62,7 +63,9 @@ describe('ProjectRepository lifecycle foundation', () => {
       }),
     );
 
-    expect(directProjectCreateInput).toMatchObject({ data: { tenantId } });
+    expect(directProjectCreateInput).toMatchObject({
+      data: { tenantId, shipmentNumber: '01' },
+    });
     expect(statusEventInput).toMatchObject({
       data: {
         tenantId,

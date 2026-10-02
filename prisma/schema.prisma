@@ -1300,6 +1300,7 @@ model DirectProject {
   id               String   @id @map("id") @db.Uuid
   clientId         String   @map("client_id") @db.Uuid
   name             String   @map("name") @db.VarChar(220)
+  shipmentNumber   String?  @map("shipment_number") @db.VarChar(10)
   createdByActorId String?  @map("created_by_actor_id") @db.Uuid
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamp(6)

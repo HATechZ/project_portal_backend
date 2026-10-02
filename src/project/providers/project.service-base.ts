@@ -57,6 +57,7 @@ export abstract class ProjectServiceBase {
     actorId: string,
     documentCodeIds: string[] = [],
   ): Promise<ProjectResponseDto> {
+    const shipmentNumber = normalizeShipment(input.shipmentNumber);
     const documents = documentCodeIds.map((documentCodeId, fileIndex) => ({
       fileIndex,
       documentCodeId,
@@ -100,6 +101,7 @@ export abstract class ProjectServiceBase {
           name: input.name,
           normalizedName: normalizeName(input.name),
           clientId: input.clientId,
+          shipmentNumber,
           actorId,
           files,
         });
@@ -221,6 +223,7 @@ function response(value: ProjectRecord): ProjectResponseDto {
     id: value.id,
     name: value.name,
     clientId: value.clientId,
+    shipmentNumber: value.shipmentNumber,
     status: value.statusEvents[0]?.toStatus.code ?? 'ACTIVE',
     fileCount: value._count.documents,
     documents: value.documents.map((document) => ({
@@ -241,6 +244,11 @@ function indexOf<T>(items: T[], item: T): number {
 }
 function normalizeName(value: string): string {
   return value.trim().toLowerCase();
+}
+function normalizeShipment(value: string): string {
+  if (!/^\d{1,2}$/.test(value))
+    throw bad('Shipment number must contain one or two digits.');
+  return value.padStart(2, '0');
 }
 function bad(message: string): AppException {
   return new AppException({

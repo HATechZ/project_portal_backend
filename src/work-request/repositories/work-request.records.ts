@@ -10,9 +10,19 @@ export const workRequestSelect = {
   createdAt: true,
   updatedAt: true,
   createdByActor: { select: { id: true, label: true } },
-  bid: { select: { clientId: true, client: { select: { companyId: true } } } },
+  bid: {
+    select: {
+      clientId: true,
+      shipmentNumber: true,
+      client: { select: { companyId: true } },
+    },
+  },
   directProject: {
-    select: { clientId: true, client: { select: { companyId: true } } },
+    select: {
+      clientId: true,
+      shipmentNumber: true,
+      client: { select: { companyId: true } },
+    },
   },
   events: {
     take: 1,

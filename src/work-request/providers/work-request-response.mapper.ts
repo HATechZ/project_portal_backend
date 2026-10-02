@@ -8,6 +8,8 @@ export function toWorkRequestResponse(
     id: record.id,
     bidId: record.bidId,
     projectId: record.directProjectId,
+    shipmentNumber:
+      record.bid?.shipmentNumber ?? record.directProject!.shipmentNumber,
     title: record.title,
     priority: record.priority,
     notes: record.notes,

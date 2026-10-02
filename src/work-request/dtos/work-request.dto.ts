@@ -188,6 +188,7 @@ export class WorkRequestResponseDto {
   @ApiProperty() id!: string;
   @ApiPropertyOptional({ format: 'uuid' }) bidId!: string | null;
   @ApiPropertyOptional({ format: 'uuid' }) projectId!: string | null;
+  @ApiProperty({ nullable: true }) shipmentNumber!: string | null;
   @ApiProperty() title!: string;
   @ApiProperty({ enum: WORK_REQUEST_PRIORITIES })
   priority!: WorkRequestPriority;

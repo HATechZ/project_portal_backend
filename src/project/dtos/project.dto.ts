@@ -21,6 +21,12 @@ export class CreateProjectDto {
   @MaxLength(220)
   name!: string;
   @ApiProperty({ format: 'uuid' }) @IsUUID() clientId!: string;
+  @ApiProperty({ maxLength: 10 })
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10)
+  shipmentNumber!: string;
 }
 const multipartArray = ({ value }: { value: unknown }) =>
   value === undefined || value === ''
@@ -36,6 +42,12 @@ export class CreateProjectMultipartDto {
   @MaxLength(220)
   name!: string;
   @ApiProperty({ format: 'uuid' }) @IsUUID() clientId!: string;
+  @ApiProperty({ maxLength: 10 })
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10)
+  shipmentNumber!: string;
   @ApiPropertyOptional({
     type: String,
     format: 'uuid',
@@ -76,6 +88,7 @@ export class ProjectResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() clientId!: string;
+  @ApiProperty({ nullable: true }) shipmentNumber!: string | null;
   @ApiProperty() status!: string;
   @ApiProperty() fileCount!: number;
   @ApiProperty({ type: () => ProjectDocumentResponseDto, isArray: true })

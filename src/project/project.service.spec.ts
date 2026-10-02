@@ -10,6 +10,7 @@ describe('ProjectService', () => {
     id: '44444444-4444-4444-8444-444444444444',
     name: 'Ocean Transport',
     clientId,
+    shipmentNumber: '01',
     createdAt: new Date(),
     updatedAt: new Date(),
     statusEvents: [{ toStatus: { code: 'ACTIVE' } }],
@@ -39,10 +40,18 @@ describe('ProjectService', () => {
   it('writes ACTIVE and created events in the same UoW callback as the Project', async () => {
     const { target, repository, outbox } = service();
     await RequestContext.run({ requestId: 'r', tenantId }, () =>
-      target.create({ name: 'Ocean Transport', clientId }, [], actorId),
+      target.create(
+        { name: 'Ocean Transport', clientId, shipmentNumber: '1' },
+        [],
+        actorId,
+      ),
     );
     expect(repository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ normalizedName: 'ocean transport', files: [] }),
+      expect.objectContaining({
+        normalizedName: 'ocean transport',
+        shipmentNumber: '01',
+        files: [],
+      }),
     );
     expect(outbox.enqueue).toHaveBeenCalledTimes(2);
   });
@@ -56,7 +65,7 @@ describe('ProjectService', () => {
       },
     });
     await expect(target.findOne(record.id)).resolves.toEqual(
-      expect.objectContaining({ status: 'COMPLETED' }),
+      expect.objectContaining({ status: 'COMPLETED', shipmentNumber: '01' }),
     );
   });
   it('does not enqueue an outbox event when the Project transaction fails', async () => {
@@ -67,7 +76,11 @@ describe('ProjectService', () => {
     });
     await expect(
       RequestContext.run({ requestId: 'r', tenantId }, () =>
-        target.create({ name: 'Ocean Transport', clientId }, [], actorId),
+        target.create(
+          { name: 'Ocean Transport', clientId, shipmentNumber: '1' },
+          [],
+          actorId,
+        ),
       ),
     ).rejects.toThrow('rollback');
     expect(outbox.enqueue).not.toHaveBeenCalled();
@@ -87,6 +100,7 @@ describe('ProjectService', () => {
           {
             name: 'Ocean Transport',
             clientId,
+            shipmentNumber: '1',
           },
           [
             {
@@ -106,6 +120,18 @@ describe('ProjectService', () => {
       expect.stringContaining('/projects/'),
       expect.any(Error),
     );
+  });
+  it('rejects shipment numbers outside the Bid rule', async () => {
+    const { target } = service();
+    await expect(
+      RequestContext.run({ requestId: 'r', tenantId }, () =>
+        target.create(
+          { name: 'Ocean Transport', clientId, shipmentNumber: '123' },
+          [],
+          actorId,
+        ),
+      ),
+    ).rejects.toThrow('Shipment number must contain one or two digits.');
   });
   it('preserves bytes identity while recording per-file code reclassification and its outbox event', async () => {
     const changed = {
