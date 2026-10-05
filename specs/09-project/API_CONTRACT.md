@@ -17,17 +17,17 @@ The role labels are grant policy, not direct checks: current tenant-super-admin/
 `multipart/form-data` uses flat fields:
 
 ```json
-{"name":"North Sea Project","clientId":"uuid","documentCodeIds":["uuid"]}
+{"name":"North Sea Project","clientId":"uuid","polId":"uuid","podId":"uuid","cargoId":"uuid","vesselId":"uuid","shipmentNumber":"01","documentCodeIds":["uuid"]}
 ```
 
-Name is trimmed/nonblank; clientId is UUID. Optional binary parts use `files[]`; `files[i]` maps to `documentCodeIds[i]`. Both are optional when no files are sent; supplied files and IDs must have matching counts, and repeated Document Code IDs are valid.
+Name is trimmed/nonblank; clientId, polId, podId, cargoId, and vesselId are UUIDs; Shipment Number uses approved two-digit normalization. POL/POD/Cargo/Vessel must be active, same-tenant approved master records. The backend derives `projectCode` from Project Name + POL + POD and rejects any client `projectCode`. Optional binary parts use `files[]`; `files[i]` maps to `documentCodeIds[i]`. Both are optional when no files are sent; supplied files and IDs must have matching counts, and repeated Document Code IDs are valid.
 
-Reject tenant/company/actor/id/timestamps, type/workspace, bidInfo/bidding/master-data/shipment/projectCode/sourceChannel/clientEmail/status/Work Request/URL/storage/generated-name/revision fields and every undeclared input. Document Code is per-file classification, not a Project create field.
+Reject tenant/company/actor/id/timestamps, type/workspace, bidInfo/bidding, frontend `projectCode`, sourceChannel/clientEmail/status/Work Request/URL/storage/generated-name/revision fields and every undeclared input. Document Code is per-file classification, not a Project create field.
 
-Create trims/case-folds the name, validates the scoped active Client, creates Project plus ACTIVE event, and claims the tenant-wide name in the same transaction. A Bid or Project claim race returns 409. Storage failure is compensated and durable cleanup failure never returns success.
+Create trims/case-folds the name, validates scoped active Client/POL/POD/Cargo/Vessel records, derives/snapshots `projectCode` and naming inputs, creates Project plus ACTIVE event, and claims the tenant-wide name in the same transaction. A Bid or Project claim race returns 409. Storage failure is compensated and durable cleanup failure never returns success.
 
-201 returns id, name, Client summary, derived ACTIVE status, creation metadata, and safe file count/metadata; never a file path/key. Detail returns identity/name (no invented business code), Client, derived status, creation metadata, and protected file/document summary. Generated Project filename is returned only if sufficient approved Project document-naming inputs exist; until then the original filename and protected metadata remain available. PATCH cannot accept status mutation or forbidden create-only fields.
+201 returns id, name, derived projectCode, Client summary, normalized naming values, derived ACTIVE status, creation metadata, and safe file count/metadata; never a file path/key. Detail returns identity/name, projectCode, Client, naming snapshots, derived status, creation metadata, and protected file/document summary. PATCH cannot accept status mutation or forbidden create-only fields.
 
 ## PATCH `/api/v1/projects/:id/documents/:documentId/document-code`
 
-Accepts `{ "documentCodeId": "uuid" }`. The target must be an active tenant Marketing Document Code. It changes only the per-file classification, records a classification audit event and transactional Project update outbox event, and never re-uploads or changes `originalFileName`, `storageKey`, bytes, or revision. The Project has no owner-defined naming code, so its generated filename remains absent until a later approved Project document workflow has sufficient naming inputs. Multiple files may use the same Document Code.
+Accepts `{ "documentCodeId": "uuid" }`. The target must be an active tenant Marketing Document Code. It changes only current classification metadata, records a classification audit event and transactional Project update outbox event, and never re-uploads, changes `originalFileName`, `storageKey`, bytes, revision, or an already-created version's generated filename. Multiple files may use the same Document Code.

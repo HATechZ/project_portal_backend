@@ -75,6 +75,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'Notification',
   'NotificationRecipient',
   'SystemAuditLog',
+  'DocumentUploadRequest',
   // Producers write these inside a request, so the extension injects the tenant
   // for them. The relay reads across tenants and must use `prisma.unscoped`.
   'OutboxMessage',

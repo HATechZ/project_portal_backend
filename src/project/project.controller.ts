@@ -8,10 +8,11 @@ import {
   Post,
   Query,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
@@ -42,6 +43,9 @@ import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { WorkflowActionCode } from '../generated/prisma/client';
+import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
+import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
+import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
 import { CreateProjectMultipartPipe } from './dtos/multipart-project.pipe';
 import {
   ReclassifyProjectDocumentDto,
@@ -78,10 +82,22 @@ export class ProjectController {
     description: `Business fields are sent directly as multipart/form-data fields; this is not a JSON payload field. Files are optional and may be uploaded together. When files are supplied, files[i] maps to documentCodeIds[i]; the same Document Code ID may be repeated for multiple files.\n\nBusiness data example:\n\n\`\`\`json\n{\n  "name": "North Sea Project",\n  "clientId": "<uuid>",\n  "shipmentNumber": "01",\n  "documentCodeIds": [\n    "<code-100-uuid>",\n    "<code-802-uuid>"\n  ]\n}\n\`\`\`\n\nExample mapping: files[0] = project-information.pdf and files[1] = contract.pdf; documentCodeIds[0] maps to files[0], and documentCodeIds[1] maps to files[1].`,
     schema: {
       type: 'object',
-      required: ['name', 'clientId', 'shipmentNumber'],
+      required: [
+        'name',
+        'clientId',
+        'polId',
+        'podId',
+        'cargoId',
+        'vesselId',
+        'shipmentNumber',
+      ],
       properties: {
         name: { type: 'string' },
         clientId: { type: 'string', format: 'uuid' },
+        polId: { type: 'string', format: 'uuid' },
+        podId: { type: 'string', format: 'uuid' },
+        cargoId: { type: 'string', format: 'uuid' },
+        vesselId: { type: 'string', format: 'uuid' },
         shipmentNumber: { type: 'string', maxLength: 10 },
         documentCodeIds: {
           type: 'array',
@@ -145,6 +161,97 @@ const response = await fetch('/api/v1/projects', {
       actor.id,
       body.documentCodeIds ?? [],
     );
+  }
+  @Post(':id/documents')
+  @Permissions(WorkflowActionCode.UPDATE_PROJECT)
+  @UseInterceptors(
+    FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files', 'documentCodeIds'],
+      properties: {
+        documentCodeIds: {
+          type: 'array',
+          items: { type: 'string', format: 'uuid' },
+        },
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload new Project document(s)' })
+  @ApiStandardCreatedResponse(DocumentSummaryDto, 'Project documents created')
+  @ResponseMessage('Project documents created successfully')
+  createDocuments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DocumentUploadMultipartDto,
+    @UploadedFiles() files: ProjectUploadedFile[] = [],
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.createStandaloneDocuments(
+      id,
+      files,
+      body.documentCodeIds,
+      actor,
+    );
+  }
+  @Post(':id/documents/:documentId/versions')
+  @Permissions(WorkflowActionCode.UPDATE_PROJECT)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOperation({ summary: 'Append immutable Project document version' })
+  @ApiStandardCreatedResponse(
+    DocumentVersionResponseDto,
+    'Project document version created',
+  )
+  @ResponseMessage('Project document version created successfully')
+  appendDocumentVersion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @UploadedFile() file: ProjectUploadedFile | undefined,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    if (!file) throw new Error('file is required');
+    return this.service.appendDocumentVersion(id, documentId, file, actor);
+  }
+  @Get(':id/documents')
+  @Permissions(WorkflowActionCode.VIEW_PROJECT)
+  @ApiOperation({ summary: 'List Project documents' })
+  @ApiStandardOkResponse(DocumentSummaryDto, 'Project documents returned')
+  @ResponseMessage('Project documents returned successfully')
+  documents(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.documents(id, actor);
+  }
+  @Get(':id/documents/:documentId/versions')
+  @Permissions(WorkflowActionCode.VIEW_PROJECT)
+  @ApiOperation({ summary: 'List immutable Project document versions' })
+  @ApiStandardOkResponse(
+    DocumentVersionResponseDto,
+    'Project document versions returned',
+  )
+  @ResponseMessage('Project document versions returned successfully')
+  documentVersions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.documentVersions(id, documentId, actor);
   }
   @Get()
   @Permissions(WorkflowActionCode.VIEW_PROJECT)

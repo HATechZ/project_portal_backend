@@ -21,6 +21,10 @@ export class CreateProjectDto {
   @MaxLength(220)
   name!: string;
   @ApiProperty({ format: 'uuid' }) @IsUUID() clientId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() polId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() podId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() cargoId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() vesselId!: string;
   @ApiProperty({ maxLength: 10 })
   @Transform(trim)
   @IsString()
@@ -42,6 +46,10 @@ export class CreateProjectMultipartDto {
   @MaxLength(220)
   name!: string;
   @ApiProperty({ format: 'uuid' }) @IsUUID() clientId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() polId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() podId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() cargoId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() vesselId!: string;
   @ApiProperty({ maxLength: 10 })
   @Transform(trim)
   @IsString()
@@ -87,6 +95,7 @@ export class ProjectFileMetadataDto {
 export class ProjectResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
+  @ApiPropertyOptional({ nullable: true }) projectCode!: string | null;
   @ApiProperty() clientId!: string;
   @ApiProperty({ nullable: true }) shipmentNumber!: string | null;
   @ApiProperty() status!: string;
@@ -101,7 +110,6 @@ export class ProjectDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
   @ApiProperty() originalFileName!: string;
   @ApiPropertyOptional({ nullable: true }) generatedFileName!: string | null;
-  @ApiProperty() storageKey!: string;
   @ApiProperty() mimeType!: string;
   @ApiProperty() size!: number;
 }

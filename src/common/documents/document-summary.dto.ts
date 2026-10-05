@@ -1,0 +1,33 @@
+import { ApiProperty } from '@nestjs/swagger';
+
+export class DocumentSummaryDto {
+  @ApiProperty({ format: 'uuid' }) documentId!: string;
+  @ApiProperty() owner!: {
+    kind: 'BID' | 'PROJECT' | 'WORK_REQUEST';
+    id: string;
+  };
+  @ApiProperty() documentCode!: { id: string; code: string; name: string };
+  @ApiProperty() originalFileName!: string;
+  @ApiProperty() latestVersion!: {
+    versionId: string;
+    versionNumber: number;
+    revisionCode: string;
+    uploadedFileName: string;
+    generatedFileName: string;
+    mimeType: string;
+    size: number;
+    uploadedBy: { id: string; label: string };
+    uploadedAt: Date;
+  };
+}
+
+export class DocumentVersionResponseDto {
+  @ApiProperty({ format: 'uuid' }) documentId!: string;
+  @ApiProperty({ format: 'uuid' }) versionId!: string;
+  @ApiProperty() versionNumber!: number;
+  @ApiProperty() revisionCode!: string;
+  @ApiProperty() uploadedFileName!: string;
+  @ApiProperty() generatedFileName!: string;
+  @ApiProperty() uploadedBy!: { id: string; label: string };
+  @ApiProperty() uploadedAt!: Date;
+}

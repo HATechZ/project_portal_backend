@@ -6,11 +6,16 @@ describe('ProjectService', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';
   const actorId = '22222222-2222-4222-8222-222222222222';
   const clientId = '33333333-3333-4333-8333-333333333333';
+  const polId = '44444444-4444-4444-8444-444444444441';
+  const podId = '44444444-4444-4444-8444-444444444442';
+  const cargoId = '44444444-4444-4444-8444-444444444443';
+  const vesselId = '44444444-4444-4444-8444-444444444444';
   const record: any = {
     id: '44444444-4444-4444-8444-444444444444',
     name: 'Ocean Transport',
     clientId,
     shipmentNumber: '01',
+    projectCode: 'OKM',
     createdAt: new Date(),
     updatedAt: new Date(),
     statusEvents: [{ toStatus: { code: 'ACTIVE' } }],
@@ -19,7 +24,13 @@ describe('ProjectService', () => {
   };
   function service(overrides: any = {}) {
     const repository: any = {
-      documentCodes: jest.fn().mockResolvedValue(new Map()),
+      prepareCreate: jest.fn().mockResolvedValue({
+        polName: 'Korea',
+        podName: 'Mexico',
+        cargoCode: 'CRA',
+        vesselCode: 'CA2',
+        documentCodes: new Map(),
+      }),
       create: jest.fn().mockResolvedValue(record),
       rename: jest.fn().mockResolvedValue(record),
       reclassifyDocument: jest.fn(),
@@ -29,8 +40,16 @@ describe('ProjectService', () => {
     const outbox: any = { enqueue: jest.fn() };
     const cleanup: any = { enqueue: jest.fn() };
     const storage: any = { put: jest.fn(), remove: jest.fn() };
+    const scope: any = { assertCanAccess: jest.fn() };
     return {
-      target: new ProjectService(repository, uow, outbox, cleanup, storage),
+      target: new ProjectService(
+        repository,
+        uow,
+        outbox,
+        cleanup,
+        scope,
+        storage,
+      ),
       repository,
       outbox,
       cleanup,
@@ -41,7 +60,15 @@ describe('ProjectService', () => {
     const { target, repository, outbox } = service();
     await RequestContext.run({ requestId: 'r', tenantId }, () =>
       target.create(
-        { name: 'Ocean Transport', clientId, shipmentNumber: '1' },
+        {
+          name: 'Ocean Transport',
+          clientId,
+          polId,
+          podId,
+          cargoId,
+          vesselId,
+          shipmentNumber: '1',
+        },
         [],
         actorId,
       ),
@@ -77,7 +104,15 @@ describe('ProjectService', () => {
     await expect(
       RequestContext.run({ requestId: 'r', tenantId }, () =>
         target.create(
-          { name: 'Ocean Transport', clientId, shipmentNumber: '1' },
+          {
+            name: 'Ocean Transport',
+            clientId,
+            polId,
+            podId,
+            cargoId,
+            vesselId,
+            shipmentNumber: '1',
+          },
           [],
           actorId,
         ),
@@ -89,7 +124,15 @@ describe('ProjectService', () => {
     const codeId = '77777777-7777-4777-8777-777777777777';
     const { target, cleanup, storage } = service({
       repository: {
-        documentCodes: jest.fn().mockResolvedValue(new Map([[codeId, '100']])),
+        prepareCreate: jest.fn().mockResolvedValue({
+          polName: 'Korea',
+          podName: 'Mexico',
+          cargoCode: 'CRA',
+          vesselCode: 'CA2',
+          documentCodes: new Map([
+            [codeId, { code: '100', name: 'Stowage Plan' }],
+          ]),
+        }),
         create: jest.fn().mockRejectedValue(new Error('db failed')),
       },
     });
@@ -100,6 +143,10 @@ describe('ProjectService', () => {
           {
             name: 'Ocean Transport',
             clientId,
+            polId,
+            podId,
+            cargoId,
+            vesselId,
             shipmentNumber: '1',
           },
           [
@@ -126,7 +173,15 @@ describe('ProjectService', () => {
     await expect(
       RequestContext.run({ requestId: 'r', tenantId }, () =>
         target.create(
-          { name: 'Ocean Transport', clientId, shipmentNumber: '123' },
+          {
+            name: 'Ocean Transport',
+            clientId,
+            polId,
+            podId,
+            cargoId,
+            vesselId,
+            shipmentNumber: '123',
+          },
           [],
           actorId,
         ),
@@ -154,5 +209,27 @@ describe('ProjectService', () => {
     );
     expect(repository.reclassifyDocument).toHaveBeenCalled();
     expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+  it('does not replace an existing generated filename during reclassification', async () => {
+    const changed = {
+      id: 'd',
+      originalFileName: 'final_plan_v7.pdf',
+      storageKey: 'key',
+      generatedFileName: 'SKM-CRA-CA2-01-100-A Stowage Plan.pdf',
+      documentCodeId: 'code',
+    };
+    const { target } = service({
+      repository: { reclassifyDocument: jest.fn().mockResolvedValue(changed) },
+    });
+    await expect(
+      RequestContext.run({ requestId: 'r', tenantId }, () =>
+        target.reclassifyDocument(
+          record.id,
+          'document',
+          { documentCodeId: 'code' },
+          actorId,
+        ),
+      ),
+    ).resolves.toEqual(changed);
   });
 });

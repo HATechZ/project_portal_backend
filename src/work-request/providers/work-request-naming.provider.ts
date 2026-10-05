@@ -14,14 +14,16 @@ export class WorkRequestNamingProvider {
       shipmentNumber: string;
     } | null;
     documentCode: string;
-    originalFileName: string;
+    documentName: string;
+    uploadedFileName: string;
     revisionCode: string;
   }): string | null {
     if (!input.bidNaming) return null;
     const value = formatBidDocumentFileName({
       ...input.bidNaming,
       documentCode: input.documentCode,
-      originalFileName: input.originalFileName,
+      documentName: input.documentName,
+      uploadedFileName: input.uploadedFileName,
       revisionCode: input.revisionCode,
     });
     if (value.length > 260)

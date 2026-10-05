@@ -11,7 +11,7 @@ describe('Bid naming', () => {
     expect(normalizeShipment('1')).toBe('01');
   });
 
-  it('keeps the original filename in a repeated-document-code business name', () => {
+  it('uses the document-code name while preserving the uploaded extension', () => {
     expect(
       bidFileName({
         biddingNumber: '21128',
@@ -20,9 +20,10 @@ describe('Bid naming', () => {
         vesselCode: 'CA2',
         shipmentNumber: '01',
         documentCode: '100',
-        originalFileName: 'stowage-plan-detail-1.pdf',
+        documentName: 'Stowage Plan',
+        uploadedFileName: 'final_plan_v7.pdf',
       }),
-    ).toBe('21128 SKM-CRA-CA2-01-100-A stowage-plan-detail-1.pdf');
+    ).toBe('21128 SKM-CRA-CA2-01-100-A Stowage Plan.pdf');
   });
 
   it('returns the latest ordered Bid status event as the current status', async () => {

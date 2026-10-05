@@ -4,10 +4,17 @@ import {
   Param,
   ParseUUIDPipe,
   UseGuards,
+  Post,
+  Body,
+  UploadedFiles,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import {
   ApiStandardForbiddenResponse,
+  ApiStandardCreatedResponse,
   ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
   ApiStandardUnauthorizedResponse,
@@ -23,6 +30,11 @@ import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { WorkflowActionCode } from '../generated/prisma/client';
 import { WorkRequestService } from './work-request.service';
+import type { WorkRequestUploadedFile } from './work-request.service';
+import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
+import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
+import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
+import { ApiBody, ApiConsumes } from '@nestjs/swagger';
 
 @ApiTags('work requests')
 @ApiSecurity('bearer')
@@ -39,11 +51,79 @@ import { WorkRequestService } from './work-request.service';
 @ApiStandardNotFoundResponse('Work Request document was not found')
 export class WorkRequestDocumentController {
   constructor(private readonly service: WorkRequestService) {}
+  @Post()
+  @Permissions(WorkflowActionCode.ADD_WORK_REQUEST_DOCUMENT)
+  @UseInterceptors(
+    FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files', 'documentCodeIds'],
+      properties: {
+        documentCodeIds: {
+          type: 'array',
+          items: { type: 'string', format: 'uuid' },
+        },
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload new Work Request document(s)' })
+  @ApiStandardCreatedResponse(
+    DocumentSummaryDto,
+    'Work Request documents created',
+  )
+  @ResponseMessage('Work Request documents created successfully')
+  create(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DocumentUploadMultipartDto,
+    @UploadedFiles() files: WorkRequestUploadedFile[] = [],
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.createStandaloneDocuments(
+      id,
+      files,
+      body.documentCodeIds,
+      actor,
+    );
+  }
+  @Post(':documentId/versions')
+  @Permissions(WorkflowActionCode.ADD_WORK_REQUEST_DOCUMENT)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOperation({ summary: 'Append immutable Work Request document version' })
+  @ApiStandardCreatedResponse(
+    DocumentVersionResponseDto,
+    'Work Request document version created',
+  )
+  @ResponseMessage('Work Request document version created successfully')
+  append(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @UploadedFile() file: WorkRequestUploadedFile | undefined,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    if (!file) throw new Error('file is required');
+    return this.service.appendDocumentVersion(id, documentId, file, actor);
+  }
   @Get()
   @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Documents by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
-  @ApiStandardOkResponse(Object, 'Work Request documents returned')
+  @ApiStandardOkResponse(DocumentSummaryDto, 'Work Request documents returned')
   @ResponseMessage('Work Request documents returned successfully')
   list(
     @Param('id', ParseUUIDPipe) id: string,
@@ -62,7 +142,10 @@ export class WorkRequestDocumentController {
     format: 'uuid',
     description: 'Work Request Document ID',
   })
-  @ApiStandardOkResponse(Object, 'Work Request document versions returned')
+  @ApiStandardOkResponse(
+    DocumentVersionResponseDto,
+    'Work Request document versions returned',
+  )
   @ResponseMessage('Work Request document versions returned successfully')
   versions(
     @Param('id', ParseUUIDPipe) id: string,

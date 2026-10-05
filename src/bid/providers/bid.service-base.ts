@@ -1,4 +1,3 @@
-import { basename, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject } from '@nestjs/common';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
@@ -23,6 +22,17 @@ import { BidStorageCleanupRepository } from '../repositories/bid-storage-cleanup
 import { OutboxService } from '../../infra/messaging/outbox.service';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { formatBidDocumentFileName } from '../../common/utils/bid-document-file-name';
+import { deriveProjectCode } from '../../common/documents/document-naming';
+import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
+import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
+import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
+import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
+import type { SessionActor } from '../../common/security/session.types';
+import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
+import {
+  DocumentUploadOperationCode,
+  DocumentUploadOwnerCode,
+} from '../../generated/prisma/client';
 
 export interface BidUploadedFile {
   fieldname: string;
@@ -38,8 +48,192 @@ export abstract class BidServiceBase {
     private readonly unitOfWork: UnitOfWorkService,
     private readonly outbox: OutboxService,
     private readonly cleanup: BidStorageCleanupRepository,
+    private readonly scope: ObjectScopeProvider,
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
+    private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
+
+  async createStandaloneDocuments(
+    bidId: string,
+    uploads: BidUploadedFile[],
+    documentCodeIds: string[],
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
+    let context: Awaited<
+      ReturnType<BidRepository['prepareStandaloneDocuments']>
+    >;
+    try {
+      context = await this.bids.prepareStandaloneDocuments(
+        bidId,
+        documentCodeIds,
+      );
+    } catch (error) {
+      throw mapReferenceError(error);
+    }
+    if (!context) throw notFound();
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: context.bid.clientId }],
+      allowTenantAdmin: true,
+    });
+    const requestId = RequestContext.requestId()!;
+    const replay =
+      this.receipts &&
+      (await this.receipts.find({
+        owner: DocumentUploadOwnerCode.BID,
+        parentId: bidId,
+        targetId: bidId,
+        operation: DocumentUploadOperationCode.NEW_DOCUMENT,
+        requestId,
+      }));
+    if (replay) return replay.response as unknown as DocumentSummaryDto[];
+    const drafts = DocumentUploadPipeline.prepare({
+      uploads,
+      documentCodeIds,
+      codes: context.codes,
+      revisionCode: 'A',
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/bids/${bidId}/documents`,
+      generatedFileName: (code, uploadedFileName) =>
+        bidFileName({
+          biddingNumber: context.bid.biddingNumber,
+          projectCode: context.bid.projectCode,
+          cargoCode: context.bid.cargoCodeSnapshot,
+          vesselCode: context.bid.vesselCodeSnapshot,
+          shipmentNumber: context.bid.shipmentNumber,
+          documentCode: code.code,
+          documentName: code.name,
+          uploadedFileName,
+        }),
+    });
+    let stored: string[] = [];
+    try {
+      stored = await DocumentUploadPipeline.putAll(this.storage, drafts);
+      const created = await this.unitOfWork.execute(async () => {
+        const result = await this.bids.createStandaloneDocuments(
+          bidId,
+          actor.id,
+          drafts,
+        );
+        if (result && this.receipts)
+          await this.receipts.write({
+            owner: DocumentUploadOwnerCode.BID,
+            parentId: bidId,
+            targetId: bidId,
+            operation: DocumentUploadOperationCode.NEW_DOCUMENT,
+            requestId,
+            actorId: actor.id,
+            response: result.map((document) =>
+              documentSummary('BID', bidId, document),
+            ) as never,
+            audit: {
+              entityId: bidId,
+              summary: 'NEW_DOCUMENT',
+              afterData: {
+                requestId,
+                documentIds: drafts.map((draft) => draft.documentId),
+                versionIds: drafts.map((draft) => draft.versionId),
+              },
+            },
+          });
+        return result;
+      });
+      if (!created) throw notFound();
+      return created.map((document) => documentSummary('BID', bidId, document));
+    } catch (error) {
+      await DocumentUploadPipeline.compensate(
+        this.storage,
+        stored,
+        (key, cause) => this.cleanup.enqueue(key, cause),
+      );
+      throw error;
+    }
+  }
+
+  async appendDocumentVersion(
+    bidId: string,
+    documentId: string,
+    upload: BidUploadedFile,
+    actor: SessionActor,
+  ): Promise<DocumentVersionResponseDto> {
+    const context = await this.bids.prepareDocumentVersion(bidId, documentId);
+    if (!context) throw notFound('Bid document was not found.');
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: context.bid.clientId }],
+      allowTenantAdmin: true,
+    });
+    const requestId = RequestContext.requestId()!;
+    const replay =
+      this.receipts &&
+      (await this.receipts.find({
+        owner: DocumentUploadOwnerCode.BID,
+        parentId: bidId,
+        targetId: documentId,
+        operation: DocumentUploadOperationCode.NEW_VERSION,
+        requestId,
+      }));
+    if (replay) return replay.response as unknown as DocumentVersionResponseDto;
+    const file = DocumentUploadPipeline.prepareVersion({
+      upload,
+      revisionCode: context.revisionCode,
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/bids/${bidId}/documents/${documentId}/versions`,
+      generatedFileName: (uploadedFileName) =>
+        bidFileName({
+          biddingNumber: context.bid.biddingNumber,
+          projectCode: context.bid.projectCode,
+          cargoCode: context.bid.cargoCodeSnapshot,
+          vesselCode: context.bid.vesselCodeSnapshot,
+          shipmentNumber: context.bid.shipmentNumber,
+          documentCode: context.documentCodeSnapshot,
+          documentName:
+            context.documentNameSnapshot ?? context.documentCodeSnapshot,
+          uploadedFileName,
+        }),
+    });
+    let stored: string[] = [];
+    try {
+      stored = await DocumentUploadPipeline.putAll(this.storage, [file]);
+      const version = await this.unitOfWork.execute(
+        async () => {
+          const result = await this.bids.appendDocumentVersion(
+            bidId,
+            documentId,
+            actor.id,
+            file,
+          );
+          if (result && this.receipts)
+            await this.receipts.write({
+              owner: DocumentUploadOwnerCode.BID,
+              parentId: bidId,
+              targetId: documentId,
+              operation: DocumentUploadOperationCode.NEW_VERSION,
+              requestId,
+              actorId: actor.id,
+              response: versionResponse(documentId, result) as never,
+              audit: {
+                entityId: documentId,
+                summary: 'NEW_VERSION',
+                afterData: {
+                  requestId,
+                  bidId,
+                  documentId,
+                  versionId: result.id,
+                },
+              },
+            });
+          return result;
+        },
+        { isolationLevel: 'Serializable' },
+      );
+      if (!version) throw notFound('Bid document was not found.');
+      return versionResponse(documentId, version);
+    } catch (error) {
+      await DocumentUploadPipeline.compensate(
+        this.storage,
+        stored,
+        (key, cause) => this.cleanup.enqueue(key, cause),
+      );
+      throw error;
+    }
+  }
 
   async create(
     input: CreateBidDto,
@@ -47,8 +241,6 @@ export abstract class BidServiceBase {
     actorId: string,
   ): Promise<BidResponseDto> {
     const documents = input.documents ?? [];
-    this.assertUploadDocuments(uploads, documents);
-    uploads.forEach(assertAllowedUpload);
     const bidId = randomUUID();
     const shipmentNumber = normalizeShipment(input.bidInfo.shipmentNumber);
     const reference = await this.resolveReferences(input, documents);
@@ -57,47 +249,44 @@ export abstract class BidServiceBase {
       reference.polName,
       reference.podName,
     );
-    const files = uploads.map((file, index) => {
-      const documentCodeId = documents[index].documentCodeId;
-      const documentCode = reference.documentCodes.get(documentCodeId);
-      if (!documentCode)
-        throw badRequest('Uploaded file has an invalid Document Code.');
-      const originalFileName = safeOriginalName(file.originalname);
-      const generatedFileName = bidFileName({
-        biddingNumber: input.bidInfo.biddingNumber,
-        projectCode,
-        cargoCode: reference.cargoCode,
-        vesselCode: reference.vesselCode,
-        shipmentNumber,
-        documentCode,
-        originalFileName,
-      });
-      return {
-        id: randomUUID(),
-        documentCodeId,
-        documentCodeSnapshot: documentCode,
-        originalFileName,
-        generatedFileName,
-        storageKey: `tenants/${RequestContext.requireTenantId()}/bids/${bidId}/documents/${randomUUID()}${extname(originalFileName).toLowerCase()}`,
-        mimeType: file.mimetype,
-        fileSizeBytes: BigInt(file.size),
-        content: file.buffer,
-      };
+    const drafts = DocumentUploadPipeline.prepare({
+      uploads,
+      documentCodeIds: documents.map(({ documentCodeId }) => documentCodeId),
+      codes: reference.documentCodes,
+      allowEmpty: true,
+      revisionCode: 'A',
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/bids/${bidId}/documents`,
+      generatedFileName: (code, uploadedFileName) =>
+        bidFileName({
+          biddingNumber: input.bidInfo.biddingNumber,
+          projectCode,
+          cargoCode: reference.cargoCode,
+          vesselCode: reference.vesselCode,
+          shipmentNumber,
+          documentCode: code.code,
+          documentName: code.name,
+          uploadedFileName,
+        }),
     });
-    if (
-      new Set(files.map((file) => file.generatedFileName)).size !== files.length
-    )
-      throw conflict('Two uploaded files produce the same generated filename.');
+    const files = drafts.map((file) => ({
+      id: file.documentId,
+      versionId: file.versionId,
+      documentCodeId: file.documentCodeId,
+      documentCodeSnapshot: file.documentCode,
+      documentNameSnapshot: file.documentName,
+      originalFileName: file.originalFileName,
+      generatedFileName: file.generatedFileName,
+      storageKey: file.storageKey,
+      mimeType: file.mimeType,
+      fileSizeBytes: file.fileSizeBytes,
+      content: file.content,
+    }));
 
     const stored: string[] = [];
     try {
-      for (const file of files) {
-        await this.storage.put({
-          storageKey: file.storageKey,
-          content: file.content,
-        });
-        stored.push(file.storageKey);
-      }
+      stored.push(
+        ...(await DocumentUploadPipeline.putAll(this.storage, drafts)),
+      );
       const created = await this.unitOfWork.execute(async () => {
         const bid = await this.bids.create({
           id: bidId,
@@ -125,21 +314,12 @@ export abstract class BidServiceBase {
       });
       return response(created);
     } catch (error) {
-      await this.compensate(stored);
+      await DocumentUploadPipeline.compensate(
+        this.storage,
+        stored,
+        (key, cause) => this.cleanup.enqueue(key, cause),
+      );
       throw mapReferenceError(error);
-    }
-  }
-
-  private async compensate(storageKeys: string[]): Promise<void> {
-    for (const storageKey of storageKeys) {
-      try {
-        await this.storage.remove(storageKey);
-      } catch (error) {
-        await this.cleanup.enqueue(
-          storageKey,
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }
     }
   }
 
@@ -157,6 +337,37 @@ export abstract class BidServiceBase {
     const bid = await this.bids.find(id);
     if (!bid) throw notFound();
     return response(bid);
+  }
+
+  async documents(
+    id: string,
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
+    const bid = await this.bids.find(id);
+    if (!bid) throw notFound();
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: bid.clientId }],
+      allowTenantAdmin: true,
+    });
+    return (await this.bids.documents(id)).map((document) =>
+      documentSummary('BID', id, document),
+    );
+  }
+
+  async documentVersions(
+    id: string,
+    documentId: string,
+    actor: SessionActor,
+  ): Promise<DocumentVersionResponseDto[]> {
+    const bid = await this.bids.find(id);
+    if (!bid) throw notFound();
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: bid.clientId }],
+      allowTenantAdmin: true,
+    });
+    const versions = await this.bids.documentVersions(id, documentId);
+    if (!versions) throw notFound('Bid document was not found.');
+    return versions.map((version) => versionResponse(documentId, version));
   }
 
   async update(id: string, input: UpdateBidDto): Promise<BidResponseDto> {
@@ -201,15 +412,7 @@ export abstract class BidServiceBase {
       actorId,
     });
     if (!context) throw notFound('Bid document was not found.');
-    const generatedFileName = bidFileName({
-      biddingNumber: context.biddingNumber,
-      projectCode: context.projectCode,
-      cargoCode: context.cargoCodeSnapshot,
-      vesselCode: context.vesselCodeSnapshot,
-      shipmentNumber: context.shipmentNumber,
-      documentCode: context.documentCode,
-      originalFileName: context.originalFileName,
-    }).replace(/-A /, `-${context.revisionCode} `);
+    const generatedFileName = context.previousGeneratedFileName;
     await this.unitOfWork.execute(async () => {
       await this.bids.applyReclassification({
         bidId,
@@ -255,53 +458,74 @@ export abstract class BidServiceBase {
       throw mapReferenceError(error);
     }
   }
-
-  private assertUploadDocuments(
-    uploads: BidUploadedFile[],
-    documents: { fileIndex: number; documentCodeId: string }[],
-  ): void {
-    if (
-      uploads.length !== documents.length ||
-      new Set(documents.map((item) => item.fileIndex)).size !==
-        documents.length ||
-      !documents.every((item, index) => item.fileIndex === index)
-    )
-      throw badRequest(
-        'documents must map one-for-one to files by contiguous fileIndex.',
-      );
-  }
 }
-
-const BID_UPLOAD_TYPES: Readonly<Record<string, readonly string[]>> = {
-  '.pdf': ['application/pdf'],
-  '.doc': ['application/msword'],
-  '.docx': [
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  ],
-  '.xls': ['application/vnd.ms-excel'],
-  '.xlsx': [
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  ],
-  '.ppt': ['application/vnd.ms-powerpoint'],
-  '.pptx': [
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  ],
-  '.csv': ['text/csv', 'application/csv'],
-  '.txt': ['text/plain'],
-  '.dwg': ['application/acad', 'application/x-acad', 'image/vnd.dwg'],
-  '.dxf': ['application/dxf', 'image/vnd.dxf'],
-  '.jpg': ['image/jpeg'],
-  '.jpeg': ['image/jpeg'],
-  '.png': ['image/png'],
-  '.zip': ['application/zip', 'application/x-zip-compressed'],
-};
-
-function assertAllowedUpload(file: BidUploadedFile): void {
-  const extension = extname(safeOriginalName(file.originalname)).toLowerCase();
-  if (!BID_UPLOAD_TYPES[extension]?.includes(file.mimetype.toLowerCase()))
-    throw badRequest(
-      'Uploaded file type does not match the approved allowlist.',
-    );
+function documentSummary(
+  kind: 'BID',
+  parentId: string,
+  document: {
+    id: string;
+    documentCodeId: string;
+    documentCodeSnapshot: string;
+    documentNameSnapshot: string | null;
+    originalFileName: string;
+    versions: Array<{
+      id: string;
+      versionNumber: number;
+      revisionCode: string;
+      uploadedFileName: string | null;
+      generatedFileName: string;
+      mimeType: string;
+      fileSizeBytes: bigint;
+      uploadedAt: Date;
+      uploadedByActor: { id: string; label: string };
+    }>;
+  },
+): DocumentSummaryDto {
+  const version = document.versions[0];
+  return {
+    documentId: document.id,
+    owner: { kind, id: parentId },
+    documentCode: {
+      id: document.documentCodeId,
+      code: document.documentCodeSnapshot,
+      name: document.documentNameSnapshot ?? '',
+    },
+    originalFileName: document.originalFileName,
+    latestVersion: {
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      revisionCode: version.revisionCode,
+      uploadedFileName: version.uploadedFileName ?? document.originalFileName,
+      generatedFileName: version.generatedFileName,
+      mimeType: version.mimeType,
+      size: Number(version.fileSizeBytes),
+      uploadedBy: version.uploadedByActor,
+      uploadedAt: version.uploadedAt,
+    },
+  };
+}
+function versionResponse(
+  documentId: string,
+  version: {
+    id: string;
+    versionNumber: number;
+    revisionCode: string;
+    uploadedFileName: string | null;
+    generatedFileName: string;
+    uploadedByActor: { id: string; label: string };
+    uploadedAt: Date;
+  },
+): DocumentVersionResponseDto {
+  return {
+    documentId,
+    versionId: version.id,
+    versionNumber: version.versionNumber,
+    revisionCode: version.revisionCode,
+    uploadedFileName: version.uploadedFileName ?? '',
+    generatedFileName: version.generatedFileName,
+    uploadedBy: version.uploadedByActor,
+    uploadedAt: version.uploadedAt,
+  };
 }
 
 function response(bid: BidRecord): BidResponseDto {
@@ -320,7 +544,6 @@ function response(bid: BidRecord): BidResponseDto {
       documentCodeId: document.documentCodeId,
       originalFileName: document.originalFileName,
       generatedFileName: document.generatedFileName,
-      storageKey: document.storageKey,
       mimeType: document.mimeType,
       size: Number(document.fileSizeBytes),
     })),
@@ -330,10 +553,11 @@ function response(bid: BidRecord): BidResponseDto {
 }
 
 export function bidProjectCode(name: string, pol: string, pod: string): string {
-  const values = [name, pol, pod].map((value) => Array.from(value.trim())[0]);
-  if (values.some((value) => !value))
+  try {
+    return deriveProjectCode(name, pol, pod);
+  } catch {
     throw badRequest('Bid naming values are invalid.');
-  return values.join('').toUpperCase();
+  }
 }
 
 export function bidFileName(input: {
@@ -343,7 +567,8 @@ export function bidFileName(input: {
   vesselCode: string;
   shipmentNumber: string;
   documentCode: string;
-  originalFileName: string;
+  documentName: string;
+  uploadedFileName: string;
 }): string {
   const result = formatBidDocumentFileName({ ...input, revisionCode: 'A' });
   if (result.length > 260) throw badRequest('Generated filename is too long.');
@@ -354,13 +579,6 @@ export function normalizeShipment(value: string): string {
   if (!/^\d{1,2}$/.test(value))
     throw badRequest('Shipment number must contain one or two digits.');
   return value.padStart(2, '0');
-}
-
-function safeOriginalName(value: string): string {
-  const name = basename(value).trim();
-  if (!name || name.length > 260)
-    throw badRequest('Uploaded filename is invalid.');
-  return name;
 }
 
 function normalizeName(value: string): string {
@@ -386,13 +604,6 @@ function badRequest(message: string): AppException {
   return new AppException({
     code: AppErrorCode.BadRequest,
     status: HttpStatus.BAD_REQUEST,
-    message,
-  });
-}
-function conflict(message: string): AppException {
-  return new AppException({
-    code: AppErrorCode.Conflict,
-    status: HttpStatus.CONFLICT,
     message,
   });
 }

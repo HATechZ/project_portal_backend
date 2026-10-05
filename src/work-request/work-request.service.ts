@@ -5,7 +5,6 @@ import {
 } from '../contracts/storage/file-storage.port';
 import { UnitOfWorkService } from '../infra/prisma/unit-of-work.service';
 import { WorkRequestActionsProvider } from './providers/work-request-actions.provider';
-import { WorkRequestFileProvider } from './providers/work-request-file.provider';
 import { WorkRequestResourceScopeProvider } from './providers/work-request-resource-scope.provider';
 import { WorkRequestServiceBase } from './providers/work-request-service-base';
 import { WorkRequestStorageProvider } from './providers/work-request-storage.provider';
@@ -27,6 +26,7 @@ import {
 import { WorkRequestInfoProvider } from './providers/work-request-info.provider';
 import type { SessionActor } from '../common/security/session.types';
 import { WorkRequestWorkflowProvider } from './providers/work-request-workflow.provider';
+import { DocumentUploadRequestRepository } from '../common/documents/document-upload-request.repository';
 import {
   WorkRequestActionDto,
   WorkRequestWorkflowNoteDto,
@@ -46,7 +46,6 @@ export class WorkRequestService extends WorkRequestServiceBase {
     reads: WorkRequestReadRepository,
     eventsRepository: WorkRequestEventRepository,
     uow: UnitOfWorkService,
-    files: WorkRequestFileProvider,
     scope: WorkRequestResourceScopeProvider,
     storageProvider: WorkRequestStorageProvider,
     actions: WorkRequestActionsProvider,
@@ -56,19 +55,20 @@ export class WorkRequestService extends WorkRequestServiceBase {
     private readonly workflow: WorkRequestWorkflowProvider,
     private readonly info: WorkRequestInfoProvider,
     @Inject(FILE_STORAGE) storage: FileStorage,
+    receipts?: DocumentUploadRequestRepository,
   ) {
     super(
       repository,
       reads,
       eventsRepository,
       uow,
-      files,
       scope,
       storageProvider,
       actions,
       history,
       naming,
       storage,
+      receipts,
     );
   }
 

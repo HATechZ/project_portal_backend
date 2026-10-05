@@ -9,15 +9,28 @@ export class WorkRequestDocumentHistoryProvider {
   async list(workRequestId: string) {
     return (await this.documents.documents(workRequestId)).map((document) => ({
       documentId: document.id,
-      documentCodeId: document.documentCodeId,
-      documentCodeSnapshot: document.documentCodeSnapshot,
+      owner: { kind: 'WORK_REQUEST' as const, id: workRequestId },
+      documentCode: {
+        id: document.documentCodeId,
+        code: document.documentCodeSnapshot,
+        name: document.documentNameSnapshot,
+      },
       originalFileName: document.originalFileName,
-      generatedFileName: document.generatedFileName,
-      mimeType: document.mimeType,
-      size: Number(document.fileSizeBytes),
-      latestVersion: document.versions[0] ?? null,
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt,
+      latestVersion: document.versions[0]
+        ? {
+            versionId: document.versions[0].id,
+            versionNumber: document.versions[0].versionNumber,
+            revisionCode: document.versions[0].revisionCode,
+            uploadedFileName:
+              document.versions[0].uploadedFileName ??
+              document.originalFileName,
+            generatedFileName: document.versions[0].generatedFileName ?? '',
+            mimeType: document.versions[0].mimeType,
+            size: Number(document.versions[0].fileSizeBytes),
+            uploadedBy: document.versions[0].uploadedByActor,
+            uploadedAt: document.versions[0].uploadedAt,
+          }
+        : null,
     }));
   }
   async versions(workRequestId: string, documentId: string) {
@@ -29,15 +42,14 @@ export class WorkRequestDocumentHistoryProvider {
         message: 'Work Request document was not found.',
       });
     return versions.map((version) => ({
-      id: version.id,
+      documentId,
+      versionId: version.id,
       versionNumber: version.versionNumber,
       revisionCode: version.revisionCode,
-      originalFileName: version.originalFileName,
+      uploadedFileName: version.uploadedFileName ?? '',
       generatedFileName: version.generatedFileName,
-      mimeType: version.mimeType,
-      size: Number(version.fileSizeBytes),
       uploadedAt: version.uploadedAt,
-      uploader: {
+      uploadedBy: {
         id: version.uploadedByActor.id,
         label: version.uploadedByActor.label,
       },

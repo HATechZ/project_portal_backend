@@ -8,7 +8,7 @@ Current `projects.workspace_type_id`, `bid_details.project_id`, shared Project e
 
 `bid_statuses` and append-only `bid_status_events` hold tenant, bid, nullable from, required to, changer, reason, occurredAt; index `(bid_id, occurred_at DESC, id DESC)`. At least `BIDDING` exists. Latest event with deterministic ID tie-breaker derives state; no `current_status`.
 
-`bid_documents` and `bid_document_versions` are Bid-specific, not type-discriminated shared business tables. They hold a tenant-qualified Bid FK, General Document Code FK/snapshot, `originalFileName`, `generatedFileName`, `storageKey`, MIME, size, uploader, timestamps, and revision/version metadata. `storageKey` is safely generated as `tenants/<tenantId>/bids/<bidId>/documents/<uuid>.<extension>`; it is immutable through reclassification. Enforce unique `(bid_id, generated_file_name)` to make exact completed-name collisions a 409 while allowing many files with one document code.
+`bid_documents` and `bid_document_versions` are Bid-specific, not type-discriminated shared business tables. They hold a tenant-qualified Bid FK, General Document Code FK plus immutable code/name snapshots, `originalFileName`, per-version `uploadedFileName`, immutable `generatedFileName`, `storageKey`, MIME, size, uploader, timestamps, and revision/version metadata. Generated names use the selected Document Code name, never the uploaded base filename. `storageKey` is safely generated as `tenants/<tenantId>/bids/<bidId>/documents/<uuid>.<extension>`; it is immutable through reclassification. Generated filename is not identity: version ID/storage key keep versions distinct even when names/revision codes match.
 
 ### Cross-module name claim
 

@@ -9,6 +9,8 @@ import {
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import type { NewDocumentDraft } from '../../common/documents/document-upload.pipeline';
+import type { NewDocumentVersionDraft } from '../../common/documents/document-upload.pipeline';
 
 const bidSelect = {
   id: true,
@@ -46,8 +48,10 @@ export type BidRecord = Prisma.BidGetPayload<{ select: typeof bidSelect }>;
 
 export interface BidFileInput {
   id: string;
+  versionId: string;
   documentCodeId: string;
   documentCodeSnapshot: string;
+  documentNameSnapshot: string;
   originalFileName: string;
   generatedFileName: string;
   storageKey: string;
@@ -61,7 +65,7 @@ interface ReferenceSnapshot {
   podName: string;
   cargoCode: string;
   vesselCode: string;
-  documentCodes: Map<string, string>;
+  documentCodes: Map<string, { code: string; name: string }>;
 }
 
 @Injectable()
@@ -158,6 +162,7 @@ export class BidRepository extends BaseRepository {
                 id,
                 documentCodeId,
                 documentCodeSnapshot,
+                documentNameSnapshot,
                 originalFileName,
                 generatedFileName,
                 storageKey,
@@ -167,6 +172,7 @@ export class BidRepository extends BaseRepository {
                 id,
                 documentCodeId,
                 documentCodeSnapshot,
+                documentNameSnapshot,
                 originalFileName,
                 generatedFileName,
                 storageKey,
@@ -181,11 +187,12 @@ export class BidRepository extends BaseRepository {
           });
           await db.bidDocumentVersion.createMany({
             data: input.files.map((file) => ({
-              id: randomUUID(),
+              id: file.versionId,
               tenantId,
               bidDocumentId: file.id,
               versionNumber: 1,
               originalFileName: file.originalFileName,
+              uploadedFileName: file.originalFileName,
               generatedFileName: file.generatedFileName,
               storageKey: file.storageKey,
               mimeType: file.mimeType,
@@ -227,6 +234,190 @@ export class BidRepository extends BaseRepository {
     return this.transaction((db) =>
       db.bid.findFirst({ where: { id, tenantId }, select: bidSelect }),
     );
+  }
+
+  async prepareStandaloneDocuments(bidId: string, documentCodeIds: string[]) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const bid = await db.bid.findFirst({
+        where: { id: bidId, tenantId },
+        select: {
+          id: true,
+          clientId: true,
+          biddingNumber: true,
+          projectCode: true,
+          cargoCodeSnapshot: true,
+          vesselCodeSnapshot: true,
+          shipmentNumber: true,
+        },
+      });
+      if (!bid) return null;
+      const codes = await db.documentCodeOption.findMany({
+        where: {
+          id: { in: documentCodeIds },
+          tenantId,
+          isActive: true,
+          documentGroup: DocumentGroupCode.MARKETING,
+        },
+        select: { id: true, code: true, name: true },
+      });
+      if (codes.length !== new Set(documentCodeIds).size)
+        throw new Error('BID_REFERENCE_DOCUMENT_CODE');
+      return {
+        bid,
+        codes: new Map(
+          codes.map((code) => [code.id, { code: code.code, name: code.name }]),
+        ),
+      };
+    });
+  }
+
+  createStandaloneDocuments(
+    bidId: string,
+    actorId: string,
+    files: NewDocumentDraft[],
+  ) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const bid = await db.bid.findFirst({
+        where: { id: bidId, tenantId },
+        select: { id: true },
+      });
+      if (!bid) return null;
+      for (const file of files) {
+        await db.bidDocument.create({
+          data: {
+            id: file.documentId,
+            tenantId,
+            bidId,
+            documentCodeId: file.documentCodeId,
+            documentCodeSnapshot: file.documentCode,
+            documentNameSnapshot: file.documentName,
+            originalFileName: file.originalFileName,
+            generatedFileName: file.generatedFileName,
+            storageKey: file.storageKey,
+            mimeType: file.mimeType,
+            fileSizeBytes: file.fileSizeBytes,
+            revisionCode: file.revisionCode,
+            uploadedByActorId: actorId,
+            versions: {
+              create: {
+                id: file.versionId,
+                versionNumber: 1,
+                originalFileName: file.originalFileName,
+                uploadedFileName: file.uploadedFileName,
+                generatedFileName: file.generatedFileName,
+                storageKey: file.storageKey,
+                mimeType: file.mimeType,
+                fileSizeBytes: file.fileSizeBytes,
+                revisionCode: file.revisionCode,
+                uploadedByActorId: actorId,
+              },
+            },
+          },
+        });
+      }
+      return db.bidDocument.findMany({
+        where: { tenantId, id: { in: files.map((file) => file.documentId) } },
+        select: documentSummarySelect,
+      });
+    });
+  }
+  async prepareDocumentVersion(bidId: string, documentId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.bidDocument.findFirst({
+        where: { id: documentId, bidId, tenantId },
+        select: {
+          id: true,
+          bidId: true,
+          documentCodeId: true,
+          documentCodeSnapshot: true,
+          documentNameSnapshot: true,
+          originalFileName: true,
+          revisionCode: true,
+          bid: {
+            select: {
+              clientId: true,
+              biddingNumber: true,
+              projectCode: true,
+              cargoCodeSnapshot: true,
+              vesselCodeSnapshot: true,
+              shipmentNumber: true,
+            },
+          },
+        },
+      }),
+    );
+  }
+  appendDocumentVersion(
+    bidId: string,
+    documentId: string,
+    actorId: string,
+    file: NewDocumentVersionDraft,
+  ) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const document = await db.bidDocument.findFirst({
+        where: { id: documentId, bidId, tenantId },
+        select: {
+          id: true,
+          originalFileName: true,
+          documentCodeId: true,
+          documentCodeSnapshot: true,
+          documentNameSnapshot: true,
+          versions: {
+            orderBy: { versionNumber: 'desc' },
+            take: 1,
+            select: { versionNumber: true },
+          },
+        },
+      });
+      if (!document) return null;
+      const versionNumber = (document.versions[0]?.versionNumber ?? 0) + 1;
+      return db.bidDocumentVersion.create({
+        data: {
+          id: file.versionId,
+          tenantId,
+          bidDocumentId: document.id,
+          versionNumber,
+          originalFileName: document.originalFileName,
+          uploadedFileName: file.uploadedFileName,
+          generatedFileName: file.generatedFileName,
+          storageKey: file.storageKey,
+          mimeType: file.mimeType,
+          fileSizeBytes: file.fileSizeBytes,
+          revisionCode: file.revisionCode,
+          uploadedByActorId: actorId,
+        },
+        select: versionSelect,
+      });
+    });
+  }
+  documents(bidId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.bidDocument.findMany({
+        where: { bidId, tenantId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: documentSummarySelect,
+      }),
+    );
+  }
+  documentVersions(bidId: string, documentId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const document = await db.bidDocument.findFirst({
+        where: { id: documentId, bidId, tenantId },
+        select: { id: true },
+      });
+      if (!document) return null;
+      return db.bidDocumentVersion.findMany({
+        where: { tenantId, bidDocumentId: document.id },
+        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+        select: versionSelect,
+      });
+    });
   }
 
   rename(input: {
@@ -440,7 +631,7 @@ export class BidRepository extends BaseRepository {
         documentGroup: DocumentGroupCode.MARKETING,
         id: { in: input.documentCodeIds },
       },
-      select: { id: true, code: true },
+      select: { id: true, code: true, name: true },
     });
     if (documentCodes.length !== new Set(input.documentCodeIds).size)
       throw new Error('BID_REFERENCE_DOCUMENT_CODE');
@@ -453,7 +644,47 @@ export class BidRepository extends BaseRepository {
       podName: byType.get(OptionTypeCode.POD)!.name,
       cargoCode: cargo.code,
       vesselCode: vessel.code,
-      documentCodes: new Map(documentCodes.map((item) => [item.id, item.code])),
+      documentCodes: new Map(
+        documentCodes.map((item) => [
+          item.id,
+          { code: item.code, name: item.name },
+        ]),
+      ),
     };
   }
 }
+
+const documentSummarySelect = {
+  id: true,
+  bidId: true,
+  documentCodeId: true,
+  documentCodeSnapshot: true,
+  documentNameSnapshot: true,
+  originalFileName: true,
+  versions: {
+    take: 1,
+    orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
+    select: {
+      id: true,
+      versionNumber: true,
+      revisionCode: true,
+      uploadedFileName: true,
+      generatedFileName: true,
+      mimeType: true,
+      fileSizeBytes: true,
+      uploadedAt: true,
+      uploadedByActor: { select: { id: true, label: true } },
+    },
+  },
+} satisfies Prisma.BidDocumentSelect;
+const versionSelect = {
+  id: true,
+  versionNumber: true,
+  revisionCode: true,
+  uploadedFileName: true,
+  generatedFileName: true,
+  mimeType: true,
+  fileSizeBytes: true,
+  uploadedAt: true,
+  uploadedByActor: { select: { id: true, label: true } },
+} satisfies Prisma.BidDocumentVersionSelect;

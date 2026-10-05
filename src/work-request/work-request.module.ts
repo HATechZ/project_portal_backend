@@ -3,7 +3,6 @@ import { WorkRequestController } from './work-request.controller';
 import { WorkRequestService } from './work-request.service';
 import { WorkRequestRepository } from './repositories/work-request.repository';
 import { WorkRequestActionsProvider } from './providers/work-request-actions.provider';
-import { WorkRequestFileProvider } from './providers/work-request-file.provider';
 import { WorkRequestResourceScopeProvider } from './providers/work-request-resource-scope.provider';
 import { WorkRequestStorageProvider } from './providers/work-request-storage.provider';
 import { WorkRequestDocumentRepository } from './repositories/work-request-document.repository';
@@ -24,6 +23,7 @@ import { WorkRequestWorkflowRepository } from './repositories/work-request-workf
 import { WorkRequestInfoController } from './work-request-info.controller';
 import { WorkRequestInfoRepository } from './repositories/work-request-info.repository';
 import { WorkRequestInfoProvider } from './providers/work-request-info.provider';
+import { DocumentUploadRequestRepository } from '../common/documents/document-upload-request.repository';
 @Module({
   controllers: [
     WorkRequestController,
@@ -39,7 +39,6 @@ import { WorkRequestInfoProvider } from './providers/work-request-info.provider'
     WorkRequestReadRepository,
     WorkRequestEventRepository,
     WorkRequestActionsProvider,
-    WorkRequestFileProvider,
     WorkRequestResourceScopeProvider,
     WorkRequestStorageProvider,
     WorkRequestDocumentRepository,
@@ -53,6 +52,7 @@ import { WorkRequestInfoProvider } from './providers/work-request-info.provider'
     WorkRequestWorkflowProvider,
     WorkRequestInfoRepository,
     WorkRequestInfoProvider,
+    DocumentUploadRequestRepository,
   ],
 })
 export class WorkRequestModule {}

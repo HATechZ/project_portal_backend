@@ -236,6 +236,24 @@ enum DocumentGroupCode {
   @@map("document_group_code")
 }
 
+/// The logical owner of a DocumentUploadRequest receipt. The three document
+/// aggregates intentionally remain independent tables, so this discriminator
+/// replaces an invalid polymorphic foreign key.
+enum DocumentUploadOwnerCode {
+  BID
+  DIRECT_PROJECT
+  WORK_REQUEST
+
+  @@map("document_upload_owner_code")
+}
+
+enum DocumentUploadOperationCode {
+  NEW_DOCUMENT
+  NEW_VERSION
+
+  @@map("document_upload_operation_code")
+}
+
 enum InfoRequestStatusCode {
   OPEN
   RESPONDED
@@ -426,6 +444,7 @@ model Tenant {
   notifications                             Notification[]
   notificationRecipients                    NotificationRecipient[]
   systemAuditLogs                           SystemAuditLog[]
+  documentUploadRequests                    DocumentUploadRequest[]
   outboxMessages                            OutboxMessage[]
   processedEvents                           ProcessedEvent[]
   bidStorageCleanupJobs                     BidStorageCleanupJob[]
@@ -579,6 +598,7 @@ model ActorProfile {
   notificationsByTriggeredByActorId                           Notification[]                             @relation("NotificationsTriggeredByActorIdActorProfiles")
   notificationRecipientsByActorId                             NotificationRecipient[]                    @relation("NotificationRecipientsActorIdActorProfiles")
   systemAuditLogsByPerformedByActorId                         SystemAuditLog[]                           @relation("SystemAuditLogsPerformedByActorIdActorProfiles")
+  documentUploadRequestsByCreatedByActorId                    DocumentUploadRequest[]                    @relation("DocumentUploadRequestsCreatedByActorIdActorProfiles")
   outboxMessagesByActorId                                     OutboxMessage[]                            @relation("OutboxMessagesActorIdActorProfiles")
 
   @@unique([id, tenantId])
@@ -943,16 +963,20 @@ model OptionValue {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  tenant               Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  optionType           OptionType  @relation("OptionValuesOptionTypeIdOptionTypes", fields: [optionTypeId], references: [id])
-  bidDetailsByPolId    BidDetail[] @relation("BidDetailsPolIdOptionValues")
-  bidDetailsByPodId    BidDetail[] @relation("BidDetailsPodIdOptionValues")
-  bidDetailsByCargoId  BidDetail[] @relation("BidDetailsCargoIdOptionValues")
-  bidDetailsByVesselId BidDetail[] @relation("BidDetailsVesselIdOptionValues")
-  bidsByPolId          Bid[]       @relation("BidsPolIdOptionValues")
-  bidsByPodId          Bid[]       @relation("BidsPodIdOptionValues")
-  bidsByCargoId        Bid[]       @relation("BidsCargoIdOptionValues")
-  bidsByVesselId       Bid[]       @relation("BidsVesselIdOptionValues")
+  tenant                   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  optionType               OptionType      @relation("OptionValuesOptionTypeIdOptionTypes", fields: [optionTypeId], references: [id])
+  bidDetailsByPolId        BidDetail[]     @relation("BidDetailsPolIdOptionValues")
+  bidDetailsByPodId        BidDetail[]     @relation("BidDetailsPodIdOptionValues")
+  bidDetailsByCargoId      BidDetail[]     @relation("BidDetailsCargoIdOptionValues")
+  bidDetailsByVesselId     BidDetail[]     @relation("BidDetailsVesselIdOptionValues")
+  bidsByPolId              Bid[]           @relation("BidsPolIdOptionValues")
+  bidsByPodId              Bid[]           @relation("BidsPodIdOptionValues")
+  bidsByCargoId            Bid[]           @relation("BidsCargoIdOptionValues")
+  bidsByVesselId           Bid[]           @relation("BidsVesselIdOptionValues")
+  directProjectsByPolId    DirectProject[] @relation("DirectProjectsPolIdOptionValues")
+  directProjectsByPodId    DirectProject[] @relation("DirectProjectsPodIdOptionValues")
+  directProjectsByCargoId  DirectProject[] @relation("DirectProjectsCargoIdOptionValues")
+  directProjectsByVesselId DirectProject[] @relation("DirectProjectsVesselIdOptionValues")
 
   @@unique([id, tenantId])
   @@unique([tenantId, optionTypeId, name])
@@ -1206,6 +1230,7 @@ model BidDocument {
   bidId                String   @map("bid_id") @db.Uuid
   documentCodeId       String   @map("document_code_id") @db.Uuid
   documentCodeSnapshot String   @map("document_code_snapshot") @db.VarChar(20)
+  documentNameSnapshot String?  @map("document_name_snapshot") @db.VarChar(180)
   originalFileName     String   @map("original_file_name") @db.VarChar(260)
   generatedFileName    String   @map("generated_file_name") @db.VarChar(260)
   storageKey           String   @map("storage_key") @db.Text
@@ -1224,7 +1249,7 @@ model BidDocument {
   classificationEvents BidDocumentClassificationEvent[] @relation("BidDocumentClassificationEventsBidDocumentIdBidDocuments")
 
   @@unique([id, tenantId])
-  @@unique([bidId, generatedFileName])
+  @@index([bidId, generatedFileName])
   @@index([documentCodeId, tenantId])
   @@index([tenantId])
   @@map("bid_documents")
@@ -1236,6 +1261,7 @@ model BidDocumentVersion {
   bidDocumentId     String   @map("bid_document_id") @db.Uuid
   versionNumber     Int      @map("version_number")
   originalFileName  String   @map("original_file_name") @db.VarChar(260)
+  uploadedFileName  String?  @map("uploaded_file_name") @db.VarChar(260)
   generatedFileName String   @map("generated_file_name") @db.VarChar(260)
   storageKey        String   @map("storage_key") @db.Text
   mimeType          String   @map("mime_type") @db.VarChar(120)
@@ -1296,17 +1322,30 @@ model DirectProjectStatus {
 }
 
 model DirectProject {
-  tenantId         String   @map("tenant_id") @db.Uuid
-  id               String   @id @map("id") @db.Uuid
-  clientId         String   @map("client_id") @db.Uuid
-  name             String   @map("name") @db.VarChar(220)
-  shipmentNumber   String?  @map("shipment_number") @db.VarChar(10)
-  createdByActorId String?  @map("created_by_actor_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  tenantId           String   @map("tenant_id") @db.Uuid
+  id                 String   @id @map("id") @db.Uuid
+  clientId           String   @map("client_id") @db.Uuid
+  name               String   @map("name") @db.VarChar(220)
+  shipmentNumber     String?  @map("shipment_number") @db.VarChar(10)
+  projectCode        String?  @map("project_code") @db.VarChar(40)
+  polId              String?  @map("pol_id") @db.Uuid
+  podId              String?  @map("pod_id") @db.Uuid
+  cargoId            String?  @map("cargo_id") @db.Uuid
+  vesselId           String?  @map("vessel_id") @db.Uuid
+  polNameSnapshot    String?  @map("pol_name_snapshot") @db.VarChar(180)
+  podNameSnapshot    String?  @map("pod_name_snapshot") @db.VarChar(180)
+  cargoCodeSnapshot  String?  @map("cargo_code_snapshot") @db.VarChar(40)
+  vesselCodeSnapshot String?  @map("vessel_code_snapshot") @db.VarChar(40)
+  createdByActorId   String?  @map("created_by_actor_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   tenant            Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   client            Client                     @relation("DirectProjectsClientIdClients", fields: [clientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  pol               OptionValue?               @relation("DirectProjectsPolIdOptionValues", fields: [polId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  pod               OptionValue?               @relation("DirectProjectsPodIdOptionValues", fields: [podId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  cargo             OptionValue?               @relation("DirectProjectsCargoIdOptionValues", fields: [cargoId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  vessel            OptionValue?               @relation("DirectProjectsVesselIdOptionValues", fields: [vesselId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   createdByActor    ActorProfile?              @relation("DirectProjectsCreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
   statusEvents      DirectProjectStatusEvent[] @relation("DirectProjectStatusEventsDirectProjectIdDirectProjects")
   documents         DirectProjectDocument[]    @relation("DirectProjectDocumentsDirectProjectIdDirectProjects")
@@ -1348,6 +1387,7 @@ model DirectProjectDocument {
   directProjectId      String   @map("direct_project_id") @db.Uuid
   documentCodeId       String?  @map("document_code_id") @db.Uuid
   documentCodeSnapshot String?  @map("document_code_snapshot") @db.VarChar(20)
+  documentNameSnapshot String?  @map("document_name_snapshot") @db.VarChar(180)
   originalFileName     String   @map("original_file_name") @db.VarChar(260)
   generatedFileName    String?  @map("generated_file_name") @db.VarChar(260)
   storageKey           String   @map("storage_key") @db.Text
@@ -1366,7 +1406,7 @@ model DirectProjectDocument {
   classificationEvents DirectProjectDocumentClassificationEvent[] @relation("DirectProjectDocumentClassificationEventsDirectProjectDocumentIdDirectProjectDocuments")
 
   @@unique([id, tenantId])
-  @@unique([directProjectId, generatedFileName])
+  @@index([directProjectId, generatedFileName])
   @@index([documentCodeId, tenantId])
   @@index([tenantId])
   @@map("direct_project_documents")
@@ -1378,6 +1418,7 @@ model DirectProjectDocumentVersion {
   directProjectDocumentId String   @map("direct_project_document_id") @db.Uuid
   versionNumber           Int      @map("version_number")
   originalFileName        String   @map("original_file_name") @db.VarChar(260)
+  uploadedFileName        String?  @map("uploaded_file_name") @db.VarChar(260)
   generatedFileName       String?  @map("generated_file_name") @db.VarChar(260)
   storageKey              String   @map("storage_key") @db.Text
   mimeType                String   @map("mime_type") @db.VarChar(120)
@@ -1513,6 +1554,7 @@ model WorkRequestV1Document {
   workRequestId        String   @map("work_request_id") @db.Uuid
   documentCodeId       String?  @map("document_code_id") @db.Uuid
   documentCodeSnapshot String?  @map("document_code_snapshot") @db.VarChar(20)
+  documentNameSnapshot String?  @map("document_name_snapshot") @db.VarChar(180)
   originalFileName     String   @map("original_file_name") @db.VarChar(260)
   generatedFileName    String?  @map("generated_file_name") @db.VarChar(260)
   storageKey           String   @map("storage_key") @db.Text
@@ -1531,7 +1573,7 @@ model WorkRequestV1Document {
   classificationEvents WorkRequestV1DocumentClassificationEvent[] @relation("WorkRequestV1DocumentClassificationEventsWorkRequestV1DocumentIdWorkRequestV1Documents")
 
   @@unique([id, tenantId])
-  @@unique([workRequestId, generatedFileName])
+  @@index([workRequestId, generatedFileName])
   @@index([documentCodeId, tenantId])
   @@map("work_request_v1_documents")
 }
@@ -1542,6 +1584,7 @@ model WorkRequestV1DocumentVersion {
   workRequestV1DocumentId String   @map("work_request_v1_document_id") @db.Uuid
   versionNumber           Int      @map("version_number")
   originalFileName        String   @map("original_file_name") @db.VarChar(260)
+  uploadedFileName        String?  @map("uploaded_file_name") @db.VarChar(260)
   generatedFileName       String?  @map("generated_file_name") @db.VarChar(260)
   storageKey              String   @map("storage_key") @db.Text
   mimeType                String   @map("mime_type") @db.VarChar(120)
@@ -2483,6 +2526,32 @@ model SystemAuditLog {
   @@index([occurredAt])
   @@index([tenantId])
   @@map("system_audit_logs")
+}
+
+/// A completed standalone document-upload operation, keyed by the established
+/// x-request-id. `targetId` is always non-null: use the parent id for a
+/// NEW_DOCUMENT request and the stable logical document id for NEW_VERSION.
+/// This avoids PostgreSQL's nullable-unique loophole while keeping the three
+/// parent-specific document tables independent.
+model DocumentUploadRequest {
+  tenantId         String                      @map("tenant_id") @db.Uuid
+  id               String                      @id @map("id") @db.Uuid
+  owner            DocumentUploadOwnerCode     @map("owner")
+  parentId         String                      @map("parent_id") @db.Uuid
+  targetId         String                      @map("target_id") @db.Uuid
+  operation        DocumentUploadOperationCode @map("operation")
+  requestId        String                      @map("request_id") @db.VarChar(128)
+  response         Json                        @map("response") @db.JsonB
+  createdByActorId String                      @map("created_by_actor_id") @db.Uuid
+  createdAt        DateTime                    @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  createdByActor ActorProfile @relation("DocumentUploadRequestsCreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([tenantId, owner, parentId, targetId, operation, requestId])
+  @@index([tenantId, owner, parentId, operation, requestId])
+  @@index([createdAt])
+  @@map("document_upload_requests")
 }
 
 model OutboxMessage {

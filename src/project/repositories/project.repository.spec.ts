@@ -37,6 +37,35 @@ describe('ProjectRepository lifecycle foundation', () => {
           client: {
             findFirst: jest.fn().mockResolvedValue({ id: 'client-a' }),
           },
+          optionValue: {
+            findMany: jest.fn().mockResolvedValue([
+              {
+                id: 'pol-a',
+                name: 'Korea',
+                code: 'KOR',
+                optionType: { code: 'POL' },
+              },
+              {
+                id: 'pod-a',
+                name: 'Mexico',
+                code: 'MEX',
+                optionType: { code: 'POD' },
+              },
+              {
+                id: 'cargo-a',
+                name: 'Cargo',
+                code: 'CRA',
+                optionType: { code: 'CARGO_CODE' },
+              },
+              {
+                id: 'vessel-a',
+                name: 'Vessel',
+                code: 'CA2',
+                optionType: { code: 'VESSEL_CODE' },
+              },
+            ]),
+          },
+          documentCodeOption: { findMany: jest.fn().mockResolvedValue([]) },
           directProjectStatus: {
             findUniqueOrThrow: jest
               .fn()
@@ -55,11 +84,22 @@ describe('ProjectRepository lifecycle foundation', () => {
       repository.create({
         id: 'project-a',
         clientId: 'client-a',
+        polId: 'pol-a',
+        podId: 'pod-a',
+        cargoId: 'cargo-a',
+        vesselId: 'vessel-a',
+        projectCode: 'MKM',
         shipmentNumber: '01',
         name: 'Meridian Project',
         normalizedName: 'meridian project',
         actorId: 'actor-a',
         files: [],
+        snapshots: {
+          polName: 'Korea',
+          podName: 'Mexico',
+          cargoCode: 'CRA',
+          vesselCode: 'CA2',
+        },
       }),
     );
 
@@ -100,5 +140,30 @@ describe('ProjectRepository lifecycle foundation', () => {
         },
       },
     });
+  });
+
+  it('rejects a missing tenant-scoped POL/POD/Cargo/Vessel reference', async () => {
+    const repository = new ProjectRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          client: {
+            findFirst: jest.fn().mockResolvedValue({ id: 'client-a' }),
+          },
+          optionValue: { findMany: jest.fn().mockResolvedValue([]) },
+          documentCodeOption: { findMany: jest.fn().mockResolvedValue([]) },
+        }),
+    } as never);
+    await expect(
+      RequestContext.run({ requestId: 'request-a', tenantId }, () =>
+        repository.prepareCreate({
+          clientId: 'client-a',
+          polId: 'pol-a',
+          podId: 'pod-a',
+          cargoId: 'cargo-a',
+          vesselId: 'vessel-a',
+          documentCodeIds: [],
+        }),
+      ),
+    ).rejects.toThrow('PROJECT_REFERENCE_OPTION');
   });
 });

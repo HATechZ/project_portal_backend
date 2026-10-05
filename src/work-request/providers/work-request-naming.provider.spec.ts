@@ -15,15 +15,17 @@ describe('WorkRequestNamingProvider', () => {
       bidNaming,
       documentCode: '100',
       revisionCode: 'A',
-      originalFileName: 'stowage-plan.pdf',
+      documentName: 'Stowage Plan',
+      uploadedFileName: 'stowage-plan.pdf',
     });
-    expect(generated).toBe('21128 PERSISTED-CRA-CA2-01-100-A stowage-plan.pdf');
+    expect(generated).toBe('21128 PERSISTED-CRA-CA2-01-100-A Stowage Plan.pdf');
     expect(generated).toBe(
       formatBidDocumentFileName({
         ...bidNaming,
         documentCode: '100',
         revisionCode: 'A',
-        originalFileName: 'stowage-plan.pdf',
+        documentName: 'Stowage Plan',
+        uploadedFileName: 'stowage-plan.pdf',
       }),
     );
   });
@@ -33,7 +35,8 @@ describe('WorkRequestNamingProvider', () => {
         bidNaming: null,
         documentCode: '100',
         revisionCode: 'A',
-        originalFileName: 'plan.pdf',
+        documentName: 'Stowage Plan',
+        uploadedFileName: 'plan.pdf',
       }),
     ).toBeNull();
   });

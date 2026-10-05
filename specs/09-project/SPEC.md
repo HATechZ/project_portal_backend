@@ -10,14 +10,14 @@ The current combined `projects` workspace root is prohibited for this future dom
 
 ## Rules
 
-- Direct creation accepts only name, clientId, and zero-or-more optional binary files. No-file creation succeeds.
-- Do not accept type/workspace, bidInfo, bidding number, POL/POD, Cargo/Vessel, shipment, source channel, client email, Bid conversion data, or a Bid project-code rule.
+- Direct creation accepts name, clientId, active same-tenant POL/POD/Cargo/Vessel IDs, approved Shipment Number, and zero-or-more optional binary files. No-file creation succeeds.
+- Do not accept type/workspace, bidInfo, bidding number, source channel, client email, Bid conversion data, or frontend-supplied projectCode.
 - Reuse active same-tenant Client validation and applicable company/object scope. Server derives tenant/company/actor data.
 - A direct Project appends independent `ACTIVE` status event; latest event derives state, never a mutable `currentStatus` field.
 - Bid and Project names use one tenant-wide namespace: trim and case-fold before comparison. The same name conflicts across Project and Bid in one tenant, but may be reused in another tenant.
-- Files store actual binaries only in protected `./uploads`; PostgreSQL holds metadata and storage key. Preserve `originalFileName`, `generatedFileName` when enough approved naming information exists, `storageKey`, MIME, size, uploader, timestamps, Document Code classification, and revision/version metadata. No binary DB storage, public upload folder, external URL truth, or frontend direct cloud upload.
-- Multiple files may share a Document Code. Preserve `originalFileName` and never manufacture `(2)`/`(3)`. Later reclassification changes only that file's Document Code relation and `generatedFileName`; `originalFileName` and `storageKey` remain unchanged, no re-upload or automatic revision occurs, and the action is audit/history relevant. General Document Code master edits never automatically rename historical persisted names.
-- Project has no owner-defined independent business code. UUID/internal ID is the technical identity. Historical Project filename examples omit Bidding Number, but current Project create lacks the independent naming fields needed to generate that legacy format; no Bid field or invented Project code is introduced to fill the gap.
+- The backend derives uppercase `projectCode` from the first character of trimmed Project Name, POL display name, and POD display name. It is a naming component, never frontend input or database identity.
+- Persist creation-time Project naming snapshots: POL/POD naming values, Cargo/Vessel code values, normalized Shipment Number, and derived Project Code. Files use `<ProjectCode>-<CargoCode>-<VesselCode>-<ShipmentNumber>-<DocumentCode>-<RevisionCode> <DocumentName>.<ext>`, where Document Code/Document Name are selected General Document Code snapshots and only the extension comes from the uploaded file. Preserve `originalFileName` separately.
+- Multiple files may share a Document Code. Reclassification records history but never renames a historical version, changes bytes/storage, or creates a revision. General Document Code/master edits never automatically rename historical persisted names.
 
 ## Authorization and Work Request boundary
 

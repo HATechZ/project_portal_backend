@@ -33,6 +33,7 @@
 | Documents (future allocation) | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
 | Workflow Engine (future allocation) | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
 | [10](10-work-requests/) Work Requests | redesign required | 1 | 0/6 | `[DRAFT]` | Bid/Project XOR and event-derived state specified |
+| [10.1](10.1-documents/) Shared Documents | 6 proposed | 4 | 0/10 | `[WIP]` | Phase 1 foundation implemented; independent verification pending |
 | 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
 | 12 Notifications | 2 | 0 | — | `[NOT STARTED]` | Consumes 02's mail queue |
 | 13 Audit | 1 | 0 | — | `[NOT STARTED]` | |
@@ -72,3 +73,4 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-09-24 | Codex | 07.1–07.3 | 4 | Focused tests + build PASS; walkthroughs pending |
 | 2026-09-24 | Codex + db-architect | 07.4 | 4 | Runtime/tests pass; walkthrough pending |
 | 2026-09-24 | Codex + db-architect | 10 | 1–3 | Work Request specs drafted; no runtime/data work |
+| 2026-10-02 | Codex + db-architect | 10.1 | 1–3 | Shared document/version specs; no code or schema changes |

@@ -20,12 +20,21 @@ import { WorkRequestRepository } from '../repositories/work-request.repository';
 import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
 import { WorkRequestEventRepository } from '../repositories/work-request-event.repository';
 import { WorkRequestActionsProvider } from './work-request-actions.provider';
-import { WorkRequestFileProvider } from './work-request-file.provider';
 import { toWorkRequestResponse } from './work-request-response.mapper';
 import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
 import { WorkRequestStorageProvider } from './work-request-storage.provider';
 import { WorkRequestDocumentHistoryProvider } from './work-request-document-history.provider';
 import { WorkRequestNamingProvider } from './work-request-naming.provider';
+import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
+import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
+import { formatDirectProjectDocumentFileName } from '../../common/documents/document-naming';
+import { WorkRequestV1StateCode } from '../../generated/prisma/client';
+import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
+import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
+import {
+  DocumentUploadOperationCode,
+  DocumentUploadOwnerCode,
+} from '../../generated/prisma/client';
 
 export abstract class WorkRequestServiceBase {
   protected constructor(
@@ -33,21 +42,242 @@ export abstract class WorkRequestServiceBase {
     private readonly reads: WorkRequestReadRepository,
     private readonly eventsRepository: WorkRequestEventRepository,
     private readonly uow: UnitOfWorkService,
-    private readonly files: WorkRequestFileProvider,
     private readonly scope: WorkRequestResourceScopeProvider,
     private readonly storageProvider: WorkRequestStorageProvider,
     private readonly actions: WorkRequestActionsProvider,
     private readonly history: WorkRequestDocumentHistoryProvider,
     private readonly naming: WorkRequestNamingProvider,
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
+    private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
+  async createStandaloneDocuments(
+    id: string,
+    uploads: WorkRequestUploadedFile[],
+    documentCodeIds: string[],
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
+    let context: Awaited<
+      ReturnType<WorkRequestRepository['prepareStandaloneDocuments']>
+    >;
+    try {
+      context = await this.repository.prepareStandaloneDocuments(
+        id,
+        documentCodeIds,
+      );
+    } catch (error) {
+      throw mapReferenceError(error);
+    }
+    if (!context) throw notFound();
+    this.scope.assert(actor, {
+      ...context.parent,
+      divisionId: null,
+      teamId: null,
+    });
+    const requestId = RequestContext.requestId()!;
+    const replay =
+      this.receipts &&
+      (await this.receipts.find({
+        owner: DocumentUploadOwnerCode.WORK_REQUEST,
+        parentId: id,
+        targetId: id,
+        operation: DocumentUploadOperationCode.NEW_DOCUMENT,
+        requestId,
+      }));
+    if (replay) return replay.response as unknown as DocumentSummaryDto[];
+    const drafts = DocumentUploadPipeline.prepare({
+      uploads,
+      documentCodeIds,
+      codes: context.codes,
+      revisionCode: 'A',
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents`,
+      generatedFileName: (code, uploadedFileName) =>
+        context.naming.kind === 'BID'
+          ? this.naming.generatedFileName({
+              bidNaming: context.naming,
+              documentCode: code.code,
+              documentName: code.name,
+              uploadedFileName,
+              revisionCode: 'A',
+            })!
+          : formatDirectProjectDocumentFileName({
+              ...context.naming,
+              documentCode: code.code,
+              documentName: code.name,
+              uploadedFileName,
+              revisionCode: 'A',
+            }),
+    });
+    let stored: string[] = [];
+    try {
+      stored = await DocumentUploadPipeline.putAll(this.storage, drafts);
+      const created = await this.uow.execute(async () => {
+        const result = await this.repository.createStandaloneDocuments(
+          id,
+          actor.id,
+          drafts,
+        );
+        if (result && this.receipts)
+          await this.receipts.write({
+            owner: DocumentUploadOwnerCode.WORK_REQUEST,
+            parentId: id,
+            targetId: id,
+            operation: DocumentUploadOperationCode.NEW_DOCUMENT,
+            requestId,
+            actorId: actor.id,
+            response: result.map((document) =>
+              documentSummary(id, document),
+            ) as never,
+            audit: {
+              entityId: id,
+              summary: 'NEW_DOCUMENT',
+              afterData: {
+                requestId,
+                documentIds: drafts.map((draft) => draft.documentId),
+                versionIds: drafts.map((draft) => draft.versionId),
+              },
+            },
+          });
+        return result;
+      });
+      if (!created) throw notFound();
+      return created.map((document) => documentSummary(id, document));
+    } catch (error) {
+      await DocumentUploadPipeline.compensate(this.storage, stored, (key) =>
+        this.storageProvider.compensate(this.storage, [key]),
+      );
+      throw error;
+    }
+  }
+  async appendDocumentVersion(
+    id: string,
+    documentId: string,
+    upload: WorkRequestUploadedFile,
+    actor: SessionActor,
+  ): Promise<DocumentVersionResponseDto> {
+    const context = await this.repository.prepareDocumentVersion(
+      id,
+      documentId,
+    );
+    if (!context) throw notFound('Work Request document was not found.');
+    const request = context.workRequest;
+    const parent = request.bid ?? request.directProject;
+    if (!parent) throw notFound('Work Request parent was not found.');
+    this.scope.assert(actor, {
+      clientId: parent.clientId,
+      companyId: parent.client.companyId,
+      divisionId: null,
+      teamId: null,
+    });
+    const requestId = RequestContext.requestId()!;
+    const replay =
+      this.receipts &&
+      (await this.receipts.find({
+        owner: DocumentUploadOwnerCode.WORK_REQUEST,
+        parentId: id,
+        targetId: documentId,
+        operation: DocumentUploadOperationCode.NEW_VERSION,
+        requestId,
+      }));
+    if (replay) return replay.response as unknown as DocumentVersionResponseDto;
+    if (
+      request.events[0]?.resultingState !==
+      WorkRequestV1StateCode.MEMBER_ASSIGNED
+    )
+      throw conflict(
+        'Work Request is not accepting working document versions.',
+      );
+    if (
+      !actor.member?.isActive ||
+      request.assignments[0]?.memberId !== actor.member.id
+    )
+      throw notFound('You are not the assigned Work Request Member.');
+    const revisionCode = context.revisionCode;
+    const file = DocumentUploadPipeline.prepareVersion({
+      upload,
+      revisionCode,
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents/${documentId}/versions`,
+      generatedFileName: (uploadedFileName) =>
+        request.bid
+          ? this.naming.generatedFileName({
+              bidNaming: {
+                biddingNumber: request.bid.biddingNumber,
+                projectCode: request.bid.projectCode,
+                cargoCode: request.bid.cargoCodeSnapshot,
+                vesselCode: request.bid.vesselCodeSnapshot,
+                shipmentNumber: request.bid.shipmentNumber,
+              },
+              documentCode: context.documentCodeSnapshot ?? '',
+              documentName:
+                context.documentNameSnapshot ??
+                context.documentCodeSnapshot ??
+                '',
+              uploadedFileName,
+              revisionCode,
+            })!
+          : formatDirectProjectDocumentFileName({
+              projectCode: request.directProject!.projectCode!,
+              cargoCode: request.directProject!.cargoCodeSnapshot!,
+              vesselCode: request.directProject!.vesselCodeSnapshot!,
+              shipmentNumber: request.directProject!.shipmentNumber!,
+              documentCode: context.documentCodeSnapshot ?? '',
+              documentName:
+                context.documentNameSnapshot ??
+                context.documentCodeSnapshot ??
+                '',
+              uploadedFileName,
+              revisionCode,
+            }),
+    });
+    let stored: string[] = [];
+    try {
+      stored = await DocumentUploadPipeline.putAll(this.storage, [file]);
+      const version = await this.uow.execute(
+        async () => {
+          const result = await this.repository.appendDocumentVersion(
+            id,
+            documentId,
+            actor.id,
+            file,
+          );
+          if (result && this.receipts)
+            await this.receipts.write({
+              owner: DocumentUploadOwnerCode.WORK_REQUEST,
+              parentId: id,
+              targetId: documentId,
+              operation: DocumentUploadOperationCode.NEW_VERSION,
+              requestId,
+              actorId: actor.id,
+              response: versionResponse(documentId, result) as never,
+              audit: {
+                entityId: documentId,
+                summary: 'NEW_VERSION',
+                afterData: {
+                  requestId,
+                  workRequestId: id,
+                  documentId,
+                  versionId: result.id,
+                },
+              },
+            });
+          return result;
+        },
+        { isolationLevel: 'Serializable' },
+      );
+      if (!version) throw notFound('Work Request document was not found.');
+      return versionResponse(documentId, version);
+    } catch (error) {
+      await DocumentUploadPipeline.compensate(this.storage, stored, (key) =>
+        this.storageProvider.compensate(this.storage, [key]),
+      );
+      throw error;
+    }
+  }
   async create(
     input: CreateWorkRequestDto,
     uploads: WorkRequestUploadedFile[],
     actor: SessionActor,
   ) {
     const codeIds = input.documentCodeIds ?? [];
-    this.files.assertMapping(uploads, codeIds);
     let reference: Awaited<ReturnType<WorkRequestRepository['prepareCreate']>>;
     try {
       reference = await this.repository.prepareCreate(
@@ -61,33 +291,59 @@ export abstract class WorkRequestServiceBase {
     this.scope.assert(actor, reference.parent);
     if (reference.parent.state !== (input.bidId ? 'BIDDING' : 'ACTIVE'))
       throw conflict('Parent is not eligible for a Work Request.');
+    if (
+      uploads.length > 0 &&
+      !reference.bidNaming &&
+      (!reference.projectNaming?.projectCode ||
+        !reference.projectNaming.cargoCode ||
+        !reference.projectNaming.vesselCode ||
+        !reference.projectNaming.shipmentNumber)
+    )
+      throw conflict('Parent naming context is invalid.');
     const id = randomUUID();
-    const files = uploads.map((file, index) => {
-      const originalFileName = this.files.originalName(file.originalname);
-      const documentCodeSnapshot = reference.codes.get(codeIds[index]);
-      if (!documentCodeSnapshot)
-        throw notFound('A Document Code was not found or inactive.');
-      if (file.size < 1) throw bad('Uploaded file is invalid.');
-      return {
-        id: randomUUID(),
-        documentCodeId: codeIds[index],
-        documentCodeSnapshot,
-        originalFileName,
-        generatedFileName: this.naming.generatedFileName({
-          bidNaming: reference.bidNaming,
-          documentCode: documentCodeSnapshot,
-          originalFileName,
-          revisionCode: 'A',
-        }),
-        storageKey: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents/${randomUUID()}${this.files.extension(originalFileName)}`,
-        mimeType: file.mimetype,
-        fileSizeBytes: BigInt(file.size),
-        content: file.buffer,
-      };
+    const drafts = DocumentUploadPipeline.prepare({
+      uploads,
+      documentCodeIds: codeIds,
+      codes: reference.codes,
+      allowEmpty: true,
+      revisionCode: 'A',
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents`,
+      generatedFileName: (code, uploadedFileName) =>
+        reference.bidNaming
+          ? this.naming.generatedFileName({
+              bidNaming: reference.bidNaming,
+              documentCode: code.code,
+              documentName: code.name,
+              uploadedFileName,
+              revisionCode: 'A',
+            })!
+          : formatDirectProjectDocumentFileName({
+              projectCode: reference.projectNaming.projectCode!,
+              cargoCode: reference.projectNaming.cargoCode!,
+              vesselCode: reference.projectNaming.vesselCode!,
+              shipmentNumber: reference.projectNaming.shipmentNumber!,
+              documentCode: code.code,
+              documentName: code.name,
+              uploadedFileName,
+              revisionCode: 'A',
+            }),
     });
+    const files = drafts.map((file) => ({
+      id: file.documentId,
+      versionId: file.versionId,
+      documentCodeId: file.documentCodeId,
+      documentCodeSnapshot: file.documentCode,
+      documentNameSnapshot: file.documentName,
+      originalFileName: file.originalFileName,
+      generatedFileName: file.generatedFileName,
+      storageKey: file.storageKey,
+      mimeType: file.mimeType,
+      fileSizeBytes: file.fileSizeBytes,
+      content: file.content,
+    }));
     let stored: string[] = [];
     try {
-      stored = await this.storageProvider.putAll(this.storage, files);
+      stored = await DocumentUploadPipeline.putAll(this.storage, drafts);
       const record = await this.uow.execute(() =>
         this.repository.create({
           id,
@@ -102,7 +358,9 @@ export abstract class WorkRequestServiceBase {
       );
       return toWorkRequestResponse(record);
     } catch (error) {
-      await this.storageProvider.compensate(this.storage, stored);
+      await DocumentUploadPipeline.compensate(this.storage, stored, (key) =>
+        this.storageProvider.compensate(this.storage, [key]),
+      );
       throw error;
     }
   }
@@ -188,6 +446,73 @@ export abstract class WorkRequestServiceBase {
     this.scope.assert(actor, this.reads.parentScope(record));
     return this.history.versions(id, documentId);
   }
+}
+function documentSummary(
+  parentId: string,
+  document: {
+    id: string;
+    documentCodeId: string | null;
+    documentCodeSnapshot: string | null;
+    documentNameSnapshot: string | null;
+    originalFileName: string;
+    versions: Array<{
+      id: string;
+      versionNumber: number;
+      revisionCode: string;
+      uploadedFileName: string | null;
+      generatedFileName: string | null;
+      mimeType: string;
+      fileSizeBytes: bigint;
+      uploadedAt: Date;
+      uploadedByActor: { id: string; label: string };
+    }>;
+  },
+): DocumentSummaryDto {
+  const version = document.versions[0];
+  return {
+    documentId: document.id,
+    owner: { kind: 'WORK_REQUEST', id: parentId },
+    documentCode: {
+      id: document.documentCodeId!,
+      code: document.documentCodeSnapshot!,
+      name: document.documentNameSnapshot!,
+    },
+    originalFileName: document.originalFileName,
+    latestVersion: {
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      revisionCode: version.revisionCode,
+      uploadedFileName: version.uploadedFileName ?? document.originalFileName,
+      generatedFileName: version.generatedFileName!,
+      mimeType: version.mimeType,
+      size: Number(version.fileSizeBytes),
+      uploadedBy: version.uploadedByActor,
+      uploadedAt: version.uploadedAt,
+    },
+  };
+}
+function versionResponse(
+  documentId: string,
+  version: {
+    id: string;
+    versionNumber: number;
+    revisionCode: string;
+    uploadedFileName: string | null;
+    generatedFileName: string | null;
+    uploadedByActor: { id: string; label: string };
+    uploadedAt: Date;
+  },
+): DocumentVersionResponseDto {
+  return {
+    documentId,
+    versionId: version.id,
+    versionNumber: version.versionNumber,
+    revisionCode: version.revisionCode,
+    uploadedFileName: version.uploadedFileName ?? '',
+    generatedFileName: version.generatedFileName ?? '',
+    uploadedBy: version.uploadedByActor,
+    uploadedAt: version.uploadedAt,
+  };
 }
 function bad(message: string) {
   return new AppException({

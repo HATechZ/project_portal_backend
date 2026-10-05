@@ -208,7 +208,6 @@ export class BidDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
   @ApiProperty() originalFileName!: string;
   @ApiProperty() generatedFileName!: string;
-  @ApiProperty() storageKey!: string;
   @ApiProperty() mimeType!: string;
   @ApiProperty() size!: number;
 }

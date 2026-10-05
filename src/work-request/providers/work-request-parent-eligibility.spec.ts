@@ -12,6 +12,8 @@ describe('Work Request parent lifecycle eligibility', () => {
       id: 'work-request-a',
       bidId: kind === 'bid' ? 'bid-a' : null,
       directProjectId: kind === 'project' ? 'project-a' : null,
+      bid: kind === 'bid' ? { shipmentNumber: '01' } : null,
+      directProject: kind === 'project' ? { shipmentNumber: '01' } : null,
       title: 'Request',
       priority: WorkRequestV1PriorityCode.High,
       notes: null,
@@ -42,7 +44,6 @@ describe('Work Request parent lifecycle eligibility', () => {
       {} as never,
       {} as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      { assertMapping: jest.fn() } as never,
       { assert: jest.fn() } as never,
       {
         putAll: jest.fn().mockResolvedValue([]),
@@ -54,7 +55,7 @@ describe('Work Request parent lifecycle eligibility', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      {},
     );
     return { service, create };
   }

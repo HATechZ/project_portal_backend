@@ -29,10 +29,19 @@ import {
 } from '../repositories/project.repository';
 import { ProjectStorageCleanupRepository } from '../repositories/project-storage-cleanup.repository';
 import {
-  assertProjectUploadAllowed,
-  projectFileExtension,
-  safeProjectOriginalName,
-} from '../project-upload-policy';
+  deriveProjectCode,
+  formatDirectProjectDocumentFileName,
+} from '../../common/documents/document-naming';
+import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
+import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
+import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
+import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
+import type { SessionActor } from '../../common/security/session.types';
+import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
+import {
+  DocumentUploadOperationCode,
+  DocumentUploadOwnerCode,
+} from '../../generated/prisma/client';
 
 export interface ProjectUploadedFile {
   fieldname: string;
@@ -48,8 +57,201 @@ export abstract class ProjectServiceBase {
     private readonly uow: UnitOfWorkService,
     private readonly outbox: OutboxService,
     private readonly cleanup: ProjectStorageCleanupRepository,
+    private readonly scope: ObjectScopeProvider,
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
+    private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
+
+  async createStandaloneDocuments(
+    projectId: string,
+    uploads: ProjectUploadedFile[],
+    documentCodeIds: string[],
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
+    let context: Awaited<
+      ReturnType<ProjectRepository['prepareStandaloneDocuments']>
+    >;
+    try {
+      context = await this.projects.prepareStandaloneDocuments(
+        projectId,
+        documentCodeIds,
+      );
+    } catch (error) {
+      throw map(error);
+    }
+    if (!context) throw notFound();
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: context.project.clientId }],
+      allowTenantAdmin: true,
+    });
+    const requestId = RequestContext.requestId()!;
+    const replay =
+      this.receipts &&
+      (await this.receipts.find({
+        owner: DocumentUploadOwnerCode.DIRECT_PROJECT,
+        parentId: projectId,
+        targetId: projectId,
+        operation: DocumentUploadOperationCode.NEW_DOCUMENT,
+        requestId,
+      }));
+    if (replay) return replay.response as unknown as DocumentSummaryDto[];
+    const drafts = DocumentUploadPipeline.prepare({
+      uploads,
+      documentCodeIds,
+      codes: context.codes,
+      revisionCode: 'A',
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents`,
+      generatedFileName: (code, uploadedFileName) =>
+        formatDirectProjectDocumentFileName({
+          projectCode: context.project.projectCode!,
+          cargoCode: context.project.cargoCodeSnapshot!,
+          vesselCode: context.project.vesselCodeSnapshot!,
+          shipmentNumber: context.project.shipmentNumber!,
+          documentCode: code.code,
+          documentName: code.name,
+          revisionCode: 'A',
+          uploadedFileName,
+        }),
+    });
+    let stored: string[] = [];
+    try {
+      stored = await DocumentUploadPipeline.putAll(this.storage, drafts);
+      const created = await this.uow.execute(async () => {
+        const result = await this.projects.createStandaloneDocuments(
+          projectId,
+          actor.id,
+          drafts,
+        );
+        if (result && this.receipts)
+          await this.receipts.write({
+            owner: DocumentUploadOwnerCode.DIRECT_PROJECT,
+            parentId: projectId,
+            targetId: projectId,
+            operation: DocumentUploadOperationCode.NEW_DOCUMENT,
+            requestId,
+            actorId: actor.id,
+            response: result.map((document) =>
+              documentSummary(projectId, document),
+            ) as never,
+            audit: {
+              entityId: projectId,
+              summary: 'NEW_DOCUMENT',
+              afterData: {
+                requestId,
+                documentIds: drafts.map((draft) => draft.documentId),
+                versionIds: drafts.map((draft) => draft.versionId),
+              },
+            },
+          });
+        return result;
+      });
+      if (!created) throw notFound();
+      return created.map((document) => documentSummary(projectId, document));
+    } catch (error) {
+      await DocumentUploadPipeline.compensate(
+        this.storage,
+        stored,
+        (key, cause) => this.cleanup.enqueue(key, cause),
+      );
+      throw error;
+    }
+  }
+  async appendDocumentVersion(
+    projectId: string,
+    documentId: string,
+    upload: ProjectUploadedFile,
+    actor: SessionActor,
+  ): Promise<DocumentVersionResponseDto> {
+    const context = await this.projects.prepareDocumentVersion(
+      projectId,
+      documentId,
+    );
+    if (!context) throw notFound('Project document was not found.');
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: context.directProject.clientId }],
+      allowTenantAdmin: true,
+    });
+    const requestId = RequestContext.requestId()!;
+    const replay =
+      this.receipts &&
+      (await this.receipts.find({
+        owner: DocumentUploadOwnerCode.DIRECT_PROJECT,
+        parentId: projectId,
+        targetId: documentId,
+        operation: DocumentUploadOperationCode.NEW_VERSION,
+        requestId,
+      }));
+    if (replay) return replay.response as unknown as DocumentVersionResponseDto;
+    if (
+      !context.directProject.projectCode ||
+      !context.directProject.cargoCodeSnapshot ||
+      !context.directProject.vesselCodeSnapshot ||
+      !context.directProject.shipmentNumber
+    )
+      throw bad('Project naming context is invalid.');
+    const file = DocumentUploadPipeline.prepareVersion({
+      upload,
+      revisionCode: context.revisionCode,
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents/${documentId}/versions`,
+      generatedFileName: (uploadedFileName) =>
+        formatDirectProjectDocumentFileName({
+          projectCode: context.directProject.projectCode!,
+          cargoCode: context.directProject.cargoCodeSnapshot!,
+          vesselCode: context.directProject.vesselCodeSnapshot!,
+          shipmentNumber: context.directProject.shipmentNumber!,
+          documentCode: context.documentCodeSnapshot ?? '',
+          documentName:
+            context.documentNameSnapshot ?? context.documentCodeSnapshot ?? '',
+          revisionCode: context.revisionCode,
+          uploadedFileName,
+        }),
+    });
+    let stored: string[] = [];
+    try {
+      stored = await DocumentUploadPipeline.putAll(this.storage, [file]);
+      const version = await this.uow.execute(
+        async () => {
+          const result = await this.projects.appendDocumentVersion(
+            projectId,
+            documentId,
+            actor.id,
+            file,
+          );
+          if (result && this.receipts)
+            await this.receipts.write({
+              owner: DocumentUploadOwnerCode.DIRECT_PROJECT,
+              parentId: projectId,
+              targetId: documentId,
+              operation: DocumentUploadOperationCode.NEW_VERSION,
+              requestId,
+              actorId: actor.id,
+              response: versionResponse(documentId, result) as never,
+              audit: {
+                entityId: documentId,
+                summary: 'NEW_VERSION',
+                afterData: {
+                  requestId,
+                  projectId,
+                  documentId,
+                  versionId: result.id,
+                },
+              },
+            });
+          return result;
+        },
+        { isolationLevel: 'Serializable' },
+      );
+      if (!version) throw notFound('Project document was not found.');
+      return versionResponse(documentId, version);
+    } catch (error) {
+      await DocumentUploadPipeline.compensate(
+        this.storage,
+        stored,
+        (key, cause) => this.cleanup.enqueue(key, cause),
+      );
+      throw error;
+    }
+  }
 
   async create(
     input: CreateProjectDto,
@@ -62,48 +264,72 @@ export abstract class ProjectServiceBase {
       fileIndex,
       documentCodeId,
     }));
-    this.assertUploadDocuments(uploads, documents);
-    uploads.forEach(assertProjectUploadAllowed);
-    const codes = await this.projects.documentCodes(
-      documents.map(({ documentCodeId }) => documentCodeId),
+    const reference = await this.projects.prepareCreate({
+      clientId: input.clientId,
+      polId: input.polId,
+      podId: input.podId,
+      cargoId: input.cargoId,
+      vesselId: input.vesselId,
+      documentCodeIds: documents.map(({ documentCodeId }) => documentCodeId),
+    });
+    const projectCode = deriveProjectCode(
+      input.name,
+      reference.polName,
+      reference.podName,
     );
     const projectId = randomUUID();
-    const files = uploads.map((file) => {
-      const documentCodeId = documents[indexOf(uploads, file)].documentCodeId;
-      const documentCodeSnapshot = codes.get(documentCodeId);
-      if (!documentCodeSnapshot)
-        throw bad('Uploaded file has an invalid Document Code.');
-      const originalFileName = safeProjectOriginalName(file.originalname);
-      return {
-        id: randomUUID(),
-        documentCodeId,
-        documentCodeSnapshot,
-        originalFileName,
-        generatedFileName: null,
-        storageKey: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents/${randomUUID()}${projectFileExtension(originalFileName)}`,
-        mimeType: file.mimetype,
-        fileSizeBytes: BigInt(file.size),
-        content: file.buffer,
-      };
+    const drafts = DocumentUploadPipeline.prepare({
+      uploads,
+      documentCodeIds,
+      codes: reference.documentCodes,
+      allowEmpty: true,
+      revisionCode: 'A',
+      storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents`,
+      generatedFileName: (code, uploadedFileName) =>
+        formatDirectProjectDocumentFileName({
+          projectCode,
+          cargoCode: reference.cargoCode,
+          vesselCode: reference.vesselCode,
+          shipmentNumber,
+          documentCode: code.code,
+          documentName: code.name,
+          revisionCode: 'A',
+          uploadedFileName,
+        }),
     });
+    const files = drafts.map((file) => ({
+      id: file.documentId,
+      versionId: file.versionId,
+      documentCodeId: file.documentCodeId,
+      documentCodeSnapshot: file.documentCode,
+      documentNameSnapshot: file.documentName,
+      originalFileName: file.originalFileName,
+      generatedFileName: file.generatedFileName,
+      storageKey: file.storageKey,
+      mimeType: file.mimeType,
+      fileSizeBytes: file.fileSizeBytes,
+      content: file.content,
+    }));
     const stored: string[] = [];
     try {
-      for (const file of files) {
-        await this.storage.put({
-          storageKey: file.storageKey,
-          content: file.content,
-        });
-        stored.push(file.storageKey);
-      }
+      stored.push(
+        ...(await DocumentUploadPipeline.putAll(this.storage, drafts)),
+      );
       const project = await this.uow.execute(async () => {
         const created = await this.projects.create({
           id: projectId,
           name: input.name,
           normalizedName: normalizeName(input.name),
           clientId: input.clientId,
+          polId: input.polId,
+          podId: input.podId,
+          cargoId: input.cargoId,
+          vesselId: input.vesselId,
+          projectCode,
           shipmentNumber,
           actorId,
           files,
+          snapshots: reference,
         });
         const origin = { tenantId: RequestContext.requireTenantId(), actorId };
         await this.outbox.enqueue(new ProjectCreated(origin, { projectId }));
@@ -114,7 +340,11 @@ export abstract class ProjectServiceBase {
       });
       return response(project);
     } catch (error) {
-      await this.compensate(stored);
+      await DocumentUploadPipeline.compensate(
+        this.storage,
+        stored,
+        (key, cause) => this.cleanup.enqueue(key, cause),
+      );
       throw map(error);
     }
   }
@@ -134,6 +364,37 @@ export abstract class ProjectServiceBase {
     const project = await this.projects.find(id);
     if (!project) throw notFound();
     return response(project);
+  }
+
+  async documents(
+    id: string,
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
+    const project = await this.projects.find(id);
+    if (!project) throw notFound();
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: project.clientId }],
+      allowTenantAdmin: true,
+    });
+    return (await this.projects.documents(id)).map((document) =>
+      documentSummary(id, document),
+    );
+  }
+
+  async documentVersions(
+    id: string,
+    documentId: string,
+    actor: SessionActor,
+  ): Promise<DocumentVersionResponseDto[]> {
+    const project = await this.projects.find(id);
+    if (!project) throw notFound();
+    this.scope.assertCanAccess(actor, {
+      anyOf: [{ kind: 'client', clientId: project.clientId }],
+      allowTenantAdmin: true,
+    });
+    const versions = await this.projects.documentVersions(id, documentId);
+    if (!versions) throw notFound('Project document was not found.');
+    return versions.map((version) => versionResponse(documentId, version));
   }
   async update(
     id: string,
@@ -192,37 +453,80 @@ export abstract class ProjectServiceBase {
       throw map(error);
     }
   }
-  private assertUploadDocuments(
-    uploads: ProjectUploadedFile[],
-    documents: { fileIndex: number; documentCodeId: string }[],
-  ): void {
-    if (
-      uploads.length !== documents.length ||
-      new Set(documents.map((item) => item.fileIndex)).size !==
-        documents.length ||
-      !documents.every((item, index) => item.fileIndex === index)
-    )
-      throw bad(
-        'documents must map one-for-one to files by contiguous fileIndex.',
-      );
-  }
-  private async compensate(storageKeys: string[]): Promise<void> {
-    for (const storageKey of storageKeys)
-      try {
-        await this.storage.remove(storageKey);
-      } catch (error) {
-        await this.cleanup.enqueue(
-          storageKey,
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }
-  }
+}
+function documentSummary(
+  parentId: string,
+  document: {
+    id: string;
+    documentCodeId: string | null;
+    documentCodeSnapshot: string | null;
+    documentNameSnapshot: string | null;
+    originalFileName: string;
+    versions: Array<{
+      id: string;
+      versionNumber: number;
+      revisionCode: string;
+      uploadedFileName: string | null;
+      generatedFileName: string | null;
+      mimeType: string;
+      fileSizeBytes: bigint;
+      uploadedAt: Date;
+      uploadedByActor: { id: string; label: string };
+    }>;
+  },
+): DocumentSummaryDto {
+  const version = document.versions[0];
+  return {
+    documentId: document.id,
+    owner: { kind: 'PROJECT', id: parentId },
+    documentCode: {
+      id: document.documentCodeId!,
+      code: document.documentCodeSnapshot!,
+      name: document.documentNameSnapshot!,
+    },
+    originalFileName: document.originalFileName,
+    latestVersion: {
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      revisionCode: version.revisionCode,
+      uploadedFileName: version.uploadedFileName ?? document.originalFileName,
+      generatedFileName: version.generatedFileName!,
+      mimeType: version.mimeType,
+      size: Number(version.fileSizeBytes),
+      uploadedBy: version.uploadedByActor,
+      uploadedAt: version.uploadedAt,
+    },
+  };
+}
+function versionResponse(
+  documentId: string,
+  version: {
+    id: string;
+    versionNumber: number;
+    revisionCode: string;
+    uploadedFileName: string | null;
+    generatedFileName: string | null;
+    uploadedByActor: { id: string; label: string };
+    uploadedAt: Date;
+  },
+): DocumentVersionResponseDto {
+  return {
+    documentId,
+    versionId: version.id,
+    versionNumber: version.versionNumber,
+    revisionCode: version.revisionCode,
+    uploadedFileName: version.uploadedFileName ?? '',
+    generatedFileName: version.generatedFileName ?? '',
+    uploadedBy: version.uploadedByActor,
+    uploadedAt: version.uploadedAt,
+  };
 }
 function response(value: ProjectRecord): ProjectResponseDto {
   return {
     id: value.id,
     name: value.name,
     clientId: value.clientId,
+    projectCode: value.projectCode,
     shipmentNumber: value.shipmentNumber,
     status: value.statusEvents[0]?.toStatus.code ?? 'ACTIVE',
     fileCount: value._count.documents,
@@ -231,16 +535,12 @@ function response(value: ProjectRecord): ProjectResponseDto {
       documentCodeId: document.documentCodeId!,
       originalFileName: document.originalFileName,
       generatedFileName: document.generatedFileName,
-      storageKey: document.storageKey,
       mimeType: document.mimeType,
       size: Number(document.fileSizeBytes),
     })),
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   };
-}
-function indexOf<T>(items: T[], item: T): number {
-  return items.indexOf(item);
 }
 function normalizeName(value: string): string {
   return value.trim().toLowerCase();

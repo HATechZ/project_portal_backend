@@ -8,10 +8,11 @@ import {
   Post,
   Query,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
@@ -42,6 +43,9 @@ import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { WorkflowActionCode } from '../generated/prisma/client';
+import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
+import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
+import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
 import { BidService, type BidUploadedFile } from './bid.service';
 import { CreateBidMultipartPipe } from './dtos/multipart-bid.pipe';
 import {
@@ -180,6 +184,101 @@ const response = await fetch('/api/v1/bids', {
       files,
       actor.id,
     );
+  }
+
+  @Post(':id/documents')
+  @Permissions(WorkflowActionCode.UPDATE_BID)
+  @UseInterceptors(
+    FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files', 'documentCodeIds'],
+      properties: {
+        documentCodeIds: {
+          type: 'array',
+          items: { type: 'string', format: 'uuid' },
+        },
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload new Bid document(s)' })
+  @ApiStandardCreatedResponse(DocumentSummaryDto, 'Bid documents created')
+  @ResponseMessage('Bid documents created successfully')
+  createDocuments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DocumentUploadMultipartDto,
+    @UploadedFiles() files: BidUploadedFile[] = [],
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.createStandaloneDocuments(
+      id,
+      files,
+      body.documentCodeIds,
+      actor,
+    );
+  }
+
+  @Post(':id/documents/:documentId/versions')
+  @Permissions(WorkflowActionCode.UPDATE_BID)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOperation({ summary: 'Append immutable Bid document version' })
+  @ApiStandardCreatedResponse(
+    DocumentVersionResponseDto,
+    'Bid document version created',
+  )
+  @ResponseMessage('Bid document version created successfully')
+  appendDocumentVersion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @UploadedFile() file: BidUploadedFile | undefined,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    if (!file) throw new Error('file is required');
+    return this.service.appendDocumentVersion(id, documentId, file, actor);
+  }
+
+  @Get(':id/documents')
+  @Permissions(WorkflowActionCode.VIEW_BID)
+  @ApiOperation({ summary: 'List Bid documents' })
+  @ApiStandardOkResponse(DocumentSummaryDto, 'Bid documents returned')
+  @ResponseMessage('Bid documents returned successfully')
+  documents(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.documents(id, actor);
+  }
+
+  @Get(':id/documents/:documentId/versions')
+  @Permissions(WorkflowActionCode.VIEW_BID)
+  @ApiOperation({ summary: 'List immutable Bid document versions' })
+  @ApiStandardOkResponse(
+    DocumentVersionResponseDto,
+    'Bid document versions returned',
+  )
+  @ResponseMessage('Bid document versions returned successfully')
+  documentVersions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.documentVersions(id, documentId, actor);
   }
 
   @Get()
