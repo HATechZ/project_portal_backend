@@ -1,59 +1,20 @@
-import { WorkflowActionCode } from '../../generated/prisma/client';
-import {
-  customRolePermissionCodes,
-  isCustomRolePermissionAllowed,
-  isCustomRoleScope,
-} from './custom-role-policy';
+import { CUSTOM_ROLE_SCOPES, isCustomRoleScope } from './custom-role-policy';
 
-describe('Custom Access Role V1 policy', () => {
-  it('does not expose global or legacy persisted scopes to tenant custom roles', () => {
+describe('final custom-role scope policy', () => {
+  it('exposes exactly the six system-defined scopes', () => {
     expect(isCustomRoleScope('global')).toBe(false);
-    expect(isCustomRoleScope('member')).toBe(false);
+    expect(CUSTOM_ROLE_SCOPES).toEqual([
+      'company',
+      'division',
+      'team',
+      'member',
+      'client',
+      'client_contact',
+    ]);
   });
 
-  it.each([
-    [
-      'company',
-      [
-        WorkflowActionCode.ADD_MEMBER,
-        WorkflowActionCode.ADD_TEAM,
-        WorkflowActionCode.ASSIGN_MEMBER,
-      ],
-    ],
-    [
-      'division',
-      [
-        WorkflowActionCode.ADD_MEMBER,
-        WorkflowActionCode.ADD_TEAM,
-        WorkflowActionCode.ASSIGN_MEMBER,
-      ],
-    ],
-    ['team', [WorkflowActionCode.ADD_MEMBER, WorkflowActionCode.ASSIGN_MEMBER]],
-  ] as const)(
-    'allows exactly the approved permissions for %s scope',
-    (scope, expected) => {
-      expect(customRolePermissionCodes(scope)).toEqual(expected);
-    },
-  );
-
-  it('rejects workflow-routing and administration actions', () => {
-    expect(
-      isCustomRolePermissionAllowed(
-        'division',
-        WorkflowActionCode.ASSIGN_LEADER,
-      ),
-    ).toBe(false);
-    expect(
-      isCustomRolePermissionAllowed(
-        'company',
-        WorkflowActionCode.MANAGE_CLIENT,
-      ),
-    ).toBe(false);
-    expect(
-      isCustomRolePermissionAllowed('team', WorkflowActionCode.ADD_TEAM),
-    ).toBe(false);
-    expect(
-      isCustomRolePermissionAllowed('company', WorkflowActionCode.ADD_COMPANY),
-    ).toBe(false);
+  it('does not embed permission compatibility in a role-name policy', () => {
+    expect(isCustomRoleScope('Marketing')).toBe(false);
+    expect(isCustomRoleScope('client_owner')).toBe(false);
   });
 });

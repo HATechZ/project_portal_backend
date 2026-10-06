@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma, WorkflowActionCode } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
@@ -18,14 +18,14 @@ export class CustomRoleRepository extends BaseRepository {
     name: string;
     description?: string | null;
     scope: CustomRoleScope;
-    permissionCodes: WorkflowActionCode[];
+    permissionIds: string[];
   }): Promise<RoleRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
       async (db) => {
         const code = await this.nextCode(db, tenantId, input.name);
-        const actions = await db.workflowActionDefinition.findMany({
-          where: { code: { in: input.permissionCodes } },
+        const permissions = await db.permission.findMany({
+          where: { id: { in: input.permissionIds } },
           select: { id: true },
         });
         const role = await db.role.create({
@@ -39,12 +39,11 @@ export class CustomRoleRepository extends BaseRepository {
             isSystemRole: false,
             customCode: code,
             customScope: input.scope,
-            workflowActionRolePermissionsByRoleId: {
-              create: actions.map((action) => ({
+            rolePermissions: {
+              create: permissions.map((permission) => ({
                 id: randomUUID(),
                 tenantId,
-                actionId: action.id,
-                allowed: true,
+                permissionId: permission.id,
               })),
             },
           },

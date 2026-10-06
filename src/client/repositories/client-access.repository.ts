@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
-import { ActorRoleCode, Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { establishPortalAccess } from './client-portal-access';
@@ -19,6 +19,7 @@ export class ClientAccessRepository extends BaseRepository {
     contactId: string,
     companyId: string,
     assignedByUserId: string,
+    roleId: string,
   ): Promise<PortalAccessRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
@@ -39,7 +40,13 @@ export class ClientAccessRepository extends BaseRepository {
           throw this.notFound(
             'Client contact not found. Refresh the client details and try again.',
           );
-        return establishPortalAccess(db, client, contact, assignedByUserId);
+        return establishPortalAccess(
+          db,
+          client,
+          contact,
+          assignedByUserId,
+          roleId,
+        );
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -61,38 +68,36 @@ export class ClientAccessRepository extends BaseRepository {
           'Client contact not found. Refresh the client details and try again.',
         );
       if (!contact.userId) return;
-      const role = await db.role.findFirst({
+      const profiles = await db.actorProfile.findMany({
         where: {
-          systemRole: { is: { systemCode: ActorRoleCode.client_owner } },
+          tenantId,
+          userId: contact.userId,
+          clientContactId: contactId,
+          isActive: true,
         },
-        select: { id: true },
+        select: { roleId: true },
       });
-      if (!role) throw this.notFound('Client owner role was not found');
+      if (!profiles.length) return;
       await db.actorProfile.updateMany({
         where: {
           tenantId,
           userId: contact.userId,
-          roleId: role.id,
           clientContactId: contactId,
           isActive: true,
         },
         data: { isActive: false },
       });
-      const otherActiveProfile = await db.actorProfile.findFirst({
-        where: {
-          tenantId,
-          userId: contact.userId,
-          roleId: role.id,
-          isActive: true,
-        },
-        select: { id: true },
-      });
-      if (!otherActiveProfile) {
+      for (const roleId of new Set(profiles.map((profile) => profile.roleId))) {
+        const otherActiveProfile = await db.actorProfile.findFirst({
+          where: { tenantId, userId: contact.userId, roleId, isActive: true },
+          select: { id: true },
+        });
+        if (otherActiveProfile) continue;
         await db.userRole.updateMany({
           where: {
             tenantId,
             userId: contact.userId,
-            roleId: role.id,
+            roleId,
             revokedAt: null,
           },
           data: { revokedAt: new Date() },

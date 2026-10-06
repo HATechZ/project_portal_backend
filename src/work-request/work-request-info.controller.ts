@@ -20,12 +20,11 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   CreateWorkRequestInfoRequestDto,
   RespondWorkRequestInfoRequestDto,
@@ -41,8 +40,7 @@ import { WorkRequestService } from './work-request.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
@@ -56,7 +54,7 @@ export class WorkRequestInfoController {
   constructor(private readonly service: WorkRequestService) {}
 
   @Post()
-  @Permissions(WorkflowActionCode.REQUEST_WORKFLOW_INFO)
+  @FinalPermissions(PermissionCode.REQUEST_INFO)
   @ApiOperation({ summary: 'Request Information by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(WorkRequestInfoRequestDto)
@@ -70,7 +68,7 @@ export class WorkRequestInfoController {
   }
 
   @Post(':infoRequestId/respond')
-  @Permissions(WorkflowActionCode.RESPOND_WORKFLOW_INFO)
+  @FinalPermissions(PermissionCode.RESPOND_TO_INFO_REQUEST)
   @ApiOperation({
     summary:
       'Respond to Information Request by Work Request ID and Information Request ID',
@@ -93,7 +91,7 @@ export class WorkRequestInfoController {
   }
 
   @Get()
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Information Requests by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardArrayResponse(WorkRequestInfoRequestDto)

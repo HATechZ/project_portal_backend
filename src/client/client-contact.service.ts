@@ -131,6 +131,7 @@ export class ClientContactService {
     clientId: string,
     contactId: string,
     assignedByUserId: string,
+    roleId: string,
   ): Promise<ClientPortalAccessResponseDto> {
     const company = await this.scope.requireCompany();
     const result = await this.access.grant(
@@ -138,6 +139,7 @@ export class ClientContactService {
       contactId,
       company.id,
       assignedByUserId,
+      roleId,
     );
     if (result.setupRequired)
       await this.passwordSetup.initiate(result.clientContact.email);

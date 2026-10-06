@@ -2,8 +2,9 @@
 
 Contracts: `API_CONTRACT.md`, `DATA_CONTRACT.md`. Status belongs in `../INDEX.md`.
 
-## Approved scope and stories
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## Approved scope and stories
 Company and global CompanyType are the implemented organization slice. Tenant is the internal
 security boundary and Company the business organization. Signup atomically creates the pair;
 the unique Tenant foreign key prevents a second Company in that Tenant. The approved, unimplemented

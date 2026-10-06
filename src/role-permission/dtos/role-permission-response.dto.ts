@@ -1,16 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { WorkflowActionCode } from '../../generated/prisma/client';
+import {
+  CustomRoleScope,
+  PermissionActionType,
+  PermissionCategory,
+  PermissionCode,
+} from '../../generated/prisma/client';
 
 export class PermissionResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ enum: WorkflowActionCode }) code!: WorkflowActionCode;
-  @ApiProperty() name!: string;
+  @ApiProperty({ enum: PermissionCode }) code!: PermissionCode;
+  @ApiProperty() displayName!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
-  @ApiProperty() isUserVisible!: boolean;
-  @ApiProperty() isRevisionAction!: boolean;
-  @ApiProperty() isInfoRequestAction!: boolean;
-  @ApiProperty() isAssignmentAction!: boolean;
-  @ApiProperty() isTerminalAction!: boolean;
+  @ApiProperty({ enum: PermissionCategory }) category!: PermissionCategory;
+  @ApiProperty({ enum: PermissionActionType })
+  actionType!: PermissionActionType;
+  @ApiProperty() resource!: string;
+  @ApiProperty({ enum: CustomRoleScope, isArray: true })
+  compatibleScopes!: CustomRoleScope[];
 }
 
 export class RoleResponseDto {
@@ -20,7 +26,7 @@ export class RoleResponseDto {
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty() isSystemRole!: boolean;
   @ApiPropertyOptional({
-    enum: ['company', 'division', 'team'],
+    enum: CustomRoleScope,
     nullable: true,
   })
   scope!: string | null;

@@ -3,14 +3,13 @@ import { Prisma } from '../../generated/prisma/client';
 export const permissionSelect = {
   id: true,
   code: true,
-  name: true,
+  displayName: true,
   description: true,
-  isUserVisible: true,
-  isRevisionAction: true,
-  isInfoRequestAction: true,
-  isAssignmentAction: true,
-  isTerminalAction: true,
-} satisfies Prisma.WorkflowActionDefinitionSelect;
+  category: true,
+  actionType: true,
+  resource: true,
+  scopeCompatibilities: { select: { scope: true } },
+} satisfies Prisma.PermissionSelect;
 
 export const roleSelect = (tenantId: string) =>
   ({
@@ -23,10 +22,10 @@ export const roleSelect = (tenantId: string) =>
     description: true,
     isSystemRole: true,
     createdAt: true,
-    workflowActionRolePermissionsByRoleId: {
-      where: { tenantId, allowed: true },
-      orderBy: { action: { code: 'asc' as const } },
-      select: { action: { select: permissionSelect } },
+    rolePermissions: {
+      where: { tenantId, revokedAt: null },
+      orderBy: { permission: { code: 'asc' as const } },
+      select: { permission: { select: permissionSelect } },
     },
   }) satisfies Prisma.RoleSelect;
 
@@ -45,7 +44,7 @@ export const assignmentSelect = (tenantId: string) =>
 export type RoleRecord = Prisma.RoleGetPayload<{
   select: ReturnType<typeof roleSelect>;
 }>;
-export type PermissionRecord = Prisma.WorkflowActionDefinitionGetPayload<{
+export type PermissionRecord = Prisma.PermissionGetPayload<{
   select: typeof permissionSelect;
 }>;
 export type UserRoleAssignment = Prisma.UserRoleGetPayload<{

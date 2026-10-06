@@ -4,8 +4,9 @@
 **Tables owned:** `teams` and its existing `team_members` relation  
 **Dependencies:** `04.2-member`; implementation order is Division -> Member -> Team
 
-## 1. Overview & Business Intent
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## 1. Overview & Business Intent
 Team is an organizational grouping inside one Company Division. It is not a workflow stage,
 Division, User/login identity, or ActorRole; `team_lead` is a separate ActorRole whose exact
 Team object scope is proven by `Team.leadMemberId`. This module owns Team CRUD, Team Lead

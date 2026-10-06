@@ -2,8 +2,9 @@
 
 **Status:** Gate 3; specification approved. **Runtime target:** `src/bid/**`. **API:** `/api/v1/bids`.
 
-## Boundary
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## Boundary
 Bid is an independent tenant business module. It is not a Project subtype, workspace, conversion source, or shared Bid/Project service. It owns its future controller → service → repository → UnitOfWork surface, DTOs, status/event lifecycle, files, object authorization, and outbox events. It may share only platform infrastructure: guards, TenantContext/RLS, UnitOfWork, storage port, response/errors, and utilities. `/bid-projects`, `/workspaces`, a type discriminator, source channels, and a combined create surface are forbidden.
 
 The current combined workspace `Project`, `BidDetail`, shared status events, and Project-only document/work-request relations are obsolete for new Bid writes. **DATABASE REDESIGN REQUIRED.** This specification changes no runtime, Prisma, migration, seed, or database data. Vault is unavailable, so no vault sync or hand-written vault log occurs.

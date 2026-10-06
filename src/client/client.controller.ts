@@ -15,10 +15,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { ActiveUser } from '../common/security/active-user.decorator';
-import { Permissions } from '../common/security/permissions.decorator';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
 import type { SessionUser } from '../common/security/session.types';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { ClientApiController } from './client-api.decorator';
 import { ClientService } from './client.service';
 import { ClientResponseDto, CreateClientDto, UpdateClientDto } from './dtos';
@@ -28,7 +28,7 @@ export class ClientController {
   constructor(private readonly service: ClientService) {}
 
   @Post()
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.CREATE_CLIENT)
   @ResponseMessage('Client created successfully')
   @ApiOperation({ summary: 'Create Client' })
   @ApiStandardCreatedResponse(ClientResponseDto, 'Client created')
@@ -37,7 +37,7 @@ export class ClientController {
   }
 
   @Get()
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.VIEW_CLIENTS)
   @ResponseMessage('Clients returned successfully')
   @ApiOperation({ summary: 'List Clients' })
   @ApiPaginatedResponse(ClientResponseDto)
@@ -46,7 +46,7 @@ export class ClientController {
   }
 
   @Get('deactivated')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.VIEW_CLIENTS)
   @ResponseMessage('Deactivated clients returned successfully')
   @ApiOperation({ summary: 'List deactivated Clients' })
   @ApiPaginatedResponse(ClientResponseDto)
@@ -55,7 +55,7 @@ export class ClientController {
   }
 
   @Get(':clientId')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.VIEW_CLIENTS)
   @ResponseMessage('Client returned successfully')
   @ApiOperation({ summary: 'Get Client' })
   @ApiParam({ name: 'clientId', format: 'uuid' })
@@ -65,7 +65,7 @@ export class ClientController {
   }
 
   @Patch(':clientId')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.UPDATE_CLIENT)
   @ResponseMessage('Client updated successfully')
   @ApiOperation({ summary: 'Update Client' })
   @ApiParam({ name: 'clientId', format: 'uuid' })
@@ -78,7 +78,7 @@ export class ClientController {
   }
 
   @Patch(':clientId/deactivate')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.DEACTIVATE_CLIENT)
   @ResponseMessage('Client deactivated successfully')
   @ApiOperation({ summary: 'Deactivate Client' })
   @ApiStandardOkResponse(ClientResponseDto, 'Client deactivated')
@@ -87,7 +87,7 @@ export class ClientController {
   }
 
   @Patch(':clientId/reactivate')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT)
+  @FinalPermissions(PermissionCode.REACTIVATE_CLIENT)
   @ResponseMessage('Client reactivated successfully')
   @ApiOperation({ summary: 'Reactivate Client' })
   @ApiStandardOkResponse(ClientResponseDto, 'Client reactivated')

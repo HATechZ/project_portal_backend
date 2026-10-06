@@ -79,7 +79,7 @@ describe('PodCodeService', () => {
     });
   });
 
-  it('uses temporary referenced-edit safety and tenant-wide management scope', async () => {
+  it('uses referenced-edit safety without legacy scope-derived authorization', async () => {
     const referenced = createService({
       isReferenced: jest.fn().mockResolvedValue(true),
     }).service;
@@ -87,8 +87,8 @@ describe('PodCodeService', () => {
     await expect(
       referenced.update(row.id, { name: 'India' }, manager),
     ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
-    await expect(
-      scoped.create({ name: 'Mexico' }, { tenantWide: false } as never),
-    ).rejects.toMatchObject({ code: AppErrorCode.OutOfScope });
+    await expect(scoped.create({ name: 'Mexico' })).resolves.toMatchObject({
+      name: 'Mexico',
+    });
   });
 });

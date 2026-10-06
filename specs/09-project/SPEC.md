@@ -2,8 +2,9 @@
 
 **Status:** Gate 3; specification approved. **Runtime target:** `src/project/**`. **API:** `/api/v1/projects`.
 
-## Boundary
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## Boundary
 Project is an independent, direct-created tenant business module, not a Bid conversion, workspace variant, or host for Bid details. It owns its future controller → service → repository → UnitOfWork surface, DTOs, status/event lifecycle, files, object authorization, and outbox events. It never imports Bid and shares no Bid/Project business service; only platform infrastructure may be shared.
 
 The current combined `projects` workspace root is prohibited for this future domain. **DATABASE REDESIGN REQUIRED.** This specification changes no runtime, Prisma, migration, seed, or database data. Vault is unavailable, so no vault sync or hand-written vault log occurs.

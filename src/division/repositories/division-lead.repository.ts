@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import {
-  ensureUserRoleAndRoleOnlyProfile,
-  linkMemberUserActorProfile,
-} from '../../common/security/actor-access-orchestration';
 import { RequestContext } from '../../common/context/request-context';
-import { ActorRoleCode, Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import {
@@ -13,7 +9,6 @@ import {
 } from './division-lead.records';
 import {
   findActiveLeadRow,
-  leadConflict,
   leadNotFound,
   toLeadRecord,
   writeAssignment,
@@ -61,12 +56,6 @@ export class DivisionLeadRepository extends BaseRepository {
           select: { id: true, name: true, email: true, userId: true },
         });
         if (!member) throw leadNotFound('Member was not found in this Company');
-        if (!member.userId) {
-          throw leadConflict(
-            'Member must be linked to a User before assigning Division Lead',
-          );
-        }
-
         const written = await writeAssignment(db, {
           tenantId,
           companyId: input.companyId,
@@ -75,33 +64,9 @@ export class DivisionLeadRepository extends BaseRepository {
           assignedByUserId: input.assignedByUserId,
         });
 
-        const role = await db.role.findFirstOrThrow({
-          where: {
-            systemRole: { is: { systemCode: ActorRoleCode.division_lead } },
-          },
-          select: { id: true },
-        });
-        const { actorProfileId } = await ensureUserRoleAndRoleOnlyProfile(db, {
-          tenantId,
-          userId: member.userId,
-          roleId: role.id,
-          assignedByUserId: input.assignedByUserId,
-          memberId: member.id,
-        });
-        await linkMemberUserActorProfile(db, {
-          tenantId,
-          companyId: input.companyId,
-          memberId: member.id,
-          userId: member.userId,
-          actorProfileId,
-        });
-
         return {
           division,
-          member: { ...member, userId: member.userId },
-          roleCode: ActorRoleCode.division_lead,
-          userRoleActive: true,
-          actorProfileLinked: true,
+          member,
           ...written,
         };
       },

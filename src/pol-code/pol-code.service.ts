@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ActorScopeContext } from '../common/security/object-scope.provider';
 import { PolCodeRepository } from './repositories/pol-code.repository';
 import { PolCodeServiceBase } from './providers/pol-code.service-base';
 @Injectable()
@@ -20,24 +19,24 @@ export class PolCodeService extends PolCodeServiceBase {
   findOne(id: string) {
     return this.one(id).then((row) => PolCodeServiceBase.row(row, false));
   }
-  create(input: { name: string }, scope: ActorScopeContext) {
+  create(input: { name: string }) {
     return super
-      .createValue(input, scope)
+      .createValue(input)
       .then((row) => PolCodeServiceBase.row(row, false));
   }
-  update(id: string, input: { name?: string }, scope: ActorScopeContext) {
+  update(id: string, input: { name?: string }) {
     return super
-      .updateValue(id, input, scope)
+      .updateValue(id, input)
       .then((row) => PolCodeServiceBase.row(row, false));
   }
-  deactivate(id: string, scope: ActorScopeContext) {
+  deactivate(id: string) {
     return super
-      .lifecycleValue(id, false, scope)
+      .lifecycleValue(id, false)
       .then((row) => PolCodeServiceBase.row(row, false));
   }
-  reactivate(id: string, scope: ActorScopeContext) {
+  reactivate(id: string) {
     return super
-      .lifecycleValue(id, true, scope)
+      .lifecycleValue(id, true)
       .then((row) => PolCodeServiceBase.row(row, false));
   }
 }

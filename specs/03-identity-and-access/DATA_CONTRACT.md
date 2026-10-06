@@ -3,6 +3,15 @@
 Seven tables. Read alongside `project_portal_workflow_management_erd.dbml` — that file, not
 this one, is the authority.
 
+> **2026-10-06 demo-data override:** Any earlier proposal in this historical contract to backfill
+> fixed roles, preserve existing UserRole/ActorProfile assignments, calculate equivalent grants, or
+> cut over active legacy users is superseded. Current users and access records are demo/test data.
+> Future work may recreate them under the authoritative final model in
+> [`PERMISSION_CATALOGUE_GLOBALIZATION.md`](../PERMISSION_CATALOGUE_GLOBALIZATION.md); it must use
+> forward changes and leave historical migration files unchanged. Final system scopes are `company`,
+> `division`, `team`, `member`, `client`, and `client_contact`; scope compatibility is not object
+> ownership or a resource boundary.
+
 ---
 
 ## 1. Tables owned
@@ -75,13 +84,12 @@ existing foreign key while separating fixed system identity from tenant custom i
 | row-kind CHECK | system: `isSystemRole=true` and custom fields null; custom: `isSystemRole=false` and tenant/custom code/scope present |
 | workflow-reference protection | fixed workflow FKs target `system_roles.role_id`, so custom IDs cannot be configured as routing identities |
 
-The migration must backfill every existing Role unchanged as a system row; preserve existing
-`UserRole`, `ActorProfile`, permission-grant and workflow FKs by `roles.id`; and apply roles RLS
-so a tenant reads global system rows plus only its own custom rows. Writes may target only the
-current Tenant's custom rows. The fixed workflow FKs are `workflow_transitions.from_role_id`,
-`workflow_transitions.target_role_id`, `workflow_info_requests.target_role_id`, and
-`work_request_revision_requests.requested_to_role_id`; universal assignment/profile/grant FKs
-remain on `roles.id`, with no unsafe cross-table CHECK.
+Do not backfill existing roles as active system identities or preserve existing `UserRole`,
+`ActorProfile`, permission-grant, workflow-assignment, or related access records: they are demo/
+test data and may be recreated. The physical forward-change mechanics and any required historical
+reference handling are deferred. They must preserve historical migrations/history, retain only
+`tenant_super_admin` as the predefined runtime role, and make every recreated active record follow
+the final custom-role/explicit-permission model.
 
 Custom permission grants continue to use `workflow_action_role_permissions`. Existing catalog
 fields (`id`, `code`, `name`, `description`, visibility and revision/info/assignment/terminal

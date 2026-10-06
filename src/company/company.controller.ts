@@ -11,9 +11,9 @@ import {
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   ApiStandardBadRequestResponse,
   ApiStandardForbiddenResponse,
@@ -36,17 +36,16 @@ import { UpdateCompanyDto } from './dtos/update-company.dto';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  TenantSuperAdminGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('tenant super administrator access required')
+@ApiStandardForbiddenResponse('explicit permission required')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Get('company')
+  @FinalPermissions(PermissionCode.VIEW_COMPANY)
   @ResponseMessage('Companies returned successfully')
   @ApiOperation({ summary: 'List companies' })
   @ApiPaginatedResponse(CompanyResponseDto)
@@ -55,6 +54,7 @@ export class CompanyController {
   }
 
   @Get('company/:id')
+  @FinalPermissions(PermissionCode.VIEW_COMPANY)
   @ResponseMessage('Company returned successfully')
   @ApiOperation({ summary: 'Get a company by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -68,6 +68,7 @@ export class CompanyController {
   }
 
   @Patch('company/:id')
+  @FinalPermissions(PermissionCode.UPDATE_COMPANY)
   @ResponseMessage('Company updated successfully')
   @ApiOperation({
     summary: 'Rename or retype your Company (tenant_super_admin only)',

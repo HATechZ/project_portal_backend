@@ -3,7 +3,6 @@ import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
-import { ActorScopeContext } from '../common/security/object-scope.provider';
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
@@ -17,7 +16,6 @@ import {
   UpdateMemberDto,
 } from './dtos';
 import {
-  MemberScopeProvider,
   assertMemberUpdateHasFields,
   memberNotFound,
   assertDivisionMove,
@@ -41,21 +39,17 @@ export class MemberService {
     private readonly accessRepository: MemberAccessRepository,
     private readonly onboardingRepository: MemberOnboardingRepository,
     private readonly relationsRepository: MemberRelationsRepository,
-    private readonly scopeProvider: MemberScopeProvider,
     @Inject(PASSWORD_HASHER) private readonly passwordHasher: PasswordHasher,
     private readonly removalRepository: MemberRemovalRepository,
   ) {}
 
   async findAll(
     query: MemberQueryDto,
-    actor: ActorScopeContext,
   ): Promise<PaginatedResult<MemberResponseDto>> {
     const company = await this.requireScopedCompany();
-    const divisionIds = await this.scopeProvider.resolveReadableDivisionIds(
-      actor,
-      company.id,
-      query.divisionId,
-    );
+    const divisionIds = query.divisionId
+      ? [query.divisionId]
+      : await this.repository.findCompanyDivisionIds(company.id);
     return paginate(
       query,
       async (args) =>
@@ -66,18 +60,9 @@ export class MemberService {
     );
   }
 
-  async findOne(
-    id: string,
-    actor: ActorScopeContext,
-  ): Promise<MemberResponseDto> {
+  async findOne(id: string): Promise<MemberResponseDto> {
     const company = await this.requireScopedCompany();
     const member = await this.requireMember(id, company.id);
-    const divisionIds = await this.scopeProvider.resolveReadableDivisionIds(
-      actor,
-      company.id,
-      member.divisionId,
-    );
-    void divisionIds;
     return toMemberResponse(member);
   }
 
@@ -85,30 +70,14 @@ export class MemberService {
    * Divisions this Member actively leads. Empty array, not 404, when it leads
    * none (04.1.1 DR-10 — Lead-less is a valid state).
    */
-  async findLedDivisions(
-    id: string,
-    actor: ActorScopeContext,
-  ): Promise<LedDivisionResponseDto[]> {
+  async findLedDivisions(id: string): Promise<LedDivisionResponseDto[]> {
     const company = await this.requireScopedCompany();
     const member = await this.requireMember(id, company.id);
-    await this.scopeProvider.resolveReadableDivisionIds(
-      actor,
-      company.id,
-      member.divisionId,
-    );
     return this.repository.findLedDivisions(member.id, company.id);
   }
 
-  async create(
-    input: CreateMemberDto,
-    actor: ActorScopeContext,
-  ): Promise<MemberResponseDto> {
+  async create(input: CreateMemberDto): Promise<MemberResponseDto> {
     const company = await this.requireScopedCompany();
-    await this.scopeProvider.assertCanCreate(
-      actor,
-      company.id,
-      input.divisionId,
-    );
     await this.requireDesignation(input.designationId, company.id);
     const passwordHash = await this.passwordHasher.hash(input.password);
     return toMemberResponse(
@@ -123,12 +92,7 @@ export class MemberService {
     );
   }
 
-  async update(
-    id: string,
-    input: UpdateMemberDto,
-    actor: ActorScopeContext,
-  ): Promise<MemberResponseDto> {
-    this.scopeProvider.assertTenantSuperAdmin(actor);
+  async update(id: string, input: UpdateMemberDto): Promise<MemberResponseDto> {
     assertMemberUpdateHasFields(input);
     const company = await this.requireScopedCompany();
     const member = await this.requireMember(id, company.id);
@@ -148,8 +112,7 @@ export class MemberService {
     );
   }
 
-  async delete(id: string, actor: ActorScopeContext): Promise<void> {
-    this.scopeProvider.assertTenantSuperAdmin(actor);
+  async delete(id: string): Promise<void> {
     const company = await this.requireScopedCompany();
     await this.removalRepository.remove(id, company.id);
   }
@@ -157,9 +120,7 @@ export class MemberService {
   async linkAccess(
     id: string,
     input: MemberAccessLinkDto,
-    actor: ActorScopeContext,
   ): Promise<MemberResponseDto> {
-    this.scopeProvider.assertTenantSuperAdmin(actor);
     const company = await this.requireScopedCompany();
     await this.requireMember(id, company.id);
     return toMemberResponse(

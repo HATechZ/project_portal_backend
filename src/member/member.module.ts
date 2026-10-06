@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MemberController } from './member.controller';
 import { MemberService } from './member.service';
-import { MemberScopeProvider } from './providers';
 import {
   MemberAccessRepository,
   MemberOnboardingRepository,
@@ -19,7 +18,6 @@ import {
     MemberOnboardingRepository,
     MemberRelationsRepository,
     MemberRemovalRepository,
-    MemberScopeProvider,
   ],
 })
 export class MemberModule {}

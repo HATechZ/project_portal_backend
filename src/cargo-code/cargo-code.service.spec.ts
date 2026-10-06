@@ -72,7 +72,7 @@ describe('CargoCodeService', () => {
     });
   });
 
-  it('uses temporary historical safety and tenant-wide scope', async () => {
+  it('uses temporary historical safety without legacy scope-derived authorization', async () => {
     const referenced = createService({
       isReferenced: jest.fn().mockResolvedValue(true),
     }).service;
@@ -81,9 +81,7 @@ describe('CargoCodeService', () => {
       referenced.update(row.id, { code: 'RIG' }, manager),
     ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
     await expect(
-      scoped.create({ name: 'Crane', code: 'CRA' }, {
-        tenantWide: false,
-      } as never),
-    ).rejects.toMatchObject({ code: AppErrorCode.OutOfScope });
+      scoped.create({ name: 'Crane', code: 'CRA' }),
+    ).resolves.toMatchObject({ code: 'CRA' });
   });
 });

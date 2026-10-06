@@ -32,11 +32,10 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   CreateDesignationDto,
   DesignationResponseDto,
@@ -51,8 +50,7 @@ import { DesignationService } from './designation.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
@@ -63,6 +61,7 @@ export class DesignationController {
   constructor(private readonly service: DesignationService) {}
 
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_DESIGNATIONS)
   @ResponseMessage('Designations returned successfully')
   @ApiOperation({ summary: 'List Designations' })
   @ApiPaginatedResponse(DesignationResponseDto)
@@ -71,6 +70,7 @@ export class DesignationController {
   }
 
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_DESIGNATIONS)
   @ResponseMessage('Designation returned successfully')
   @ApiOperation({ summary: 'Get a Designation by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -80,7 +80,7 @@ export class DesignationController {
   }
 
   @Post()
-  @Permissions(WorkflowActionCode.MANAGE_DESIGNATIONS)
+  @FinalPermissions(PermissionCode.CREATE_DESIGNATION)
   @ResponseMessage('Designation created successfully')
   @ApiOperation({ summary: 'Create a Designation' })
   @ApiStandardCreatedResponse(DesignationResponseDto, 'Designation created')
@@ -89,7 +89,7 @@ export class DesignationController {
   }
 
   @Patch(':id')
-  @Permissions(WorkflowActionCode.MANAGE_DESIGNATIONS)
+  @FinalPermissions(PermissionCode.UPDATE_DESIGNATION)
   @ResponseMessage('Designation updated successfully')
   @ApiOperation({ summary: 'Update a Designation' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -102,7 +102,7 @@ export class DesignationController {
   }
 
   @Delete(':id')
-  @Permissions(WorkflowActionCode.MANAGE_DESIGNATIONS)
+  @FinalPermissions(PermissionCode.DELETE_DESIGNATION)
   @HttpCode(204)
   @ResponseMessage('Designation deleted successfully')
   @ApiOperation({ summary: 'Delete a Designation' })

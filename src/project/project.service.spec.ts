@@ -40,16 +40,8 @@ describe('ProjectService', () => {
     const outbox: any = { enqueue: jest.fn() };
     const cleanup: any = { enqueue: jest.fn() };
     const storage: any = { put: jest.fn(), remove: jest.fn() };
-    const scope: any = { assertCanAccess: jest.fn() };
     return {
-      target: new ProjectService(
-        repository,
-        uow,
-        outbox,
-        cleanup,
-        scope,
-        storage,
-      ),
+      target: new ProjectService(repository, uow, outbox, cleanup, storage),
       repository,
       outbox,
       cleanup,

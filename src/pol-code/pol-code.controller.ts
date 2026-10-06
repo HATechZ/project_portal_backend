@@ -7,7 +7,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
@@ -24,12 +23,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   PolCodeInputDto,
   PolCodeQueryDto,
@@ -44,16 +41,15 @@ import { PolCodeService } from './pol-code.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.UPDATE_SETTINGS)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
 export class PolCodeController {
   constructor(private readonly service: PolCodeService) {}
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'List all POL codes' })
   @ResponseMessage('POL codes returned successfully')
   @ApiStandardArrayResponse(PolCodeResponseDto, 'POL codes returned')
@@ -61,6 +57,7 @@ export class PolCodeController {
     return this.service.findAll(q.includeInactive);
   }
   @Get('deactivated')
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'List deactivated POL codes' })
   @ResponseMessage('Deactivated POL codes returned successfully')
   @ApiStandardArrayResponse(
@@ -71,6 +68,7 @@ export class PolCodeController {
     return this.service.findDeactivated();
   }
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'Get POL code by ID' })
   @ApiParam({ name: 'id', description: 'POL Code OptionValue ID' })
   @ResponseMessage('POL code returned successfully')
@@ -80,14 +78,16 @@ export class PolCodeController {
     return this.service.findOne(id);
   }
   @Post()
+  @FinalPermissions(PermissionCode.CREATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Create a new POL code' })
   @ResponseMessage('POL code created successfully')
   @ApiStandardCreatedResponse(PolCodeResponseDto, 'POL code created')
   @ApiStandardConflictResponse('A POL code with the same name already exists')
-  create(@Body() input: PolCodeInputDto, @Req() req: ObjectScopeRequest) {
-    return this.service.create(input, req.actorScope!);
+  create(@Body() input: PolCodeInputDto) {
+    return this.service.create(input);
   }
   @Patch(':id')
+  @FinalPermissions(PermissionCode.UPDATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Update POL code by ID' })
   @ApiParam({ name: 'id', description: 'POL Code OptionValue ID' })
   @ResponseMessage('POL code updated successfully')
@@ -99,34 +99,29 @@ export class PolCodeController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() input: UpdatePolCodeDto,
-    @Req() req: ObjectScopeRequest,
   ) {
-    return this.service.update(id, input, req.actorScope!);
+    return this.service.update(id, input);
   }
   @Patch(':id/deactivate')
+  @FinalPermissions(PermissionCode.DEACTIVATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Deactivate POL code by ID' })
   @ApiParam({ name: 'id', description: 'POL Code OptionValue ID' })
   @ResponseMessage('POL code deactivated successfully')
   @ApiStandardOkResponse(PolCodeResponseDto, 'POL code deactivated')
   @ApiStandardNotFoundResponse('POL code was not found')
   @ApiStandardConflictResponse('POL code is already inactive')
-  deactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: ObjectScopeRequest,
-  ) {
-    return this.service.deactivate(id, req.actorScope!);
+  deactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.deactivate(id);
   }
   @Patch(':id/reactivate')
+  @FinalPermissions(PermissionCode.REACTIVATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Reactivate POL code by ID' })
   @ApiParam({ name: 'id', description: 'POL Code OptionValue ID' })
   @ResponseMessage('POL code reactivated successfully')
   @ApiStandardOkResponse(PolCodeResponseDto, 'POL code reactivated')
   @ApiStandardNotFoundResponse('POL code was not found')
   @ApiStandardConflictResponse('POL code is already active')
-  reactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: ObjectScopeRequest,
-  ) {
-    return this.service.reactivate(id, req.actorScope!);
+  reactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.reactivate(id);
   }
 }

@@ -1,51 +1,50 @@
-import { WorkflowActionCode } from '../../generated/prisma/client';
 import { type CustomRoleScope } from './custom-role-policy';
 import { RolePermissionQueryProvider } from './role-permission-query.provider';
 
-const permission = (code: WorkflowActionCode) => ({
-  id: code,
+const permission = (
+  id: string,
+  code: string,
+  scopes: string[],
+  category = 'MEMBERS',
+) => ({
+  id,
   code,
-  name: code,
+  displayName: code,
   description: null,
-  isUserVisible: true,
-  isRevisionAction: false,
-  isInfoRequestAction: false,
-  isAssignmentAction: false,
-  isTerminalAction: false,
+  category,
+  actionType: 'VIEW',
+  resource: 'Member',
+  scopeCompatibilities: scopes.map((scope) => ({ scope })),
 });
 
 const scopeCases: {
   scope: CustomRoleScope;
-  expected: WorkflowActionCode[];
+  expected: string[];
 }[] = [
   {
     scope: 'company',
-    expected: [
-      WorkflowActionCode.ADD_MEMBER,
-      WorkflowActionCode.ADD_TEAM,
-      WorkflowActionCode.ASSIGN_MEMBER,
-    ],
+    expected: ['CREATE_COMPANY', 'VIEW_MEMBERS', 'VIEW_DOCUMENT'],
   },
   {
     scope: 'division',
-    expected: [
-      WorkflowActionCode.ADD_MEMBER,
-      WorkflowActionCode.ADD_TEAM,
-      WorkflowActionCode.ASSIGN_MEMBER,
-    ],
+    expected: ['VIEW_MEMBERS'],
   },
   {
     scope: 'team',
-    expected: [WorkflowActionCode.ADD_MEMBER, WorkflowActionCode.ASSIGN_MEMBER],
+    expected: ['VIEW_DOCUMENT'],
   },
 ];
 
 describe('RolePermissionQueryProvider custom-role permission selector', () => {
   const catalogue = [
-    permission(WorkflowActionCode.ADD_COMPANY),
-    permission(WorkflowActionCode.ADD_MEMBER),
-    permission(WorkflowActionCode.ADD_TEAM),
-    permission(WorkflowActionCode.ASSIGN_MEMBER),
+    permission('1', 'CREATE_COMPANY', ['company'], 'ORGANIZATION'),
+    permission('2', 'VIEW_MEMBERS', ['company', 'division']),
+    permission(
+      '3',
+      'VIEW_DOCUMENT',
+      ['company', 'team', 'client', 'client_contact'],
+      'DOCUMENTS',
+    ),
   ];
   const repository = {
     findVisiblePermissions: jest.fn().mockResolvedValue(catalogue),
@@ -67,16 +66,18 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
     },
   );
 
-  it('never returns system-only permissions to custom-role selectors', async () => {
+  it('uses persisted compatibility rather than role labels', async () => {
     const result = await provider.findPermissions(true, 'company');
-    expect(result.map(({ code }) => code)).not.toContain(
-      WorkflowActionCode.ADD_COMPANY,
-    );
+    expect(result.map(({ code }) => code)).toContain('CREATE_COMPANY');
+    expect(result.map(({ code }) => code)).toContain('VIEW_DOCUMENT');
   });
 
-  it('keeps customRole=false catalogue behavior unchanged', async () => {
-    await expect(provider.findPermissions(false, 'team')).resolves.toEqual(
-      catalogue,
-    );
+  it('returns multi-category permissions in one flat list', async () => {
+    const result = await provider.findPermissions(false, 'team');
+    expect(result.map(({ category }) => category)).toEqual([
+      'ORGANIZATION',
+      'MEMBERS',
+      'DOCUMENTS',
+    ]);
   });
 });

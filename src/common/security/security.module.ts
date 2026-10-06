@@ -4,6 +4,7 @@ import { AuthenticationGuard } from './authentication.guard';
 import { ObjectScopeGuard } from './object-scope.guard';
 import { ObjectScopeProvider } from './object-scope.provider';
 import { PermissionsGuard } from './permissions.guard';
+import { FinalPermissionsGuard } from './final-permissions.guard';
 import { TenantSuperAdminGuard } from './tenant-super-admin.guard';
 
 /**
@@ -22,6 +23,7 @@ import { TenantSuperAdminGuard } from './tenant-super-admin.guard';
     AuthenticationGuard,
     ObjectScopeGuard,
     PermissionsGuard,
+    FinalPermissionsGuard,
     TenantSuperAdminGuard,
   ],
   exports: [
@@ -30,6 +32,7 @@ import { TenantSuperAdminGuard } from './tenant-super-admin.guard';
     AuthenticationGuard,
     ObjectScopeGuard,
     PermissionsGuard,
+    FinalPermissionsGuard,
     TenantSuperAdminGuard,
   ],
 })

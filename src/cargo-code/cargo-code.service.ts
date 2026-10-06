@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ActorScopeContext } from '../common/security/object-scope.provider';
 import { CargoCodeRepository } from './repositories/cargo-code.repository';
 import { CargoCodeServiceBase } from './providers/cargo-code.service-base';
 @Injectable()
@@ -16,20 +15,16 @@ export class CargoCodeService extends CargoCodeServiceBase {
   findOne(id: string) {
     return this.one(id);
   }
-  create(i: { name: string; code: string }, s: ActorScopeContext) {
-    return super.createValue(i, s);
+  create(i: { name: string; code: string }) {
+    return super.createValue(i);
   }
-  update(
-    id: string,
-    i: { name?: string; code?: string },
-    s: ActorScopeContext,
-  ) {
-    return super.updateValue(id, i, s);
+  update(id: string, i: { name?: string; code?: string }) {
+    return super.updateValue(id, i);
   }
-  deactivate(id: string, s: ActorScopeContext) {
-    return super.lifecycleValue(id, false, s);
+  deactivate(id: string) {
+    return super.lifecycleValue(id, false);
   }
-  reactivate(id: string, s: ActorScopeContext) {
-    return super.lifecycleValue(id, true, s);
+  reactivate(id: string) {
+    return super.lifecycleValue(id, true);
   }
 }

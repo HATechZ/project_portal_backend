@@ -6,7 +6,7 @@ describe('RoleAssignmentRepository', () => {
     isSystemRole: false,
     name: 'Team custom role',
     customScope: 'team',
-    workflowActionRolePermissionsByRoleId: [{ id: 'permission-id' }],
+    rolePermissions: [{ id: 'permission-id' }],
   };
 
   function subject(overrides: Record<string, unknown> = {}) {
@@ -33,31 +33,27 @@ describe('RoleAssignmentRepository', () => {
     );
   }
 
-  it('requires an exact Team for a TEAM-scoped custom-role grant', async () => {
-    await expect(assign(subject())).rejects.toMatchObject({
-      message: 'A Team is required for a TEAM-scoped custom role.',
+  it('does not infer a Team ownership boundary from role scope', async () => {
+    await expect(assign(subject(), 'team-id')).rejects.toMatchObject({
+      message: 'Role assignment scope does not accept a Team binding.',
     });
   });
 
   it('rejects an inactive or cross-tenant Team for a TEAM-scoped custom-role grant', async () => {
-    const repository = subject({
-      team: { findFirst: jest.fn().mockResolvedValue(null) },
-    });
+    const repository = subject();
 
     await expect(assign(repository, 'other-tenant-team')).rejects.toMatchObject(
       {
-        message: 'The selected Team is unavailable.',
+        message: 'Role assignment scope does not accept a Team binding.',
       },
     );
   });
 
   it('requires the target Member to be actively assigned to the exact Team', async () => {
-    const repository = subject({
-      teamMember: { findFirst: jest.fn().mockResolvedValue(null) },
-    });
+    const repository = subject();
 
     await expect(assign(repository, 'team-id')).rejects.toMatchObject({
-      message: 'The selected Member is not active on the selected Team.',
+      message: 'Role assignment scope does not accept a Team binding.',
     });
   });
 
@@ -69,14 +65,14 @@ describe('RoleAssignmentRepository', () => {
         isSystemRole: true,
         name: 'Fixed role',
         customScope: null,
-        workflowActionRolePermissionsByRoleId: [],
+        rolePermissions: [],
       },
     ]) {
       const repository = subject({
         role: { findFirstOrThrow: jest.fn().mockResolvedValue(role) },
       });
       await expect(assign(repository, 'team-id')).rejects.toMatchObject({
-        message: 'A Team can only be supplied for a TEAM-scoped custom role.',
+        message: 'Role assignment scope does not accept a Team binding.',
       });
     }
   });

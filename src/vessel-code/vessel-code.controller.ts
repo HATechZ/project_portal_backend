@@ -7,7 +7,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
@@ -24,12 +23,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   VesselCodeInputDto,
   VesselCodeQueryDto,
@@ -44,16 +41,15 @@ import { VesselCodeService } from './vessel-code.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.UPDATE_SETTINGS)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
 export class VesselCodeController {
   constructor(private readonly service: VesselCodeService) {}
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'List all vessel codes' })
   @ResponseMessage('Vessel codes returned successfully')
   @ApiStandardArrayResponse(VesselCodeResponseDto, 'Vessel codes returned')
@@ -61,6 +57,7 @@ export class VesselCodeController {
     return this.service.findAll(q.includeInactive);
   }
   @Get('deactivated')
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'List deactivated vessel codes' })
   @ResponseMessage('Deactivated vessel codes returned successfully')
   @ApiStandardArrayResponse(
@@ -71,6 +68,7 @@ export class VesselCodeController {
     return this.service.findDeactivated();
   }
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'Get vessel code by ID' })
   @ApiParam({ name: 'id', description: 'Vessel Code OptionValue ID' })
   @ResponseMessage('Vessel code returned successfully')
@@ -80,16 +78,18 @@ export class VesselCodeController {
     return this.service.findOne(id);
   }
   @Post()
+  @FinalPermissions(PermissionCode.CREATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Create a new vessel code' })
   @ResponseMessage('Vessel code created successfully')
   @ApiStandardCreatedResponse(VesselCodeResponseDto, 'Vessel code created')
   @ApiStandardConflictResponse(
     'A vessel code with the same name or code already exists',
   )
-  create(@Body() i: VesselCodeInputDto, @Req() r: ObjectScopeRequest) {
-    return this.service.create(i, r.actorScope!);
+  create(@Body() i: VesselCodeInputDto) {
+    return this.service.create(i);
   }
   @Patch(':id')
+  @FinalPermissions(PermissionCode.UPDATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Update vessel code by ID' })
   @ApiParam({ name: 'id', description: 'Vessel Code OptionValue ID' })
   @ResponseMessage('Vessel code updated successfully')
@@ -101,34 +101,29 @@ export class VesselCodeController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() i: UpdateVesselCodeDto,
-    @Req() r: ObjectScopeRequest,
   ) {
-    return this.service.update(id, i, r.actorScope!);
+    return this.service.update(id, i);
   }
   @Patch(':id/deactivate')
+  @FinalPermissions(PermissionCode.DEACTIVATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Deactivate vessel code by ID' })
   @ApiParam({ name: 'id', description: 'Vessel Code OptionValue ID' })
   @ResponseMessage('Vessel code deactivated successfully')
   @ApiStandardOkResponse(VesselCodeResponseDto, 'Vessel code deactivated')
   @ApiStandardNotFoundResponse('Vessel code was not found')
   @ApiStandardConflictResponse('Vessel code is already inactive')
-  deactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() r: ObjectScopeRequest,
-  ) {
-    return this.service.deactivate(id, r.actorScope!);
+  deactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.deactivate(id);
   }
   @Patch(':id/reactivate')
+  @FinalPermissions(PermissionCode.REACTIVATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Reactivate vessel code by ID' })
   @ApiParam({ name: 'id', description: 'Vessel Code OptionValue ID' })
   @ResponseMessage('Vessel code reactivated successfully')
   @ApiStandardOkResponse(VesselCodeResponseDto, 'Vessel code reactivated')
   @ApiStandardNotFoundResponse('Vessel code was not found')
   @ApiStandardConflictResponse('Vessel code is already active')
-  reactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() r: ObjectScopeRequest,
-  ) {
-    return this.service.reactivate(id, r.actorScope!);
+  reactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.reactivate(id);
   }
 }

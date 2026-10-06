@@ -29,13 +29,22 @@ export const sessionUserSelect = (tenantId: string) =>
       select: {
         role: {
           select: {
+            isActive: true,
             isSystemRole: true,
             customCode: true,
             customScope: true,
             systemRole: { select: { systemCode: true } },
-            workflowActionRolePermissionsByRoleId: {
-              where: { allowed: true, tenantId },
-              select: { action: { select: { code: true } } },
+            rolePermissions: {
+              where: { tenantId, revokedAt: null },
+              select: {
+                revokedAt: true,
+                permission: {
+                  select: {
+                    code: true,
+                    scopeCompatibilities: { select: { scope: true } },
+                  },
+                },
+              },
             },
           },
         },
@@ -55,8 +64,10 @@ export const sessionActorSelect = (tenantId: string, userId: string) =>
     clientContactId: true,
     label: true,
     isDefault: true,
+    isActive: true,
     role: {
       select: {
+        isActive: true,
         isSystemRole: true,
         customCode: true,
         customScope: true,
@@ -64,6 +75,18 @@ export const sessionActorSelect = (tenantId: string, userId: string) =>
         workflowActionRolePermissionsByRoleId: {
           where: { tenantId, allowed: true },
           select: { action: { select: { code: true } } },
+        },
+        rolePermissions: {
+          where: { tenantId, revokedAt: null },
+          select: {
+            revokedAt: true,
+            permission: {
+              select: {
+                code: true,
+                scopeCompatibilities: { select: { scope: true } },
+              },
+            },
+          },
         },
         userRolesByRoleId: {
           where: { tenantId, userId, revokedAt: null },

@@ -6,10 +6,10 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { WorkflowActionCode } from '../../generated/prisma/client';
 import {
   CUSTOM_ROLE_SCOPES,
   type CustomRoleScope,
@@ -31,10 +31,10 @@ export class CreateCustomRoleDto {
   @IsEnum(CUSTOM_ROLE_SCOPES)
   scope!: CustomRoleScope;
 
-  @ApiProperty({ enum: WorkflowActionCode, isArray: true })
+  @ApiProperty({ format: 'uuid', isArray: true })
   @IsArray()
   @ArrayMinSize(1)
   @ArrayUnique()
-  @IsEnum(WorkflowActionCode, { each: true })
-  permissionCodes!: WorkflowActionCode[];
+  @IsUUID('4', { each: true })
+  permissionIds!: string[];
 }

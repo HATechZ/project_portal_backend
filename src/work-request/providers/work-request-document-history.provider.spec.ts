@@ -6,6 +6,7 @@ describe('WorkRequestDocumentHistoryProvider', () => {
     versionNumber: 1,
     revisionCode: 'A',
     originalFileName: 'plan.pdf',
+    uploadedFileName: 'plan.pdf',
     generatedFileName: null,
     mimeType: 'application/pdf',
     fileSizeBytes: 1n,
@@ -38,7 +39,7 @@ describe('WorkRequestDocumentHistoryProvider', () => {
       repository as never,
     ).versions('request', 'document');
     expect(result.map((item) => item.versionNumber)).toEqual([1, 2]);
-    expect(result[0].originalFileName).toBe('plan.pdf');
+    expect(result[0].uploadedFileName).toBe('plan.pdf');
   });
   it('rejects a document that is not owned by the requested Work Request', async () => {
     const repository = { versions: jest.fn().mockResolvedValue(null) };

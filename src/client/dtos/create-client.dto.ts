@@ -6,9 +6,11 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateClientPrimaryContactDto {
@@ -66,4 +68,13 @@ export class CreateClientDto {
   @ApiProperty()
   @IsBoolean()
   enablePortalAccess!: boolean;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Required when portal access is enabled. Must identify an active tenant-created client or client_contact scoped role.',
+  })
+  @ValidateIf((input: CreateClientDto) => input.enablePortalAccess)
+  @IsUUID()
+  portalRoleId?: string;
 }

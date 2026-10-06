@@ -1,15 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ActorScopeContext } from '../common/security/object-scope.provider';
 import {
   AddTeamMemberDto,
   TeamMemberQueryDto,
   TeamMemberResponseDto,
 } from './dtos';
-import {
-  TeamScopeProvider,
-  teamScopeConflict,
-  toTeamMemberResponse,
-} from './providers';
+import { teamScopeConflict, toTeamMemberResponse } from './providers';
 import { TeamMembershipRepository } from './repositories';
 import { TeamService } from './team.service';
 
@@ -18,17 +13,14 @@ export class TeamMembershipService {
   constructor(
     private readonly teamService: TeamService,
     private readonly membershipRepository: TeamMembershipRepository,
-    private readonly scopeProvider: TeamScopeProvider,
   ) {}
 
   async listMembers(
     id: string,
     query: TeamMemberQueryDto,
-    actor: ActorScopeContext,
   ): Promise<TeamMemberResponseDto[]> {
     const company = await this.teamService.requireScopedCompany();
-    const team = await this.teamService.requireTeam(id, company.id);
-    await this.teamService.assertTeamReadable(actor, company.id, team);
+    await this.teamService.requireTeam(id, company.id);
     return (
       await this.membershipRepository.listMembers(id, query.includeEnded)
     ).map(toTeamMemberResponse);
@@ -37,11 +29,9 @@ export class TeamMembershipService {
   async addMember(
     id: string,
     input: AddTeamMemberDto,
-    actor: ActorScopeContext,
   ): Promise<TeamMemberResponseDto> {
     const company = await this.teamService.requireScopedCompany();
     const team = await this.teamService.requireTeam(id, company.id);
-    this.scopeProvider.assertCanManageMembership(actor, team);
     await this.teamService.assertEligibleMember(
       input.memberId,
       company.id,
@@ -61,14 +51,9 @@ export class TeamMembershipService {
     );
   }
 
-  async removeMember(
-    id: string,
-    memberId: string,
-    actor: ActorScopeContext,
-  ): Promise<void> {
+  async removeMember(id: string, memberId: string): Promise<void> {
     const company = await this.teamService.requireScopedCompany();
     const team = await this.teamService.requireTeam(id, company.id);
-    this.scopeProvider.assertCanManageMembership(actor, team);
     await this.teamService.assertEligibleMember(
       memberId,
       company.id,

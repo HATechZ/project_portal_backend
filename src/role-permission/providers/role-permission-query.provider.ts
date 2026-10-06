@@ -12,10 +12,7 @@ import {
   toRoleResponse,
   toUserRoleAssignmentResponse,
 } from './role-permission.mapper';
-import {
-  customRolePermissionCodes,
-  isCustomRoleScope,
-} from './custom-role-policy';
+import { isCustomRoleScope } from './custom-role-policy';
 
 @Injectable()
 export class RolePermissionQueryProvider {
@@ -72,10 +69,15 @@ export class RolePermissionQueryProvider {
     scope?: string,
   ): Promise<PermissionResponseDto[]> {
     const permissions = await this.repository.findVisiblePermissions();
-    if (!customRole) return permissions;
+    if (!customRole) return permissions.map(toPermissionResponse);
     if (!scope || !isCustomRoleScope(scope)) return [];
-    const allowed = new Set(customRolePermissionCodes(scope));
-    return permissions.filter(({ code }) => allowed.has(code));
+    return permissions
+      .filter(({ scopeCompatibilities }) =>
+        scopeCompatibilities.some(
+          ({ scope: compatible }) => compatible === scope,
+        ),
+      )
+      .map(toPermissionResponse);
   }
 
   async findPermission(id: string): Promise<PermissionResponseDto> {
@@ -87,7 +89,7 @@ export class RolePermissionQueryProvider {
         message:
           'Permission not found. Refresh the available permissions and try again.',
       });
-    return permission;
+    return toPermissionResponse(permission);
   }
 
   async findUserRoles(
@@ -105,4 +107,22 @@ export class RolePermissionQueryProvider {
       toUserRoleAssignmentResponse,
     );
   }
+}
+
+function toPermissionResponse(permission: {
+  id: string;
+  code: PermissionResponseDto['code'];
+  displayName: string;
+  description: string | null;
+  category: PermissionResponseDto['category'];
+  actionType: PermissionResponseDto['actionType'];
+  resource: string;
+  scopeCompatibilities: {
+    scope: PermissionResponseDto['compatibleScopes'][number];
+  }[];
+}): PermissionResponseDto {
+  return {
+    ...permission,
+    compatibleScopes: permission.scopeCompatibilities.map(({ scope }) => scope),
+  };
 }

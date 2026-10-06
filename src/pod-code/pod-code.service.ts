@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ActorScopeContext } from '../common/security/object-scope.provider';
 import { PodCodeRepository } from './repositories/pod-code.repository';
 import { PodCodeServiceBase } from './providers/pod-code.service-base';
 @Injectable()
@@ -20,24 +19,22 @@ export class PodCodeService extends PodCodeServiceBase {
   findOne(id: string) {
     return this.one(id).then((r) => PodCodeServiceBase.row(r, false));
   }
-  create(i: { name: string }, s: ActorScopeContext) {
+  create(i: { name: string }) {
+    return super.createValue(i).then((r) => PodCodeServiceBase.row(r, false));
+  }
+  update(id: string, i: { name?: string }) {
     return super
-      .createValue(i, s)
+      .updateValue(id, i)
       .then((r) => PodCodeServiceBase.row(r, false));
   }
-  update(id: string, i: { name?: string }, s: ActorScopeContext) {
+  deactivate(id: string) {
     return super
-      .updateValue(id, i, s)
+      .lifecycleValue(id, false)
       .then((r) => PodCodeServiceBase.row(r, false));
   }
-  deactivate(id: string, s: ActorScopeContext) {
+  reactivate(id: string) {
     return super
-      .lifecycleValue(id, false, s)
-      .then((r) => PodCodeServiceBase.row(r, false));
-  }
-  reactivate(id: string, s: ActorScopeContext) {
-    return super
-      .lifecycleValue(id, true, s)
+      .lifecycleValue(id, true)
       .then((r) => PodCodeServiceBase.row(r, false));
   }
 }

@@ -4,6 +4,7 @@ import {
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { WorkRequestWorkflowProvider } from './work-request-workflow.provider';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 
 function errorStatus(value: unknown): number | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
@@ -26,8 +27,13 @@ describe('WorkRequestWorkflowProvider', () => {
         isSystemRole: true,
         customScope: null,
         userRolesByRoleId: [{ teamId: null }],
-        workflowActionRolePermissionsByRoleId: [
-          { action: { code: permission } },
+        rolePermissions: [
+          {
+            revokedAt: null,
+            permission: {
+              code: getFinalPermissionForWorkRequestAction(permission),
+            },
+          },
         ],
       },
       member: {
@@ -53,13 +59,7 @@ describe('WorkRequestWorkflowProvider', () => {
     const provider = new WorkRequestWorkflowProvider(
       repository as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      {
-        resolve: jest
-          .fn()
-          .mockReturnValue({ isSystemRole: true, customScope: null }),
-        assertCanAccess: jest.fn(),
-      } as never,
-      outbox as never,
+      outbox,
     );
     return { provider, repository, outbox };
   };
@@ -247,13 +247,7 @@ describe('WorkRequestWorkflowProvider', () => {
     const provider = new WorkRequestWorkflowProvider(
       repository as never,
       uow as never,
-      {
-        resolve: jest
-          .fn()
-          .mockReturnValue({ isSystemRole: true, customScope: null }),
-        assertCanAccess: jest.fn(),
-      } as never,
-      { enqueue: jest.fn() } as never,
+      { enqueue: jest.fn() },
     );
     const actorForSubmit = actor(WorkflowActionCode.WR_SUBMIT);
     const outcomes = await Promise.allSettled([

@@ -23,12 +23,11 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { WorkRequestService } from './work-request.service';
 import type { WorkRequestUploadedFile } from './work-request.service';
 import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
@@ -43,8 +42,7 @@ import { ApiBody, ApiConsumes } from '@nestjs/swagger';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
@@ -52,7 +50,7 @@ import { ApiBody, ApiConsumes } from '@nestjs/swagger';
 export class WorkRequestDocumentController {
   constructor(private readonly service: WorkRequestService) {}
   @Post()
-  @Permissions(WorkflowActionCode.ADD_WORK_REQUEST_DOCUMENT)
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -90,7 +88,7 @@ export class WorkRequestDocumentController {
     );
   }
   @Post(':documentId/versions')
-  @Permissions(WorkflowActionCode.ADD_WORK_REQUEST_DOCUMENT)
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024, files: 1 },
@@ -120,7 +118,7 @@ export class WorkRequestDocumentController {
     return this.service.appendDocumentVersion(id, documentId, file, actor);
   }
   @Get()
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'Get Documents by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(DocumentSummaryDto, 'Work Request documents returned')
@@ -132,7 +130,7 @@ export class WorkRequestDocumentController {
     return this.service.documents(id, actor);
   }
   @Get(':documentId/versions')
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({
     summary: 'Get Document Versions by Work Request ID and Document ID',
   })

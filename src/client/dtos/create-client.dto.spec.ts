@@ -34,9 +34,23 @@ describe('CreateClientDto', () => {
             phone: '+8801712345678',
           },
           enablePortalAccess: true,
+          portalRoleId: '11111111-1111-4111-8111-111111111111',
         },
         { type: 'body', metatype: CreateClientDto },
       ),
     ).resolves.toBeInstanceOf(CreateClientDto);
+  });
+
+  it('requires an explicit external custom role when portal access is enabled', async () => {
+    await expect(
+      pipe.transform(
+        {
+          name: 'DEME',
+          primaryContact: { name: 'John Smith', email: 'john@example.com' },
+          enablePortalAccess: true,
+        },
+        { type: 'body', metatype: CreateClientDto },
+      ),
+    ).rejects.toThrow();
   });
 });

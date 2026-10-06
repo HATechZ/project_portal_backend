@@ -3,7 +3,6 @@ import { RequestContext } from '../../common/context/request-context';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { roleSelect, type RoleRecord } from './role-permission.records';
-import { customRolePermissionCodes } from '../providers/custom-role-policy';
 
 @Injectable()
 export class RoleOptionsRepository extends BaseRepository {
@@ -43,17 +42,8 @@ export class RoleOptionsRepository extends BaseRepository {
             {
               tenantId,
               isSystemRole: false,
-              customScope: { in: ['division', 'company'] },
-              workflowActionRolePermissionsByRoleId: {
-                some: {
-                  tenantId,
-                  allowed: true,
-                  action: {
-                    code: { in: customRolePermissionCodes('division') },
-                  },
-                },
-              },
-              ...(user.membersByUserId.length ? {} : { id: { in: [] } }),
+              isActive: true,
+              rolePermissions: { some: { tenantId, revokedAt: null } },
             },
           ],
           id: { notIn: assignedIds },

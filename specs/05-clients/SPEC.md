@@ -1,7 +1,8 @@
 # Module 05 - Clients
 
-## Status
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## Status
 Status: SPEC APPROVED
 
 Module 05 owns the external customer foundation:

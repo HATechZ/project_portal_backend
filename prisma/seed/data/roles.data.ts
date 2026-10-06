@@ -1,17 +1,7 @@
 import { ActorRoleCode } from '../../../src/generated/prisma/client';
 
-export const ROLE_IDS: Record<ActorRoleCode, string> = {
+export const ROLE_IDS: Pick<Record<ActorRoleCode, string>, 'tenant_super_admin'> = {
   tenant_super_admin: '10000000-0000-4000-8000-000000000001',
-  ccr_coordinator: '10000000-0000-4000-8000-000000000003',
-  division_head: '10000000-0000-4000-8000-000000000011',
-  division_lead: '10000000-0000-4000-8000-000000000004',
-  team_lead: '10000000-0000-4000-8000-000000000012',
-  division_member: '10000000-0000-4000-8000-000000000005',
-  tms_manager: '10000000-0000-4000-8000-000000000006',
-  tms_drawing: '10000000-0000-4000-8000-000000000007',
-  tms_checking: '10000000-0000-4000-8000-000000000008',
-  tms_approval: '10000000-0000-4000-8000-000000000009',
-  client_owner: '10000000-0000-4000-8000-000000000010',
 };
 
 export const roles = [
@@ -19,55 +9,5 @@ export const roles = [
     systemCode: ActorRoleCode.tenant_super_admin,
     name: 'Tenant Super Administrator',
     description: 'Highest administrator for this tenant/company; access remains permission and scope driven.',
-  },
-  {
-    systemCode: ActorRoleCode.ccr_coordinator,
-    name: 'CCR Coordinator',
-    description: 'Coordinates CCR workflow activities.',
-  },
-  {
-    systemCode: ActorRoleCode.division_head,
-    name: 'Division Head',
-    description: 'Oversees division operations across a company.',
-  },
-  {
-    systemCode: ActorRoleCode.division_lead,
-    name: 'Division Lead',
-    description: 'Leads division workflow activities.',
-  },
-  {
-    systemCode: ActorRoleCode.team_lead,
-    name: 'Team Lead',
-    description: 'Leads team workflow activities.',
-  },
-  {
-    systemCode: ActorRoleCode.division_member,
-    name: 'Division Member',
-    description: 'Performs division workflow activities.',
-  },
-  {
-    systemCode: ActorRoleCode.tms_manager,
-    name: 'TMS Manager',
-    description: 'Manages the TMS workflow chain.',
-  },
-  {
-    systemCode: ActorRoleCode.tms_drawing,
-    name: 'TMS Drawing',
-    description: 'Produces TMS drawings.',
-  },
-  {
-    systemCode: ActorRoleCode.tms_checking,
-    name: 'TMS Checking',
-    description: 'Checks TMS submissions.',
-  },
-  {
-    systemCode: ActorRoleCode.tms_approval,
-    name: 'TMS Approval',
-    description: 'Approves TMS submissions.',
-  },
-  {
-    systemCode: ActorRoleCode.client_owner,
-    name: 'Client Owner',
-    description: 'Represents the client in project workflows.',
   },
 ] as const;

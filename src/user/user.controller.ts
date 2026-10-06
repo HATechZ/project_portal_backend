@@ -33,10 +33,12 @@ import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.d
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { UserService } from './user.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
+import { PermissionCode } from '../generated/prisma/client';
 
 @ApiTags('user')
 @ApiSecurity('bearer')
@@ -45,7 +47,7 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  TenantSuperAdminGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
@@ -54,6 +56,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @FinalPermissions(PermissionCode.CREATE_USER)
   @ResponseMessage('User created successfully')
   @ApiOperation({ summary: 'Create a user' })
   @ApiStandardCreatedResponse(UserResponseDto, 'User created')
@@ -66,6 +69,7 @@ export class UserController {
   }
 
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_USERS)
   @ResponseMessage('Users returned successfully')
   @ApiOperation({ summary: 'List all users' })
   @ApiPaginatedResponse(UserResponseDto)
@@ -74,6 +78,7 @@ export class UserController {
   }
 
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_USERS)
   @ResponseMessage('User returned successfully')
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -87,6 +92,7 @@ export class UserController {
   }
 
   @Patch(':id')
+  @FinalPermissions(PermissionCode.UPDATE_USER)
   @ResponseMessage('User updated successfully')
   @ApiOperation({ summary: 'Update a user' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -104,6 +110,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @FinalPermissions(PermissionCode.DELETE_USER)
   @ResponseMessage('User deleted successfully')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a user' })

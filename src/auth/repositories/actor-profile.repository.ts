@@ -13,7 +13,11 @@ const actorProfileSelect = {
   isDefault: true,
   isActive: true,
   role: {
-    select: { customCode: true, systemRole: { select: { systemCode: true } } },
+    select: {
+      customCode: true,
+      customScope: true,
+      systemRole: { select: { systemCode: true } },
+    },
   },
 } satisfies Prisma.ActorProfileSelect;
 

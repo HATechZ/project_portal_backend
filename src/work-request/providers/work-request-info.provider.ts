@@ -2,7 +2,6 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { WorkflowActionCode } from '../../generated/prisma/client';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
-import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import {
@@ -10,15 +9,13 @@ import {
   RespondWorkRequestInfoRequestDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestInfoRepository } from '../repositories/work-request-info.repository';
-import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 
 @Injectable()
 export class WorkRequestInfoProvider {
   constructor(
     private readonly repository: WorkRequestInfoRepository,
     private readonly uow: UnitOfWorkService,
-    private readonly scope: WorkRequestResourceScopeProvider,
-    private readonly scopes: ObjectScopeProvider,
   ) {}
 
   request(
@@ -31,23 +28,6 @@ export class WorkRequestInfoProvider {
         this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(id, input.targetActorId);
         if (!snapshot?.parent || !snapshot.target) throw notFound();
-        const teamId =
-          snapshot.request.assignments.find((item) => item.level === 'TEAM')
-            ?.teamId ?? null;
-        const divisionId =
-          snapshot.request.assignments.find((item) => item.level === 'DIVISION')
-            ?.divisionId ?? null;
-        this.scope.assert(actor, {
-          clientId: snapshot.parent.clientId,
-          companyId: snapshot.parent.client.companyId,
-          divisionId,
-          teamId,
-        });
-        this.assertCustomScope(
-          actor,
-          snapshot.parent.client.companyId,
-          divisionId,
-        );
         const target = snapshot.target;
         const hasGrant =
           target.user?.isActive &&
@@ -62,24 +42,6 @@ export class WorkRequestInfoProvider {
           target.clientContact.client.isActive &&
           target.clientContact.clientId === snapshot.parent.clientId;
         if (!hasGrant || (!memberTarget && !contactTarget)) throw forbidden();
-        if (
-          actor.role.isSystemRole === false &&
-          actor.role.customScope === 'division' &&
-          (!divisionId || target.member?.divisionId !== divisionId)
-        )
-          throw forbidden();
-        if (
-          actor.role.isSystemRole === false &&
-          actor.role.customScope === 'team'
-        ) {
-          if (
-            !actor.boundTeamId ||
-            !target.member?.teamMembersByMemberId.some(
-              (row) => row.teamId === actor.boundTeamId && row.team.isActive,
-            )
-          )
-            throw forbidden();
-        }
         const state = snapshot.request.events[0]?.resultingState;
         if (!state)
           throw conflict('Work Request has no current workflow state.');
@@ -106,23 +68,6 @@ export class WorkRequestInfoProvider {
         this.assertPermission(actor, WorkflowActionCode.RESPOND_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(id);
         if (!snapshot?.parent) throw notFound();
-        const teamId =
-          snapshot.request.assignments.find((item) => item.level === 'TEAM')
-            ?.teamId ?? null;
-        const divisionId =
-          snapshot.request.assignments.find((item) => item.level === 'DIVISION')
-            ?.divisionId ?? null;
-        this.scope.assert(actor, {
-          clientId: snapshot.parent.clientId,
-          companyId: snapshot.parent.client.companyId,
-          divisionId,
-          teamId,
-        });
-        this.assertCustomScope(
-          actor,
-          snapshot.parent.client.companyId,
-          divisionId,
-        );
         const result = await this.repository.respond(
           id,
           infoRequestId,
@@ -140,64 +85,24 @@ export class WorkRequestInfoProvider {
     );
   }
 
-  async history(id: string, actor: SessionActor) {
+  async history(id: string, _actor: SessionActor) {
+    void _actor;
     return this.uow.execute(async () => {
       const snapshot = await this.repository.prepare(id);
       if (!snapshot?.parent) throw notFound();
-      const teamId =
-        snapshot.request.assignments.find((item) => item.level === 'TEAM')
-          ?.teamId ?? null;
-      const divisionId =
-        snapshot.request.assignments.find((item) => item.level === 'DIVISION')
-          ?.divisionId ?? null;
-      this.scope.assert(actor, {
-        clientId: snapshot.parent.clientId,
-        companyId: snapshot.parent.client.companyId,
-        divisionId,
-        teamId,
-      });
-      this.assertCustomScope(
-        actor,
-        snapshot.parent.client.companyId,
-        divisionId,
-      );
       return this.repository.history(id);
     });
   }
 
   private assertPermission(actor: SessionActor, action: WorkflowActionCode) {
+    const permission = getFinalPermissionForWorkRequestAction(action);
     if (
-      actor.role.userRolesByRoleId.length !== 1 ||
-      !actor.role.workflowActionRolePermissionsByRoleId.some(
-        ({ action: grant }) => grant.code === action,
+      !actor.role.rolePermissions.some(
+        ({ revokedAt, permission: grant }) =>
+          revokedAt === null && grant.code === permission,
       )
     )
       throw forbidden();
-  }
-
-  private assertCustomScope(
-    actor: SessionActor,
-    companyId: string | null,
-    divisionId: string | null,
-  ) {
-    const scope = this.scopes.resolve(actor);
-    if (
-      scope.isSystemRole ||
-      scope.customScope !== 'division' ||
-      !companyId ||
-      !divisionId
-    ) {
-      if (!scope.isSystemRole && scope.customScope === 'division')
-        throw forbidden();
-      return;
-    }
-    this.scopes.assertCanAccess(actor, {
-      allOf: [
-        { kind: 'memberCompany', companyId },
-        { kind: 'memberDivision', divisionId },
-      ],
-      allowTenantAdmin: false,
-    });
   }
 }
 

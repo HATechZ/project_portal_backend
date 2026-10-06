@@ -14,9 +14,9 @@ import {
 } from '../common/decorators/api-standard-response.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
-import { Permissions } from '../common/security/permissions.decorator';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { ClientApiController } from './client-api.decorator';
 import { ClientContactService } from './client-contact.service';
 import {
@@ -30,7 +30,7 @@ export class ClientContactController {
   constructor(private readonly service: ClientContactService) {}
 
   @Post(':clientId/contact')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.CREATE_CLIENT_CONTACT)
   @ResponseMessage('Client contact created successfully')
   @ApiOperation({ summary: 'Add Client Contact' })
   @ApiStandardCreatedResponse(
@@ -45,7 +45,7 @@ export class ClientContactController {
   }
 
   @Get(':clientId/contact')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.VIEW_CLIENT_CONTACTS)
   @ResponseMessage('Client contacts returned successfully')
   @ApiOperation({ summary: 'List Client Contacts' })
   @ApiPaginatedResponse(ClientContactResponseDto)
@@ -57,7 +57,7 @@ export class ClientContactController {
   }
 
   @Get(':clientId/contact/deactivated')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.VIEW_CLIENT_CONTACTS)
   @ResponseMessage('Deactivated client contacts returned successfully')
   @ApiOperation({ summary: 'List deactivated Client Contacts' })
   @ApiPaginatedResponse(ClientContactResponseDto)
@@ -69,7 +69,7 @@ export class ClientContactController {
   }
 
   @Get(':clientId/contact/:contactId')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.VIEW_CLIENT_CONTACTS)
   @ResponseMessage('Client contact returned successfully')
   @ApiOperation({ summary: 'Get Client Contact' })
   @ApiStandardOkResponse(ClientContactResponseDto, 'Client contact returned')
@@ -81,7 +81,7 @@ export class ClientContactController {
   }
 
   @Patch(':clientId/contact/:contactId')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.UPDATE_CLIENT_CONTACT)
   @ResponseMessage('Client contact updated successfully')
   @ApiOperation({ summary: 'Update Client Contact' })
   @ApiStandardOkResponse(ClientContactResponseDto, 'Client contact updated')
@@ -94,7 +94,7 @@ export class ClientContactController {
   }
 
   @Patch(':clientId/contact/:contactId/deactivate')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.DEACTIVATE_CLIENT_CONTACT)
   @ResponseMessage('Client contact deactivated successfully')
   @ApiOperation({ summary: 'Deactivate Client Contact' })
   @ApiStandardOkResponse(ClientContactResponseDto, 'Client contact deactivated')
@@ -106,7 +106,7 @@ export class ClientContactController {
   }
 
   @Patch(':clientId/contact/:contactId/reactivate')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.REACTIVATE_CLIENT_CONTACT)
   @ResponseMessage('Client contact reactivated successfully')
   @ApiOperation({ summary: 'Reactivate Client Contact' })
   @ApiStandardOkResponse(ClientContactResponseDto, 'Client contact reactivated')
@@ -118,7 +118,7 @@ export class ClientContactController {
   }
 
   @Patch(':clientId/contact/:contactId/primary')
-  @Permissions(WorkflowActionCode.MANAGE_CLIENT_CONTACT)
+  @FinalPermissions(PermissionCode.SET_PRIMARY_CLIENT_CONTACT)
   @ResponseMessage('Primary Client contact updated successfully')
   @ApiOperation({ summary: 'Set Primary Client Contact' })
   @ApiStandardOkResponse(

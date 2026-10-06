@@ -12,12 +12,11 @@ import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.d
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { WorkRequestService } from './work-request.service';
 
 @ApiTags('work requests')
@@ -27,13 +26,12 @@ import { WorkRequestService } from './work-request.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 export class WorkRequestHistoryController {
   constructor(private readonly service: WorkRequestService) {}
   @Get('events')
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Work Request History by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ResponseMessage('Work Request events returned successfully')
@@ -45,7 +43,7 @@ export class WorkRequestHistoryController {
     return this.service.events(id, query, actor);
   }
   @Get('available-actions')
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Available Actions by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ResponseMessage('Work Request actions returned successfully')

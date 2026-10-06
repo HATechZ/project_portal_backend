@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return, @typescript-eslint/unbound-method */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { RequestMethod } from '@nestjs/common';
@@ -7,9 +7,9 @@ import {
   METHOD_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { PERMISSIONS_KEY } from '../common/security/permissions.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { FINAL_PERMISSIONS_KEY } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import { CargoCodeController } from '../cargo-code/cargo-code.controller';
 import { PodCodeController } from '../pod-code/pod-code.controller';
 import { VesselCodeController } from '../vessel-code/vessel-code.controller';
@@ -33,7 +33,7 @@ const expectedRoutes = [
 ];
 
 describe.each(controllers)('%s controller contract', (_path, Controller) => {
-  it('declares UPDATE_SETTINGS and the guarded deactivated-list lifecycle without delete', () => {
+  it('declares final atomic permissions and the deactivated-list lifecycle without delete', () => {
     const prototype = Controller.prototype;
     const routes = Object.getOwnPropertyNames(prototype)
       .filter((name) => name !== 'constructor')
@@ -42,12 +42,15 @@ describe.each(controllers)('%s controller contract', (_path, Controller) => {
         Reflect.getMetadata(PATH_METADATA, prototype[name]) ?? '/',
       ]);
 
-    expect(Reflect.getMetadata(PERMISSIONS_KEY, Controller)).toEqual([
-      WorkflowActionCode.UPDATE_SETTINGS,
-    ]);
     expect(Reflect.getMetadata(GUARDS_METADATA, Controller)).toContain(
-      PermissionsGuard,
+      FinalPermissionsGuard,
     );
+    expect(
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.findAll),
+    ).toEqual([PermissionCode.VIEW_REFERENCE_DATA]);
+    expect(
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.create),
+    ).toEqual([PermissionCode.CREATE_REFERENCE_DATA_OPTION]);
     expect(routes).toEqual(expectedRoutes);
     expect(Object.getOwnPropertyNames(prototype)).not.toContain('delete');
   });
@@ -117,23 +120,4 @@ describe('Reference Data Swagger contracts', () => {
       expect(source.match(/@ResponseMessage\(/g)).toHaveLength(7);
     },
   );
-});
-
-describe('configured permission guard', () => {
-  it('does not grant UPDATE_SETTINGS to a tenant-wide actor without that permission', () => {
-    const guard = new PermissionsGuard({
-      getAllAndOverride: () => [WorkflowActionCode.UPDATE_SETTINGS],
-    } as never);
-    const context = {
-      getHandler: () => undefined,
-      getClass: () => undefined,
-      switchToHttp: () => ({
-        getRequest: () => ({
-          actor: { role: { workflowActionRolePermissionsByRoleId: [] } },
-        }),
-      }),
-    } as never;
-
-    expect(() => guard.canActivate(context)).toThrow();
-  });
 });

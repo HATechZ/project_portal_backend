@@ -54,7 +54,7 @@ Shipped code or schema that contradicts the rules; each has a failing unticked `
 | 00 | ETag hashes body incl. fresh `meta.timestamp` → 304 is dead code | VI.3 | `interceptors/etag.interceptor.ts` |
 | 00 | `UsersService` injects `PrismaService` (layering) | X | `00/tasks.md` Phase 5 |
 | 02.1 | Art. IX waived 2026-08-28: models in `schema.prisma`, no migration yet | IX | `02.1-messaging/DATA_CONTRACT.md` §3 |
-| 03 | `division_head` / `team_lead` need enum + migration + seed; runtime bridge stays until then | IX | `03-identity-and-access/DATA_CONTRACT.md` |
+| 03 | Fixed-role enum/seed bridge is RETIRED; Phase 6 catalogue resolution is frozen; runtime/seed conversion remains pending | IX | `ROLE_ARCHITECTURE_FREEZE.md`, `PERMISSION_CATALOGUE_GLOBALIZATION.md` |
 | 04 | app_user lacks UPDATE on `companies` (confirmed live 2026-09-15) | IX | `04-organization/DATA_CONTRACT.md` |
 
 ## Session Log
@@ -63,14 +63,13 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-09 | Codex | 04.2 | 4–5 | Member leaves 1–7 pass; `POST /member` blocked by grants |
-| 2026-09-15 | Claude + db-architect | 04.1.1 | 1–5 | Division Lead multiplicity DONE 17/17: `division_leads` + partial uniques/RLS, set-based scope, walkthrough PASS (28 curls); stale 03/04.1/04.2 grant blockers cleared |
-| 2026-09-15 | Claude | 00, 01, 01.1, 03, 04 | 5 | 29/30 failing claims resolved: 15 unticked (proof deleted), rest fixed |
-| 2026-09-15 | Claude | 04.1 | 5 | Division DONE 11/11: walkthrough PASS (24 curls); 500-on-unknown-divisionTypeId fixed; recursive `verify:sdd:strict` removed from final VERIFY |
-| 2026-09-17 | Codex | 03, 04.2, 04.3 | 1–4 | Member onboarding now excludes role access; focused tests/build PASS |
-| 2026-09-17 | Codex | 03, 04.2, 04.3 | 4 | Typed test mocks clear lint; focused tests/build PASS |
 | 2026-09-17 | Codex | 04.3 | 1–4 | Team lead/member summaries now expose designation; focused tests/build PASS |
 | 2026-09-24 | Codex | 07.1–07.3 | 4 | Focused tests + build PASS; walkthroughs pending |
 | 2026-09-24 | Codex + db-architect | 07.4 | 4 | Runtime/tests pass; walkthrough pending |
 | 2026-09-24 | Codex + db-architect | 10 | 1–3 | Work Request specs drafted; no runtime/data work |
 | 2026-10-02 | Codex + db-architect | 10.1 | 1–3 | Shared document/version specs; no code or schema changes |
+| 2026-10-05 | Codex | 03,04,08–10 | 1 | Dynamic-role architecture frozen; no implementation changes |
+| 2026-10-05 | Codex | 03,10 | 1 | Permission globalization matrix frozen; no implementation changes |
+| 2026-10-06 | Codex | 03 | 1 | Demo-data legacy-access policy frozen; specs only |
+| 2026-10-06 | Codex | 03,05 | 1 | Client scopes and resource-boundary rule frozen; specs only |
+| 2026-10-06 | Codex | 03,04–10 | 1 | Final atomic permission/scope freeze; specs only |

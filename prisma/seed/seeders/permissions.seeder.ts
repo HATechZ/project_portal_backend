@@ -1,51 +1,30 @@
 import { ROLE_IDS } from '../data/roles.data';
-import {
-  permissions,
-  rolePermissionCodes,
-  workRequestWorkflowPermissionCodes,
-} from '../data/permissions.data';
 import { Seeder } from '../types';
 import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '../../../src/generated/prisma/client';
+import { PermissionCode, PrismaClient } from '../../../src/generated/prisma/client';
 
 export async function initializeTenantPermissions(
   prisma: PrismaClient,
   tenantId: string,
 ): Promise<void> {
-  const actionIds = new Map<string, string>();
+  const roleId = ROLE_IDS.tenant_super_admin;
+  const permissions = await prisma.permission.findMany({
+    where: { code: { not: PermissionCode.DECIDE_BID_OUTCOME } },
+    select: { id: true },
+  });
   for (const permission of permissions) {
-    const { id, code, ...values } = permission;
-    const action = await prisma.workflowActionDefinition.upsert({
-      where: { code },
-      create: { id, code, ...values },
-      update: values,
+    const existing = await prisma.rolePermission.findFirst({
+      where: { tenantId, roleId, permissionId: permission.id },
+      select: { id: true },
     });
-    actionIds.set(code, action.id);
-  }
-
-  for (const [roleCode, grantedCodes] of Object.entries(rolePermissionCodes)) {
-    const roleId = ROLE_IDS[roleCode as keyof typeof ROLE_IDS];
-    const granted = new Set(grantedCodes);
-    for (const permission of permissions) {
-      const actionId = actionIds.get(permission.code);
-      if (!actionId)
-        throw new Error(`Missing action ID for ${permission.code}`);
-      await prisma.workflowActionRolePermission.upsert({
-        where: {
-          tenantId_actionId_roleId: { tenantId, actionId, roleId },
-        },
-        create: {
-          id: randomUUID(),
-          tenantId,
-          actionId,
-          roleId,
-          allowed: granted.has(permission.code),
-        },
-        // Existing grants remain administrator-managed. Converge only newly
-        // introduced Module 10 workflow rows for already-provisioned tenants.
-        update: workRequestWorkflowPermissionCodes.has(permission.code)
-          ? { allowed: granted.has(permission.code) }
-          : {},
+    if (existing) {
+      await prisma.rolePermission.update({
+        where: { id: existing.id },
+        data: { revokedAt: null },
+      });
+    } else {
+      await prisma.rolePermission.create({
+        data: { id: randomUUID(), tenantId, roleId, permissionId: permission.id },
       });
     }
   }

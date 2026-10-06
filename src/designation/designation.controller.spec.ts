@@ -1,58 +1,27 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return, @typescript-eslint/unbound-method */
-import { RequestMethod } from '@nestjs/common';
-import {
-  GUARDS_METADATA,
-  METHOD_METADATA,
-  PATH_METADATA,
-} from '@nestjs/common/constants';
-import { rolePermissionCodes } from '../../prisma/seed/data/permissions.data';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { PERMISSIONS_KEY } from '../common/security/permissions.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { FINAL_PERMISSIONS_KEY } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import { DesignationController } from './designation.controller';
 
 describe('DesignationController authorization contract', () => {
-  it('allows authenticated reads without a permission and requires MANAGE_DESIGNATIONS only for mutations', () => {
+  it('uses explicit final permissions, not a role identity', () => {
     const prototype = DesignationController.prototype;
     expect(
       Reflect.getMetadata(GUARDS_METADATA, DesignationController),
-    ).toContain(PermissionsGuard);
+    ).toContain(FinalPermissionsGuard);
     expect(
-      Reflect.getMetadata(PERMISSIONS_KEY, prototype.findAll),
-    ).toBeUndefined();
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.findAll),
+    ).toEqual([PermissionCode.VIEW_DESIGNATIONS]);
     expect(
-      Reflect.getMetadata(PERMISSIONS_KEY, prototype.findOne),
-    ).toBeUndefined();
-    for (const method of ['create', 'update', 'delete'] as const)
-      expect(Reflect.getMetadata(PERMISSIONS_KEY, prototype[method])).toEqual([
-        WorkflowActionCode.MANAGE_DESIGNATIONS,
-      ]);
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.create),
+    ).toEqual([PermissionCode.CREATE_DESIGNATION]);
     expect(
-      [
-        prototype.findAll,
-        prototype.findOne,
-        prototype.create,
-        prototype.update,
-        prototype.delete,
-      ].map((method) => [
-        Reflect.getMetadata(METHOD_METADATA, method),
-        Reflect.getMetadata(PATH_METADATA, method) ?? '/',
-      ]),
-    ).toEqual([
-      [RequestMethod.GET, '/'],
-      [RequestMethod.GET, ':id'],
-      [RequestMethod.POST, '/'],
-      [RequestMethod.PATCH, ':id'],
-      [RequestMethod.DELETE, ':id'],
-    ]);
-  });
-
-  it('provisions mutations only to tenant_super_admin and division_head', () => {
-    const action = WorkflowActionCode.MANAGE_DESIGNATIONS;
-    expect(rolePermissionCodes.tenant_super_admin).toContain(action);
-    expect(rolePermissionCodes.division_head).toContain(action);
-    expect(rolePermissionCodes.division_lead).not.toContain(action);
-    expect(rolePermissionCodes.team_lead).not.toContain(action);
-    expect(rolePermissionCodes.tms_manager).not.toContain(action);
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.update),
+    ).toEqual([PermissionCode.UPDATE_DESIGNATION]);
+    expect(
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.delete),
+    ).toEqual([PermissionCode.DELETE_DESIGNATION]);
   });
 });

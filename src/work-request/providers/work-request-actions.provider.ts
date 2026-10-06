@@ -9,6 +9,7 @@ import {
   assignmentTransitionFor,
   WORK_REQUEST_REVIEW_TRANSITIONS,
 } from './work-request-transition.definitions';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 @Injectable()
 export class WorkRequestActionsProvider {
   available(
@@ -17,10 +18,17 @@ export class WorkRequestActionsProvider {
     record?: WorkRequestRecord,
   ) {
     const grants = new Set(
-      actor.role.workflowActionRolePermissionsByRoleId.map(
-        ({ action }) => action.code,
-      ),
+      actor.role.rolePermissions
+        .filter(({ revokedAt }) => revokedAt === null)
+        .map(({ permission }) => permission.code),
     );
+    const hasActionPermission = (action: WorkflowActionCode) => {
+      try {
+        return grants.has(getFinalPermissionForWorkRequestAction(action));
+      } catch {
+        return false;
+      }
+    };
     if (!record || actor.role.userRolesByRoleId.length !== 1) return [];
     const parent = record.bid ?? record.directProject;
     const member = actor.member;
@@ -37,29 +45,11 @@ export class WorkRequestActionsProvider {
         assignment.divisionId ?? assignment.teamId ?? assignment.memberId,
       ]),
     );
-    const customTeam =
-      !actor.role.isSystemRole && actor.role.customScope === 'team';
-    const customDivision =
-      !actor.role.isSystemRole && actor.role.customScope === 'division';
-    const sameDivision = (divisionId: string | null | undefined) =>
-      member.division.isActive &&
-      (member.divisionId === divisionId ||
-        member.divisionLeadsByMemberId.some(
-          (lead) => lead.divisionId === divisionId,
-        ));
-    const canDivision =
-      !customTeam &&
-      member.division.isActive &&
-      grants.has(WorkflowActionCode.WR_ASSIGN_DIVISION);
-    const canTeam =
-      !customTeam &&
-      sameDivision(active.DIVISION) &&
-      grants.has(WorkflowActionCode.WR_ASSIGN_TEAM);
-    const canMember =
-      (customTeam
-        ? actor.boundTeamId === active.TEAM
-        : sameDivision(active.DIVISION)) &&
-      grants.has(WorkflowActionCode.WR_ASSIGN_MEMBER);
+    const canDivision = hasActionPermission(
+      WorkflowActionCode.WR_ASSIGN_DIVISION,
+    );
+    const canTeam = hasActionPermission(WorkflowActionCode.WR_ASSIGN_TEAM);
+    const canMember = hasActionPermission(WorkflowActionCode.WR_ASSIGN_MEMBER);
     const actions = [] as {
       code: WorkflowActionCode;
       label: string;
@@ -93,20 +83,14 @@ export class WorkRequestActionsProvider {
         targetKind: 'member',
       });
     const assignedMember = active.MEMBER === member.id;
-    const assignedTeam = active.TEAM;
     const teamAssignment = record.assignments.find(
       (assignment) => assignment.level === 'TEAM',
     );
-    const canReviewTeam = customTeam
-      ? actor.boundTeamId === assignedTeam && teamAssignment?.team?.isActive
-      : teamAssignment?.team?.isActive === true &&
-        teamAssignment.team.leadMemberId === member.id;
-    const canReviewDivision = !customTeam && sameDivision(active.DIVISION);
-    const canInfoScope = customTeam
-      ? actor.boundTeamId === active.TEAM
-      : customDivision
-        ? !!active.DIVISION && sameDivision(active.DIVISION)
-        : true;
+    const canReviewTeam =
+      teamAssignment?.team?.isActive === true &&
+      teamAssignment.team.leadMemberId === member.id;
+    const canReviewDivision = true;
+    const canInfoScope = true;
     for (const [code, transition] of Object.entries(
       WORK_REQUEST_REVIEW_TRANSITIONS,
     ) as [
@@ -119,7 +103,7 @@ export class WorkRequestActionsProvider {
           : transition.responsibility === 'TEAM'
             ? canReviewTeam
             : canReviewDivision;
-      if (state === transition.from && authorized && grants.has(code))
+      if (state === transition.from && authorized && hasActionPermission(code))
         actions.push({
           code,
           label: transition.label,
@@ -129,7 +113,7 @@ export class WorkRequestActionsProvider {
     if (
       state &&
       canInfoScope &&
-      grants.has(WorkflowActionCode.REQUEST_WORKFLOW_INFO)
+      hasActionPermission(WorkflowActionCode.REQUEST_WORKFLOW_INFO)
     )
       actions.push({
         code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
@@ -139,7 +123,7 @@ export class WorkRequestActionsProvider {
     if (
       state &&
       canInfoScope &&
-      grants.has(WorkflowActionCode.RESPOND_WORKFLOW_INFO) &&
+      hasActionPermission(WorkflowActionCode.RESPOND_WORKFLOW_INFO) &&
       record.infoRequests?.some((request) => request.targetActorId === actor.id)
     )
       actions.push({

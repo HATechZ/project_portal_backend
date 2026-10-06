@@ -17,6 +17,7 @@ export interface ClientOnboardingInput {
   name: string;
   primaryContact: ClientContactInput;
   enablePortalAccess: boolean;
+  portalRoleId?: string;
   assignedByUserId: string;
 }
 
@@ -70,6 +71,7 @@ export class ClientOnboardingRepository extends BaseRepository {
           client,
           contact,
           input.assignedByUserId,
+          input.portalRoleId!,
         );
         return {
           client,

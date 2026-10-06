@@ -23,6 +23,10 @@ const contact = {
   createdAt: new Date(),
   updatedAt: new Date(),
 };
+const externalRole = {
+  id: '11111111-1111-4111-8111-111111111111',
+  scope: 'client_contact' as const,
+};
 
 describe('ClientService onboarding', () => {
   const clients = {
@@ -104,6 +108,7 @@ describe('ClientService onboarding', () => {
         name: 'Client',
         primaryContact: { name: 'Contact', email: 'contact@example.com' },
         enablePortalAccess: true,
+        portalRoleId: externalRole.id,
       },
       'admin-id',
     );
@@ -122,12 +127,25 @@ describe('ClientService onboarding', () => {
         email: contact.email,
         userId: contact.userId,
       },
+      role: externalRole,
       setupRequired: true,
     });
 
-    await contactService.grantPortalAccess(client.id, contact.id, 'admin-id');
+    await contactService.grantPortalAccess(
+      client.id,
+      contact.id,
+      'admin-id',
+      externalRole.id,
+    );
 
     expect(passwordSetup.initiate).toHaveBeenCalledWith(contact.email);
+    expect(access.grant).toHaveBeenCalledWith(
+      client.id,
+      contact.id,
+      'company-id',
+      'admin-id',
+      externalRole.id,
+    );
   });
 
   it('rejects a non-active contact when the primary repository cannot select it', async () => {

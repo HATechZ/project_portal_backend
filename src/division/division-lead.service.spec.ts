@@ -1,11 +1,9 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
-import { ALLOW_ACTOR_ROLES_KEY } from '../common/security/allow-actor-roles.decorator';
-import { PERMISSIONS_KEY } from '../common/security/permissions.decorator';
-import { ActorRoleCode, WorkflowActionCode } from '../generated/prisma/client';
-import { DivisionController } from './division.controller';
+import { FINAL_PERMISSIONS_KEY } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import { DivisionLeadController } from './division-lead.controller';
 import { DivisionService } from './division.service';
 
@@ -18,9 +16,6 @@ const assignment = {
     email: 'lead@example.com',
     userId: 'user-1',
   },
-  roleCode: ActorRoleCode.division_lead,
-  userRoleActive: true,
-  actorProfileLinked: true,
 };
 
 function serviceWithLeadRepository(
@@ -63,9 +58,6 @@ describe('Division Lead assignment', () => {
     ).resolves.toMatchObject({
       division: { id: 'division-1' },
       member: { id: 'member-1', userId: 'user-1' },
-      roleCode: ActorRoleCode.division_lead,
-      userRoleActive: true,
-      actorProfileLinked: true,
     });
     expect(leadRepository.assign).toHaveBeenCalledWith({
       companyId: company.id,
@@ -90,29 +82,6 @@ describe('Division Lead assignment', () => {
       service.assignLead('division-1', { memberId: 'member-2' }, 'admin'),
     ).rejects.toMatchObject({ code: AppErrorCode.NotFound });
   });
-
-  it('requires pre-existing User access for the Member', async () => {
-    const { service } = serviceWithLeadRepository({
-      assign: jest.fn().mockRejectedValue(
-        new AppException({
-          code: AppErrorCode.Conflict,
-          status: 409,
-          message:
-            'Member must be linked to a User before assigning Division Lead',
-        }),
-      ),
-    });
-
-    await expect(
-      service.assignLead('division-1', { memberId: 'member-1' }, 'admin'),
-    ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
-  });
-
-  it('keeps the route tenant_super_admin guarded', () => {
-    const guards = (Reflect.getMetadata(GUARDS_METADATA, DivisionController) ??
-      []) as unknown[];
-    expect(guards).toContain(TenantSuperAdminGuard);
-  });
 });
 
 describe('Division Lead route authorization', () => {
@@ -125,30 +94,20 @@ describe('Division Lead route authorization', () => {
       name
     ];
 
-  it('requires ASSIGN_LEADER on the lead controller', () => {
+  it('requires final atomic permissions on the lead controller', () => {
     expect(
-      Reflect.getMetadata(PERMISSIONS_KEY, DivisionLeadController),
-    ).toEqual([WorkflowActionCode.ASSIGN_LEADER]);
-  });
-
-  it('admits division_head on the lead controller', () => {
+      Reflect.getMetadata(GUARDS_METADATA, DivisionLeadController),
+    ).toContain(FinalPermissionsGuard);
     expect(
-      Reflect.getMetadata(ALLOW_ACTOR_ROLES_KEY, DivisionLeadController),
-    ).toEqual([ActorRoleCode.division_head]);
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, routeHandler('assignLead')),
+    ).toEqual([PermissionCode.ASSIGN_DIVISION_LEAD]);
+    expect(
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, routeHandler('revokeLead')),
+    ).toEqual([PermissionCode.REVOKE_DIVISION_LEAD]);
   });
 
   it.each(leadRoutes)('defines %s on the lead controller', (route) => {
     expect(typeof routeHandler(route)).toBe('function');
-  });
-
-  it('leaves Division CRUD on ADD_DIVISION, admitting tenant_super_admin only', () => {
-    expect(Reflect.getMetadata(PERMISSIONS_KEY, DivisionController)).toEqual([
-      WorkflowActionCode.ADD_DIVISION,
-    ]);
-    // The widening decorator must not have leaked onto the CRUD controller.
-    expect(
-      Reflect.getMetadata(ALLOW_ACTOR_ROLES_KEY, DivisionController),
-    ).toBeUndefined();
   });
 });
 

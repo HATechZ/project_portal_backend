@@ -5,7 +5,6 @@ import {
 } from '../contracts/storage/file-storage.port';
 import { UnitOfWorkService } from '../infra/prisma/unit-of-work.service';
 import { WorkRequestActionsProvider } from './providers/work-request-actions.provider';
-import { WorkRequestResourceScopeProvider } from './providers/work-request-resource-scope.provider';
 import { WorkRequestServiceBase } from './providers/work-request-service-base';
 import { WorkRequestStorageProvider } from './providers/work-request-storage.provider';
 import { WorkRequestDocumentHistoryProvider } from './providers/work-request-document-history.provider';
@@ -46,7 +45,6 @@ export class WorkRequestService extends WorkRequestServiceBase {
     reads: WorkRequestReadRepository,
     eventsRepository: WorkRequestEventRepository,
     uow: UnitOfWorkService,
-    scope: WorkRequestResourceScopeProvider,
     storageProvider: WorkRequestStorageProvider,
     actions: WorkRequestActionsProvider,
     history: WorkRequestDocumentHistoryProvider,
@@ -62,7 +60,6 @@ export class WorkRequestService extends WorkRequestServiceBase {
       reads,
       eventsRepository,
       uow,
-      scope,
       storageProvider,
       actions,
       history,

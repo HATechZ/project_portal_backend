@@ -4,8 +4,9 @@
 **Tables owned:** `members`; integrates narrowly with `users`, `user_roles`, and `actor_profiles`
 **Dependencies:** `04.1-division`; precedes `04.3-team`
 
-## 1. Overview & Business Intent
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## 1. Overview & Business Intent
 Member is an internal Company/Division business person. User is a separate authentication and
 security identity. A Division has no login. In V1, every newly created internal Member receives
 a linked login User; Team and role assignment remain separate.

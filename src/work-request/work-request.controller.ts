@@ -23,9 +23,8 @@ import {
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { Permissions } from '../common/security/permissions.decorator';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import type { SessionActor } from '../common/security/session.types';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
@@ -40,7 +39,7 @@ import {
   ApiStandardOkResponse,
   ApiStandardUnauthorizedResponse,
 } from '../common/decorators/api-standard-response.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   CreateWorkRequestDto,
   UpdateWorkRequestDto,
@@ -58,8 +57,7 @@ import { workRequestCreateMultipartBody } from './work-request.swagger';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
@@ -69,7 +67,7 @@ import { workRequestCreateMultipartBody } from './work-request.swagger';
 export class WorkRequestController {
   constructor(private readonly service: WorkRequestService) {}
   @Post()
-  @Permissions(WorkflowActionCode.ADD_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.CREATE_WORK_REQUEST)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -90,7 +88,7 @@ export class WorkRequestController {
     return this.service.create(body, files, actor);
   }
   @Get()
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ResponseMessage('Work Requests returned successfully')
   @ApiOperation({ summary: 'Get Scoped Work Requests' })
   @ApiPaginatedResponse(WorkRequestResponseDto)
@@ -98,7 +96,7 @@ export class WorkRequestController {
     return this.service.list(query, actor);
   }
   @Get(':id')
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ResponseMessage('Work Request returned successfully')
   @ApiOperation({ summary: 'Get Work Request by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
@@ -110,7 +108,7 @@ export class WorkRequestController {
     return this.service.find(id, actor);
   }
   @Patch(':id')
-  @Permissions(WorkflowActionCode.UPDATE_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.UPDATE_WORK_REQUEST)
   @ApiOperation({ summary: 'Update Work Request by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ResponseMessage('Work Request updated successfully')

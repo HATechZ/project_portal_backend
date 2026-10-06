@@ -1,5 +1,11 @@
 # Technical Plan: 03 — Identity & Access
 
+> **2026-10-06 demo-data override:** Historical plan text requiring legacy-user privilege
+> conversion, fixed-role backfill, UserRole/ActorProfile assignment preservation, or an active-user
+> cutover is superseded. The authoritative future sequence is the ten-phase demo-data plan in
+> [`PERMISSION_CATALOGUE_GLOBALIZATION.md`](../PERMISSION_CATALOGUE_GLOBALIZATION.md). Historical
+> migrations stay unchanged; future changes are forward-only.
+
 Completion status is tracked in `specs/INDEX.md`.
 **Related Spec:** `specs/03-identity-and-access/SPEC.md`
 **Contracts:** `DATA_CONTRACT.md` · `API_CONTRACT.md`

@@ -21,7 +21,6 @@ import { WorkRequestReadRepository } from '../repositories/work-request-read.rep
 import { WorkRequestEventRepository } from '../repositories/work-request-event.repository';
 import { WorkRequestActionsProvider } from './work-request-actions.provider';
 import { toWorkRequestResponse } from './work-request-response.mapper';
-import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
 import { WorkRequestStorageProvider } from './work-request-storage.provider';
 import { WorkRequestDocumentHistoryProvider } from './work-request-document-history.provider';
 import { WorkRequestNamingProvider } from './work-request-naming.provider';
@@ -35,6 +34,7 @@ import {
   DocumentUploadOperationCode,
   DocumentUploadOwnerCode,
 } from '../../generated/prisma/client';
+import { assertWorkRequestExternalClientAccess } from './work-request-external-client-access';
 
 export abstract class WorkRequestServiceBase {
   protected constructor(
@@ -42,7 +42,6 @@ export abstract class WorkRequestServiceBase {
     private readonly reads: WorkRequestReadRepository,
     private readonly eventsRepository: WorkRequestEventRepository,
     private readonly uow: UnitOfWorkService,
-    private readonly scope: WorkRequestResourceScopeProvider,
     private readonly storageProvider: WorkRequestStorageProvider,
     private readonly actions: WorkRequestActionsProvider,
     private readonly history: WorkRequestDocumentHistoryProvider,
@@ -68,11 +67,7 @@ export abstract class WorkRequestServiceBase {
       throw mapReferenceError(error);
     }
     if (!context) throw notFound();
-    this.scope.assert(actor, {
-      ...context.parent,
-      divisionId: null,
-      teamId: null,
-    });
+    assertWorkRequestExternalClientAccess(actor, context.parent);
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -162,12 +157,7 @@ export abstract class WorkRequestServiceBase {
     const request = context.workRequest;
     const parent = request.bid ?? request.directProject;
     if (!parent) throw notFound('Work Request parent was not found.');
-    this.scope.assert(actor, {
-      clientId: parent.clientId,
-      companyId: parent.client.companyId,
-      divisionId: null,
-      teamId: null,
-    });
+    assertWorkRequestExternalClientAccess(actor, parent);
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -288,7 +278,6 @@ export abstract class WorkRequestServiceBase {
     } catch (error) {
       throw mapReferenceError(error);
     }
-    this.scope.assert(actor, reference.parent);
     if (reference.parent.state !== (input.bidId ? 'BIDDING' : 'ACTIVE'))
       throw conflict('Parent is not eligible for a Work Request.');
     if (
@@ -365,11 +354,10 @@ export abstract class WorkRequestServiceBase {
     }
   }
   async list(query: PaginationQueryDto, actor: SessionActor) {
-    const scope = this.scope.scopeFor(actor);
     return paginate(
       query,
       async ({ skip, take }) =>
-        (await this.reads.list(skip, take, scope)).map((r) =>
+        (await this.reads.list(skip, take)).map((r) =>
           toWorkRequestResponse(
             r,
             this.actions.available(
@@ -379,13 +367,12 @@ export abstract class WorkRequestServiceBase {
             ),
           ),
         ),
-      () => this.reads.count(scope),
+      () => this.reads.count(),
     );
   }
   async find(id: string, actor: SessionActor) {
     const record = await this.reads.find(id);
     if (!record) throw notFound();
-    this.scope.assert(actor, this.reads.parentScope(record));
     return toWorkRequestResponse(
       record,
       this.actions.available(
@@ -400,7 +387,6 @@ export abstract class WorkRequestServiceBase {
       throw bad('Supply metadata to update.');
     const current = await this.reads.find(id);
     if (!current) throw notFound();
-    this.scope.assert(actor, this.reads.parentScope(current));
     const record = await this.uow.execute(() =>
       this.repository.update(id, input),
     );
@@ -415,9 +401,9 @@ export abstract class WorkRequestServiceBase {
     );
   }
   async events(id: string, query: PaginationQueryDto, actor: SessionActor) {
+    void actor;
     const record = await this.reads.find(id);
     if (!record) throw notFound();
-    this.scope.assert(actor, this.reads.parentScope(record));
     return paginate(
       query,
       ({ skip, take }) => this.eventsRepository.events(id, skip, take),
@@ -427,7 +413,6 @@ export abstract class WorkRequestServiceBase {
   async availableActions(id: string, actor: SessionActor) {
     const record = await this.reads.find(id);
     if (!record) throw notFound();
-    this.scope.assert(actor, this.reads.parentScope(record));
     return this.actions.available(
       actor,
       record.events[0]?.resultingState ?? null,
@@ -437,13 +422,19 @@ export abstract class WorkRequestServiceBase {
   async documents(id: string, actor: SessionActor) {
     const record = await this.reads.find(id);
     if (!record) throw notFound();
-    this.scope.assert(actor, this.reads.parentScope(record));
+    assertWorkRequestExternalClientAccess(
+      actor,
+      record.bid ?? record.directProject,
+    );
     return this.history.list(id);
   }
   async documentVersions(id: string, documentId: string, actor: SessionActor) {
     const record = await this.reads.find(id);
     if (!record) throw notFound();
-    this.scope.assert(actor, this.reads.parentScope(record));
+    assertWorkRequestExternalClientAccess(
+      actor,
+      record.bid ?? record.directProject,
+    );
     return this.history.versions(id, documentId);
   }
 }

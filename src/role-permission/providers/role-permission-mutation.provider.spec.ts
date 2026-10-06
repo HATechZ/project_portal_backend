@@ -1,4 +1,3 @@
-import { WorkflowActionCode } from '../../generated/prisma/client';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { RolePermissionMutationProvider } from './role-permission-mutation.provider';
 
@@ -12,20 +11,13 @@ const role = (overrides: Record<string, unknown> = {}) => ({
   createdAt: new Date(),
   tenantId: '20000000-0000-4000-8000-000000000001',
   systemRole: null,
-  workflowActionRolePermissionsByRoleId: [],
+  rolePermissions: [],
   ...overrides,
 });
 
 describe('RolePermissionMutationProvider custom-role eligibility', () => {
   const repository = {
-    findPermissions: jest
-      .fn()
-      .mockResolvedValue([
-        { code: WorkflowActionCode.ADD_MEMBER },
-        { code: WorkflowActionCode.ADD_TEAM },
-        { code: WorkflowActionCode.ASSIGN_MEMBER },
-        { code: WorkflowActionCode.ADD_COMPANY },
-      ]),
+    findPermissionsByIds: jest.fn().mockResolvedValue([]),
     findRole: jest.fn().mockResolvedValue(role()),
     replaceRolePermissions: jest.fn().mockResolvedValue(role()),
   };
@@ -38,23 +30,32 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('creates a role with eligible permissions', async () => {
+  const memberPermission = '10000000-0000-4000-8000-000000000001';
+  const teamPermission = '10000000-0000-4000-8000-000000000002';
+
+  it('creates a role with compatible explicit permission IDs', async () => {
+    repository.findPermissionsByIds.mockResolvedValue([
+      { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }] },
+    ]);
     await expect(
       provider.createCustomRole({
         name: 'Team coordinator',
         scope: 'team',
-        permissionCodes: [WorkflowActionCode.ADD_MEMBER],
+        permissionIds: [memberPermission],
       }),
     ).resolves.toMatchObject({ id: role().id });
     expect(customRoles.create).toHaveBeenCalled();
   });
 
   it('rejects a create with a scope-ineligible permission', async () => {
+    repository.findPermissionsByIds.mockResolvedValueOnce([
+      { id: teamPermission, scopeCompatibilities: [{ scope: 'company' }] },
+    ]);
     await expect(
       provider.createCustomRole({
         name: 'Team coordinator',
         scope: 'team',
-        permissionCodes: [WorkflowActionCode.ADD_TEAM],
+        permissionIds: [teamPermission],
       }),
     ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
   });
@@ -64,28 +65,40 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
       provider.createCustomRole({
         name: 'Invalid scope',
         scope: 'global' as never,
-        permissionCodes: [WorkflowActionCode.ADD_MEMBER],
+        permissionIds: [memberPermission],
       }),
     ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
   });
 
   it('rejects a scope update that retains an incompatible permission', async () => {
+    repository.findPermissionsByIds.mockResolvedValueOnce([
+      { id: teamPermission, scopeCompatibilities: [{ scope: 'company' }] },
+    ]);
     await expect(
       provider.setRolePermissions(role().id, {
         scope: 'team',
-        permissionCodes: [WorkflowActionCode.ADD_TEAM],
+        permissionIds: [teamPermission],
       }),
     ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
     expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
   });
 
-  it('leaves fixed-role permission replacement behavior intact', async () => {
+  it('rejects duplicate permission IDs', async () => {
+    await expect(
+      provider.createCustomRole({
+        name: 'Reviewer',
+        scope: 'company',
+        permissionIds: [memberPermission, memberPermission],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
+  });
+
+  it('blocks system-role permission replacement', async () => {
     repository.findRole.mockResolvedValueOnce(role({ isSystemRole: true }));
-    await provider.setRolePermissions(role().id, {
-      permissionCodes: [WorkflowActionCode.ADD_COMPANY],
-    });
-    expect(repository.replaceRolePermissions).toHaveBeenCalledWith(role().id, [
-      WorkflowActionCode.ADD_COMPANY,
-    ]);
+    await expect(
+      provider.setRolePermissions(role().id, {
+        permissionIds: [memberPermission],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.Forbidden });
   });
 });

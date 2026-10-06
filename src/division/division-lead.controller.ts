@@ -20,15 +20,12 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveUser } from '../common/security/active-user.decorator';
-import { AllowActorRoles } from '../common/security/allow-actor-roles.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionUser } from '../common/security/session.types';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { ActorRoleCode, WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { DivisionService } from './division.service';
 import {
   AssignDivisionLeadDto,
@@ -48,12 +45,8 @@ import {
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  TenantSuperAdminGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.ASSIGN_LEADER)
-@AllowActorRoles(ActorRoleCode.division_head)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse('Division Lead assignment access required')
@@ -65,6 +58,7 @@ export class DivisionLeadController {
   constructor(private readonly divisionService: DivisionService) {}
 
   @Put(':id/lead')
+  @FinalPermissions(PermissionCode.ASSIGN_DIVISION_LEAD)
   @ResponseMessage('Division Lead assigned successfully')
   @ApiOperation({
     summary: 'Assign Division Lead',
@@ -84,6 +78,7 @@ export class DivisionLeadController {
   }
 
   @Get(':id/lead')
+  @FinalPermissions(PermissionCode.VIEW_DIVISIONS)
   @ResponseMessage('Division Lead returned successfully')
   @ApiOperation({
     summary: 'Get the current Division Lead',
@@ -98,6 +93,7 @@ export class DivisionLeadController {
   }
 
   @Delete(':id/lead')
+  @FinalPermissions(PermissionCode.REVOKE_DIVISION_LEAD)
   @ResponseMessage('Division Lead revoked successfully')
   @ApiOperation({
     summary: 'Revoke the current Division Lead',

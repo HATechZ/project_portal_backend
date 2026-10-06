@@ -10,9 +10,12 @@ export function toRoleResponse(role: RoleRecord): RoleResponseDto {
     isSystemRole: role.isSystemRole,
     scope: role.customScope,
     createdAt: role.createdAt,
-    permissions: role.workflowActionRolePermissionsByRoleId.map(
-      ({ action }) => action,
-    ),
+    permissions: role.rolePermissions.map(({ permission }) => ({
+      ...permission,
+      compatibleScopes: permission.scopeCompatibilities.map(
+        ({ scope }) => scope,
+      ),
+    })),
   };
 }
 

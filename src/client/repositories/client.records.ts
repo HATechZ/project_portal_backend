@@ -1,4 +1,4 @@
-import { Prisma } from '../../generated/prisma/client';
+import { CustomRoleScope, Prisma } from '../../generated/prisma/client';
 
 export const clientSelect = {
   id: true,
@@ -38,5 +38,6 @@ export interface ScopedCompanyRecord {
 export interface PortalAccessRecord {
   client: Pick<ClientRecord, 'id' | 'name'>;
   clientContact: Pick<ClientContactRecord, 'id' | 'name' | 'email' | 'userId'>;
+  role: { id: string; scope: CustomRoleScope };
   setupRequired: boolean;
 }

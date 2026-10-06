@@ -36,13 +36,12 @@ import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.d
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
 import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
 import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
@@ -63,8 +62,7 @@ import {
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
@@ -75,7 +73,7 @@ export class BidController {
   constructor(private readonly service: BidService) {}
 
   @Post()
-  @Permissions(WorkflowActionCode.ADD_BID)
+  @FinalPermissions(PermissionCode.CREATE_BID)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -187,7 +185,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Post(':id/documents')
-  @Permissions(WorkflowActionCode.UPDATE_BID)
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -223,7 +221,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Post(':id/documents/:documentId/versions')
-  @Permissions(WorkflowActionCode.UPDATE_BID)
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024, files: 1 },
@@ -254,19 +252,16 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Get(':id/documents')
-  @Permissions(WorkflowActionCode.VIEW_BID)
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List Bid documents' })
   @ApiStandardOkResponse(DocumentSummaryDto, 'Bid documents returned')
   @ResponseMessage('Bid documents returned successfully')
-  documents(
-    @Param('id', ParseUUIDPipe) id: string,
-    @ActiveActor() actor: SessionActor,
-  ) {
-    return this.service.documents(id, actor);
+  documents(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.documents(id);
   }
 
   @Get(':id/documents/:documentId/versions')
-  @Permissions(WorkflowActionCode.VIEW_BID)
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List immutable Bid document versions' })
   @ApiStandardOkResponse(
     DocumentVersionResponseDto,
@@ -276,13 +271,12 @@ const response = await fetch('/api/v1/bids', {
   documentVersions(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
-    @ActiveActor() actor: SessionActor,
   ) {
-    return this.service.documentVersions(id, documentId, actor);
+    return this.service.documentVersions(id, documentId);
   }
 
   @Get()
-  @Permissions(WorkflowActionCode.VIEW_BID)
+  @FinalPermissions(PermissionCode.VIEW_BID)
   @ApiOperation({ summary: 'Get All Bids' })
   @ResponseMessage('Bids returned successfully')
   @ApiPaginatedResponse(BidResponseDto)
@@ -291,7 +285,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Get(':id')
-  @Permissions(WorkflowActionCode.VIEW_BID)
+  @FinalPermissions(PermissionCode.VIEW_BID)
   @ApiOperation({ summary: 'Get Bid by ID' })
   @ResponseMessage('Bid returned successfully')
   @ApiStandardOkResponse(BidResponseDto, 'Bid returned')
@@ -300,7 +294,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Patch(':id')
-  @Permissions(WorkflowActionCode.UPDATE_BID)
+  @FinalPermissions(PermissionCode.UPDATE_BID)
   @ApiOperation({ summary: 'Update Bid' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Bid ID' })
   @ResponseMessage('Bid updated successfully')
@@ -310,7 +304,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Patch(':id/documents/:documentId/document-code')
-  @Permissions(WorkflowActionCode.UPDATE_BID)
+  @FinalPermissions(PermissionCode.UPDATE_BID)
   @ApiOperation({ summary: 'Reclassify Bid Document Code' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Bid ID' })
   @ApiParam({

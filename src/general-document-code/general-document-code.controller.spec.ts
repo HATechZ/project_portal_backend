@@ -1,14 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return, @typescript-eslint/unbound-method */
 import { RequestMethod } from '@nestjs/common';
 import {
   GUARDS_METADATA,
   METHOD_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { PERMISSIONS_KEY } from '../common/security/permissions.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
-import { rolePermissionCodes } from '../../prisma/seed/data/permissions.data';
+import { FINAL_PERMISSIONS_KEY } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import { GeneralDocumentCodeController } from './general-document-code.controller';
 
 describe('GeneralDocumentCodeController', () => {
@@ -22,11 +21,11 @@ describe('GeneralDocumentCodeController', () => {
       ]);
 
     expect(
-      Reflect.getMetadata(PERMISSIONS_KEY, GeneralDocumentCodeController),
-    ).toEqual([WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES]);
-    expect(
       Reflect.getMetadata(GUARDS_METADATA, GeneralDocumentCodeController),
-    ).toContain(PermissionsGuard);
+    ).toContain(FinalPermissionsGuard);
+    expect(
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.create),
+    ).toEqual([PermissionCode.CREATE_DOCUMENT_CODE]);
     expect(routes).toEqual([
       [RequestMethod.GET, '/'],
       [RequestMethod.GET, 'deactivated'],
@@ -37,14 +36,5 @@ describe('GeneralDocumentCodeController', () => {
       [RequestMethod.PATCH, ':id/reactivate'],
     ]);
     expect(Object.getOwnPropertyNames(prototype)).not.toContain('delete');
-  });
-
-  it('provisions the permission only to approved system roles', () => {
-    const action = WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES;
-    expect(rolePermissionCodes.tenant_super_admin).toContain(action);
-    expect(rolePermissionCodes.division_head).toContain(action);
-    expect(rolePermissionCodes.division_lead).toContain(action);
-    expect(rolePermissionCodes.division_member).not.toContain(action);
-    expect(rolePermissionCodes.tms_manager).not.toContain(action);
   });
 });

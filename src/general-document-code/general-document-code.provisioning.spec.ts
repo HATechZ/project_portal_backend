@@ -34,9 +34,9 @@ describe('General Document Code provisioning migration', () => {
     );
   });
 
-  it('initializes the approved new-tenant catalogue and role grants only', () => {
+  it('preserves the historical workflow-action and role labels of that migration', () => {
     expect(migration).toContain("'MANAGE_GENERAL_DOCUMENT_CODES'");
-    expect(migration).toContain("'tenant_super_admin'::public.actor_role_code");
+    expect(migration).toContain("'system_admin'::public.actor_role_code");
     expect(migration).toContain("'division_head'::public.actor_role_code");
     expect(migration).toContain("'division_lead'::public.actor_role_code");
     expect(migration).toContain(

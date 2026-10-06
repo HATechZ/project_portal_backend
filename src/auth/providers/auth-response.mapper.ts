@@ -5,8 +5,15 @@ export function toAuthUserResponse(user: SessionUser): AuthUserResponseDto {
   const roles = user.userRolesByUserId.map(
     ({ role }) => role.systemRole?.systemCode ?? role.customCode!,
   );
+  const roleScopes = user.userRolesByUserId.flatMap(({ role }) =>
+    role.customScope ? [role.customScope] : [],
+  );
   const permissions = user.userRolesByUserId.flatMap(({ role }) =>
-    role.workflowActionRolePermissionsByRoleId.map(({ action }) => action.code),
+    role.isActive
+      ? role.rolePermissions
+          .filter(({ revokedAt }) => revokedAt === null)
+          .map(({ permission }) => permission.code)
+      : [],
   );
 
   return {
@@ -17,6 +24,7 @@ export function toAuthUserResponse(user: SessionUser): AuthUserResponseDto {
     phone: user.phone,
     avatarUrl: user.avatarUrl,
     roles: [...new Set(roles)].sort(),
+    roleScopes: [...new Set(roleScopes)].sort(),
     permissions: [...new Set(permissions)].sort(),
   };
 }

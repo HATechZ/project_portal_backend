@@ -4,8 +4,9 @@
 **Tables owned:** `divisions` (organizational CRUD); consumes global `division_types`  
 **Dependencies:** `04-organization` Company contract; precedes `04.2-member` and `04.3-team`
 
-## 1. Overview & Business Intent
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## 1. Overview & Business Intent
 Division is a Tenant Company organizational record. It is not a User, credential,
 email/password, or login identity. This module delivers guarded Division CRUD and a tenant-super-admin
 business operation to assign an eligible Member as Division Lead through the existing

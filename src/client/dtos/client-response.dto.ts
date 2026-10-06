@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CustomRoleScope } from '../../generated/prisma/client';
 
 export class ClientResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -49,5 +50,9 @@ export class ClientPortalAccessResponseDto {
     'id' | 'name' | 'email' | 'userId'
   >;
   @ApiProperty()
-  portalAccess!: { role: 'client_owner'; scope: 'client'; active: boolean };
+  portalAccess!: {
+    roleId: string;
+    scope: CustomRoleScope;
+    active: boolean;
+  };
 }

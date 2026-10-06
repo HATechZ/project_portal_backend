@@ -3,7 +3,6 @@ import { WorkRequestController } from './work-request.controller';
 import { WorkRequestService } from './work-request.service';
 import { WorkRequestRepository } from './repositories/work-request.repository';
 import { WorkRequestActionsProvider } from './providers/work-request-actions.provider';
-import { WorkRequestResourceScopeProvider } from './providers/work-request-resource-scope.provider';
 import { WorkRequestStorageProvider } from './providers/work-request-storage.provider';
 import { WorkRequestDocumentRepository } from './repositories/work-request-document.repository';
 import { WorkRequestDocumentHistoryProvider } from './providers/work-request-document-history.provider';
@@ -39,7 +38,6 @@ import { DocumentUploadRequestRepository } from '../common/documents/document-up
     WorkRequestReadRepository,
     WorkRequestEventRepository,
     WorkRequestActionsProvider,
-    WorkRequestResourceScopeProvider,
     WorkRequestStorageProvider,
     WorkRequestDocumentRepository,
     WorkRequestDocumentHistoryProvider,

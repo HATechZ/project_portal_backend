@@ -1,0 +1,122 @@
+import { PermissionCode } from '../../generated/prisma/client';
+import { FinalPermissionsGuard } from './final-permissions.guard';
+
+const contextFor = (
+  codes: PermissionCode[],
+  customScope: 'client' | 'client_contact' | null = null,
+  compatibleScopes: ('client' | 'client_contact')[] = [],
+) =>
+  ({
+    getHandler: () => ({}),
+    getClass: () => ({}),
+    switchToHttp: () => ({
+      getRequest: () => ({
+        actor: {
+          isActive: true,
+          role: {
+            isActive: true,
+            customScope,
+            rolePermissions: codes.map((code) => ({
+              revokedAt: null,
+              permission: {
+                code,
+                scopeCompatibilities: compatibleScopes.map((scope) => ({
+                  scope,
+                })),
+              },
+            })),
+          },
+        },
+      }),
+    }),
+  }) as never;
+
+describe('FinalPermissionsGuard', () => {
+  it('allows only explicit final grants and has no role-name bypass', async () => {
+    const reflector = {
+      getAllAndOverride: jest
+        .fn()
+        .mockReturnValue([PermissionCode.VIEW_MEMBERS]),
+    };
+    const guard = new FinalPermissionsGuard(reflector as never);
+    await expect(
+      guard.canActivate(contextFor([PermissionCode.VIEW_MEMBERS])),
+    ).resolves.toBe(true);
+    await expect(guard.canActivate(contextFor([]))).rejects.toThrow(
+      'Missing required explicit permission',
+    );
+  });
+
+  it('does nothing when an endpoint declares no final permission', async () => {
+    const guard = new FinalPermissionsGuard({
+      getAllAndOverride: jest.fn().mockReturnValue(undefined),
+    } as never);
+    await expect(guard.canActivate(contextFor([]))).resolves.toBe(true);
+  });
+
+  it('runs feature-owned resource and state checks after the grant check', async () => {
+    const reflector = {
+      getAllAndOverride: jest
+        .fn()
+        .mockReturnValueOnce([PermissionCode.VIEW_MEMBERS])
+        .mockReturnValueOnce([
+          {
+            kind: 'resource',
+            reason: 'record is unavailable',
+            validate: () => false,
+          },
+        ]),
+    };
+    const guard = new FinalPermissionsGuard(reflector as never);
+    await expect(
+      guard.canActivate(contextFor([PermissionCode.VIEW_MEMBERS])),
+    ).rejects.toThrow('resource condition');
+  });
+
+  it('enforces client and client_contact compatibility from persisted permission metadata', async () => {
+    const reflector = {
+      getAllAndOverride: jest
+        .fn()
+        .mockReturnValue([PermissionCode.VIEW_DOCUMENT]),
+    };
+    const guard = new FinalPermissionsGuard(reflector as never);
+
+    await expect(
+      guard.canActivate(
+        contextFor([PermissionCode.VIEW_DOCUMENT], 'client', [
+          'client',
+          'client_contact',
+        ]),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(
+        contextFor([PermissionCode.VIEW_DOCUMENT], 'client_contact', [
+          'client',
+        ]),
+      ),
+    ).rejects.toThrow('Missing required explicit permission');
+  });
+
+  it('does not give tenant_super_admin or a retired role label an implicit bypass', async () => {
+    const reflector = {
+      getAllAndOverride: jest
+        .fn()
+        .mockReturnValue([PermissionCode.VIEW_MEMBERS]),
+    };
+    const context = contextFor([]) as {
+      switchToHttp: () => {
+        getRequest: () => { actor: { role: Record<string, unknown> } };
+      };
+    };
+    context.switchToHttp().getRequest().actor.role.systemRole = {
+      systemCode: 'tenant_super_admin',
+    };
+    context.switchToHttp().getRequest().actor.role.customCode = 'division_head';
+    await expect(
+      new FinalPermissionsGuard(reflector as never).canActivate(
+        context as never,
+      ),
+    ).rejects.toThrow('Missing required explicit permission');
+  });
+});

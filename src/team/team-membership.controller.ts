@@ -8,7 +8,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -30,12 +29,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   AddTeamMemberDto,
   TeamMemberQueryDto,
@@ -50,10 +47,8 @@ import { TeamMembershipService } from './team-membership.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.ASSIGN_MEMBER)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse('Team membership is outside actor scope')
@@ -63,6 +58,7 @@ export class TeamMembershipController {
   constructor(private readonly service: TeamMembershipService) {}
 
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_TEAMS)
   @ResponseMessage('Team members returned successfully')
   @ApiOperation({ summary: 'List Team Members' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -70,12 +66,12 @@ export class TeamMembershipController {
   listMembers(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: TeamMemberQueryDto,
-    @Req() request: ObjectScopeRequest,
   ) {
-    return this.service.listMembers(id, query, request.actorScope!);
+    return this.service.listMembers(id, query);
   }
 
   @Post()
+  @FinalPermissions(PermissionCode.ASSIGN_TEAM_MEMBER)
   @ResponseMessage('Team member added successfully')
   @ApiOperation({ summary: 'Add a Member to a Team' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -83,12 +79,12 @@ export class TeamMembershipController {
   addMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() input: AddTeamMemberDto,
-    @Req() request: ObjectScopeRequest,
   ) {
-    return this.service.addMember(id, input, request.actorScope!);
+    return this.service.addMember(id, input);
   }
 
   @Delete(':memberId')
+  @FinalPermissions(PermissionCode.REMOVE_TEAM_MEMBER)
   @HttpCode(204)
   @ResponseMessage('Team member removed successfully')
   @ApiOperation({
@@ -105,8 +101,7 @@ export class TeamMembershipController {
   removeMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('memberId', ParseUUIDPipe) memberId: string,
-    @Req() request: ObjectScopeRequest,
   ) {
-    return this.service.removeMember(id, memberId, request.actorScope!);
+    return this.service.removeMember(id, memberId);
   }
 }

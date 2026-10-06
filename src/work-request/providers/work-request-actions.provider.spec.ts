@@ -3,6 +3,7 @@ import {
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import { WorkRequestActionsProvider } from './work-request-actions.provider';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 import { WORK_REQUEST_REVIEW_TRANSITIONS } from './work-request-transition.definitions';
 
 describe('WorkRequestActionsProvider', () => {
@@ -33,8 +34,9 @@ describe('WorkRequestActionsProvider', () => {
         userRolesByRoleId: [
           { teamId: customScope === 'team' ? 'team-a' : null },
         ],
-        workflowActionRolePermissionsByRoleId: permissions.map((code) => ({
-          action: { code },
+        rolePermissions: permissions.map((code) => ({
+          revokedAt: null,
+          permission: { code: getFinalPermissionForWorkRequestAction(code) },
         })),
       },
       member: {
@@ -138,7 +140,7 @@ describe('WorkRequestActionsProvider', () => {
     ).toEqual([]);
   });
 
-  it('hides information actions outside a DIVISION custom-role boundary', () => {
+  it('does not derive information availability from a custom-role scope', () => {
     expect(
       provider.available(
         actor([WorkflowActionCode.REQUEST_WORKFLOW_INFO], 'member', 'division'),
@@ -147,7 +149,11 @@ describe('WorkRequestActionsProvider', () => {
           { level: 'DIVISION', divisionId: 'division-other' },
         ]),
       ),
-    ).toEqual([]);
+    ).toEqual([
+      expect.objectContaining({
+        code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+      }),
+    ]);
   });
 
   it('uses the shared review transition definitions for available actions', () => {

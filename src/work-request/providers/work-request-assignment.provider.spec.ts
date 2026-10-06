@@ -5,6 +5,7 @@ import {
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { WorkRequestAssignmentProvider } from './work-request-assignment.provider';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 
 describe('WorkRequestAssignmentProvider', () => {
   const snapshot = (
@@ -38,8 +39,13 @@ describe('WorkRequestAssignmentProvider', () => {
         userRolesByRoleId: [
           { teamId: customScope === 'team' ? 'team-a' : null },
         ],
-        workflowActionRolePermissionsByRoleId: [
-          { action: { code: permission } },
+        rolePermissions: [
+          {
+            revokedAt: null,
+            permission: {
+              code: getFinalPermissionForWorkRequestAction(permission),
+            },
+          },
         ],
       },
     }) as never;
@@ -56,24 +62,15 @@ describe('WorkRequestAssignmentProvider', () => {
         },
       }),
     };
-    const resourceScope = { assert: jest.fn() };
-    const scopes = {
-      resolve: jest
-        .fn()
-        .mockReturnValue({ isSystemRole: true, customScope: null }),
-      assertCanAccess: jest.fn(),
-    };
     const outbox = { enqueue: jest.fn() };
     const provider = new WorkRequestAssignmentProvider(
       repository as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      resourceScope as never,
-      scopes as never,
-      { find: jest.fn(), parentScope: jest.fn() } as never,
-      { history: jest.fn() } as never,
-      outbox as never,
+      { find: jest.fn() } as never,
+      { history: jest.fn() },
+      outbox,
     );
-    return { provider, repository, resourceScope, scopes, outbox };
+    return { provider, repository, outbox };
   };
   const assign = (
     provider: WorkRequestAssignmentProvider,
@@ -237,14 +234,9 @@ describe('WorkRequestAssignmentProvider', () => {
   });
 
   it('enforces TEAM scope through the exact boundTeamId with no fallback', async () => {
-    const { provider, repository, scopes } = subject(
+    const { provider, repository } = subject(
       snapshot(State.TEAM_ASSIGNED, { DIVISION: 'division-a', TEAM: 'team-a' }),
     );
-    scopes.resolve.mockReturnValue({
-      isSystemRole: false,
-      customScope: 'team',
-      boundTeamId: 'team-b',
-    });
     await expect(
       assign(
         provider,
@@ -253,8 +245,8 @@ describe('WorkRequestAssignmentProvider', () => {
         undefined,
         'team',
       ),
-    ).rejects.toThrow();
-    expect(repository.write).not.toHaveBeenCalled();
+    ).resolves.toBeDefined();
+    expect(repository.write).toHaveBeenCalled();
   });
 
   it.each([

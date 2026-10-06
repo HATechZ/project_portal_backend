@@ -31,13 +31,11 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { DivisionService } from './division.service';
 import {
   CreateDivisionDto,
@@ -52,20 +50,18 @@ import {
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  TenantSuperAdminGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.ADD_DIVISION)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('tenant super administrator access required')
+@ApiStandardForbiddenResponse('explicit permission required')
 @ApiStandardNotFoundResponse('Division was not found')
 @ApiStandardConflictResponse('Division request conflicts with current data')
 export class DivisionController {
   constructor(private readonly divisionService: DivisionService) {}
 
   @Post()
+  @FinalPermissions(PermissionCode.CREATE_DIVISION)
   @ResponseMessage('Division created successfully')
   @ApiOperation({ summary: 'Create a Division' })
   @ApiStandardCreatedResponse(DivisionResponseDto, 'Division created')
@@ -74,6 +70,7 @@ export class DivisionController {
   }
 
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_DIVISIONS)
   @ResponseMessage('Divisions returned successfully')
   @ApiOperation({ summary: 'List Divisions' })
   @ApiPaginatedResponse(DivisionResponseDto)
@@ -82,6 +79,7 @@ export class DivisionController {
   }
 
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_DIVISIONS)
   @ResponseMessage('Division returned successfully')
   @ApiOperation({ summary: 'Get a Division by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -91,6 +89,7 @@ export class DivisionController {
   }
 
   @Patch(':id')
+  @FinalPermissions(PermissionCode.UPDATE_DIVISION)
   @ResponseMessage('Division updated successfully')
   @ApiOperation({ summary: 'Update a Division' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
@@ -103,6 +102,7 @@ export class DivisionController {
   }
 
   @Delete(':id')
+  @FinalPermissions(PermissionCode.DELETE_DIVISION)
   @HttpCode(204)
   @ResponseMessage('Division deleted successfully')
   @ApiOperation({ summary: 'Delete a Division' })

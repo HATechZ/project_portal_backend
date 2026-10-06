@@ -25,6 +25,10 @@ export function toPortalAccessResponse(
   return {
     client: record.client,
     clientContact: record.clientContact,
-    portalAccess: { role: 'client_owner', scope: 'client', active: true },
+    portalAccess: {
+      roleId: record.role.id,
+      scope: record.role.scope,
+      active: true,
+    },
   };
 }

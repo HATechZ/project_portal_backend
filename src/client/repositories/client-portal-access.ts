@@ -3,7 +3,7 @@ import { HttpStatus } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
-import { ActorRoleCode } from '../../generated/prisma/client';
+import { CustomRoleScope } from '../../generated/prisma/client';
 import { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import {
   ClientContactRecord,
@@ -13,14 +13,15 @@ import {
 } from './client.records';
 
 /**
- * Links a Client contact to a User with the client_owner role and profile. Runs inside the
- * caller's transaction so onboarding and a later portal grant share one code path.
+ * Links a Client contact to a User with a tenant-selected external custom role and profile.
+ * Runs inside the caller's transaction so onboarding and a later portal grant share one code path.
  */
 export async function establishPortalAccess(
   db: PrismaExecutor,
   client: Pick<ClientRecord, 'id' | 'name'>,
   contact: Pick<ClientContactRecord, 'id' | 'name' | 'email' | 'userId'>,
   assignedByUserId: string,
+  roleId: string,
 ): Promise<PortalAccessRecord> {
   const tenantId = RequestContext.requireTenantId();
   let user = contact.userId
@@ -49,10 +50,18 @@ export async function establishPortalAccess(
 
   await db.$queryRaw`SELECT id FROM users WHERE id = ${user.id}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE`;
   const role = await db.role.findFirst({
-    where: { systemRole: { is: { systemCode: ActorRoleCode.client_owner } } },
-    select: { id: true, name: true },
+    where: {
+      id: roleId,
+      tenantId,
+      isSystemRole: false,
+      isActive: true,
+      customScope: {
+        in: [CustomRoleScope.client, CustomRoleScope.client_contact],
+      },
+    },
+    select: { id: true, name: true, customScope: true },
   });
-  if (!role) throw conflict('Client owner role is unavailable');
+  if (!role) throw conflict('Selected external custom role is unavailable');
   const activeRole = await db.userRole.findFirst({
     where: { tenantId, userId: user.id, roleId: role.id, revokedAt: null },
     select: { id: true },
@@ -115,6 +124,7 @@ export async function establishPortalAccess(
   return {
     client,
     clientContact: linked,
+    role: { id: role.id, scope: role.customScope! },
     setupRequired: created || user.passwordHash === null,
   };
 }

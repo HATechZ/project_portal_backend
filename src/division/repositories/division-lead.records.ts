@@ -1,5 +1,3 @@
-import { ActorRoleCode } from '../../generated/prisma/client';
-
 export const divisionLeadMemberSelect = {
   id: true,
   name: true,
@@ -28,11 +26,8 @@ export interface DivisionLeadAssignmentRecord {
     id: string;
     name: string;
     email: string;
-    userId: string;
+    userId: string | null;
   };
-  roleCode: ActorRoleCode;
-  userRoleActive: boolean;
-  actorProfileLinked: boolean;
   assignedAt: Date;
   revokedIncumbent: DivisionLeadRevokedIncumbent | null;
   /** True when the Member already led this Division and no row was written. */

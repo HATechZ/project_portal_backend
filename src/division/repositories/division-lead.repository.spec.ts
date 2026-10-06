@@ -189,13 +189,13 @@ describe('DivisionLeadRepository', () => {
     expect(db.divisionLead.update).not.toHaveBeenCalled();
   });
 
-  it('rejects a Member with no linked User before writing anything', async () => {
+  it('does not require a User, UserRole, or ActorProfile for a Member lead', async () => {
     const db = makeDb({ member: { ...MEMBER, userId: null } });
 
     await expect(
       inTenant(() => repositoryOver(db).assign(assignInput)),
-    ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
-    expect(db.divisionLead.create).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ member: { userId: null } });
+    expect(db.divisionLead.create).toHaveBeenCalledTimes(1);
     expect(db.divisionLead.update).not.toHaveBeenCalled();
     expect(db.userRole.create).not.toHaveBeenCalled();
   });

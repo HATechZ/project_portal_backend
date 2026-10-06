@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import {
-  Prisma,
-  WorkflowActionCode,
-  CustomRoleScope,
-} from '../../generated/prisma/client';
+import { Prisma, CustomRoleScope } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
@@ -34,7 +30,7 @@ export class RolePermissionRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.role.findMany({
-        where: { OR: [{ isSystemRole: true }, { tenantId }] },
+        where: { isActive: true, OR: [{ isSystemRole: true }, { tenantId }] },
         orderBy: { name: 'asc' },
         select: roleSelect(tenantId),
       }),
@@ -45,7 +41,11 @@ export class RolePermissionRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.role.findFirst({
-        where: { id, OR: [{ isSystemRole: true }, { tenantId }] },
+        where: {
+          id,
+          isActive: true,
+          OR: [{ isSystemRole: true }, { tenantId }],
+        },
         select: roleSelect(tenantId),
       }),
     );
@@ -53,7 +53,7 @@ export class RolePermissionRepository extends BaseRepository {
 
   findPermissions(): Promise<PermissionRecord[]> {
     return this.transaction((db) =>
-      db.workflowActionDefinition.findMany({
+      db.permission.findMany({
         orderBy: { code: 'asc' },
         select: permissionSelect,
       }),
@@ -62,9 +62,17 @@ export class RolePermissionRepository extends BaseRepository {
 
   findVisiblePermissions(): Promise<PermissionRecord[]> {
     return this.transaction((db) =>
-      db.workflowActionDefinition.findMany({
-        where: { isUserVisible: true },
+      db.permission.findMany({
         orderBy: { code: 'asc' },
+        select: permissionSelect,
+      }),
+    );
+  }
+
+  findPermissionsByIds(ids: string[]): Promise<PermissionRecord[]> {
+    return this.transaction((db) =>
+      db.permission.findMany({
+        where: { id: { in: ids } },
         select: permissionSelect,
       }),
     );
@@ -72,7 +80,7 @@ export class RolePermissionRepository extends BaseRepository {
 
   findPermission(id: string): Promise<PermissionRecord | null> {
     return this.transaction((db) =>
-      db.workflowActionDefinition.findUnique({
+      db.permission.findUnique({
         where: { id },
         select: permissionSelect,
       }),
@@ -81,19 +89,19 @@ export class RolePermissionRepository extends BaseRepository {
 
   async replaceRolePermissions(
     roleId: string,
-    permissionCodes: WorkflowActionCode[],
+    permissionIds: string[],
     customScope?: CustomRoleScope,
   ): Promise<RoleRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
       async (transaction) => {
-        const actions = await transaction.workflowActionDefinition.findMany({
-          where: { code: { in: permissionCodes } },
+        const permissions = await transaction.permission.findMany({
+          where: { id: { in: permissionIds } },
           select: { id: true },
         });
-        await transaction.workflowActionRolePermission.updateMany({
+        await transaction.rolePermission.updateMany({
           where: { tenantId, roleId },
-          data: { allowed: false },
+          data: { revokedAt: new Date() },
         });
         if (customScope) {
           await transaction.role.updateMany({
@@ -101,27 +109,33 @@ export class RolePermissionRepository extends BaseRepository {
             data: { customScope },
           });
         }
-        for (const action of actions) {
-          await transaction.workflowActionRolePermission.upsert({
-            where: {
-              tenantId_actionId_roleId: {
-                tenantId,
-                actionId: action.id,
-                roleId,
-              },
-            },
-            create: {
+        for (const permission of permissions) {
+          const existing = await transaction.rolePermission.findFirst({
+            where: { tenantId, roleId, permissionId: permission.id },
+            select: { id: true },
+          });
+          if (existing) {
+            await transaction.rolePermission.update({
+              where: { id: existing.id },
+              data: { revokedAt: null },
+            });
+            continue;
+          }
+          await transaction.rolePermission.create({
+            data: {
               id: randomUUID(),
               tenantId,
               roleId,
-              actionId: action.id,
-              allowed: true,
+              permissionId: permission.id,
             },
-            update: { allowed: true },
           });
         }
         return transaction.role.findFirstOrThrow({
-          where: { id: roleId, OR: [{ isSystemRole: true }, { tenantId }] },
+          where: {
+            id: roleId,
+            isActive: true,
+            OR: [{ isSystemRole: true }, { tenantId }],
+          },
           select: roleSelect(tenantId),
         });
       },

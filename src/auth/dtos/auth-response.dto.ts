@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { WorkflowActionCode } from '../../generated/prisma/client';
+import { CustomRoleScope, PermissionCode } from '../../generated/prisma/client';
 
 export class AuthUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -8,10 +8,16 @@ export class AuthUserResponseDto {
   @ApiPropertyOptional({ nullable: true }) country!: string | null;
   @ApiPropertyOptional({ nullable: true }) phone!: string | null;
   @ApiPropertyOptional({ nullable: true }) avatarUrl!: string | null;
-  @ApiProperty({ type: String, isArray: true })
+  @ApiProperty({
+    type: String,
+    isArray: true,
+    description: 'Legacy display labels only; they do not authorize requests.',
+  })
   roles!: string[];
-  @ApiProperty({ enum: WorkflowActionCode, isArray: true })
-  permissions!: WorkflowActionCode[];
+  @ApiProperty({ enum: CustomRoleScope, isArray: true })
+  roleScopes!: CustomRoleScope[];
+  @ApiProperty({ enum: PermissionCode, isArray: true })
+  permissions!: PermissionCode[];
 }
 
 export class TokenPairResponseDto {

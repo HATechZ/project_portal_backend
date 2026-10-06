@@ -7,7 +7,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
@@ -24,12 +23,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import type { ObjectScopeRequest } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   CargoCodeInputDto,
   CargoCodeQueryDto,
@@ -44,16 +41,15 @@ import { CargoCodeService } from './cargo-code.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.UPDATE_SETTINGS)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
 export class CargoCodeController {
   constructor(private readonly service: CargoCodeService) {}
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'List all cargo codes' })
   @ResponseMessage('Cargo codes returned successfully')
   @ApiStandardArrayResponse(CargoCodeResponseDto, 'Cargo codes returned')
@@ -61,6 +57,7 @@ export class CargoCodeController {
     return this.service.findAll(q.includeInactive);
   }
   @Get('deactivated')
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'List deactivated cargo codes' })
   @ResponseMessage('Deactivated cargo codes returned successfully')
   @ApiStandardArrayResponse(
@@ -71,6 +68,7 @@ export class CargoCodeController {
     return this.service.findDeactivated();
   }
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_REFERENCE_DATA)
   @ApiOperation({ summary: 'Get cargo code by ID' })
   @ApiParam({ name: 'id', description: 'Cargo Code OptionValue ID' })
   @ResponseMessage('Cargo code returned successfully')
@@ -86,10 +84,12 @@ export class CargoCodeController {
   @ApiStandardConflictResponse(
     'A cargo code with the same name or code already exists',
   )
-  create(@Body() i: CargoCodeInputDto, @Req() r: ObjectScopeRequest) {
-    return this.service.create(i, r.actorScope!);
+  @FinalPermissions(PermissionCode.CREATE_REFERENCE_DATA_OPTION)
+  create(@Body() i: CargoCodeInputDto) {
+    return this.service.create(i);
   }
   @Patch(':id')
+  @FinalPermissions(PermissionCode.UPDATE_REFERENCE_DATA_OPTION)
   @ApiOperation({ summary: 'Update cargo code by ID' })
   @ApiParam({ name: 'id', description: 'Cargo Code OptionValue ID' })
   @ResponseMessage('Cargo code updated successfully')
@@ -101,9 +101,8 @@ export class CargoCodeController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() i: UpdateCargoCodeDto,
-    @Req() r: ObjectScopeRequest,
   ) {
-    return this.service.update(id, i, r.actorScope!);
+    return this.service.update(id, i);
   }
   @Patch(':id/deactivate')
   @ApiOperation({ summary: 'Deactivate cargo code by ID' })
@@ -112,11 +111,9 @@ export class CargoCodeController {
   @ApiStandardOkResponse(CargoCodeResponseDto, 'Cargo code deactivated')
   @ApiStandardNotFoundResponse('Cargo code was not found')
   @ApiStandardConflictResponse('Cargo code is already inactive')
-  deactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() r: ObjectScopeRequest,
-  ) {
-    return this.service.deactivate(id, r.actorScope!);
+  @FinalPermissions(PermissionCode.DEACTIVATE_REFERENCE_DATA_OPTION)
+  deactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.deactivate(id);
   }
   @Patch(':id/reactivate')
   @ApiOperation({ summary: 'Reactivate cargo code by ID' })
@@ -125,10 +122,8 @@ export class CargoCodeController {
   @ApiStandardOkResponse(CargoCodeResponseDto, 'Cargo code reactivated')
   @ApiStandardNotFoundResponse('Cargo code was not found')
   @ApiStandardConflictResponse('Cargo code is already active')
-  reactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() r: ObjectScopeRequest,
-  ) {
-    return this.service.reactivate(id, r.actorScope!);
+  @FinalPermissions(PermissionCode.REACTIVATE_REFERENCE_DATA_OPTION)
+  reactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.reactivate(id);
   }
 }

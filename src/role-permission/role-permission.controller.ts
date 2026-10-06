@@ -12,7 +12,9 @@ import {
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   ApiStandardBadRequestResponse,
   ApiStandardArrayResponse,
@@ -40,15 +42,16 @@ import { RolePermissionService } from './role-permission.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  TenantSuperAdminGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('tenant super administrator access required')
+@ApiStandardForbiddenResponse('explicit permission required')
 export class RolePermissionController {
   constructor(private readonly service: RolePermissionService) {}
 
   @Get('role')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('Roles returned successfully')
   @ApiOperation({ summary: 'List available roles' })
   @ApiStandardArrayResponse(RoleResponseDto)
@@ -57,6 +60,7 @@ export class RolePermissionController {
   }
 
   @Post('role')
+  @FinalPermissions(PermissionCode.CREATE_ROLE)
   @ResponseMessage('Custom role created successfully')
   @ApiOperation({ summary: 'Create a custom role' })
   @ApiStandardCreatedResponse(RoleResponseDto)
@@ -65,6 +69,7 @@ export class RolePermissionController {
   }
 
   @Get('role/:id')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('Role returned successfully')
   @ApiOperation({ summary: 'Get role details' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -75,11 +80,12 @@ export class RolePermissionController {
   }
 
   @Put('role/:id/permission')
+  @FinalPermissions(PermissionCode.UPDATE_ROLE)
   @ResponseMessage('Role permissions updated successfully')
   @ApiOperation({
     summary: 'Update permissions for a role',
     description:
-      'This operation performs full replacement. Permission codes omitted from the request are revoked for this tenant and role. A custom role scope may be changed only when every replacement permission is eligible for the requested scope.',
+      'This operation performs full replacement of explicit permission IDs for a tenant custom role. A custom role scope may be changed only when every replacement permission is compatible with the requested scope. System roles are bootstrap-managed.',
   })
   @ApiStandardOkResponse(RoleResponseDto, 'Role permissions replaced')
   @ApiStandardNotFoundResponse('Role was not found')
@@ -91,11 +97,12 @@ export class RolePermissionController {
   }
 
   @Get('permission')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('Permissions returned successfully')
   @ApiOperation({
     summary: 'List available permissions',
     description:
-      'Use customRole=true with scope=company, division, or team to receive only custom-role-assignable permissions eligible for that exact scope. Without customRole=true, the existing visible permission catalogue is returned.',
+      'Use customRole=true with a system-defined scope to receive only permissions compatible with that exact scope. Without customRole=true, the final permission catalogue is returned.',
   })
   @ApiStandardArrayResponse(PermissionResponseDto)
   findPermissions(@Query() query: PermissionQueryDto) {
@@ -106,6 +113,7 @@ export class RolePermissionController {
   }
 
   @Get('permission/:id')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('Permission returned successfully')
   @ApiOperation({ summary: 'Get permission details' })
   @ApiStandardOkResponse(PermissionResponseDto)

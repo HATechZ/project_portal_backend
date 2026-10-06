@@ -2,8 +2,11 @@
 
 **Status:** Draft — Gates 1–3. **Runtime target:** `src/work-request/**`. **API base:** `/api/v1/work-requests`.
 
-## Purpose and boundary
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+> **PERMISSION CATALOGUE:** [`PERMISSION_CATALOGUE_GLOBALIZATION.md`](../PERMISSION_CATALOGUE_GLOBALIZATION.md) governs all legacy Work Request capability labels. Role-labelled states/actions are compatibility labels only.
+
+## Purpose and boundary
 Work Request is a tenant-owned operational aggregate initiated against exactly one independent Bid or Project. It owns request creation, routing assignments, workflow event/audit history, request-info clarification, safe Work Request files, and backend-derived available actions. It does not merge Bid and Project, create a workspace/BidProject, own Team membership, or own document-code catalogues.
 
 The current `work_requests`, generic `documents`, category, attachment-category, project-only parent, mutable assignment columns, and legacy workflow structures are legacy persistence. They are not the V1 structural contract. This spec makes no runtime, Prisma, migration, seed, RLS, grant, or permission change.

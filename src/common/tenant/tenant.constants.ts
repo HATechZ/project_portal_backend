@@ -51,6 +51,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'WorkRequestAttachmentCategory',
   'WorkflowTransition',
   'WorkflowActionRolePermission',
+  'RolePermission',
   'WorkRequest',
   'WorkRequestAssignment',
   'WorkRequestAuditLog',

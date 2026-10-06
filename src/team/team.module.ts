@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { TeamScopeProvider } from './providers';
 import { TeamMembershipRepository, TeamRepository } from './repositories';
 import { TeamController } from './team.controller';
 import { TeamMembershipController } from './team-membership.controller';
@@ -13,7 +12,6 @@ import { TeamService } from './team.service';
     TeamMembershipService,
     TeamRepository,
     TeamMembershipRepository,
-    TeamScopeProvider,
   ],
 })
 export class TeamModule {}

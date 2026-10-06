@@ -16,8 +16,9 @@ refresh-session lifecycle, password reset, role/permission administration, and a
 ActorProfile listing/activation are implemented. User administration is restricted to
 `tenant_super_admin`; normal repository access remains fail-closed outside a Tenant unit of work.
 
-## User stories
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## User stories
 | | As a | I want | So that |
 |---|---|---|---|
 | US-01 | any user | to sign in and receive a session | I can act in the portal |

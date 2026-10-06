@@ -18,8 +18,9 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import {
@@ -36,8 +37,7 @@ import { WorkRequestService } from './work-request.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
@@ -49,6 +49,7 @@ export class WorkRequestWorkflowController {
   constructor(private readonly service: WorkRequestService) {}
 
   @Post('submit')
+  @FinalPermissions(PermissionCode.SUBMIT_WORK_REQUEST)
   @ApiOperation({ summary: 'Submit Work Request by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(WorkRequestWorkflowResponseDto)

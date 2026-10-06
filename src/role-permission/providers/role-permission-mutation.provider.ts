@@ -12,11 +12,7 @@ import {
 } from '../dtos';
 import { RolePermissionRepository, RoleRecord } from '../repositories';
 import { CustomRoleRepository } from '../repositories/custom-role.repository';
-import {
-  isCustomRolePermissionAllowed,
-  isCustomRoleScope,
-  type CustomRoleScope,
-} from './custom-role-policy';
+import { isCustomRoleScope, type CustomRoleScope } from './custom-role-policy';
 import {
   toRoleResponse,
   toUserRoleAssignmentResponse,
@@ -31,7 +27,7 @@ export class RolePermissionMutationProvider {
   ) {}
 
   async createCustomRole(input: CreateCustomRoleDto): Promise<RoleResponseDto> {
-    await this.assertValidCustomPermissions(input.scope, input.permissionCodes);
+    await this.assertValidCustomPermissions(input.scope, input.permissionIds);
     return toRoleResponse(await this.customRoles.create(input));
   }
 
@@ -39,15 +35,15 @@ export class RolePermissionMutationProvider {
     id: string,
     input: SetRolePermissionsDto,
   ): Promise<RoleResponseDto> {
-    this.assertUniquePermissionCodes(input.permissionCodes);
+    this.assertUniquePermissionIds(input.permissionIds);
     const role = await this.requireRole(id);
     if (!role.isSystemRole) {
       const scope = input.scope ?? (role.customScope as CustomRoleScope);
-      await this.assertValidCustomPermissions(scope, input.permissionCodes);
+      await this.assertValidCustomPermissions(scope, input.permissionIds);
       return toRoleResponse(
         await this.repository.replaceRolePermissions(
           id,
-          input.permissionCodes,
+          input.permissionIds,
           input.scope,
         ),
       );
@@ -58,10 +54,12 @@ export class RolePermissionMutationProvider {
         status: HttpStatus.BAD_REQUEST,
         message: 'System roles do not have a configurable custom role scope.',
       });
-    await this.assertPermissionsExist(input.permissionCodes);
-    return toRoleResponse(
-      await this.repository.replaceRolePermissions(id, input.permissionCodes),
-    );
+    throw new AppException({
+      code: AppErrorCode.Forbidden,
+      status: HttpStatus.FORBIDDEN,
+      message:
+        'System role permissions are bootstrap-managed and cannot be changed through this API.',
+    });
   }
 
   async assignUserRole(
@@ -147,19 +145,28 @@ export class RolePermissionMutationProvider {
   }
 
   private async assertValidCustomPermissions(
-    scope: Parameters<typeof isCustomRolePermissionAllowed>[0],
-    codes: SetRolePermissionsDto['permissionCodes'],
+    scope: CustomRoleScope,
+    permissionIds: string[],
   ): Promise<void> {
     if (!isCustomRoleScope(scope)) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
         status: HttpStatus.BAD_REQUEST,
-        message: 'Custom roles must use a company, division, or team scope.',
+        message: 'Custom roles must use a supported system-defined scope.',
       });
     }
-    this.assertUniquePermissionCodes(codes);
-    await this.assertPermissionsExist(codes);
-    if (codes.some((code) => !isCustomRolePermissionAllowed(scope, code))) {
+    this.assertUniquePermissionIds(permissionIds);
+    const permissions =
+      await this.repository.findPermissionsByIds(permissionIds);
+    if (
+      permissions.length !== permissionIds.length ||
+      permissions.some(
+        ({ scopeCompatibilities }) =>
+          !scopeCompatibilities.some(
+            ({ scope: compatible }) => compatible === scope,
+          ),
+      )
+    ) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
         status: HttpStatus.BAD_REQUEST,
@@ -169,10 +176,8 @@ export class RolePermissionMutationProvider {
     }
   }
 
-  private assertUniquePermissionCodes(
-    codes: SetRolePermissionsDto['permissionCodes'],
-  ): void {
-    if (new Set(codes).size !== codes.length)
+  private assertUniquePermissionIds(permissionIds: string[]): void {
+    if (new Set(permissionIds).size !== permissionIds.length)
       throw new AppException({
         code: AppErrorCode.BadRequest,
         status: HttpStatus.BAD_REQUEST,
@@ -181,13 +186,11 @@ export class RolePermissionMutationProvider {
       });
   }
 
-  private async assertPermissionsExist(
-    codes: SetRolePermissionsDto['permissionCodes'],
-  ): Promise<void> {
-    const catalog = new Set(
-      (await this.repository.findPermissions()).map(({ code }) => code),
-    );
-    if (codes.some((code) => !catalog.has(code)))
+  private async assertPermissionsExist(permissionIds: string[]): Promise<void> {
+    if (
+      (await this.repository.findPermissionsByIds(permissionIds)).length !==
+      permissionIds.length
+    )
       throw new AppException({
         code: AppErrorCode.BadRequest,
         status: HttpStatus.BAD_REQUEST,

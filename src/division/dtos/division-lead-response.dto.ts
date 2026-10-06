@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ActorRoleCode } from '../../generated/prisma/client';
 
 export class DivisionLeadDivisionDto {
   @ApiProperty({ format: 'uuid' })
@@ -22,8 +21,8 @@ export class DivisionLeadMemberDto {
   @ApiProperty()
   email!: string;
 
-  @ApiProperty({ format: 'uuid' })
-  userId!: string;
+  @ApiProperty({ format: 'uuid', nullable: true })
+  userId!: string | null;
 }
 
 export class DivisionLeadMemberSummaryDto {
@@ -51,15 +50,6 @@ export class DivisionLeadResponseDto {
 
   @ApiProperty({ type: DivisionLeadMemberDto })
   member!: DivisionLeadMemberDto;
-
-  @ApiProperty({ enum: ActorRoleCode, enumName: 'ActorRoleCode' })
-  roleCode!: ActorRoleCode;
-
-  @ApiProperty()
-  userRoleActive!: boolean;
-
-  @ApiProperty()
-  actorProfileLinked!: boolean;
 
   @ApiProperty({ format: 'date-time' })
   assignedAt!: Date;

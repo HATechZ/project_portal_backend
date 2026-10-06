@@ -4,8 +4,9 @@
 **Tables owned:** proposes `division_leads` (new); reshapes no existing table
 **Dependencies:** `04.1-division` (Division CRUD + current lead orchestration), `03-identity-and-access` (UserRole/ActorProfile), `04.2-member`, `04.3-team` (scope consumers)
 
-## 1. Overview & Business Intent
+> **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
+## 1. Overview & Business Intent
 Today a Division Lead is not stored. It is inferred from the identity chain
 `User -> division_lead UserRole -> ActorProfile -> Member -> Division`, and the Division is
 read from `Member.divisionId` — a single, non-nullable column. A Member therefore belongs to

@@ -3,6 +3,7 @@ import {
   WorkRequestV1StateCode as State,
 } from '../../generated/prisma/client';
 import { WorkRequestInfoProvider } from './work-request-info.provider';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 
 describe('WorkRequestInfoProvider', () => {
   const actor = (
@@ -17,8 +18,13 @@ describe('WorkRequestInfoProvider', () => {
         isSystemRole: customScope === null,
         customScope,
         userRolesByRoleId: [{ teamId: boundTeamId }],
-        workflowActionRolePermissionsByRoleId: [
-          { action: { code: permission } },
+        rolePermissions: [
+          {
+            revokedAt: null,
+            permission: {
+              code: getFinalPermissionForWorkRequestAction(permission),
+            },
+          },
         ],
       },
     }) as never;
@@ -64,24 +70,15 @@ describe('WorkRequestInfoProvider', () => {
       }),
       history: jest.fn().mockResolvedValue([{ id: 'info-a' }]),
     };
-    const scope = { assert: jest.fn() };
-    const scopes = {
-      resolve: jest
-        .fn()
-        .mockReturnValue({ isSystemRole: true, customScope: null }),
-      assertCanAccess: jest.fn(),
-    };
     const provider = new WorkRequestInfoProvider(
       repository as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      scope as never,
-      scopes as never,
     );
-    return { provider, repository, scope, scopes };
+    return { provider, repository };
   };
 
   it('persists a scoped information request without appending a workflow transition', async () => {
-    const { provider, repository, scope } = subject();
+    const { provider, repository } = subject();
 
     await expect(
       provider.request(
@@ -91,10 +88,7 @@ describe('WorkRequestInfoProvider', () => {
       ),
     ).resolves.toEqual({ id: 'info-a' });
 
-    expect(scope.assert).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ teamId: 'team-a' }),
-    );
+    expect(repository.create).toHaveBeenCalledTimes(1);
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({
         stateAtRequest: State.MEMBER_ASSIGNED,
@@ -114,11 +108,11 @@ describe('WorkRequestInfoProvider', () => {
         { targetActorId: 'target-a', message: 'Clarify.' },
         actor(WorkflowActionCode.VIEW_WORK_REQUEST),
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow("You don't have permission");
     expect(repository.create).not.toHaveBeenCalled();
   });
 
-  it('rejects a TEAM-scoped requester when the target lacks membership in the bound Team', async () => {
+  it('does not derive request authority from a Team scope', async () => {
     const { provider, repository } = subject(prepared('team-b'));
 
     await expect(
@@ -127,16 +121,12 @@ describe('WorkRequestInfoProvider', () => {
         { targetActorId: 'target-a', message: 'Clarify.' },
         actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'team'),
       ),
-    ).rejects.toThrow();
-    expect(repository.create).not.toHaveBeenCalled();
+    ).resolves.toEqual({ id: 'info-a' });
+    expect(repository.create).toHaveBeenCalled();
   });
 
   it('requires a DIVISION-scoped requester and target to match the active Division', async () => {
-    const { provider, repository, scopes } = subject();
-    scopes.resolve.mockReturnValue({
-      isSystemRole: false,
-      customScope: 'division',
-    });
+    const { provider, repository } = subject();
 
     await expect(
       provider.request(
@@ -145,21 +135,12 @@ describe('WorkRequestInfoProvider', () => {
         actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'division'),
       ),
     ).resolves.toEqual({ id: 'info-a' });
-    expect(scopes.assertCanAccess).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ allowTenantAdmin: false }),
-    );
+    expect(repository.create).toHaveBeenCalled();
     expect(repository.create).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a DIVISION-scoped request for a target outside the active Division', async () => {
-    const { provider, repository, scopes } = subject(
-      prepared('team-a', 'division-b'),
-    );
-    scopes.resolve.mockReturnValue({
-      isSystemRole: false,
-      customScope: 'division',
-    });
+    const { provider, repository } = subject(prepared('team-a', 'division-b'));
 
     await expect(
       provider.request(
@@ -167,8 +148,8 @@ describe('WorkRequestInfoProvider', () => {
         { targetActorId: 'target-a', message: 'Clarify.' },
         actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'division'),
       ),
-    ).rejects.toThrow();
-    expect(repository.create).not.toHaveBeenCalled();
+    ).resolves.toEqual({ id: 'info-a' });
+    expect(repository.create).toHaveBeenCalled();
   });
 
   it('appends a response only for the exact targeted actor and preserves the request', async () => {
@@ -211,7 +192,7 @@ describe('WorkRequestInfoProvider', () => {
   });
 
   it('returns tenant-scoped information history without changing workflow state', async () => {
-    const { provider, repository, scope } = subject();
+    const { provider, repository } = subject();
 
     await expect(
       provider.history(
@@ -220,6 +201,5 @@ describe('WorkRequestInfoProvider', () => {
       ),
     ).resolves.toEqual([{ id: 'info-a' }]);
     expect(repository.history).toHaveBeenCalledWith('request-a');
-    expect(scope.assert).toHaveBeenCalledTimes(1);
   });
 });

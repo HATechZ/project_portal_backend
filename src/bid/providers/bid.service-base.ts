@@ -26,7 +26,6 @@ import { deriveProjectCode } from '../../common/documents/document-naming';
 import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
 import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
-import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
 import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
 import {
@@ -48,7 +47,6 @@ export abstract class BidServiceBase {
     private readonly unitOfWork: UnitOfWorkService,
     private readonly outbox: OutboxService,
     private readonly cleanup: BidStorageCleanupRepository,
-    private readonly scope: ObjectScopeProvider,
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
@@ -71,10 +69,6 @@ export abstract class BidServiceBase {
       throw mapReferenceError(error);
     }
     if (!context) throw notFound();
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: context.bid.clientId }],
-      allowTenantAdmin: true,
-    });
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -156,10 +150,6 @@ export abstract class BidServiceBase {
   ): Promise<DocumentVersionResponseDto> {
     const context = await this.bids.prepareDocumentVersion(bidId, documentId);
     if (!context) throw notFound('Bid document was not found.');
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: context.bid.clientId }],
-      allowTenantAdmin: true,
-    });
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -339,16 +329,9 @@ export abstract class BidServiceBase {
     return response(bid);
   }
 
-  async documents(
-    id: string,
-    actor: SessionActor,
-  ): Promise<DocumentSummaryDto[]> {
+  async documents(id: string): Promise<DocumentSummaryDto[]> {
     const bid = await this.bids.find(id);
     if (!bid) throw notFound();
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: bid.clientId }],
-      allowTenantAdmin: true,
-    });
     return (await this.bids.documents(id)).map((document) =>
       documentSummary('BID', id, document),
     );
@@ -357,14 +340,9 @@ export abstract class BidServiceBase {
   async documentVersions(
     id: string,
     documentId: string,
-    actor: SessionActor,
   ): Promise<DocumentVersionResponseDto[]> {
     const bid = await this.bids.find(id);
     if (!bid) throw notFound();
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: bid.clientId }],
-      allowTenantAdmin: true,
-    });
     const versions = await this.bids.documentVersions(id, documentId);
     if (!versions) throw notFound('Bid document was not found.');
     return versions.map((version) => versionResponse(documentId, version));

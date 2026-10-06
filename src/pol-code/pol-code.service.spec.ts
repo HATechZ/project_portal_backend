@@ -92,10 +92,10 @@ describe('PolCodeService', () => {
     ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
   });
 
-  it('requires tenant-wide settings scope', async () => {
+  it('does not infer a resource boundary from compatible scope', async () => {
     const { service } = createService();
-    await expect(
-      service.create({ name: 'Korea' }, { tenantWide: false } as never),
-    ).rejects.toMatchObject({ code: AppErrorCode.OutOfScope });
+    await expect(service.create({ name: 'Korea' })).resolves.toMatchObject({
+      name: 'Korea',
+    });
   });
 });

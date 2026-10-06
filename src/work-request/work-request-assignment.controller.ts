@@ -19,12 +19,11 @@ import {
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   AssignDivisionDto,
   AssignMemberDto,
@@ -40,8 +39,7 @@ import { WorkRequestService } from './work-request.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
@@ -53,7 +51,7 @@ export class WorkRequestAssignmentController {
   constructor(private readonly service: WorkRequestService) {}
 
   @Get()
-  @Permissions(WorkflowActionCode.VIEW_WORK_REQUEST)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Assignment History by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(Object)
@@ -66,7 +64,7 @@ export class WorkRequestAssignmentController {
   }
 
   @Post('division')
-  @Permissions(WorkflowActionCode.WR_ASSIGN_DIVISION)
+  @FinalPermissions(PermissionCode.ASSIGN_WORK_REQUEST_DIVISION)
   @ApiOperation({ summary: 'Assign Division by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(WorkRequestAssignmentResponseDto)
@@ -80,7 +78,7 @@ export class WorkRequestAssignmentController {
   }
 
   @Post('team')
-  @Permissions(WorkflowActionCode.WR_ASSIGN_TEAM)
+  @FinalPermissions(PermissionCode.ASSIGN_WORK_REQUEST_TEAM)
   @ApiOperation({ summary: 'Assign Team by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(WorkRequestAssignmentResponseDto)
@@ -94,7 +92,7 @@ export class WorkRequestAssignmentController {
   }
 
   @Post('member')
-  @Permissions(WorkflowActionCode.WR_ASSIGN_MEMBER)
+  @FinalPermissions(PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)
   @ApiOperation({ summary: 'Assign Member by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(WorkRequestAssignmentResponseDto)

@@ -1,17 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayUnique, IsArray, IsEnum, IsOptional } from 'class-validator';
-import { WorkflowActionCode } from '../../generated/prisma/client';
+import {
+  ArrayUnique,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsUUID,
+} from 'class-validator';
 import {
   CUSTOM_ROLE_SCOPES,
   type CustomRoleScope,
 } from '../providers/custom-role-policy';
 
 export class SetRolePermissionsDto {
-  @ApiProperty({ enum: WorkflowActionCode, isArray: true })
+  @ApiProperty({ format: 'uuid', isArray: true })
   @IsArray()
   @ArrayUnique()
-  @IsEnum(WorkflowActionCode, { each: true })
-  permissionCodes!: WorkflowActionCode[];
+  @IsUUID('4', { each: true })
+  permissionIds!: string[];
 
   @ApiPropertyOptional({
     enum: CUSTOM_ROLE_SCOPES,

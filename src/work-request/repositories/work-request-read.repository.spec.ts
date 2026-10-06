@@ -3,7 +3,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { WorkRequestReadRepository } from './work-request-read.repository';
 
 describe('WorkRequestReadRepository', () => {
-  it('lists every Work Request in the active tenant for a tenant-wide scope', async () => {
+  it('lists every Work Request in the active tenant without role-derived filtering', async () => {
     const findMany = jest
       .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
       .mockResolvedValue([]);
@@ -15,7 +15,7 @@ describe('WorkRequestReadRepository', () => {
     const tenantId = '00000000-0000-4000-8000-000000000001';
 
     await RequestContext.run({ tenantId } as never, () =>
-      repository.list(0, 20, { tenantWide: true }),
+      repository.list(0, 20),
     );
 
     expect(findMany).toHaveBeenCalledWith(
@@ -27,7 +27,7 @@ describe('WorkRequestReadRepository', () => {
     );
   });
 
-  it('lists a TEAM-scoped custom actor only against its exact active Team assignment', async () => {
+  it('does not derive a list filter from a Team label or scope', async () => {
     let receivedArgs: Prisma.WorkRequestV1FindManyArgs | undefined;
     const findMany = jest
       .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
@@ -41,23 +41,13 @@ describe('WorkRequestReadRepository', () => {
     } as never);
 
     await RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
-      repository.list(0, 20, { teamId: 'team-a' }),
+      repository.list(0, 20),
     );
 
-    expect(receivedArgs?.where).toEqual({
-      tenantId: 'tenant-a',
-      assignments: {
-        some: {
-          level: 'TEAM',
-          teamId: 'team-a',
-          unassignedAt: null,
-          replacedAt: null,
-        },
-      },
-    });
+    expect(receivedArgs?.where).toEqual({ tenantId: 'tenant-a' });
   });
 
-  it('lists a DIVISION-scoped custom actor only against its active Division assignment', async () => {
+  it('does not derive a list filter from a Division label or scope', async () => {
     let receivedArgs: Prisma.WorkRequestV1FindManyArgs | undefined;
     const findMany = jest
       .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
@@ -71,19 +61,9 @@ describe('WorkRequestReadRepository', () => {
     } as never);
 
     await RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
-      repository.list(0, 20, { divisionId: 'division-a' }),
+      repository.list(0, 20),
     );
 
-    expect(receivedArgs?.where).toEqual({
-      tenantId: 'tenant-a',
-      assignments: {
-        some: {
-          level: 'DIVISION',
-          divisionId: 'division-a',
-          unassignedAt: null,
-          replacedAt: null,
-        },
-      },
-    });
+    expect(receivedArgs?.where).toEqual({ tenantId: 'tenant-a' });
   });
 });

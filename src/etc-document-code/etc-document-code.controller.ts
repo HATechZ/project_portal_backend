@@ -23,11 +23,10 @@ import {
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import {
   EtcDocumentCodeInputDto,
   EtcDocumentCodeQueryDto,
@@ -43,10 +42,8 @@ import { EtcDocumentCodeService } from './etc-document-code.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
-@Permissions(WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES)
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
 @ApiStandardForbiddenResponse()
@@ -54,6 +51,7 @@ export class EtcDocumentCodeController {
   constructor(private readonly service: EtcDocumentCodeService) {}
 
   @Get()
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT_CODES)
   @ApiOperation({ summary: 'List all ETC Document Codes' })
   @ResponseMessage('ETC Document Codes returned successfully')
   @ApiStandardArrayResponse(
@@ -65,6 +63,7 @@ export class EtcDocumentCodeController {
   }
 
   @Get('deactivated')
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT_CODES)
   @ApiOperation({ summary: 'List deactivated ETC Document Codes' })
   @ResponseMessage('Deactivated ETC Document Codes returned successfully')
   @ApiStandardArrayResponse(
@@ -76,6 +75,7 @@ export class EtcDocumentCodeController {
   }
 
   @Get(':id')
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT_CODES)
   @ApiOperation({ summary: 'Get ETC Document Code by ID' })
   @ApiParam({ name: 'id', description: 'ETC Document Code ID' })
   @ResponseMessage('ETC Document Code returned successfully')
@@ -89,6 +89,7 @@ export class EtcDocumentCodeController {
   }
 
   @Post()
+  @FinalPermissions(PermissionCode.CREATE_DOCUMENT_CODE)
   @ApiOperation({ summary: 'Create a new ETC Document Code' })
   @ResponseMessage('ETC Document Code created successfully')
   @ApiStandardCreatedResponse(
@@ -103,6 +104,7 @@ export class EtcDocumentCodeController {
   }
 
   @Patch(':id')
+  @FinalPermissions(PermissionCode.UPDATE_DOCUMENT_CODE)
   @ApiOperation({ summary: 'Update ETC Document Code by ID' })
   @ApiParam({ name: 'id', description: 'ETC Document Code ID' })
   @ResponseMessage('ETC Document Code updated successfully')
@@ -122,6 +124,7 @@ export class EtcDocumentCodeController {
   }
 
   @Patch(':id/deactivate')
+  @FinalPermissions(PermissionCode.DEACTIVATE_DOCUMENT_CODE)
   @ApiOperation({ summary: 'Deactivate ETC Document Code by ID' })
   @ApiParam({ name: 'id', description: 'ETC Document Code ID' })
   @ResponseMessage('ETC Document Code deactivated successfully')
@@ -136,6 +139,7 @@ export class EtcDocumentCodeController {
   }
 
   @Patch(':id/reactivate')
+  @FinalPermissions(PermissionCode.REACTIVATE_DOCUMENT_CODE)
   @ApiOperation({ summary: 'Reactivate ETC Document Code by ID' })
   @ApiParam({ name: 'id', description: 'ETC Document Code ID' })
   @ResponseMessage('ETC Document Code reactivated successfully')

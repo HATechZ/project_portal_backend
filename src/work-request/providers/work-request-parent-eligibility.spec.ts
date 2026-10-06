@@ -44,7 +44,6 @@ describe('Work Request parent lifecycle eligibility', () => {
       {} as never,
       {} as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      { assert: jest.fn() } as never,
       {
         putAll: jest.fn().mockResolvedValue([]),
         compensate: jest.fn(),

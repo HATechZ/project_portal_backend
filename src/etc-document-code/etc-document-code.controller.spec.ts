@@ -1,13 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return, @typescript-eslint/unbound-method */
 import { RequestMethod } from '@nestjs/common';
 import {
   GUARDS_METADATA,
   METHOD_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants';
-import { PermissionsGuard } from '../common/security/permissions.guard';
-import { PERMISSIONS_KEY } from '../common/security/permissions.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { FINAL_PERMISSIONS_KEY } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import { EtcDocumentCodeController } from './etc-document-code.controller';
 
 describe('EtcDocumentCodeController', () => {
@@ -24,11 +24,11 @@ describe('EtcDocumentCodeController', () => {
       'etc-document-codes',
     );
     expect(
-      Reflect.getMetadata(PERMISSIONS_KEY, EtcDocumentCodeController),
-    ).toEqual([WorkflowActionCode.MANAGE_GENERAL_DOCUMENT_CODES]);
-    expect(
       Reflect.getMetadata(GUARDS_METADATA, EtcDocumentCodeController),
-    ).toContain(PermissionsGuard);
+    ).toContain(FinalPermissionsGuard);
+    expect(
+      Reflect.getMetadata(FINAL_PERMISSIONS_KEY, prototype.create),
+    ).toEqual([PermissionCode.CREATE_DOCUMENT_CODE]);
     expect(routes).toEqual([
       [RequestMethod.GET, '/'],
       [RequestMethod.GET, 'deactivated'],

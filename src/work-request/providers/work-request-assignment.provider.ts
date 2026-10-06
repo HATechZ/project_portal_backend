@@ -6,7 +6,6 @@ import {
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { RequestContext } from '../../common/context/request-context';
-import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
 import { WorkRequestTransitioned } from '../../contracts/events/work-request-events';
 import { OutboxService } from '../../infra/messaging/outbox.service';
@@ -18,7 +17,7 @@ import {
 } from '../dtos/work-request.dto';
 import { WorkRequestAssignmentRepository } from '../repositories/work-request-assignment.repository';
 import type { WorkRequestAssignmentSnapshot } from '../repositories/work-request-assignment.records';
-import { WorkRequestResourceScopeProvider } from './work-request-resource-scope.provider';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
 import { WorkRequestAssignmentReadRepository } from '../repositories/work-request-assignment-read.repository';
 import {
@@ -31,8 +30,6 @@ export class WorkRequestAssignmentProvider {
   constructor(
     private readonly repository: WorkRequestAssignmentRepository,
     private readonly uow: UnitOfWorkService,
-    private readonly resourceScope: WorkRequestResourceScopeProvider,
-    private readonly scopes: ObjectScopeProvider,
     private readonly reads: WorkRequestReadRepository,
     private readonly historyReads: WorkRequestAssignmentReadRepository,
     private readonly outbox: OutboxService,
@@ -50,11 +47,11 @@ export class WorkRequestAssignmentProvider {
     return this.assign(id, input.memberId, input.note, actor, 'MEMBER');
   }
 
-  async history(id: string, actor: SessionActor) {
+  async history(id: string, _actor: SessionActor) {
+    void _actor;
     return this.uow.execute(async () => {
       const record = await this.reads.find(id);
       if (!record) throw notFound('Work Request was not found.');
-      this.resourceScope.assert(actor, this.reads.parentScope(record));
       return this.historyReads.history(id);
     });
   }
@@ -157,11 +154,13 @@ export class WorkRequestAssignmentProvider {
     snapshot: WorkRequestAssignmentSnapshot,
     level: WorkRequestV1AssignmentLevelCode,
   ) {
-    const permission = permissionFor(level);
+    const permission = getFinalPermissionForWorkRequestAction(
+      permissionFor(level),
+    );
     if (
-      actor.role.userRolesByRoleId.length !== 1 ||
-      !actor.role.workflowActionRolePermissionsByRoleId.some(
-        ({ action }) => action.code === permission,
+      !actor.role.rolePermissions.some(
+        ({ revokedAt, permission: grant }) =>
+          revokedAt === null && grant.code === permission,
       )
     )
       throw forbidden();
@@ -172,47 +171,6 @@ export class WorkRequestAssignmentProvider {
       throw conflict(
         'Assignment target is outside the Work Request organization.',
       );
-    const scope = this.scopes.resolve(actor);
-    if (!scope.isSystemRole && scope.customScope === 'team') {
-      if (
-        !scope.boundTeamId ||
-        !actor.boundTeamId ||
-        scope.boundTeamId !== actor.boundTeamId ||
-        !snapshot.boundTeam
-      )
-        throw forbidden();
-      const expectedTeam =
-        level === WorkRequestV1AssignmentLevelCode.DIVISION
-          ? snapshot.boundTeam.divisionId === snapshot.target!.divisionId
-          : snapshot.boundTeam.id === snapshot.target!.teamId;
-      if (!expectedTeam) throw forbidden();
-      return;
-    }
-    const activeTeamId =
-      snapshot.active[WorkRequestV1AssignmentLevelCode.TEAM] ?? null;
-    this.resourceScope.assert(actor, {
-      clientId: '',
-      companyId: snapshot.parentCompanyId,
-      divisionId:
-        snapshot.active[WorkRequestV1AssignmentLevelCode.DIVISION] ??
-        snapshot.target!.divisionId,
-      teamId: activeTeamId,
-    });
-    const allOf = [
-      { kind: 'memberCompany' as const, companyId: snapshot.target!.companyId },
-      ...(scope.customScope === 'company'
-        ? []
-        : [
-            {
-              kind: 'memberDivision' as const,
-              divisionId: snapshot.target!.divisionId,
-            },
-          ]),
-    ];
-    this.scopes.assertCanAccess(actor, {
-      allOf,
-      allowTenantAdmin: false,
-    });
   }
 }
 

@@ -6,7 +6,6 @@ import {
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { RequestContext } from '../../common/context/request-context';
-import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
 import { WorkRequestTransitioned } from '../../contracts/events/work-request-events';
 import { OutboxService } from '../../infra/messaging/outbox.service';
@@ -20,13 +19,13 @@ import {
   reviewTransitionFor,
   workRequestTransitionRequestMetadata,
 } from './work-request-transition.definitions';
+import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 
 @Injectable()
 export class WorkRequestWorkflowProvider {
   constructor(
     private readonly repository: WorkRequestWorkflowRepository,
     private readonly uow: UnitOfWorkService,
-    private readonly scopes: ObjectScopeProvider,
     private readonly outbox: OutboxService,
   ) {}
 
@@ -115,10 +114,11 @@ export class WorkRequestWorkflowProvider {
     responsibility: Level,
     snapshot: WorkRequestWorkflowSnapshot,
   ) {
+    const permission = getFinalPermissionForWorkRequestAction(action);
     if (
-      actor.role.userRolesByRoleId.length !== 1 ||
-      !actor.role.workflowActionRolePermissionsByRoleId.some(
-        ({ action: grant }) => grant.code === action,
+      !actor.role.rolePermissions.some(
+        ({ revokedAt, permission: grant }) =>
+          revokedAt === null && grant.code === permission,
       )
     )
       throw forbidden();
@@ -135,36 +135,11 @@ export class WorkRequestWorkflowProvider {
       throw conflict('Work Request has no active required assignment.');
     if (responsibility === Level.MEMBER && member.id !== assigned)
       throw forbidden();
-    const scope = this.scopes.resolve(actor);
-    if (!scope.isSystemRole && scope.customScope === 'team') {
-      const teamId = snapshot.active[Level.TEAM];
-      if (
-        !scope.boundTeamId ||
-        scope.boundTeamId !== actor.boundTeamId ||
-        teamId !== scope.boundTeamId
-      )
-        throw forbidden();
-      return;
-    }
     if (
       responsibility === Level.TEAM &&
       snapshot.teamLeadMemberId !== member.id
     )
       throw forbidden();
-    this.scopes.assertCanAccess(actor, {
-      allOf: [
-        { kind: 'memberCompany', companyId: snapshot.parent.companyId },
-        ...(responsibility === Level.MEMBER
-          ? [{ kind: 'member', memberId: assigned } as const]
-          : [
-              {
-                kind: 'memberDivision',
-                divisionId: snapshot.active[Level.DIVISION]!,
-              } as const,
-            ]),
-      ],
-      allowTenantAdmin: false,
-    });
   }
 }
 

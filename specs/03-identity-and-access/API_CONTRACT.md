@@ -3,6 +3,15 @@
 Inherits every convention in [`specs/00-platform-core/API_CONTRACT.md`](../00-platform-core/API_CONTRACT.md).
 Only module-specific behavior is stated here.
 
+> **2026-10-06 freeze override:** This document's fixed-role guards, `ActorRoleCode` matrices,
+> `TenantSuperAdminGuard` references, legacy scope restrictions, `permissionCodes` payloads, and
+> role-labelled authorization statements are historical implementation evidence only. The approved
+> target is [`PERMISSION_CATALOGUE_GLOBALIZATION.md`](../PERMISSION_CATALOGUE_GLOBALIZATION.md):
+> one predefined `tenant_super_admin`, tenant-created named roles with no authorization meaning,
+> explicit `permissionIds[]`, backend-owned per-permission scope compatibility (`company`,
+> `division`, `team`, `member`, `client`, `client_contact`), and resource/assignment/state
+> enforcement. No API or runtime change is approved by this override.
+
 ## 1. Implemented surface
 
 | Method | Path | Status | Authorization |
@@ -135,7 +144,7 @@ Swagger summaries are deliberately short and use these endpoint purposes:
 | `GET /role/:id` | Get role details | Returns one safe role detail. |
 | `POST /role` | Create a custom role | Atomically creates a custom role and initial compatible grants. |
 | `PUT /role/:id/permission` | Update permissions for a role | Retains full replacement semantics and may replace a custom role scope when all submitted permissions are eligible. |
-| `GET /permission` | List available permissions | `customRole=true&scope=company|division|team` lists only assignable permissions eligible for that exact scope; otherwise lists the existing selector catalog. |
+| `GET /permission` | List available permissions | `customRole=true&scope=company|division|team|member|client|client_contact` lists only assignable permissions eligible for that exact scope; otherwise lists the existing selector catalog. |
 | `GET /permission/:id` | Get permission details | Returns one catalog definition. |
 | `GET /user/:userId/role` | List roles assigned to a user | Retains existing active/history behavior. |
 | `GET /user/:userId/role-options` | List roles available for assignment | Is the target-aware dropdown source. |

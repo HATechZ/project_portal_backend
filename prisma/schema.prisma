@@ -35,6 +35,152 @@ enum CustomRoleScope {
   @@map("custom_role_scope")
 }
 
+enum PermissionCode {
+  VIEW_ROLES
+  CREATE_ROLE
+  UPDATE_ROLE
+  RETIRE_ROLE
+  ASSIGN_ROLES
+  REVOKE_ROLES
+  CREATE_USER
+  VIEW_USERS
+  UPDATE_USER
+  DELETE_USER
+  REVOKE_USER_SESSIONS
+  CREATE_COMPANY
+  VIEW_COMPANY
+  UPDATE_COMPANY
+  CREATE_DIVISION
+  VIEW_DIVISIONS
+  UPDATE_DIVISION
+  DELETE_DIVISION
+  ASSIGN_DIVISION_LEAD
+  REVOKE_DIVISION_LEAD
+  CREATE_TEAM
+  VIEW_TEAMS
+  UPDATE_TEAM
+  DELETE_TEAM
+  ASSIGN_TEAM_MEMBER
+  REMOVE_TEAM_MEMBER
+  CREATE_MEMBER
+  VIEW_MEMBERS
+  UPDATE_MEMBER
+  REMOVE_MEMBER
+  LINK_MEMBER_ACCESS
+  VIEW_DESIGNATIONS
+  CREATE_DESIGNATION
+  UPDATE_DESIGNATION
+  DELETE_DESIGNATION
+  CREATE_CLIENT
+  VIEW_CLIENTS
+  UPDATE_CLIENT
+  DEACTIVATE_CLIENT
+  REACTIVATE_CLIENT
+  CREATE_CLIENT_CONTACT
+  VIEW_CLIENT_CONTACTS
+  UPDATE_CLIENT_CONTACT
+  DEACTIVATE_CLIENT_CONTACT
+  REACTIVATE_CLIENT_CONTACT
+  SET_PRIMARY_CLIENT_CONTACT
+  GRANT_CLIENT_PORTAL_ACCESS
+  REVOKE_CLIENT_PORTAL_ACCESS
+  CREATE_BID
+  VIEW_BID
+  UPDATE_BID
+  ARCHIVE_BID
+  RESTORE_BID
+  DECIDE_BID_OUTCOME
+  REQUEST_ARCHIVED_BID_REVIEW
+  CREATE_PROJECT
+  VIEW_PROJECT
+  UPDATE_PROJECT
+  ARCHIVE_PROJECT
+  RESTORE_PROJECT
+  CREATE_WORK_REQUEST
+  VIEW_WORK_REQUEST
+  UPDATE_WORK_REQUEST
+  CREATE_WORK_REQUEST_NOTE
+  ASSIGN_WORK_REQUEST_DIVISION
+  ASSIGN_WORK_REQUEST_TEAM
+  ASSIGN_WORK_REQUEST_MEMBER
+  SUBMIT_WORK_REQUEST
+  APPROVE_WORK_REQUEST_REVIEW
+  REQUEST_WORK_REQUEST_REVISION
+  VIEW_DOCUMENT
+  UPLOAD_DOCUMENT
+  SUBMIT_DOCUMENT
+  VIEW_DOCUMENT_CODES
+  CREATE_DOCUMENT_CODE
+  UPDATE_DOCUMENT_CODE
+  DELETE_DOCUMENT_CODE
+  DEACTIVATE_DOCUMENT_CODE
+  REACTIVATE_DOCUMENT_CODE
+  ROUTE_FOR_REVIEW
+  ASSIGN_REVIEWER
+  APPROVE_REVIEW
+  REJECT_REVIEW
+  APPROVE_ORIGIN_REVIEW
+  REJECT_ORIGIN_REVIEW
+  REQUEST_INFO
+  RESPOND_TO_INFO_REQUEST
+  REQUEST_REVISION
+  SUBMIT_FOR_REVIEW
+  ESCALATE_TO_EXTERNAL_REVIEW
+  SUBMIT_FOR_EXTERNAL_REVIEW
+  SUBMIT_CLIENT_REVISION
+  ACCEPT_FINAL_DELIVERY
+  REJECT_FINAL_DELIVERY
+  VIEW_SETTINGS
+  UPDATE_SETTINGS
+  VIEW_REFERENCE_DATA
+  CREATE_REFERENCE_DATA_OPTION
+  UPDATE_REFERENCE_DATA_OPTION
+  DEACTIVATE_REFERENCE_DATA_OPTION
+  REACTIVATE_REFERENCE_DATA_OPTION
+
+  @@map("permission_code")
+}
+
+enum PermissionCategory {
+  ACCESS_CONTROL
+  REFERENCE_DATA
+  ORGANIZATION
+  DIVISIONS
+  TEAMS
+  MEMBERS
+  CLIENTS
+  BIDS
+  PROJECTS
+  WORK_REQUESTS
+  DOCUMENTS
+  DOCUMENT_CODES
+  REVIEWS
+  WORKFLOW
+  SETTINGS
+
+  @@map("permission_category")
+}
+
+enum PermissionActionType {
+  VIEW
+  CREATE
+  UPDATE
+  DELETE
+  ASSIGN
+  SUBMIT
+  APPROVE
+  REJECT
+  REQUEST
+  RESPOND
+  ROUTE
+  REVOKE
+  RETIRE
+  ARCHIVE
+  OTHER
+
+  @@map("permission_action_type")
+}
+
 enum WorkspaceTypeCode {
   BID
   PROJECT
@@ -428,6 +574,7 @@ model Tenant {
   workRequestAttachmentCategories           WorkRequestAttachmentCategory[]
   workflowTransitions                       WorkflowTransition[]
   workflowActionRolePermissions             WorkflowActionRolePermission[]
+  rolePermissions                           RolePermission[]
   workRequests                              WorkRequest[]
   workRequestAssignments                    WorkRequestAssignment[]
   workRequestAuditLogs                      WorkRequestAuditLog[]
@@ -486,9 +633,11 @@ model Role {
   tenantId     String?          @map("tenant_id") @db.Uuid
   name         String           @map("name") @db.VarChar(120)
   description  String?          @map("description") @db.Text
-  isSystemRole Boolean          @default(true) @map("is_system_role")
+  isSystemRole Boolean          @default(false) @map("is_system_role")
   customCode   String?          @map("custom_code") @db.VarChar(120)
   customScope  CustomRoleScope? @map("custom_scope")
+  isActive     Boolean          @default(true) @map("is_active")
+  retiredAt    DateTime?        @map("retired_at") @db.Timestamp(6)
   createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
 
   tenant                                  Tenant?                        @relation("CustomRolesTenant", fields: [tenantId], references: [id], onDelete: Restrict)
@@ -496,6 +645,7 @@ model Role {
   userRolesByRoleId                       UserRole[]                     @relation("UserRolesRoleIdRoles")
   actorProfilesByRoleId                   ActorProfile[]                 @relation("ActorProfilesRoleIdRoles")
   workflowActionRolePermissionsByRoleId   WorkflowActionRolePermission[] @relation("WorkflowActionRolePermissionsRoleIdRoles")
+  rolePermissions                         RolePermission[]               @relation("RolePermissionsRoleIdRoles")
   workflowInfoRequestsByRequestedByRoleId WorkflowInfoRequest[]          @relation("WorkflowInfoRequestsRequestedByRoleIdRoles")
 
   @@unique([tenantId, customCode])
@@ -514,6 +664,49 @@ model SystemRole {
   workRequestRevisionRequestsByRequestedToRoleId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRequestedToRoleIdSystemRoles")
 
   @@map("system_roles")
+}
+
+model Permission {
+  id          String               @id @default(uuid()) @map("id") @db.Uuid
+  code        PermissionCode       @unique @map("code")
+  displayName String               @map("display_name") @db.VarChar(180)
+  description String?              @map("description") @db.Text
+  category    PermissionCategory   @map("category")
+  actionType  PermissionActionType @map("action_type")
+  resource    String               @map("resource") @db.VarChar(120)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+
+  scopeCompatibilities PermissionScopeCompatibility[]
+  rolePermissions      RolePermission[]
+
+  @@map("permissions")
+}
+
+model PermissionScopeCompatibility {
+  permissionId String          @map("permission_id") @db.Uuid
+  scope        CustomRoleScope @map("scope")
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([permissionId, scope])
+  @@map("permission_scope_compatibilities")
+}
+
+model RolePermission {
+  tenantId     String    @map("tenant_id") @db.Uuid
+  id           String    @id @default(uuid()) @map("id") @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  permissionId String    @map("permission_id") @db.Uuid
+  grantedAt    DateTime  @default(now()) @map("granted_at") @db.Timestamp(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamp(6)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  role       Role       @relation("RolePermissionsRoleIdRoles", fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, roleId, permissionId, revokedAt])
+  @@index([tenantId])
+  @@map("role_permissions")
 }
 
 model UserRole {

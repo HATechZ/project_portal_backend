@@ -31,6 +31,7 @@ export class ActorProfileService {
     id: actor.id,
     roleId: actor.roleId,
     roleCode: actor.role.systemRole?.systemCode ?? actor.role.customCode!,
+    roleScope: actor.role.customScope,
     label: actor.label,
     memberId: actor.memberId,
     clientContactId: actor.clientContactId,

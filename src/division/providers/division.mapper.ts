@@ -44,9 +44,6 @@ export function toDivisionLeadResponse(
   return {
     division: record.division,
     member: record.member,
-    roleCode: record.roleCode,
-    userRoleActive: record.userRoleActive,
-    actorProfileLinked: record.actorProfileLinked,
     assignedAt: record.assignedAt,
     revokedIncumbent: record.revokedIncumbent,
     idempotent: record.idempotent,

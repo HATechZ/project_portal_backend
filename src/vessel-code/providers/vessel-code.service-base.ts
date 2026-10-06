@@ -1,7 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
-import { ActorScopeContext } from '../../common/security/object-scope.provider';
 import {
   OptionValueRecord,
   VesselCodeRepository,
@@ -23,28 +22,14 @@ export abstract class VesselCodeServiceBase {
     if (!row) throw this.notFound();
     return row;
   }
-  protected assertManagement(scope: ActorScopeContext) {
-    if (!scope.tenantWide)
-      throw new AppException({
-        code: AppErrorCode.OutOfScope,
-        status: HttpStatus.FORBIDDEN,
-        message: "You don't have access to this resource.",
-      });
-  }
-  protected async createValue(
-    input: { name: string; code?: string },
-    scope: ActorScopeContext,
-  ) {
-    this.assertManagement(scope);
+  protected async createValue(input: { name: string; code?: string }) {
     await this.assertUnique(input);
     return this.values.create(input);
   }
   protected async updateValue(
     id: string,
     input: { name?: string; code?: string },
-    scope: ActorScopeContext,
   ) {
-    this.assertManagement(scope);
     await this.one(id);
     if (await this.values.isReferenced(id))
       throw new AppException({
@@ -69,12 +54,7 @@ export abstract class VesselCodeServiceBase {
     );
     return this.values.update(id, input);
   }
-  protected async lifecycleValue(
-    id: string,
-    active: boolean,
-    scope: ActorScopeContext,
-  ) {
-    this.assertManagement(scope);
+  protected async lifecycleValue(id: string, active: boolean) {
     const row = await this.one(id);
     if (row.isActive === active)
       throw new AppException({

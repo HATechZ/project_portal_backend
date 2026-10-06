@@ -22,7 +22,9 @@ import {
 import { ActiveUser } from '../common/security/active-user.decorator';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { TenantSuperAdminGuard } from '../common/security/tenant-super-admin.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
+import { PermissionCode } from '../generated/prisma/client';
 import type { SessionUser } from '../common/security/session.types';
 import {
   ApiStandardBadRequestResponse,
@@ -49,15 +51,16 @@ import { RolePermissionService } from './role-permission.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  TenantSuperAdminGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
-@ApiStandardForbiddenResponse('tenant super administrator access required')
+@ApiStandardForbiddenResponse('explicit permission required')
 export class UserRoleController {
   constructor(private readonly service: RolePermissionService) {}
 
   @Get('user/:userId/role-options')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('Available roles returned successfully')
   @ApiOperation({ summary: 'List roles available for assignment' })
   @ApiStandardArrayResponse(RoleOptionResponseDto)
@@ -66,6 +69,7 @@ export class UserRoleController {
   }
 
   @Get('user/:userId/role')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('User roles returned successfully')
   @ApiOperation({ summary: 'List roles assigned to a user' })
   @ApiQuery({ name: 'includeRevoked', required: false, type: Boolean })
@@ -80,6 +84,7 @@ export class UserRoleController {
   }
 
   @Post('user/:userId/role')
+  @FinalPermissions(PermissionCode.ASSIGN_ROLES)
   @ResponseMessage('Role assigned successfully')
   @ApiOperation({ summary: 'Assign a role to a user' })
   @ApiStandardCreatedResponse(UserRoleAssignmentResponseDto, 'Role assigned')
@@ -94,6 +99,7 @@ export class UserRoleController {
   }
 
   @Delete('user/:userId/role/:roleId')
+  @FinalPermissions(PermissionCode.REVOKE_ROLES)
   @ResponseMessage('Role revoked successfully')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a role from a user' })

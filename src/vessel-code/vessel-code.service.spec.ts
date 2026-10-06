@@ -63,7 +63,7 @@ describe('VesselCodeService', () => {
     });
   });
 
-  it('uses temporary referenced-edit safety and tenant-wide scope', async () => {
+  it('uses referenced-edit safety without legacy scope-derived authorization', async () => {
     const referenced = createService({
       isReferenced: jest.fn().mockResolvedValue(true),
     }).service;
@@ -72,9 +72,7 @@ describe('VesselCodeService', () => {
       referenced.update(row.id, { code: 'EXT' }, manager),
     ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
     await expect(
-      scoped.create({ name: 'Fixture Vessel', code: 'CA2' }, {
-        tenantWide: false,
-      } as never),
-    ).rejects.toMatchObject({ code: AppErrorCode.OutOfScope });
+      scoped.create({ name: 'Fixture Vessel', code: 'CA2' }),
+    ).resolves.toMatchObject({ code: 'CA2' });
   });
 });

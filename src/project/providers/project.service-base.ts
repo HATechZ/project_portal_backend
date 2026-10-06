@@ -35,7 +35,6 @@ import {
 import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
 import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
-import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import type { SessionActor } from '../../common/security/session.types';
 import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
 import {
@@ -57,7 +56,6 @@ export abstract class ProjectServiceBase {
     private readonly uow: UnitOfWorkService,
     private readonly outbox: OutboxService,
     private readonly cleanup: ProjectStorageCleanupRepository,
-    private readonly scope: ObjectScopeProvider,
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
@@ -80,10 +78,6 @@ export abstract class ProjectServiceBase {
       throw map(error);
     }
     if (!context) throw notFound();
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: context.project.clientId }],
-      allowTenantAdmin: true,
-    });
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -167,10 +161,6 @@ export abstract class ProjectServiceBase {
       documentId,
     );
     if (!context) throw notFound('Project document was not found.');
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: context.directProject.clientId }],
-      allowTenantAdmin: true,
-    });
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -352,8 +342,6 @@ export abstract class ProjectServiceBase {
   async findAll(
     query: PaginationQueryDto,
   ): Promise<PaginatedResult<ProjectResponseDto>> {
-    // ObjectScopeGuard resolves grants before this handler. Approved Project readers
-    // are tenant-wide, so the repository applies TenantContext/RLS in SQL, not post-filtering.
     return paginate(
       query,
       async (args) => (await this.projects.list(args)).map(response),
@@ -366,16 +354,9 @@ export abstract class ProjectServiceBase {
     return response(project);
   }
 
-  async documents(
-    id: string,
-    actor: SessionActor,
-  ): Promise<DocumentSummaryDto[]> {
+  async documents(id: string): Promise<DocumentSummaryDto[]> {
     const project = await this.projects.find(id);
     if (!project) throw notFound();
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: project.clientId }],
-      allowTenantAdmin: true,
-    });
     return (await this.projects.documents(id)).map((document) =>
       documentSummary(id, document),
     );
@@ -384,14 +365,9 @@ export abstract class ProjectServiceBase {
   async documentVersions(
     id: string,
     documentId: string,
-    actor: SessionActor,
   ): Promise<DocumentVersionResponseDto[]> {
     const project = await this.projects.find(id);
     if (!project) throw notFound();
-    this.scope.assertCanAccess(actor, {
-      anyOf: [{ kind: 'client', clientId: project.clientId }],
-      allowTenantAdmin: true,
-    });
     const versions = await this.projects.documentVersions(id, documentId);
     if (!versions) throw notFound('Project document was not found.');
     return versions.map((version) => versionResponse(documentId, version));

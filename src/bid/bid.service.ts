@@ -8,7 +8,6 @@ import { UnitOfWorkService } from '../infra/prisma/unit-of-work.service';
 import { BidStorageCleanupRepository } from './repositories/bid-storage-cleanup.repository';
 import { BidRepository } from './repositories/bid.repository';
 import { BidServiceBase } from './providers/bid.service-base';
-import { ObjectScopeProvider } from '../common/security/object-scope.provider';
 import { DocumentUploadRequestRepository } from '../common/documents/document-upload-request.repository';
 
 export {
@@ -25,10 +24,9 @@ export class BidService extends BidServiceBase {
     unitOfWork: UnitOfWorkService,
     outbox: OutboxService,
     cleanup: BidStorageCleanupRepository,
-    scope: ObjectScopeProvider,
     @Inject(FILE_STORAGE) storage: FileStorage,
     receipts?: DocumentUploadRequestRepository,
   ) {
-    super(bids, unitOfWork, outbox, cleanup, scope, storage, receipts);
+    super(bids, unitOfWork, outbox, cleanup, storage, receipts);
   }
 }

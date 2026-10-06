@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsUUID,
   IsOptional,
   IsString,
   MaxLength,
@@ -82,4 +83,14 @@ export class UpdateClientContactDto {
   @IsString()
   @MaxLength(60)
   phone?: string;
+}
+
+export class GrantClientPortalAccessDto {
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'Active tenant-created role with client or client_contact scope. Its explicit grants determine portal authority.',
+  })
+  @IsUUID()
+  roleId!: string;
 }

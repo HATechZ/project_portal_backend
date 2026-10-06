@@ -3,7 +3,6 @@ import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
-import { ActorScopeContext } from '../common/security/object-scope.provider';
 import {
   AssignTeamLeadDto,
   CreateTeamDto,
@@ -11,12 +10,7 @@ import {
   TeamResponseDto,
   UpdateTeamDto,
 } from './dtos';
-import {
-  TeamScopeProvider,
-  teamNotFound,
-  teamScopeConflict,
-  toTeamResponse,
-} from './providers';
+import { teamNotFound, teamScopeConflict, toTeamResponse } from './providers';
 import {
   ScopedCompanyRecord,
   TeamRecord,
@@ -25,21 +19,15 @@ import {
 
 @Injectable()
 export class TeamService {
-  constructor(
-    private readonly repository: TeamRepository,
-    private readonly scopeProvider: TeamScopeProvider,
-  ) {}
+  constructor(private readonly repository: TeamRepository) {}
 
   async findAll(
     query: TeamQueryDto,
-    actor: ActorScopeContext,
   ): Promise<PaginatedResult<TeamResponseDto>> {
     const company = await this.requireScopedCompany();
-    const divisionIds = await this.scopeProvider.resolveManageDivisionIds(
-      actor,
-      company.id,
-      query.divisionId,
-    );
+    const divisionIds = query.divisionId
+      ? [query.divisionId]
+      : await this.repository.findCompanyDivisionIds(company.id);
     return paginate(
       query,
       async (args) =>
@@ -50,26 +38,14 @@ export class TeamService {
     );
   }
 
-  async findOne(
-    id: string,
-    actor: ActorScopeContext,
-  ): Promise<TeamResponseDto> {
+  async findOne(id: string): Promise<TeamResponseDto> {
     const company = await this.requireScopedCompany();
     const team = await this.requireTeam(id, company.id);
-    await this.assertTeamReadable(actor, company.id, team);
     return toTeamResponse(team);
   }
 
-  async create(
-    input: CreateTeamDto,
-    actor: ActorScopeContext,
-  ): Promise<TeamResponseDto> {
+  async create(input: CreateTeamDto): Promise<TeamResponseDto> {
     const company = await this.requireScopedCompany();
-    await this.scopeProvider.resolveManageDivisionIds(
-      actor,
-      company.id,
-      input.divisionId,
-    );
     if (input.leadMemberId) {
       await this.assertEligibleMember(
         input.leadMemberId,
@@ -80,23 +56,17 @@ export class TeamService {
     return toTeamResponse(await this.repository.create(company.id, input));
   }
 
-  async update(
-    id: string,
-    input: UpdateTeamDto,
-    actor: ActorScopeContext,
-  ): Promise<TeamResponseDto> {
+  async update(id: string, input: UpdateTeamDto): Promise<TeamResponseDto> {
     const company = await this.requireScopedCompany();
-    const team = await this.requireTeam(id, company.id);
-    await this.scopeProvider.assertCanManageTeam(actor, company.id, team);
+    await this.requireTeam(id, company.id);
     return toTeamResponse(
       await this.repository.updateName(id, company.id, input.name),
     );
   }
 
-  async delete(id: string, actor: ActorScopeContext): Promise<void> {
+  async delete(id: string): Promise<void> {
     const company = await this.requireScopedCompany();
-    const team = await this.requireTeam(id, company.id);
-    await this.scopeProvider.assertCanManageTeam(actor, company.id, team);
+    await this.requireTeam(id, company.id);
     if (await this.repository.hasAnyMembership(id)) {
       throw teamScopeConflict(
         'This team cannot be deleted because it has membership history. Deactivate it or preserve the existing history.',
@@ -108,11 +78,9 @@ export class TeamService {
   async assignLead(
     id: string,
     input: AssignTeamLeadDto,
-    actor: ActorScopeContext,
   ): Promise<TeamResponseDto> {
     const company = await this.requireScopedCompany();
     const team = await this.requireTeam(id, company.id);
-    await this.scopeProvider.assertCanManageTeam(actor, company.id, team);
     await this.assertEligibleMember(
       input.leadMemberId,
       company.id,
@@ -140,18 +108,6 @@ export class TeamService {
     const team = await this.repository.findById(id, companyId);
     if (!team) throw teamNotFound(id);
     return team;
-  }
-
-  async assertTeamReadable(
-    actor: ActorScopeContext,
-    companyId: string,
-    team: TeamRecord,
-  ): Promise<void> {
-    try {
-      await this.scopeProvider.assertCanManageTeam(actor, companyId, team);
-    } catch {
-      this.scopeProvider.assertCanManageMembership(actor, team);
-    }
   }
 
   async assertEligibleMember(

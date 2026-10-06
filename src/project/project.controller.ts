@@ -35,14 +35,13 @@ import { ResponseMessage } from '../common/decorators/response-message.decorator
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
-import { ObjectScopeGuard } from '../common/security/object-scope.guard';
-import { Permissions } from '../common/security/permissions.decorator';
-import { PermissionsGuard } from '../common/security/permissions.guard';
+import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.dto';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
-import { WorkflowActionCode } from '../generated/prisma/client';
+import { PermissionCode } from '../generated/prisma/client';
 import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
 import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
 import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
@@ -62,8 +61,7 @@ import { ProjectService, type ProjectUploadedFile } from './project.service';
   AccessTokenGuard,
   TenantContextGuard,
   AuthenticationGuard,
-  ObjectScopeGuard,
-  PermissionsGuard,
+  FinalPermissionsGuard,
 )
 @ApiStandardBadRequestResponse()
 @ApiStandardUnauthorizedResponse()
@@ -73,7 +71,7 @@ import { ProjectService, type ProjectUploadedFile } from './project.service';
 export class ProjectController {
   constructor(private readonly service: ProjectService) {}
   @Post()
-  @Permissions(WorkflowActionCode.ADD_PROJECT)
+  @FinalPermissions(PermissionCode.CREATE_PROJECT)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -163,7 +161,7 @@ const response = await fetch('/api/v1/projects', {
     );
   }
   @Post(':id/documents')
-  @Permissions(WorkflowActionCode.UPDATE_PROJECT)
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -198,7 +196,7 @@ const response = await fetch('/api/v1/projects', {
     );
   }
   @Post(':id/documents/:documentId/versions')
-  @Permissions(WorkflowActionCode.UPDATE_PROJECT)
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024, files: 1 },
@@ -228,18 +226,15 @@ const response = await fetch('/api/v1/projects', {
     return this.service.appendDocumentVersion(id, documentId, file, actor);
   }
   @Get(':id/documents')
-  @Permissions(WorkflowActionCode.VIEW_PROJECT)
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List Project documents' })
   @ApiStandardOkResponse(DocumentSummaryDto, 'Project documents returned')
   @ResponseMessage('Project documents returned successfully')
-  documents(
-    @Param('id', ParseUUIDPipe) id: string,
-    @ActiveActor() actor: SessionActor,
-  ) {
-    return this.service.documents(id, actor);
+  documents(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.documents(id);
   }
   @Get(':id/documents/:documentId/versions')
-  @Permissions(WorkflowActionCode.VIEW_PROJECT)
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List immutable Project document versions' })
   @ApiStandardOkResponse(
     DocumentVersionResponseDto,
@@ -249,12 +244,11 @@ const response = await fetch('/api/v1/projects', {
   documentVersions(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
-    @ActiveActor() actor: SessionActor,
   ) {
-    return this.service.documentVersions(id, documentId, actor);
+    return this.service.documentVersions(id, documentId);
   }
   @Get()
-  @Permissions(WorkflowActionCode.VIEW_PROJECT)
+  @FinalPermissions(PermissionCode.VIEW_PROJECT)
   @ApiOperation({ summary: 'Get All Projects' })
   @ResponseMessage('Projects returned successfully')
   @ApiPaginatedResponse(ProjectResponseDto)
@@ -262,7 +256,7 @@ const response = await fetch('/api/v1/projects', {
     return this.service.findAll(query);
   }
   @Get(':id')
-  @Permissions(WorkflowActionCode.VIEW_PROJECT)
+  @FinalPermissions(PermissionCode.VIEW_PROJECT)
   @ApiOperation({ summary: 'Get Project by ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ResponseMessage('Project returned successfully')
@@ -271,7 +265,7 @@ const response = await fetch('/api/v1/projects', {
     return this.service.findOne(id);
   }
   @Patch(':id')
-  @Permissions(WorkflowActionCode.UPDATE_PROJECT)
+  @FinalPermissions(PermissionCode.UPDATE_PROJECT)
   @ApiOperation({ summary: 'Update Project' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ResponseMessage('Project updated successfully')
@@ -284,7 +278,7 @@ const response = await fetch('/api/v1/projects', {
     return this.service.update(id, body, actor.id);
   }
   @Patch(':id/documents/:documentId/document-code')
-  @Permissions(WorkflowActionCode.UPDATE_PROJECT)
+  @FinalPermissions(PermissionCode.UPDATE_PROJECT)
   @ApiOperation({ summary: 'Reclassify Project Document Code' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ApiParam({
