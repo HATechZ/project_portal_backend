@@ -31,6 +31,7 @@ describe('WorkRequestActionsProvider', () => {
       role: {
         isSystemRole: customScope === null,
         customScope,
+        systemRole: { systemCode: 'tenant_super_admin' },
         userRolesByRoleId: [
           { teamId: customScope === 'team' ? 'team-a' : null },
         ],

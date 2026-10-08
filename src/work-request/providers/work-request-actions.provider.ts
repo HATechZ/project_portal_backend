@@ -45,11 +45,26 @@ export class WorkRequestActionsProvider {
         assignment.divisionId ?? assignment.teamId ?? assignment.memberId,
       ]),
     );
-    const canDivision = hasActionPermission(
+    const canDivision =
+      hasActionPermission(
       WorkflowActionCode.WR_ASSIGN_DIVISION,
-    );
-    const canTeam = hasActionPermission(WorkflowActionCode.WR_ASSIGN_TEAM);
-    const canMember = hasActionPermission(WorkflowActionCode.WR_ASSIGN_MEMBER);
+      ) &&
+      (actor.role.customScope === 'company' ||
+        actor.role.systemRole?.systemCode === 'tenant_super_admin');
+    const canTeam =
+      hasActionPermission(WorkflowActionCode.WR_ASSIGN_TEAM) &&
+      active.DIVISION !== undefined &&
+      member.divisionLeadsByMemberId.some(
+        ({ divisionId }) => divisionId === active.DIVISION,
+      );
+    const canMember =
+      hasActionPermission(WorkflowActionCode.WR_ASSIGN_MEMBER) &&
+      record.assignments.some(
+        (assignment) =>
+          assignment.level === 'TEAM' &&
+          assignment.team?.isActive === true &&
+          assignment.team.leadMemberId === member.id,
+      );
     const actions = [] as {
       code: WorkflowActionCode;
       label: string;
@@ -89,8 +104,24 @@ export class WorkRequestActionsProvider {
     const canReviewTeam =
       teamAssignment?.team?.isActive === true &&
       teamAssignment.team.leadMemberId === member.id;
-    const canReviewDivision = true;
-    const canInfoScope = true;
+    const canReviewDivision =
+      active.DIVISION !== undefined &&
+      member.divisionLeadsByMemberId.some(
+        ({ divisionId }) => divisionId === active.DIVISION,
+      );
+    const canInfoScope =
+      actor.role.customScope === 'company' ||
+      actor.role.systemRole?.systemCode === 'tenant_super_admin' ||
+      record.assignments.some(
+      (assignment) =>
+        assignment.level === 'MEMBER'
+          ? assignment.memberId === member.id
+          : assignment.level === 'TEAM'
+            ? assignment.team?.leadMemberId === member.id
+            : member.divisionLeadsByMemberId.some(
+                ({ divisionId }) => divisionId === assignment.divisionId,
+              ),
+      );
     for (const [code, transition] of Object.entries(
       WORK_REQUEST_REVIEW_TRANSITIONS,
     ) as [

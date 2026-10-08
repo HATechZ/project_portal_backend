@@ -10,6 +10,7 @@ import {
 } from '../dtos/work-request.dto';
 import { WorkRequestInfoRepository } from '../repositories/work-request-info.repository';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
+import { canAccessWorkRequest } from '../../common/security/work-request-visibility';
 
 @Injectable()
 export class WorkRequestInfoProvider {
@@ -45,6 +46,10 @@ export class WorkRequestInfoProvider {
         const state = snapshot.request.events[0]?.resultingState;
         if (!state)
           throw conflict('Work Request has no current workflow state.');
+        if (state === 'DIVISION_HEAD_APPROVED')
+          throw conflict('Work Request is no longer active.');
+        if (!canAccessWorkRequest(actor, snapshot.request.assignments))
+          throw forbidden();
         return this.repository.create({
           workRequestId: id,
           requestedByActorId: actor.id,

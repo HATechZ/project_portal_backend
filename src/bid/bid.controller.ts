@@ -24,6 +24,8 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiStandardBadRequestResponse,
+  ApiStandardArrayResponse,
+  ApiStandardCreatedArrayResponse,
   ApiStandardConflictResponse,
   ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
@@ -204,7 +206,7 @@ const response = await fetch('/api/v1/bids', {
     },
   })
   @ApiOperation({ summary: 'Upload new Bid document(s)' })
-  @ApiStandardCreatedResponse(DocumentSummaryDto, 'Bid documents created')
+  @ApiStandardCreatedArrayResponse(DocumentSummaryDto, 'Bid documents created')
   @ResponseMessage('Bid documents created successfully')
   createDocuments(
     @Param('id', ParseUUIDPipe) id: string,
@@ -254,16 +256,16 @@ const response = await fetch('/api/v1/bids', {
   @Get(':id/documents')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List Bid documents' })
-  @ApiStandardOkResponse(DocumentSummaryDto, 'Bid documents returned')
+  @ApiStandardArrayResponse(DocumentSummaryDto, 'Bid documents returned')
   @ResponseMessage('Bid documents returned successfully')
-  documents(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.documents(id);
+  documents(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.documents(id, actor);
   }
 
   @Get(':id/documents/:documentId/versions')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List immutable Bid document versions' })
-  @ApiStandardOkResponse(
+  @ApiStandardArrayResponse(
     DocumentVersionResponseDto,
     'Bid document versions returned',
   )
@@ -271,8 +273,9 @@ const response = await fetch('/api/v1/bids', {
   documentVersions(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
+    @ActiveActor() actor: SessionActor,
   ) {
-    return this.service.documentVersions(id, documentId);
+    return this.service.documentVersions(id, documentId, actor);
   }
 
   @Get()
@@ -280,8 +283,8 @@ const response = await fetch('/api/v1/bids', {
   @ApiOperation({ summary: 'Get All Bids' })
   @ResponseMessage('Bids returned successfully')
   @ApiPaginatedResponse(BidResponseDto)
-  findAll(@Query() query: PaginationQueryDto) {
-    return this.service.findAll(query);
+  findAll(@Query() query: PaginationQueryDto, @ActiveActor() actor: SessionActor) {
+    return this.service.findAll(query, actor);
   }
 
   @Get(':id')
@@ -289,8 +292,8 @@ const response = await fetch('/api/v1/bids', {
   @ApiOperation({ summary: 'Get Bid by ID' })
   @ResponseMessage('Bid returned successfully')
   @ApiStandardOkResponse(BidResponseDto, 'Bid returned')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.findOne(id, actor);
   }
 
   @Patch(':id')

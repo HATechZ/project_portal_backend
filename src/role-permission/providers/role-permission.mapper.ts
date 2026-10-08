@@ -10,12 +10,33 @@ export function toRoleResponse(role: RoleRecord): RoleResponseDto {
     isSystemRole: role.isSystemRole,
     scope: role.customScope,
     createdAt: role.createdAt,
-    permissions: role.rolePermissions.map(({ permission }) => ({
-      ...permission,
-      compatibleScopes: permission.scopeCompatibilities.map(
-        ({ scope }) => scope,
-      ),
-    })),
+    permissions: role.rolePermissions.map(({ permission }) =>
+      toPermissionResponse(permission),
+    ),
+  };
+}
+
+export function toPermissionResponse(permission: {
+  id: string;
+  code: RoleResponseDto['permissions'][number]['code'];
+  displayName: string;
+  description: string | null;
+  category: RoleResponseDto['permissions'][number]['category'];
+  actionType: RoleResponseDto['permissions'][number]['actionType'];
+  resource: string;
+  scopeCompatibilities: {
+    scope: RoleResponseDto['permissions'][number]['compatibleScopes'][number];
+  }[];
+}): RoleResponseDto['permissions'][number] {
+  return {
+    id: permission.id,
+    code: permission.code,
+    displayName: permission.displayName,
+    description: permission.description,
+    category: permission.category,
+    actionType: permission.actionType,
+    resource: permission.resource,
+    compatibleScopes: permission.scopeCompatibilities.map(({ scope }) => scope),
   };
 }
 

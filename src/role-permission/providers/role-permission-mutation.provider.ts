@@ -17,6 +17,7 @@ import {
   toRoleResponse,
   toUserRoleAssignmentResponse,
 } from './role-permission.mapper';
+import { starterRole } from '../../common/security/starter-role-definition';
 
 @Injectable()
 export class RolePermissionMutationProvider {
@@ -37,6 +38,13 @@ export class RolePermissionMutationProvider {
   ): Promise<RoleResponseDto> {
     this.assertUniquePermissionIds(input.permissionIds);
     const role = await this.requireRole(id);
+    const protectedStarter = starterRole(role.customCode ?? '');
+    if (protectedStarter && input.scope && input.scope !== protectedStarter.scope)
+      throw new AppException({
+        code: AppErrorCode.Conflict,
+        status: HttpStatus.CONFLICT,
+        message: 'The protected starter role scope cannot be changed.',
+      });
     if (!role.isSystemRole) {
       const scope = input.scope ?? (role.customScope as CustomRoleScope);
       await this.assertValidCustomPermissions(scope, input.permissionIds);

@@ -1,4 +1,5 @@
 import { type CustomRoleScope } from './custom-role-policy';
+import { toRoleResponse } from './role-permission.mapper';
 import { RolePermissionQueryProvider } from './role-permission-query.provider';
 
 const permission = (
@@ -48,6 +49,9 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
   ];
   const repository = {
     findVisiblePermissions: jest.fn().mockResolvedValue(catalogue),
+    findPermission: jest.fn((id: string) =>
+      Promise.resolve(catalogue.find((candidate) => candidate.id === id) ?? null),
+    ),
   };
   const provider = new RolePermissionQueryProvider(
     repository as never,
@@ -79,5 +83,46 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
       'MEMBERS',
       'DOCUMENTS',
     ]);
+  });
+
+  it('returns only the public compatibleScopes field for permission responses', async () => {
+    const [result] = await provider.findPermissions(false);
+
+    expect(result).toMatchObject({
+      compatibleScopes: ['company'],
+    });
+    expect(result).not.toHaveProperty('scopeCompatibilities');
+  });
+
+  it('normalizes a permission detail response', async () => {
+    const result = await provider.findPermission('2');
+
+    expect(result).toMatchObject({
+      id: '2',
+      compatibleScopes: ['company', 'division'],
+    });
+    expect(result).not.toHaveProperty('scopeCompatibilities');
+  });
+
+  it('normalizes permission records nested under a Role response', () => {
+    const response = toRoleResponse({
+      id: 'role-1',
+      customCode: 'quality_reviewer',
+      customScope: 'company',
+      systemRole: null,
+      name: 'Quality reviewer',
+      description: null,
+      isSystemRole: false,
+      createdAt: new Date(),
+      rolePermissions: [{ permission: catalogue[1] }],
+    });
+
+    expect(response.permissions).toEqual([
+      expect.objectContaining({
+        id: '2',
+        compatibleScopes: ['company', 'division'],
+      }),
+    ]);
+    expect(response.permissions[0]).not.toHaveProperty('scopeCompatibilities');
   });
 });

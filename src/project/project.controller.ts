@@ -24,6 +24,8 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiStandardBadRequestResponse,
+  ApiStandardArrayResponse,
+  ApiStandardCreatedArrayResponse,
   ApiStandardConflictResponse,
   ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
@@ -180,7 +182,10 @@ const response = await fetch('/api/v1/projects', {
     },
   })
   @ApiOperation({ summary: 'Upload new Project document(s)' })
-  @ApiStandardCreatedResponse(DocumentSummaryDto, 'Project documents created')
+  @ApiStandardCreatedArrayResponse(
+    DocumentSummaryDto,
+    'Project documents created',
+  )
   @ResponseMessage('Project documents created successfully')
   createDocuments(
     @Param('id', ParseUUIDPipe) id: string,
@@ -228,15 +233,15 @@ const response = await fetch('/api/v1/projects', {
   @Get(':id/documents')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List Project documents' })
-  @ApiStandardOkResponse(DocumentSummaryDto, 'Project documents returned')
+  @ApiStandardArrayResponse(DocumentSummaryDto, 'Project documents returned')
   @ResponseMessage('Project documents returned successfully')
-  documents(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.documents(id);
+  documents(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.documents(id, actor);
   }
   @Get(':id/documents/:documentId/versions')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'List immutable Project document versions' })
-  @ApiStandardOkResponse(
+  @ApiStandardArrayResponse(
     DocumentVersionResponseDto,
     'Project document versions returned',
   )
@@ -244,16 +249,17 @@ const response = await fetch('/api/v1/projects', {
   documentVersions(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
+    @ActiveActor() actor: SessionActor,
   ) {
-    return this.service.documentVersions(id, documentId);
+    return this.service.documentVersions(id, documentId, actor);
   }
   @Get()
   @FinalPermissions(PermissionCode.VIEW_PROJECT)
   @ApiOperation({ summary: 'Get All Projects' })
   @ResponseMessage('Projects returned successfully')
   @ApiPaginatedResponse(ProjectResponseDto)
-  list(@Query() query: PaginationQueryDto) {
-    return this.service.findAll(query);
+  list(@Query() query: PaginationQueryDto, @ActiveActor() actor: SessionActor) {
+    return this.service.findAll(query, actor);
   }
   @Get(':id')
   @FinalPermissions(PermissionCode.VIEW_PROJECT)
@@ -261,8 +267,8 @@ const response = await fetch('/api/v1/projects', {
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ResponseMessage('Project returned successfully')
   @ApiStandardOkResponse(ProjectResponseDto, 'Project returned')
-  one(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findOne(id);
+  one(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.findOne(id, actor);
   }
   @Patch(':id')
   @FinalPermissions(PermissionCode.UPDATE_PROJECT)

@@ -46,7 +46,10 @@ export class ClientController {
   }
 
   @Get('deactivated')
-  @FinalPermissions(PermissionCode.VIEW_CLIENTS)
+  @FinalPermissions(
+    PermissionCode.VIEW_CLIENTS,
+    PermissionCode.REACTIVATE_CLIENT,
+  )
   @ResponseMessage('Deactivated clients returned successfully')
   @ApiOperation({ summary: 'List deactivated Clients' })
   @ApiPaginatedResponse(ClientResponseDto)

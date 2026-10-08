@@ -111,6 +111,7 @@ export class WorkRequestController {
   @FinalPermissions(PermissionCode.UPDATE_WORK_REQUEST)
   @ApiOperation({ summary: 'Update Work Request by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
+  @ApiStandardOkResponse(WorkRequestResponseDto, 'Work Request updated')
   @ResponseMessage('Work Request updated successfully')
   update(
     @Param('id', ParseUUIDPipe) id: string,

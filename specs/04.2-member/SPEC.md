@@ -7,6 +7,19 @@
 > **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
 ## 1. Overview & Business Intent
+
+## 2026-10-07 Staff-onboarding reconciliation
+
+This approved decision supersedes older normal-onboarding statements in this module. `POST /member`
+atomically creates/links User and Member, resolves the same-Tenant protected Staff Role
+(`customCode: staff`, `customScope: member`), creates or reuses its Staff UserRole and required
+Member-backed ActorProfile through the shared orchestration, and commits all of it together.
+The request remains exactly free of role/profile/grant IDs. It creates no Supervisor/Manager role,
+Team membership/leadership, Division leadership, or workflow responsibility, and never infers a
+starter role from Division, Team, designation, job title, or name. Staff may later coexist with
+any explicitly assigned role; existing eligible default-profile behavior is preserved.
+
+## 1. Overview & Business Intent
 Member is an internal Company/Division business person. User is a separate authentication and
 security identity. A Division has no login. In V1, every newly created internal Member receives
 a linked login User; Team and role assignment remain separate.
@@ -104,6 +117,15 @@ reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RL
   without creating partial onboarding state.
 - `[AC-W07]` IF a leadership assignment targets an out-of-scope Company, Division, Team, or
   ordinary Member, THEN the system SHALL deny it even when the caller has the requested role.
+
+## 6. Out of Scope
+
+## 2026-10-07 visibility addendum
+
+`VIEW_MEMBERS` is an expressly Company-wide internal directory read for an authenticated internal
+actor with the permission, using a safe directory projection only. Member scope otherwise means
+the exact Member: Work Request visibility and submission require the current active Member
+assignment; it does not imply Company-wide operational-resource visibility.
 
 ## 6. Out of Scope
 

@@ -64,7 +64,9 @@ export class ClientService {
 
   async findOne(id: string): Promise<ClientResponseDto> {
     const company = await this.scope.requireCompany();
-    return toClientResponse(await this.scope.requireClient(id, company.id));
+    const client = await this.clients.findActiveById(id, company.id);
+    if (!client) throw clientBadRequest('Client was not found or is inactive.');
+    return toClientResponse(client);
   }
 
   async update(id: string, input: UpdateClientDto): Promise<ClientResponseDto> {

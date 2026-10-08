@@ -14,6 +14,8 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import {
   ApiStandardForbiddenResponse,
+  ApiStandardArrayResponse,
+  ApiStandardCreatedArrayResponse,
   ApiStandardCreatedResponse,
   ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
@@ -69,7 +71,7 @@ export class WorkRequestDocumentController {
     },
   })
   @ApiOperation({ summary: 'Upload new Work Request document(s)' })
-  @ApiStandardCreatedResponse(
+  @ApiStandardCreatedArrayResponse(
     DocumentSummaryDto,
     'Work Request documents created',
   )
@@ -121,7 +123,10 @@ export class WorkRequestDocumentController {
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   @ApiOperation({ summary: 'Get Documents by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
-  @ApiStandardOkResponse(DocumentSummaryDto, 'Work Request documents returned')
+  @ApiStandardArrayResponse(
+    DocumentSummaryDto,
+    'Work Request documents returned',
+  )
   @ResponseMessage('Work Request documents returned successfully')
   list(
     @Param('id', ParseUUIDPipe) id: string,
@@ -140,7 +145,7 @@ export class WorkRequestDocumentController {
     format: 'uuid',
     description: 'Work Request Document ID',
   })
-  @ApiStandardOkResponse(
+  @ApiStandardArrayResponse(
     DocumentVersionResponseDto,
     'Work Request document versions returned',
   )

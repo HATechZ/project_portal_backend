@@ -215,6 +215,27 @@ resolves the privilege prerequisite.
 
 ## Proposed schema change
 
+## 2026-10-07 starter-role reconciliation
+
+Reuse current `Role(tenantId, customCode, customScope, isActive, retiredAt)`, `RolePermission`,
+`UserRole`, and `ActorProfile`; no Prisma shape is required. The tenant-local unique
+`(tenantId, customCode)` supports reserved `staff`, `supervisor`, and `manager` identities.
+Future role writes must reject reserved-code impersonation and protected identity/lifecycle
+changes. A conflicting existing reserved code is an integrity error to reconcile, never a row to
+overwrite. Member onboarding reuses `ensureUserRoleAndRoleOnlyProfile()` with `memberId` after
+User/Member creation, in its existing serializable transaction.
+
+### Authorization-hardening gate
+
+Role/permission persistence and compatibility need no shape change, but starter Roles/grants are
+not provisioned until Phase A feature authorization hardening proves resource/assignment/state
+enforcement for each target permission. Phase B then reserves `staff`, `supervisor`, and `manager`,
+protects their lifecycle, reconciles Tenants, and enables Staff onboarding. Existing Members are
+not backfilled. `RoleOptionResponseDto` must expose the full system scope catalogue, not only
+company/division, when Phase B is implemented.
+
+## Proposed schema change
+
 Required for the approved leadership-role foundation; not applied by Codex because Article IX
 marks `prisma/schema.prisma`, migrations, and DBML-generated schema output as owner-only outside
 the database-architect path.

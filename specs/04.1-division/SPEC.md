@@ -71,6 +71,16 @@ activation APIs, workflow behavior, and any schema/grant/RLS alteration.
 
 ## 6. Out of Scope
 
+## 2026-10-07 visibility responsibility addendum
+
+`VIEW_DIVISIONS` is an explicitly Company-wide internal organization-directory read for any
+authenticated internal actor with that permission; it exposes no security/access or private HR
+fields. Active `DivisionLead` rows are the neutral business evidence for Division-scoped Work
+Request visibility, Team routing, and Division review/revision where the Work Request is actively
+assigned to that Division. They are never a security-role identity.
+
+## 6. Out of Scope
+
 No public activation lifecycle; no DivisionType value management or workflow mapping; no User
 credential/session creation, Team, new lead table, permission, or workflow routing creation.
 Member is `04.2-member` and Team plus the existing membership relation is `04.3-team`.

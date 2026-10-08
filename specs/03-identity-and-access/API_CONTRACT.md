@@ -210,6 +210,13 @@ Runtime envelope conventions are inherited from the existing bootstrap: successf
 `error` and `meta`. 204 has no body. Every response must echo `x-request-id`.
 
 | Condition | HTTP | Code |
+
+## 2026-10-07 starter-role reconciliation
+
+No Member or Company request changes. Existing role/permission management is the future surface
+for compatible starter-role grant replacement; it must reject retirement/deletion or protected
+identity/scope mutation of Staff, Supervisor, and Manager. `POST /member` internally ensures the
+same-Tenant Staff UserRole and Member-backed ActorProfile without accepting role/profile IDs.
 |---|---|---|
 | Duplicate canonical email | 409 | `CONFLICT` |
 | User not found | 404 | `NOT_FOUND` |

@@ -76,7 +76,10 @@ export class MemberService {
     return this.repository.findLedDivisions(member.id, company.id);
   }
 
-  async create(input: CreateMemberDto): Promise<MemberResponseDto> {
+  async create(
+    input: CreateMemberDto,
+    assignedByUserId: string,
+  ): Promise<MemberResponseDto> {
     const company = await this.requireScopedCompany();
     await this.requireDesignation(input.designationId, company.id);
     const passwordHash = await this.passwordHasher.hash(input.password);
@@ -88,7 +91,7 @@ export class MemberService {
         divisionId: input.divisionId,
         designationId: input.designationId,
         phone: input.phone,
-      }),
+      }, assignedByUserId),
     );
   }
 

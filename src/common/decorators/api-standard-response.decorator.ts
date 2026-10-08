@@ -4,6 +4,7 @@ import {
   ApiCreatedResponse,
   ApiExtraModels,
   ApiOkResponse,
+  ApiAcceptedResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
 import { AppErrorCode } from '../exceptions/app-error-code';
@@ -63,6 +64,16 @@ export function ApiStandardCreatedResponse<TModel extends Type<unknown>>(
   );
 }
 
+export function ApiStandardCreatedArrayResponse<TModel extends Type<unknown>>(
+  model: TModel,
+  description = 'Resources created',
+) {
+  return applyDecorators(
+    ApiExtraModels(ApiResponseDto, model),
+    ApiCreatedResponse({ description, schema: arrayResponseSchema(model) }),
+  );
+}
+
 export function ApiStandardArrayResponse<TModel extends Type<unknown>>(
   model: TModel,
   description = 'Request successful',
@@ -71,6 +82,23 @@ export function ApiStandardArrayResponse<TModel extends Type<unknown>>(
     ApiExtraModels(ApiResponseDto, model),
     ApiOkResponse({ description, schema: arrayResponseSchema(model) }),
   );
+}
+
+export function ApiStandardAcceptedResponse(
+  description = 'Request accepted',
+) {
+  return ApiAcceptedResponse({
+    description,
+    schema: {
+      type: 'object',
+      required: ['success', 'message', 'timestamp'],
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Request accepted' },
+        timestamp: { type: 'string', format: 'date-time' },
+      },
+    },
+  });
 }
 
 interface ErrorExample {

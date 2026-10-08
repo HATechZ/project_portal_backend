@@ -61,6 +61,13 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
             select: { id: true, companyId: true, divisionId: true },
           })
         : null;
+      const activeTeamId = active[WorkRequestV1AssignmentLevelCode.TEAM];
+      const activeTeam = activeTeamId
+        ? await db.team.findFirst({
+            where: { id: activeTeamId, tenantId, isActive: true },
+            select: { leadMemberId: true },
+          })
+        : null;
       return {
         parentCompanyId:
           request.bid?.client.companyId ??
@@ -70,6 +77,7 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         active,
         target,
         boundTeam,
+        activeTeamLeadMemberId: activeTeam?.leadMemberId ?? null,
       };
     });
   }

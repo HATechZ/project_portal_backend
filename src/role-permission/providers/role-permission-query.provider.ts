@@ -9,6 +9,7 @@ import {
 import { RolePermissionRepository } from '../repositories';
 import { RoleOptionsRepository } from '../repositories/role-options.repository';
 import {
+  toPermissionResponse,
   toRoleResponse,
   toUserRoleAssignmentResponse,
 } from './role-permission.mapper';
@@ -107,22 +108,4 @@ export class RolePermissionQueryProvider {
       toUserRoleAssignmentResponse,
     );
   }
-}
-
-function toPermissionResponse(permission: {
-  id: string;
-  code: PermissionResponseDto['code'];
-  displayName: string;
-  description: string | null;
-  category: PermissionResponseDto['category'];
-  actionType: PermissionResponseDto['actionType'];
-  resource: string;
-  scopeCompatibilities: {
-    scope: PermissionResponseDto['compatibleScopes'][number];
-  }[];
-}): PermissionResponseDto {
-  return {
-    ...permission,
-    compatibleScopes: permission.scopeCompatibilities.map(({ scope }) => scope),
-  };
 }

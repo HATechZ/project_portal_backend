@@ -4,6 +4,18 @@ Contracts: SPEC.md, API_CONTRACT.md, DATA_CONTRACT.md. Status belongs in ../INDE
 
 ## Components
 
+## 2026-10-07 starter-role provisioning delta
+
+Extend the existing controlled provisioning function rather than adding a second setup path.
+Ensure the three protected tenant Roles and their explicit grants in the same transaction as
+Tenant/Company creation; preserve the current tenant_super_admin bootstrap and its explicit
+`DECIDE_BID_OUTCOME` exclusion. The repository remains a single narrow function call.
+
+Starter provisioning is Phase B only. Phase A is feature authorization hardening outside this
+module; Company signup must not become a bypass for unverified resource/assignment/state checks.
+
+## Components
+
 - CompanySignupController -> CompanySignupService -> CompanySignupRepository -> existing
   narrow provisioning function. DTO validation runs before hashing. Only eight mapped fields,
   including password hash, cross the provisioning boundary; confirmation stays in validation.

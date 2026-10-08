@@ -13,4 +13,5 @@ export type WorkRequestAssignmentSnapshot = {
     teamId: string | null;
   } | null;
   boundTeam: { id: string; companyId: string; divisionId: string } | null;
+  activeTeamLeadMemberId: string | null;
 };

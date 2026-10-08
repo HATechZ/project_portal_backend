@@ -36,11 +36,12 @@ describe('MemberService', () => {
       password: 'secret123',
       divisionId: 'division-1',
       designationId: 'designation-1',
-    });
+    }, 'creator-user-id');
     expect(passwordHasher.hash).toHaveBeenCalledWith('secret123');
     expect(onboarding.createWithAccess).toHaveBeenCalledWith(
       'company-1',
       expect.not.objectContaining({ password: 'secret123' }),
+      'creator-user-id',
     );
   });
 

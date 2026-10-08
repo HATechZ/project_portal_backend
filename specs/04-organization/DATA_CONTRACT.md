@@ -2,6 +2,21 @@
 
 ## Tables owned in the approved slice
 
+## 2026-10-07 starter-role provisioning reconciliation
+
+The existing provisioning function is the future atomic extension point: Tenant -> Company ->
+owner User -> tenant_super_admin UserRole/profile -> protected Staff, Supervisor, Manager Roles
+-> explicit compatible starter grants. It must be idempotent. Existing `Role` fields suffice;
+no schema change is approved in this specification-only decision.
+
+### Provisioning phase gate
+
+The atomic Company function must not create starter Roles or RolePermission grants until Phase A
+authorization hardening has passed focused security tests. Phase B extends this transaction with
+only verified-safe target grants; it preserves the signup contract and tenant_super_admin bootstrap.
+
+## Tables owned in the approved slice
+
 `company_types`: global reference data; UUID id, name, nullable description.
 `companies`: UUID id and tenantId, name (180), abbr (30), workspaceSlug (100),
 nullable companyTypeId UUID, isActive, createdAt and updatedAt timestamps.

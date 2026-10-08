@@ -211,3 +211,47 @@ Historical migrations and their tests remain historical evidence. A historical-m
 assert that a legacy migration contains its original labels or data shape, but must not assert that
 retired roles, workflow-action grants, or fixed-role provisioning remain active in current runtime
 or seed behavior.
+
+## 2026-10-07 protected starter-role bundles
+
+The following are **initial tenant-local RolePermission grants**, not authorization shortcuts.
+Every listed operation still requires the canonical permission + same-Tenant + compatible scope +
+resource/business relationship + assignment (where applicable) + workflow-state rule. No bundle
+confers tenant-wide visibility, routing, review, or approval by name alone.
+
+| Starter role | Scope | Initial existing permission codes | Reason |
+|---|---|---|---|
+| Staff | member | `VIEW_MEMBERS`, `VIEW_DESIGNATIONS`, `VIEW_CLIENTS`, `VIEW_BID`, `VIEW_PROJECT`, `VIEW_WORK_REQUEST`, `VIEW_DOCUMENT`, `VIEW_DOCUMENT_CODES` | least-privilege internal directory/reference and visible/assigned work reads |
+| Supervisor | team | Staff read set plus `VIEW_TEAMS`, `ASSIGN_WORK_REQUEST_MEMBER`, `APPROVE_WORK_REQUEST_REVIEW`, `REQUEST_WORK_REQUEST_REVISION`, `REQUEST_INFO`, `RESPOND_TO_INFO_REQUEST` | generic team coordination; object/assignment/state rules remain controlling |
+| Manager | division | Supervisor bundle, plus `VIEW_DIVISIONS`, `ASSIGN_WORK_REQUEST_TEAM` | generic division coordination; Division routing remains Company-scope responsibility |
+
+All listed permissions are presently compatible with their receiving scope in
+`permission_scope_compatibilities`: Staff/member; Supervisor/team; Manager/division. Therefore
+this decision requires no new permission code and no compatibility expansion. `VIEW_REFERENCE_DATA`
+is intentionally excluded because it is currently company-only; no compatibility broadening is
+justified for automatic onboarding.
+
+Provisioning must create/ensure the three protected tenant Roles and these grants in the existing
+atomic Company/Tenant flow, after Tenant/Company existence and without modifying the explicit
+`tenant_super_admin` bootstrap or its `DECIDE_BID_OUTCOME` exception. The normal compatible-grant
+management API remains the required edit surface; it must not encode the starter bundles in guards
+or services. Historical migrations remain read-only evidence.
+
+### Provisioning gate
+
+The table is an approved **target** grant matrix. Current compatibility rows remain unchanged, but
+compatibility is not an object-visibility grant. Before automatic starter provisioning, Phase A
+must prove each enabled path enforces tenant, scope, resource/business relationship, required
+assignment/responsibility, and required state. Until then, no target permission is automatically
+granted merely because it appears in this matrix; a catalogue permission without an implemented,
+protected route/action is non-operational for starter provisioning. Phase B may provision only
+the target grants proven safe by Phase A. Role name/code is never a substitute for those checks.
+
+### Operational starter-grant boundary
+
+`CREATE_WORK_REQUEST_NOTE`, `REQUEST_REVISION`, `SUBMIT_FOR_REVIEW`, `ROUTE_FOR_REVIEW`, and
+`ASSIGN_REVIEWER` remain global catalogue permissions but are not starter defaults and are
+non-operational until their own protected route/action exists. `SUBMIT_WORK_REQUEST` is likewise
+not a Supervisor default: only the exact active assigned Member may submit. `ASSIGN_WORK_REQUEST_DIVISION`
+is not a Manager default because Division routing is Company-scope responsibility. The authoritative
+resource predicates are in `ROLE_ARCHITECTURE_FREEZE.md`; compatibility rows remain unchanged.

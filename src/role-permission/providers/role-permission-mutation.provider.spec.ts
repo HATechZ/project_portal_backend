@@ -83,6 +83,18 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
     expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
   });
 
+  it('prevents changing a protected starter role scope while retaining compatible grants', async () => {
+    repository.findRole.mockResolvedValueOnce(
+      role({ customCode: 'staff', customScope: 'member' }),
+    );
+    await expect(
+      provider.setRolePermissions(role().id, {
+        scope: 'team',
+        permissionIds: [],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.Conflict });
+  });
+
   it('rejects duplicate permission IDs', async () => {
     await expect(
       provider.createCustomRole({

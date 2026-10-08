@@ -5,6 +5,9 @@ import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { Prisma } from '../../generated/prisma/client';
 import { MemberRecord, memberSelect } from './member.records';
+import { ensureUserRoleAndRoleOnlyProfile } from '../../common/security/actor-access-orchestration';
+import { AppException } from '../../common/exceptions/app-exception';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
 
 export interface MemberOnboardingInput {
   name: string;
@@ -15,7 +18,7 @@ export interface MemberOnboardingInput {
   phone?: string;
 }
 
-/** V1 atomic onboarding: linked User and Member only; role access is assigned later. */
+/** Atomic onboarding includes the protected, tenant-local Staff baseline. */
 @Injectable()
 export class MemberOnboardingRepository extends BaseRepository {
   constructor(unitOfWork: UnitOfWorkService) {
@@ -25,6 +28,7 @@ export class MemberOnboardingRepository extends BaseRepository {
   createWithAccess(
     companyId: string,
     input: MemberOnboardingInput,
+    assignedByUserId: string,
   ): Promise<MemberRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
@@ -55,6 +59,30 @@ export class MemberOnboardingRepository extends BaseRepository {
             isActive: true,
           },
           select: memberSelect,
+        });
+
+        const staff = await db.role.findFirst({
+          where: {
+            tenantId,
+            customCode: 'staff',
+            customScope: 'member',
+            isSystemRole: false,
+            isActive: true,
+          },
+          select: { id: true },
+        });
+        if (!staff)
+          throw new AppException({
+            code: AppErrorCode.Conflict,
+            status: 409,
+            message: 'The protected Staff role is unavailable for this Tenant.',
+          });
+        await ensureUserRoleAndRoleOnlyProfile(db, {
+          tenantId,
+          userId,
+          roleId: staff.id,
+          assignedByUserId,
+          memberId: member.id,
         });
 
         return member;

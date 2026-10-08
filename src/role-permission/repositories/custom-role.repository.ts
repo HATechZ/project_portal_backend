@@ -7,6 +7,7 @@ import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import { type CustomRoleScope } from '../providers/custom-role-policy';
 import { roleSelect, type RoleRecord } from './role-permission.records';
+import { isStarterRoleCode } from '../../common/security/starter-role-definition';
 
 @Injectable()
 export class CustomRoleRepository extends BaseRepository {
@@ -76,7 +77,7 @@ export class CustomRoleRepository extends BaseRepository {
       select: { customCode: true },
     });
     const used = new Set(matches.map(({ customCode }) => customCode));
-    if (!used.has(base)) return base;
+    if (!used.has(base) && !isStarterRoleCode(base)) return base;
     for (let suffix = 2; ; suffix += 1) {
       const candidate = `${base}_${suffix}`;
       if (!used.has(candidate)) return candidate;

@@ -48,6 +48,8 @@ export class WorkRequestDocumentHistoryProvider {
       revisionCode: version.revisionCode,
       uploadedFileName: version.uploadedFileName ?? '',
       generatedFileName: version.generatedFileName,
+      mimeType: version.mimeType,
+      size: Number(version.fileSizeBytes),
       uploadedAt: version.uploadedAt,
       uploadedBy: {
         id: version.uploadedByActor.id,

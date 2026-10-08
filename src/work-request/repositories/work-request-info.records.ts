@@ -13,7 +13,13 @@ export const workRequestInfoSelect = {
   },
   assignments: {
     where: { unassignedAt: null, replacedAt: null },
-    select: { level: true, divisionId: true, teamId: true },
+    select: {
+      level: true,
+      divisionId: true,
+      teamId: true,
+      memberId: true,
+      team: { select: { leadMemberId: true, isActive: true } },
+    },
   },
 } satisfies Prisma.WorkRequestV1Select;
 

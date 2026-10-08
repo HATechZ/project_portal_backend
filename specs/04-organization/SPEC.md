@@ -5,6 +5,16 @@ Contracts: `API_CONTRACT.md`, `DATA_CONTRACT.md`. Status belongs in `../INDEX.md
 > **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
 ## Approved scope and stories
+
+## 2026-10-07 starter-role provisioning reconciliation
+
+Company signup's existing atomic Tenant/Company boundary is extended, in a later implementation,
+to idempotently create protected normal tenant Roles Staff/member, Supervisor/team, and
+Manager/division with their explicit initial compatible grants. `tenant_super_admin` remains the
+sole SystemRole and has no platform/cross-tenant meaning. Signup accepts no starter-role input,
+and no Company-specific role name determines authorization or workflow routing.
+
+## Approved scope and stories
 Company and global CompanyType are the implemented organization slice. Tenant is the internal
 security boundary and Company the business organization. Signup atomically creates the pair;
 the unique Tenant foreign key prevents a second Company in that Tenant. The approved, unimplemented
@@ -74,6 +84,15 @@ Malformed UUIDs and DTOs return 400. Missing records return 404 naming the ID. D
 stay in services; shared Prisma translation maps P2002/P2003/P2034 to conflict and P2025 to
 404. Signup validation SQLSTATEs map centrally to 400. A type deleted after update precheck
 is a constraint conflict (409), not an unhandled 500. No feature-level Prisma catch is added.
+
+## Explicitly deferred
+
+## 2026-10-07 Company routing authority addendum
+
+Company scope is the only lower-level-independent authority permitted to route a Work Request to
+its first Division, with the explicit permission and valid workflow state. A Division-scoped role
+does not gain this authority merely because its target is a Division. Company directory/reference
+reads remain read-only and expose no credentials, access internals, or private HR data.
 
 ## Explicitly deferred
 

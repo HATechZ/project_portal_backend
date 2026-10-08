@@ -10,11 +10,11 @@
 | [01.1](01.1-schema-integrity/) Schema Integrity & Tenant Isolation | reshapes 52 | 4 | 44/45 | `[WIP]` | Applied + catalog-verified; UoW fail-closed test suite deleted, needs new proof |
 | [02](02-infrastructure/) Infrastructure | — | 4 | 15/15 | `[WIP]` | Retro-spec; only walkthrough remains |
 | [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | [Art. XI](rules/10-messaging.md); partial index skipped by owner; walkthrough remains |
-| [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/50 | `[WIP]` | 6 unticked: test suites deleted; actor_profiles grant blocker cleared 2026-09-15 |
-| [04](04-organization/) Organization | 2 of 7 | 4 | 29/36 | `[WIP]` | 5 unticked: signup/update test suites deleted; UPDATE grant still missing |
+| [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/54 | `[WIP]` | Starter authorization gate approved; runtime remains unimplemented |
+| [04](04-organization/) Organization | 2 of 7 | 4 | 29/38 | `[WIP]` | Starter provisioning gated on authorization hardening |
 | [04.1](04.1-division/) Division | 1 (+DivisionType) | 4 | 11/12 | `[WIP]` | Normalized Tenant/Company name uniqueness and blocking preflight pending |
 | [04.1.1](04.1.1-division-lead-multiplicity/) Division Lead Multiplicity | 1 applied | 5 | 17/17 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (28 curls, 0 blockers, cleanup PASS) |
-| [04.2](04.2-member/) Member | 1 | 4 | 7/11 | `[WIP]` | Designation relation/migration delta pending; Gate 5 must be re-run |
+| [04.2](04.2-member/) Member | 1 | 4 | 7/13 | `[WIP]` | Staff onboarding gated on authorization hardening |
 | [04.3](04.3-team/) Team | 2 | 4 | 9/12 | `[WIP]` | Designation display mapping and Gate 5 walkthrough pending |
 | [04.4](04.4-designation/) Designation | 1 proposed | 3 | 0/5 | `[SPEC APPROVED]` | Internal Member master data; implementation not started |
 | [05](05-clients/) Clients | 2 | 3 | 0/22 | `[SPEC APPROVED]` | Ready for implementation |
@@ -63,7 +63,7 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-17 | Codex | 04.3 | 1–4 | Team lead/member summaries now expose designation; focused tests/build PASS |
+| 2026-10-07 | Codex | 03-05,08-10.1 | 1-3 | Resource visibility/routing responsibility freeze; specs only |
 | 2026-09-24 | Codex | 07.1–07.3 | 4 | Focused tests + build PASS; walkthroughs pending |
 | 2026-09-24 | Codex + db-architect | 07.4 | 4 | Runtime/tests pass; walkthrough pending |
 | 2026-09-24 | Codex + db-architect | 10 | 1–3 | Work Request specs drafted; no runtime/data work |

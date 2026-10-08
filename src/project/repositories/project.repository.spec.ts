@@ -4,6 +4,29 @@ import { ProjectRepository } from './project.repository';
 const tenantId = 'tenant-a';
 
 describe('ProjectRepository lifecycle foundation', () => {
+  it('filters lower-scope Project reads through a visible related Work Request', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new ProjectRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({ directProject: { findMany } }),
+    } as never);
+    const actor = {
+      role: { customScope: 'team', systemRole: null },
+      member: {
+        id: 'member-a', isActive: true, company: { isActive: true },
+        divisionLeadsByMemberId: [],
+      },
+    } as never;
+    await RequestContext.run({ requestId: 'request-a', tenantId }, () =>
+      repository.list({ skip: 0, take: 10 }, actor),
+    );
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        tenantId,
+        workRequestsV1: expect.objectContaining({ some: expect.any(Object) }),
+      }),
+    }));
+  });
   it('persists the initial ACTIVE event with the direct Project in the tenant transaction', async () => {
     let directProjectCreateInput: { data: { tenantId: string } } | undefined;
     let statusEventInput:

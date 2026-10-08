@@ -12,11 +12,14 @@ import {
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
 import {
+  ApiStandardArrayResponse,
   ApiStandardCreatedResponse,
   ApiStandardOkResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { ActiveUser } from '../common/security/active-user.decorator';
+import type { SessionUser } from '../common/security/session.types';
 import { PermissionCode } from '../generated/prisma/client';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import {
@@ -39,8 +42,8 @@ export class MemberController {
   @ResponseMessage('Member created successfully')
   @ApiOperation({ summary: 'Create Member' })
   @ApiStandardCreatedResponse(MemberResponseDto, 'Member created')
-  create(@Body() input: CreateMemberDto) {
-    return this.memberService.create(input);
+  create(@Body() input: CreateMemberDto, @ActiveUser() user: SessionUser) {
+    return this.memberService.create(input, user.id);
   }
 
   @Get()
@@ -72,7 +75,7 @@ export class MemberController {
       'when the Member leads no Division.',
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
-  @ApiStandardOkResponse(LedDivisionResponseDto, 'Led Divisions returned')
+  @ApiStandardArrayResponse(LedDivisionResponseDto, 'Led Divisions returned')
   findLedDivisions(@Param('id', ParseUUIDPipe) id: string) {
     return this.memberService.findLedDivisions(id);
   }

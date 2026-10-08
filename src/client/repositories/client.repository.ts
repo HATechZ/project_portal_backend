@@ -27,7 +27,7 @@ export class ClientRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.client.findMany({
-        where: { tenantId, companyId },
+        where: { tenantId, companyId, isActive: true },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip: args.skip,
         take: args.take,
@@ -55,7 +55,7 @@ export class ClientRepository extends BaseRepository {
   count(companyId: string): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
-      db.client.count({ where: { tenantId, companyId } }),
+      db.client.count({ where: { tenantId, companyId, isActive: true } }),
     );
   }
 
@@ -71,6 +71,16 @@ export class ClientRepository extends BaseRepository {
     return this.transaction((db) =>
       db.client.findFirst({
         where: { id, tenantId, companyId },
+        select: clientSelect,
+      }),
+    );
+  }
+
+  findActiveById(id: string, companyId: string): Promise<ClientRecord | null> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.client.findFirst({
+        where: { id, tenantId, companyId, isActive: true },
         select: clientSelect,
       }),
     );

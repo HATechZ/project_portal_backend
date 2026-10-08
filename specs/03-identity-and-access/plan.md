@@ -141,6 +141,30 @@ eligibility, eligible options, history, and unchanged system-role routing.
 
 ## 9. Verification
 
+## 2026-10-07 starter-role implementation delta
+
+Extend the existing atomic provisioning function/repository boundary to ensure the three protected
+tenant Roles and their explicit compatible grants. Extend normal role lifecycle/create/update
+validation for reserved identity protection; do not create a separate role subsystem. Member
+onboarding resolves protected Staff and calls the shared access orchestration within its current
+serializable transaction. No guard may inspect starter names/codes.
+
+### Ordered implementation
+
+Phase A is a prerequisite: owning feature modules harden member/team/division visibility and Work
+Request responsibility/state checks and prove them with focused security tests. No starter Role or
+grant is provisioned in this phase. Phase B follows only on Phase A success: reserve/protect the
+three codes, provision only verified-safe target grants, perform Tenant reconciliation, enable
+Staff onboarding, and correct RoleOption Swagger scope metadata.
+
+Phase A reuses the frozen feature predicates: Company directory/reference reads are expressly
+Company-wide; other lower-scope reads require their resource relationship; Work Request routing,
+review, and info operations require the frozen business assignment/responsibility evidence. The
+central permission guard remains permission/compatibility-only and must not infer access from role
+name or custom code.
+
+## 9. Verification
+
 Run focused/full Jest, lint/build/TypeScript, Prisma validate, tenant scope and spec gates.
 `verify-identity-concurrency.cjs` uses real repositories and app_user transactions on temporary
 Tenants. `verify-identity-http.cjs` starts the production AppModule with isolated mail capture

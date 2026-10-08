@@ -26,6 +26,15 @@ Existing create-time uploads (`POST /bids`, `POST /projects`, and `POST /work-re
 
 ## Acceptance criteria
 
+## 2026-10-07 parent visibility addendum
+
+Read visibility inherits from the business parent: Bid documents require visible Bid, Project
+documents require visible Project, and Work Request documents require visible Work Request. The
+same rule applies to list and immutable version/history reads. `VIEW_DOCUMENT` alone never exposes
+an unrelated Tenant document; external Client/ClientContact rules remain independent.
+
+## Acceptance criteria
+
 - WHEN a parent new-document route receives `files[]`, it SHALL require equally sized positional `documentCodeIds[]` and validate one active, tenant-valid code per file.
 - WHEN a version route receives one file, it SHALL inherit the existing document's code and SHALL reject caller-supplied lineage/classification fields.
 - WHEN a document/version belongs to another tenant or parent, the system SHALL not expose or mutate it through the requested parent route.

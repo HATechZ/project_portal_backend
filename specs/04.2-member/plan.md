@@ -15,6 +15,18 @@ role-grant logic; it must not import the Identity module.
 
 ## Operations and transactions
 
+## 2026-10-07 Staff-onboarding implementation delta
+
+The create transaction changes from User + Member only to User + Member + protected Staff lookup
++ shared idempotent UserRole/Member-backed ActorProfile ensure. It retains serializable isolation,
+the clean DTO, existing role/default-profile behavior, and no Team/workflow writes. The shared
+orchestration is reused rather than copied into Member code.
+
+This transaction is enabled only in Phase B, after Phase A authorization hardening verifies the
+automatic Staff target grants cannot expose Tenant-wide resources.
+
+## Operations and transactions
+
 | Operation | Atomic records | Rule |
 |---|---|---|
 | create | linked User, Member, and scoped Division/Designation/actor context reads | one Tenant UnitOfWork; no UserRole, ActorProfile, or Team assignment write |

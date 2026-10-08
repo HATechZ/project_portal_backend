@@ -14,6 +14,7 @@ import {
   AssignDivisionDto,
   AssignMemberDto,
   AssignTeamDto,
+  WorkRequestAssignmentHistoryResponseDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestAssignmentRepository } from '../repositories/work-request-assignment.repository';
 import type { WorkRequestAssignmentSnapshot } from '../repositories/work-request-assignment.records';
@@ -47,12 +48,26 @@ export class WorkRequestAssignmentProvider {
     return this.assign(id, input.memberId, input.note, actor, 'MEMBER');
   }
 
-  async history(id: string, _actor: SessionActor) {
+  async history(
+    id: string,
+    _actor: SessionActor,
+  ): Promise<WorkRequestAssignmentHistoryResponseDto[]> {
     void _actor;
     return this.uow.execute(async () => {
-      const record = await this.reads.find(id);
+      const record = await this.reads.find(id, _actor);
       if (!record) throw notFound('Work Request was not found.');
-      return this.historyReads.history(id);
+      return (await this.historyReads.history(id)).map((assignment) => ({
+        id: assignment.id,
+        level: assignment.level,
+        divisionId: assignment.divisionId,
+        teamId: assignment.teamId,
+        memberId: assignment.memberId,
+        assignedAt: assignment.assignedAt,
+        unassignedAt: assignment.unassignedAt,
+        replacedAt: assignment.replacedAt,
+        note: assignment.note,
+        assignedBy: assignment.assignedByActor,
+      }));
     });
   }
 
@@ -171,6 +186,28 @@ export class WorkRequestAssignmentProvider {
       throw conflict(
         'Assignment target is outside the Work Request organization.',
       );
+    if (level === WorkRequestV1AssignmentLevelCode.DIVISION) {
+      if (
+        actor.role.customScope !== 'company' &&
+        actor.role.systemRole?.systemCode !== 'tenant_super_admin'
+      )
+        throw forbidden();
+      return;
+    }
+    const member = actor.member;
+    if (!member?.isActive || !member.company.isActive) throw forbidden();
+    if (level === WorkRequestV1AssignmentLevelCode.TEAM) {
+      const divisionId = snapshot.active[WorkRequestV1AssignmentLevelCode.DIVISION];
+      if (
+        !divisionId ||
+        !member.divisionLeadsByMemberId.some(
+          (lead) => lead.divisionId === divisionId,
+        )
+      )
+        throw forbidden();
+      return;
+    }
+    if (snapshot.activeTeamLeadMemberId !== member.id) throw forbidden();
   }
 }
 

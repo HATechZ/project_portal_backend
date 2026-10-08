@@ -97,3 +97,91 @@ does **not** require per-user legacy privilege conversion, UserRole/ActorProfile
 equivalent-access calculation, or a demo-user compatibility layer. Future implementation may
 recreate demo data with `tenant_super_admin`, tenant-created custom roles, explicit atomic
 permissions, and approved scopes while preserving historical migration files/history.
+
+## 2026-10-07 protected starter-role decision
+
+This decision supersedes the preceding statement that role assignment is separate from normal
+Member creation only to the extent stated here. `tenant_super_admin` remains the sole SystemRole
+and is a Tenant/Company-local administrator, never a platform or cross-tenant administrator.
+
+Every Company/Tenant provisioning transaction MUST create or idempotently ensure exactly three
+active, protected, tenant-owned normal `Role` records: `Staff` (`customCode: staff`,
+`customScope: member`), `Supervisor` (`supervisor`, `team`), and `Manager` (`manager`,
+`division`). They are not `SystemRole` rows and their names/codes never authorize an operation.
+They are reusable access bundles, optional in business use, independent of workflow routing, and
+safe with no assigned users. Tenant-created roles may use other valid names; creation/update must
+reserve these three codes so an ordinary role cannot impersonate them. A pre-existing conflicting
+reserved code is an integrity collision: do not overwrite or duplicate it; fail/reconcile it
+explicitly in the later forward implementation.
+
+The protected identity, not a hidden permission set, prevents normal deletion, retirement, or
+identity/scope change. Existing/future normal role lifecycle operations must reject such changes.
+Compatible `RolePermission` grants remain normally editable by a tenant_super_admin; removing all
+Staff grants does not revoke its identity or make onboarding fail.
+
+Normal `POST /member` remains request-clean and atomically performs: User creation/linking,
+Member creation, same-Tenant Staff resolution, idempotent Staff `UserRole`, and reusable
+Member-backed `ActorProfile` creation. It sends and accepts no role/profile/grant identifier,
+does not infer a role from organization data, and creates no Supervisor/Manager grant, Team
+membership/leadership, Division leadership, or workflow responsibility. Later role assignment
+does not remove Staff. The existing profile/default rule is retained: preserve an eligible default;
+otherwise the ensured Staff profile becomes default.
+
+Existing Tenants require a later forward, idempotent reconciliation that ensures one valid starter
+role and its initial grants without deleting custom roles, resetting grants, or changing historical
+migrations. Existing-Member Staff backfill is deliberately separate and is not required for this
+decision.
+
+### Authorization-hardening prerequisite
+
+The stated Staff, Supervisor, and Manager bundles are approved **target** bundles, not permission
+grants enabled by the current runtime. A starter permission MUST NOT be automatically provisioned
+until its protected path proves tenant isolation, compatible role scope, applicable resource or
+business relationship, actor assignment/responsibility where required, and workflow state where
+required. Scope compatibility alone never supplies object visibility. A generic `VIEW` permission
+must not expose every Tenant resource to a member/team/division scoped actor.
+
+Implementation is ordered: **Phase A** hardens feature-owned read visibility and Work Request
+assignment/review/info checks with focused security tests, and provisions no starter roles or
+grants. **Phase B**, only after Phase A passes, reserves/protects starter identities, provisions
+verified-safe target grants and Roles, enables Staff onboarding, reconciles existing Tenants, and
+corrects the RoleOption Swagger scope enum. Do not use role names/customCodes as authorization
+checks or weaken resource rules to enable a grant. Catalogue entries without a protected runtime
+path are not operational starter grants. Existing Members are not automatically backfilled.
+
+## 2026-10-07 internal resource visibility and responsibility freeze
+
+Scope is a compatibility tier plus a feature-owned operational boundary: company scope may access
+permitted Company resources; division scope only resources related to the actor's valid Division
+responsibility; team scope only resources related to the actor's valid Team responsibility; and
+member scope only resources directly related or assigned to that Member. Scope compatibility never
+creates object access, and no role name/customCode is authorization evidence.
+
+`VIEW_MEMBERS`, `VIEW_DESIGNATIONS`, `VIEW_DOCUMENT_CODES`, and `VIEW_DIVISIONS` are explicit
+Company-wide internal directory/reference reads when the actor holds the permission. Responses must
+remain safe directory/reference projections and exclude credentials, security/access internals, and
+private HR data. `VIEW_CLIENTS` similarly permits only active Company Client business records;
+deactivated/administrative Client views and all external ClientContact behavior remain separately
+restricted.
+
+Work Request visibility uses one predicate for list, detail, history, and related reads: company
+scope sees Company requests; division scope sees requests with a current active Division assignment
+for a Division the actor actively leads; team scope sees requests with a current active Team
+assignment whose Team has the actor as `leadMemberId`; member scope sees requests with that exact
+active Member assignment. There is no same-Tenant fallback. Bid/Project visibility is Company-wide
+for Company scope; lower scopes require visibility to at least one related Work Request. Documents
+inherit the same predicate from their Bid, Project, or Work Request parent, including versions.
+
+Team visibility is Company-wide for Company scope, active-lead-Division Teams for Division scope,
+active-led Teams for Team scope, and active TeamMember Teams for Member scope. These relationships,
+not a role label, are the evidence.
+
+Work Request routing is neutral business responsibility: assigning a Division requires Company
+scope authority and a valid state; assigning a Team requires an active Division assignment and an
+actor who is its active `DivisionLead`; assigning a Member requires an active Team assignment and
+an actor equal to that Team's `leadMemberId`. Submission requires the exact active assigned Member.
+Team review/revision requires the active Team assignment and its `leadMemberId`; Division
+review/revision requires the active Division assignment and its `DivisionLead`; all require the
+applicable permission and state. `REQUEST_INFO` requires a valid request visibility/responsibility
+relationship, an active non-terminal state, and the existing valid target rule. Response retains
+the valid-target/open-request/resource rule.

@@ -4,6 +4,14 @@ Base: `/api/v1`. Completion tracking: `../INDEX.md`.
 
 ## Authentication and envelopes
 
+## 2026-10-07 starter-role provisioning reconciliation
+
+`POST /api/v1/company/signup` keeps its request and response contract. Its later internal atomic
+provisioning target additionally ensures Staff, Supervisor, and Manager tenant Roles and approved
+initial RolePermission grants. This introduces neither a public endpoint nor a platform role.
+
+## Authentication and envelopes
+
 Company list/detail/update are same-Tenant tenant_super_admin only. Controller guard order:
 AccessTokenGuard -> TenantContextGuard -> AuthenticationGuard -> ObjectScopeGuard ->
 TenantSuperAdminGuard -> PermissionsGuard. No additional workflow action permission is required.

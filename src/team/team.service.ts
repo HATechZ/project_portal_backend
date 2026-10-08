@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
+import type { SessionActor } from '../common/security/session.types';
 import { paginate } from '../common/pagination/paginate';
 import { PaginatedResult } from '../common/pagination/paginated-result';
 import {
@@ -23,24 +24,27 @@ export class TeamService {
 
   async findAll(
     query: TeamQueryDto,
+    actor: SessionActor,
   ): Promise<PaginatedResult<TeamResponseDto>> {
     const company = await this.requireScopedCompany();
+    const allowedTeamIds = await this.repository.findVisibleIds(company.id, actor);
     const divisionIds = query.divisionId
       ? [query.divisionId]
       : await this.repository.findCompanyDivisionIds(company.id);
     return paginate(
       query,
       async (args) =>
-        (await this.repository.findAll(company.id, divisionIds, args)).map(
+        (await this.repository.findAll(company.id, divisionIds, args, allowedTeamIds)).map(
           toTeamResponse,
         ),
-      () => this.repository.count(company.id, divisionIds),
+      () => this.repository.count(company.id, divisionIds, allowedTeamIds),
     );
   }
 
-  async findOne(id: string): Promise<TeamResponseDto> {
+  async findOne(id: string, actor: SessionActor): Promise<TeamResponseDto> {
     const company = await this.requireScopedCompany();
-    const team = await this.requireTeam(id, company.id);
+    const team = await this.repository.findVisibleById(id, company.id, actor);
+    if (!team) throw teamNotFound(id);
     return toTeamResponse(team);
   }
 

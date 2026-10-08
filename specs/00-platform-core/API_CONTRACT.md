@@ -26,15 +26,13 @@ the prefix but **not** the version segment.
 ```jsonc
 {
   "success": true,
+  "message": "Request successful",
   "data": { /* whatever the handler returned */ },
-  "meta": {
-    "requestId": "0f3c…",       // omitted if no request context
-    "timestamp": "2026-08-28T09:00:00.000Z"
-  }
+  "timestamp": "2026-08-28T09:00:00.000Z"
 }
 ```
 
-Applied by `ResponseInterceptor` to every handler return value. Two values pass through
+Applied by `TransformInterceptor` to every handler return value. Two values pass through
 untouched: a `StreamableFile`, and anything already shaped like an envelope.
 
 **Paginated data** nests one level:
@@ -42,14 +40,18 @@ untouched: a `StreamableFile`, and anything already shaped like an envelope.
 ```jsonc
 {
   "success": true,
+  "message": "Request successful",
   "data": {
     "items": [ /* … */ ],
     "meta": { "page": 1, "limit": 20, "total": 57, "totalPages": 3,
               "hasNextPage": true, "hasPreviousPage": false }
   },
-  "meta": { "requestId": "…", "timestamp": "…" }
+  "timestamp": "2026-08-28T09:00:00.000Z"
 }
 ```
+
+Successful responses do not contain a response-body request ID. Every response still echoes
+`x-request-id` as a header. A void 202 response omits `data`; a 204 response has no body.
 
 ---
 

@@ -33,6 +33,8 @@ import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.d
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
 import { FinalPermissions } from '../common/security/final-permissions.decorator';
+import { ActiveActor } from '../common/security/active-actor.decorator';
+import type { SessionActor } from '../common/security/session.types';
 import { FinalPermissionsGuard } from '../common/security/final-permissions.guard';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { PermissionCode } from '../generated/prisma/client';
@@ -76,8 +78,8 @@ export class TeamController {
   @ResponseMessage('Teams returned successfully')
   @ApiOperation({ summary: 'List Teams' })
   @ApiPaginatedResponse(TeamResponseDto)
-  findAll(@Query() query: TeamQueryDto) {
-    return this.teamService.findAll(query);
+  findAll(@Query() query: TeamQueryDto, @ActiveActor() actor: SessionActor) {
+    return this.teamService.findAll(query, actor);
   }
 
   @Get(':id')
@@ -86,8 +88,8 @@ export class TeamController {
   @ApiOperation({ summary: 'Get a Team by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiStandardOkResponse(TeamResponseDto, 'Team returned')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.teamService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.teamService.findOne(id, actor);
   }
 
   @Patch(':id')

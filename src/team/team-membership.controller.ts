@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiStandardBadRequestResponse,
+  ApiStandardArrayResponse,
   ApiStandardConflictResponse,
   ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
@@ -62,7 +63,7 @@ export class TeamMembershipController {
   @ResponseMessage('Team members returned successfully')
   @ApiOperation({ summary: 'List Team Members' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
-  @ApiStandardOkResponse(TeamMemberResponseDto, 'Team members returned')
+  @ApiStandardArrayResponse(TeamMemberResponseDto, 'Team members returned')
   listMembers(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: TeamMemberQueryDto,

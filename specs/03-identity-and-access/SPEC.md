@@ -157,5 +157,14 @@ require a later owner decision and are not inferred here.
 
 ## Out of scope
 
+## 2026-10-07 starter-role reconciliation
+
+`tenant_super_admin` remains the only SystemRole and is tenant-local. Staff (`staff`/member),
+Supervisor (`supervisor`/team), and Manager (`manager`/division) are protected normal tenant Roles,
+not SystemRole identities or authorization names. Reserved-code creation/update, lifecycle
+protection, idempotent provisioning, and normal compatible-grant editing are required future
+Identity behavior. Staff is automatically ensured with a Member-backed profile during normal
+Member onboarding; later assignments retain it and preserve the existing eligible-default rule.
+
 `members` and `client_contacts` that actor profiles point at (04, 05) · which workflow action
 each role may fire — module 09 owns `workflow_action_role_permissions`.

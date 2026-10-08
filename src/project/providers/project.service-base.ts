@@ -40,6 +40,7 @@ import { DocumentUploadRequestRepository } from '../../common/documents/document
 import {
   DocumentUploadOperationCode,
   DocumentUploadOwnerCode,
+  PermissionCode,
 } from '../../generated/prisma/client';
 
 export interface ProjectUploadedFile {
@@ -341,21 +342,23 @@ export abstract class ProjectServiceBase {
 
   async findAll(
     query: PaginationQueryDto,
+    actor: SessionActor,
   ): Promise<PaginatedResult<ProjectResponseDto>> {
     return paginate(
       query,
-      async (args) => (await this.projects.list(args)).map(response),
-      () => this.projects.count(),
+      async (args) => (await this.projects.list(args, actor)).map(response),
+      () => this.projects.count(actor),
     );
   }
-  async findOne(id: string): Promise<ProjectResponseDto> {
-    const project = await this.projects.find(id);
+  async findOne(id: string, actor: SessionActor): Promise<ProjectResponseDto> {
+    const project = await this.projects.find(id, actor);
     if (!project) throw notFound();
     return response(project);
   }
 
-  async documents(id: string): Promise<DocumentSummaryDto[]> {
-    const project = await this.projects.find(id);
+  async documents(id: string, actor: SessionActor): Promise<DocumentSummaryDto[]> {
+    assertPermission(actor, PermissionCode.VIEW_PROJECT);
+    const project = await this.projects.find(id, actor);
     if (!project) throw notFound();
     return (await this.projects.documents(id)).map((document) =>
       documentSummary(id, document),
@@ -365,8 +368,10 @@ export abstract class ProjectServiceBase {
   async documentVersions(
     id: string,
     documentId: string,
+    actor: SessionActor,
   ): Promise<DocumentVersionResponseDto[]> {
-    const project = await this.projects.find(id);
+    assertPermission(actor, PermissionCode.VIEW_PROJECT);
+    const project = await this.projects.find(id, actor);
     if (!project) throw notFound();
     const versions = await this.projects.documentVersions(id, documentId);
     if (!versions) throw notFound('Project document was not found.');
@@ -482,6 +487,8 @@ function versionResponse(
     revisionCode: string;
     uploadedFileName: string | null;
     generatedFileName: string | null;
+    mimeType: string;
+    fileSizeBytes: bigint;
     uploadedByActor: { id: string; label: string };
     uploadedAt: Date;
   },
@@ -493,6 +500,8 @@ function versionResponse(
     revisionCode: version.revisionCode,
     uploadedFileName: version.uploadedFileName ?? '',
     generatedFileName: version.generatedFileName ?? '',
+    mimeType: version.mimeType,
+    size: Number(version.fileSizeBytes),
     uploadedBy: version.uploadedByActor,
     uploadedAt: version.uploadedAt,
   };
@@ -532,6 +541,19 @@ function bad(message: string): AppException {
     status: HttpStatus.BAD_REQUEST,
     message,
   });
+}
+function assertPermission(actor: SessionActor, permission: PermissionCode): void {
+  if (
+    !actor.role.rolePermissions.some(
+      ({ revokedAt, permission: grant }) =>
+        revokedAt === null && grant.code === permission,
+    )
+  )
+    throw new AppException({
+      code: AppErrorCode.Forbidden,
+      status: HttpStatus.FORBIDDEN,
+      message: "You don't have permission to perform this action.",
+    });
 }
 function notFound(message = 'Project was not found.'): AppException {
   return new AppException({

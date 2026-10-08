@@ -103,3 +103,9 @@ this Company tasks list.
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-update
   - [ ] Restrict Company reads and updates to same-Tenant tenant super administrators
         VERIFY: corepack yarn test --runInBand --testPathPatterns=company-http
+
+- [ ] **Starter-role Phase B gate (approved, unimplemented)**
+  - [ ] Extend Company provisioning only after Phase A authorization security tests pass; provision only verified-safe target starter grants and preserve existing signup API/bootstrap behavior.
+        VERIFY: grep -q "Provisioning phase gate" specs/04-organization/DATA_CONTRACT.md && grep -q "Phase B only" specs/04-organization/plan.md
+  - [ ] Extend atomic Company/Tenant provisioning to idempotently ensure protected Staff/member, Supervisor/team, and Manager/division Roles with approved initial compatible RolePermission grants, without changing signup DTO/response or tenant_super_admin semantics.
+        VERIFY: grep -q "starter-role provisioning reconciliation" specs/04-organization/DATA_CONTRACT.md && grep -q "protected starter-role bundles" specs/PERMISSION_CATALOGUE_GLOBALIZATION.md

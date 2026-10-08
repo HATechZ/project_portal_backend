@@ -75,6 +75,15 @@ database change.
 
 ## 6. Out of Scope
 
+## 2026-10-07 visibility and responsibility addendum
+
+`VIEW_TEAMS` is Company-wide for Company scope, Teams in an actively led Division for Division
+scope, exact active led Teams for Team scope, and active TeamMember Teams for Member scope.
+`Team.leadMemberId`, never a role name, proves Team-level Work Request visibility, Member routing,
+and Team review/revision responsibility when the request is actively assigned to that Team.
+
+## 6. Out of Scope
+
 No workflow routing implementation, WorkRequest.teamId decision, fixed teams/counts,
 name-based routing, Team-to-Team transition, identity, or public activation lifecycle.
 `ASSIGN_MEMBER` already exists as the minimal configured action for membership management; this

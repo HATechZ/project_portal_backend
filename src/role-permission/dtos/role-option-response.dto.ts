@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CustomRoleScope } from '../../generated/prisma/client';
 
 export class RoleOptionResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -6,6 +7,6 @@ export class RoleOptionResponseDto {
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty() isSystemRole!: boolean;
-  @ApiPropertyOptional({ enum: ['division', 'company'], nullable: true })
+  @ApiPropertyOptional({ enum: CustomRoleScope, nullable: true })
   scope!: string | null;
 }

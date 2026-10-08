@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiNoContentResponse,
-  ApiAcceptedResponse,
   ApiOperation,
   ApiTags,
   ApiSecurity,
@@ -37,6 +36,7 @@ import { AuthService } from './auth.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import {
   ApiStandardBadRequestResponse,
+  ApiStandardAcceptedResponse,
   ApiStandardForbiddenResponse,
   ApiStandardOkResponse,
   ApiStandardUnauthorizedResponse,
@@ -82,9 +82,9 @@ export class AuthController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiSecurity('tenant')
   @ApiOperation({ summary: 'Forgot password - request reset instructions' })
-  @ApiAcceptedResponse({
-    description: 'Request accepted whether or not the account exists',
-  })
+  @ApiStandardAcceptedResponse(
+    'Request accepted whether or not the account exists',
+  )
   @ResponseMessage(
     'If an eligible account exists, password reset instructions have been sent',
   )

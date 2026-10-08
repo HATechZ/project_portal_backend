@@ -11,6 +11,7 @@ import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import {
   ApiStandardConflictResponse,
+  ApiStandardArrayResponse,
   ApiStandardForbiddenResponse,
   ApiStandardNotFoundResponse,
   ApiStandardOkResponse,
@@ -28,6 +29,7 @@ import {
   AssignDivisionDto,
   AssignMemberDto,
   AssignTeamDto,
+  WorkRequestAssignmentHistoryResponseDto,
   WorkRequestAssignmentResponseDto,
 } from './dtos/work-request.dto';
 import { WorkRequestService } from './work-request.service';
@@ -54,7 +56,7 @@ export class WorkRequestAssignmentController {
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Assignment History by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
-  @ApiStandardOkResponse(Object)
+  @ApiStandardArrayResponse(WorkRequestAssignmentHistoryResponseDto)
   @ResponseMessage('Work Request assignments returned successfully')
   history(
     @Param('id', ParseUUIDPipe) id: string,

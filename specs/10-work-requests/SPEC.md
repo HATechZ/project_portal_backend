@@ -26,6 +26,24 @@ The current `work_requests`, generic `documents`, category, attachment-category,
 
 ## Workflow and authorization
 
+## 2026-10-07 visibility and neutral responsibility addendum
+
+Use one Work Request predicate for list, detail, assignment/info history, and related documents:
+Company scope sees Company requests; Division scope requires an active Division assignment for a
+Division actively led by the actor; Team scope requires an active Team assignment whose Team has
+the actor as `leadMemberId`; Member scope requires the exact active Member assignment. No
+same-Tenant fallback exists.
+
+Division routing is Company-scope authority plus state; Team routing requires the active assigned
+Division's `DivisionLead`; Member routing requires the active assigned Team's `leadMemberId`.
+Submission requires the exact active assigned Member. Team review/revision requires that active
+Team's lead; Division review/revision requires that active Division's lead. `REQUEST_INFO` requires
+valid request visibility/responsibility, active non-terminal state, and the existing valid target;
+response requires valid target, open request, and resource relationship. Permissions are necessary
+but these business assignments, never role names, prove responsibility.
+
+## Workflow and authorization
+
 The hierarchy describes routing authority, not hard-coded role checks. Every command requires authenticated User, trusted TenantContext, eligible active ActorProfile/role grant, configured action permission, object scope, request/parent/organization relationship, and valid current workflow state. The backend computes `availableActions`; clients must not reconstruct this matrix.
 
 `CREATED` is the canonical initial state. The minimal configured state sequence is `CREATED` → `DIVISION_ASSIGNED` → `TEAM_ASSIGNED` → `MEMBER_ASSIGNED` → `MEMBER_SUBMITTED` → `TEAM_LEAD_APPROVED` → `DIVISION_LEAD_APPROVED` → `DIVISION_HEAD_APPROVED`. These are states, not actions or audit-event names. `WORK_REQUEST_CREATED`, assignments, submissions, approvals, revision requests, resubmissions, reassignment, request-info, and respond-info are events/actions. `REVISION_REQUESTED` is an audit/action record that returns the request to the appropriate responsible state; it is not an ambiguous replacement for that state. No generic `REJECTED`/`RETURNED` terminal state is introduced: a reviewer’s non-terminal return is the explicit revision path, and any terminal rejection requires a separately configured terminal transition.

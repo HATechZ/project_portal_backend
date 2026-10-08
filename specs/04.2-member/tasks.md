@@ -27,6 +27,7 @@ requires isolated-fixture cleanup and recorded evidence; static assertions never
         VERIFY: ! grep -rE "PrismaClientKnownRequestError|PrismaService|app_relay" src/member --include='*.service.ts' && test $(grep -rlE "from '\.\.?/(\.\./)?(auth|user|company|division|team)/" src/member --include=*.ts | wc -l) -eq 0 && corepack yarn test --runInBand --testPathPatterns=member
 
 - [ ] **Phase 4: independent verification and sign-off**
+
   - [ ] Add focused tests for all CRUD/link/onboarding/identity-separation requirements; depend on implementation, prove `POST /member` creates linked User and Member without UserRole/Member-backed ActorProfile, access-link remains exceptional, no automatic Member from standalone User/UserRole, legacy unlinked Member validity, no automatic Team assignment from Member creation, active-removal access revocation, uniqueness, and authorization matrix. Complete only when independent tests exit zero.
         VERIFY: corepack yarn test --runInBand --testPathPatterns=member
   - [ ] Execute and record Member HTTP/RLS evidence; depend on tests, use real app_user/RLS and cleanup, cover every route plus 400/401/403/404/409, link behavior, two-Tenant isolation, envelope, and request ID. Complete only with PASS evidence.
@@ -38,3 +39,9 @@ requires isolated-fixture cleanup and recorded evidence; static assertions never
   the 04.4 blocking preflight/backfill; cover same-company validation, compatibility display,
   and no authorization-role behavior change.
         VERIFY: corepack yarn test --runInBand --testPathPatterns=member
+
+- [ ] **Staff onboarding Phase B gate (approved, unimplemented)**
+  - [ ] Enable automatic Staff assignment only after Phase A proves Member-scoped visibility for the approved target bundle; do not backfill historical Members.
+        VERIFY: grep -q "Onboarding phase gate" specs/04.2-member/DATA_CONTRACT.md && grep -q "Phase B" specs/04.2-member/plan.md
+  - [ ] Replace the superseded no-role onboarding behavior with atomic protected Staff resolution, idempotent Staff UserRole, and reusable Member-backed ActorProfile through shared access orchestration; retain the clean DTO and prohibit automatic Supervisor/Manager, Team, leadership, and workflow assignment.
+        VERIFY: grep -q "Staff-onboarding reconciliation" specs/04.2-member/DATA_CONTRACT.md && grep -q "ensureUserRoleAndRoleOnlyProfile" specs/04.2-member/DATA_CONTRACT.md

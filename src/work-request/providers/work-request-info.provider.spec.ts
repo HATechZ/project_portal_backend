@@ -17,6 +17,7 @@ describe('WorkRequestInfoProvider', () => {
       role: {
         isSystemRole: customScope === null,
         customScope,
+        systemRole: { systemCode: 'tenant_super_admin' },
         userRolesByRoleId: [{ teamId: boundTeamId }],
         rolePermissions: [
           {
@@ -27,6 +28,12 @@ describe('WorkRequestInfoProvider', () => {
           },
         ],
       },
+      member: {
+        id: 'member-a',
+        isActive: true,
+        company: { isActive: true },
+        divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
+      },
     }) as never;
 
   const prepared = (targetTeamId = 'team-a', targetDivisionId = 'division-a') =>
@@ -35,7 +42,11 @@ describe('WorkRequestInfoProvider', () => {
         events: [{ resultingState: State.MEMBER_ASSIGNED }],
         assignments: [
           { level: 'DIVISION', divisionId: 'division-a' },
-          { level: 'TEAM', teamId: 'team-a' },
+          {
+            level: 'TEAM',
+            teamId: 'team-a',
+            team: { isActive: true, leadMemberId: 'member-a' },
+          },
         ],
       },
       parent: {

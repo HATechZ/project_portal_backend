@@ -140,6 +140,13 @@ export class WorkRequestWorkflowProvider {
       snapshot.teamLeadMemberId !== member.id
     )
       throw forbidden();
+    if (
+      responsibility === Level.DIVISION &&
+      !member.divisionLeadsByMemberId.some(
+        ({ divisionId }) => divisionId === assigned,
+      )
+    )
+      throw forbidden();
   }
 }
 

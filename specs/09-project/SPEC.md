@@ -22,6 +22,15 @@ The current combined `projects` workspace root is prohibited for this future dom
 
 ## Authorization and Work Request boundary
 
+## 2026-10-07 visibility addendum
+
+`VIEW_PROJECT` is Company-wide only for Company scope. Division, Team, and Member scope require
+visibility to at least one related Work Request under the authoritative Work Request predicate;
+a Project without a related visible Work Request is not visible to lower scopes. This uses no role
+label and governs list and detail equally.
+
+## Authorization and Work Request boundary
+
 Authorization uses Module 03's current permission/action-grant and object-scope architecture, not hard-coded role comparisons. `ADD_PROJECT` protects create; future required read/update action definitions and grants use that catalog. Grant policy is locked: current tenant-super-administrator tenant role (owner label `tenant_super_admin`) and `ccr_coordinator` (CCR) may create/update; those two plus `division_head` and `division_lead` may list/read/detail. Division Head and Division Lead are read-only. No `prime_consultant`, invented admin role, or wildcard bypass.
 
 Future Work Requests are one-to-many through tenant-qualified `project_id`; Bid has a distinct relation. No Work Request workflow/routing/audit logic is included.

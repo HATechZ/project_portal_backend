@@ -11,6 +11,8 @@ import { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import type { NewDocumentDraft } from '../../common/documents/document-upload.pipeline';
 import type { NewDocumentVersionDraft } from '../../common/documents/document-upload.pipeline';
+import type { SessionActor } from '../../common/security/session.types';
+import { relatedWorkRequestVisibilityWhere } from '../../common/security/work-request-visibility';
 
 const bidSelect = {
   id: true,
@@ -211,11 +213,12 @@ export class BidRepository extends BaseRepository {
     );
   }
 
-  list(args: { skip: number; take: number }): Promise<BidRecord[]> {
+  list(args: { skip: number; take: number }, actor?: SessionActor): Promise<BidRecord[]> {
     const tenantId = RequestContext.requireTenantId();
+    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
     return this.transaction((db) =>
       db.bid.findMany({
-        where: { tenantId },
+        where: { tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip: args.skip,
         take: args.take,
@@ -224,15 +227,24 @@ export class BidRepository extends BaseRepository {
     );
   }
 
-  count(): Promise<number> {
+  count(actor?: SessionActor): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction((db) => db.bid.count({ where: { tenantId } }));
+    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    return this.transaction((db) =>
+      db.bid.count({
+        where: {
+          tenantId,
+          ...(related ? { workRequestsV1: { some: related } } : {}),
+        },
+      }),
+    );
   }
 
-  find(id: string): Promise<BidRecord | null> {
+  find(id: string, actor?: SessionActor): Promise<BidRecord | null> {
     const tenantId = RequestContext.requireTenantId();
+    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
     return this.transaction((db) =>
-      db.bid.findFirst({ where: { id, tenantId }, select: bidSelect }),
+      db.bid.findFirst({ where: { id, tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) }, select: bidSelect }),
     );
   }
 

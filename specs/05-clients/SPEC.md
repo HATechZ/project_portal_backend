@@ -297,6 +297,26 @@ workflow actions. Existing workflow/history references remain intact.
 
 ## Authorization
 
+## 2026-10-07 internal Client visibility addendum
+
+For internal actors, `VIEW_CLIENTS` exposes active Company Client business records as common
+operational reference data; it does not grant mutation, ClientContact portal/security
+administration, or deactivated/administrative Client views. Client/ClientContact external scope
+rules remain separate. This is a Company-wide read exception, not a scope-derived right to other
+operational resources.
+
+## Authorization
+
+## 2026-10-07 internal Client visibility addendum
+
+For internal actors, `VIEW_CLIENTS` exposes active Company Client business records as common
+operational reference data; it does not grant mutation, ClientContact portal/security
+administration, or deactivated/administrative Client views. Client/ClientContact external scope
+rules remain separate. This is a Company-wide read exception, not a scope-derived right to other
+operational resources.
+
+## Authorization
+
 ### Client Administration
 
 `tenant_super_admin`, within own Tenant/Company and through configured permissions, may:

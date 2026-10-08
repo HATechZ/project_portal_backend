@@ -27,12 +27,20 @@ Version requests accept exactly one `file` multipart part (the implementation ma
 
 ## Read shapes
 
+## Read authorization
+
+Document list/detail/version reads inherit the parent Bid/Project/Work Request visibility predicate.
+The document permission never supplies an unrelated-parent fallback; Client/ClientContact exposure
+continues to use its separate external relationship rule.
+
+## Read shapes
+
 `GET .../documents` returns `DocumentSummary[]`:
 
 ```json
-{"documentId":"uuid","owner":{"kind":"BID|PROJECT|WORK_REQUEST","id":"uuid"},"documentCode":{"id":"uuid","code":"100","name":"Stowage Plan"},"originalFileName":"final_plan_v7.pdf","latestVersion":{"versionId":"uuid","versionNumber":2,"uploadedFileName":"SKM-CRA-CA2-01-100-A Stowage Plan.pdf","generatedFileName":"SKM-CRA-CA2-01-100-A Stowage Plan.pdf","mimeType":"application/pdf","size":123,"checksum":null,"revisionCode":"A","uploadedBy":{"id":"uuid","label":"User"},"uploadedAt":"ISO-8601"}}
+{"documentId":"uuid","owner":{"kind":"BID|PROJECT|WORK_REQUEST","id":"uuid"},"documentCode":{"id":"uuid","code":"100","name":"Stowage Plan"},"originalFileName":"final_plan_v7.pdf","latestVersion":{"versionId":"uuid","versionNumber":2,"uploadedFileName":"SKM-CRA-CA2-01-100-A Stowage Plan.pdf","generatedFileName":"SKM-CRA-CA2-01-100-A Stowage Plan.pdf","mimeType":"application/pdf","size":123,"revisionCode":"A","uploadedBy":{"id":"uuid","label":"User"},"uploadedAt":"ISO-8601"}}
 ```
 
-`GET .../documents/:documentId/versions` returns the same version shape in deterministic oldest-to-newest order (`uploadedAt`, then `versionId`). Multiple versions may share a generated filename and revision code; storage identity remains version ID/storage key. Binary paths, storage keys, tenant IDs, and authorization internals are never exposed. Parent-mismatched and foreign documents are not found.
+`GET .../documents/:documentId/versions` returns the same version shape in deterministic oldest-to-newest order (`uploadedAt`, then `versionId`). Each version includes its MIME type and byte size. Checksum is omitted until the storage ingestion architecture persists and produces it. Multiple versions may share a generated filename and revision code; storage identity remains version ID/storage key. Binary paths, storage keys, tenant IDs, and authorization internals are never exposed. Parent-mismatched and foreign documents are not found.
 
 201 responses return the affected `DocumentSummary`/created version in the standard envelope. Invalid file/mapping/name input is 400; absent or foreign parent/document/code is 404; missing permission/scope/producer relationship is 403; invalid state, idempotency collision, version-number race, or persistence conflict is 409. Storage/persistence failure never returns 201.

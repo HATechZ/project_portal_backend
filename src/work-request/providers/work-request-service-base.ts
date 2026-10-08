@@ -29,6 +29,10 @@ import type { DocumentSummaryDto } from '../../common/documents/document-summary
 import { formatDirectProjectDocumentFileName } from '../../common/documents/document-naming';
 import { WorkRequestV1StateCode } from '../../generated/prisma/client';
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
+import type {
+  WorkRequestAvailableActionResponseDto,
+  WorkRequestEventResponseDto,
+} from '../dtos/work-request.dto';
 import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
 import {
   DocumentUploadOperationCode,
@@ -357,7 +361,7 @@ export abstract class WorkRequestServiceBase {
     return paginate(
       query,
       async ({ skip, take }) =>
-        (await this.reads.list(skip, take)).map((r) =>
+        (await this.reads.list(skip, take, actor)).map((r) =>
           toWorkRequestResponse(
             r,
             this.actions.available(
@@ -367,11 +371,11 @@ export abstract class WorkRequestServiceBase {
             ),
           ),
         ),
-      () => this.reads.count(),
+      () => this.reads.count(actor),
     );
   }
   async find(id: string, actor: SessionActor) {
-    const record = await this.reads.find(id);
+    const record = await this.reads.find(id, actor);
     if (!record) throw notFound();
     return toWorkRequestResponse(
       record,
@@ -385,7 +389,7 @@ export abstract class WorkRequestServiceBase {
   async update(id: string, input: UpdateWorkRequestDto, actor: SessionActor) {
     if (input.title === undefined && input.notes === undefined)
       throw bad('Supply metadata to update.');
-    const current = await this.reads.find(id);
+    const current = await this.reads.find(id, actor);
     if (!current) throw notFound();
     const record = await this.uow.execute(() =>
       this.repository.update(id, input),
@@ -402,16 +406,28 @@ export abstract class WorkRequestServiceBase {
   }
   async events(id: string, query: PaginationQueryDto, actor: SessionActor) {
     void actor;
-    const record = await this.reads.find(id);
+    const record = await this.reads.find(id, actor);
     if (!record) throw notFound();
     return paginate(
       query,
-      ({ skip, take }) => this.eventsRepository.events(id, skip, take),
+      async ({ skip, take }): Promise<WorkRequestEventResponseDto[]> =>
+        (await this.eventsRepository.events(id, skip, take)).map((event) => ({
+          id: event.id,
+          action: event.action,
+          priorState: event.priorState,
+          resultingState: event.resultingState,
+          note: event.note,
+          occurredAt: event.occurredAt,
+          performedBy: event.performedByActor,
+        })),
       () => this.eventsRepository.count(id),
     );
   }
-  async availableActions(id: string, actor: SessionActor) {
-    const record = await this.reads.find(id);
+  async availableActions(
+    id: string,
+    actor: SessionActor,
+  ): Promise<WorkRequestAvailableActionResponseDto[]> {
+    const record = await this.reads.find(id, actor);
     if (!record) throw notFound();
     return this.actions.available(
       actor,
@@ -420,7 +436,7 @@ export abstract class WorkRequestServiceBase {
     );
   }
   async documents(id: string, actor: SessionActor) {
-    const record = await this.reads.find(id);
+    const record = await this.reads.find(id, actor);
     if (!record) throw notFound();
     assertWorkRequestExternalClientAccess(
       actor,
@@ -429,7 +445,7 @@ export abstract class WorkRequestServiceBase {
     return this.history.list(id);
   }
   async documentVersions(id: string, documentId: string, actor: SessionActor) {
-    const record = await this.reads.find(id);
+    const record = await this.reads.find(id, actor);
     if (!record) throw notFound();
     assertWorkRequestExternalClientAccess(
       actor,
@@ -490,6 +506,8 @@ function versionResponse(
     revisionCode: string;
     uploadedFileName: string | null;
     generatedFileName: string | null;
+    mimeType: string;
+    fileSizeBytes: bigint;
     uploadedByActor: { id: string; label: string };
     uploadedAt: Date;
   },
@@ -501,6 +519,8 @@ function versionResponse(
     revisionCode: version.revisionCode,
     uploadedFileName: version.uploadedFileName ?? '',
     generatedFileName: version.generatedFileName ?? '',
+    mimeType: version.mimeType,
+    size: Number(version.fileSizeBytes),
     uploadedBy: version.uploadedByActor,
     uploadedAt: version.uploadedAt,
   };

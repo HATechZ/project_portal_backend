@@ -5,6 +5,17 @@ Base `/api/v1`; inherits platform envelope, pagination, UUID validation, central
 
 ## Authorization
 
+## 2026-10-07 Staff-onboarding reconciliation
+
+The `POST /member` body and response remain unchanged. On successful creation the backend
+internally resolves protected same-Tenant Staff and atomically ensures a Staff UserRole plus
+Member-backed ActorProfile; no security ID is accepted or returned. This is baseline access only:
+it never assigns Supervisor/Manager, Team or Division leadership/membership, or workflow work.
+Later explicit roles retain Staff. The existing route table's contrary no-role wording is
+superseded by this section.
+
+## Authorization
+
 Routes require authenticated JWT-derived Tenant context, active session/User/ActorProfile,
 ordinary object scope, configured permissions, and no caller-controlled Tenant/Company. Member
 creation is scoped by actor authority: `tenant_super_admin` may create anywhere in own Company and may

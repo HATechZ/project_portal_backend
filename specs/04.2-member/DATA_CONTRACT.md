@@ -28,6 +28,25 @@ not deleted or rewritten.
 
 ## Onboarding and access integration boundary
 
+## 2026-10-07 Staff-onboarding reconciliation
+
+Normal `POST /member` now atomically writes linked User and Member, then resolves the active,
+protected same-Tenant Role whose reserved identity is `customCode = staff` and `customScope =
+member`, and calls `ensureUserRoleAndRoleOnlyProfile()` with the new `memberId`. This ensures an
+idempotent Staff UserRole and reusable Member-backed ActorProfile in the same serializable
+transaction. The public body remains `name`, `email`, `password`, `divisionId`, `designationId`,
+and optional `phone`; it accepts no role/profile/grant ID. It writes no Team or workflow
+assignment and does not infer any role from organization data. A missing/inactive/colliding Staff
+identity is a protected-role invariant failure, not a fallback to a caller-selected role.
+
+### Onboarding phase gate
+
+Automatic Staff onboarding is Phase B only, after Phase A proves Staff's target read grants have
+Member-scoped resource visibility. The clean request body and shared orchestration remain the
+target; no historical Member backfill is implied.
+
+## Onboarding and access integration boundary
+
 The schema permits an unlinked Member for legacy and exceptional linking paths. Normal V1
 `POST /member` must atomically create/link only:
 

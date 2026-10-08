@@ -1,9 +1,19 @@
 import { RequestContext } from '../context/request-context';
 import { BidService } from '../../bid/bid.service';
 import type { BidRepository } from '../../bid/repositories/bid.repository';
+import { ProjectService } from '../../project/project.service';
+import type { ProjectRepository } from '../../project/repositories/project.repository';
+import { PermissionCode } from '../../generated/prisma/client';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
-const actor = {} as never;
+const actor = {
+  role: {
+    rolePermissions: [
+      { revokedAt: null, permission: { code: PermissionCode.VIEW_BID } },
+      { revokedAt: null, permission: { code: PermissionCode.VIEW_PROJECT } },
+    ],
+  },
+} as never;
 const document = {
   id: '22222222-2222-4222-8222-222222222222',
   documentCodeId: '33333333-3333-4333-8333-333333333333',
@@ -67,9 +77,44 @@ describe('document read contract', () => {
           versionId: document.versions[0].id,
           versionNumber: 2,
           uploadedFileName: 'upload.pdf',
+          mimeType: 'application/pdf',
+          size: 12,
         }),
       );
       expect(versions[0]).not.toHaveProperty('storageKey');
+      expect(versions[0]).not.toHaveProperty('checksum');
+    });
+  });
+
+  it('returns the same public version metadata for Project documents', async () => {
+    const repository = {
+      find: jest.fn().mockResolvedValue({ id: 'project' }),
+      documentVersions: jest.fn().mockResolvedValue(document.versions),
+    } as unknown as ProjectRepository;
+    const service = new ProjectService(
+      repository,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    await RequestContext.run({ requestId: 'read', tenantId }, async () => {
+      const [version] = await service.documentVersions(
+        'project',
+        document.id,
+        actor,
+      );
+      expect(version).toEqual(
+        expect.objectContaining({
+          documentId: document.id,
+          versionId: document.versions[0].id,
+          versionNumber: 2,
+          uploadedFileName: 'upload.pdf',
+          mimeType: 'application/pdf',
+          size: 12,
+        }),
+      );
+      expect(version).not.toHaveProperty('checksum');
     });
   });
 

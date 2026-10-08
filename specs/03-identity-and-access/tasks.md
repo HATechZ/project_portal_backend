@@ -133,6 +133,7 @@ Completion status and counts are maintained in `specs/INDEX.md`.
         VERIFY: corepack yarn test --runInBand --testPathPatterns=authenticated-tenant
 
 - [ ] **Phase 9: Custom access roles (approved, unimplemented)**
+
   - [ ] Reshape Role for fixed system identity and tenant custom identity/scope through the database-architect path
         VERIFY: grep -q "customScope" specs/03-identity-and-access/DATA_CONTRACT.md && grep -q "workflow-reference protection" specs/03-identity-and-access/DATA_CONTRACT.md
   - [ ] Create a custom role and its compatible initial permission grants atomically
@@ -141,3 +142,15 @@ Completion status and counts are maintained in `specs/INDEX.md`.
         VERIFY: grep -q "ADD_MEMBER.*,.*ADD_TEAM.*,.*ASSIGN_MEMBER" specs/03-identity-and-access/DATA_CONTRACT.md && grep -q "division.*,.*company" specs/03-identity-and-access/API_CONTRACT.md
   - [ ] Discover only target-eligible assignment roles and bind scoped custom profiles atomically
         VERIFY: grep -q "GET /api/v1/user/:userId/role-options" specs/03-identity-and-access/API_CONTRACT.md && grep -q "compatible scoped ActorProfile" specs/03-identity-and-access/plan.md
+
+- [ ] **Phase 10A: starter authorization hardening prerequisite (approved, unimplemented)**
+  - [ ] Implement the frozen Company directory/reference exceptions, Work Request/Bid/Project/document visibility predicates, and neutral DivisionLead/Team lead/Member responsibility checks with focused security tests before provisioning any starter grant; do not use role-name/code checks or weaken object rules.
+        VERIFY: grep -q "Authorization-hardening prerequisite" specs/ROLE_ARCHITECTURE_FREEZE.md && grep -q "Provisioning gate" specs/PERMISSION_CATALOGUE_GLOBALIZATION.md
+
+- [ ] **Phase 10B: protected starter-role enablement (approved, unimplemented)**
+  - [ ] After Phase 10A security tests pass, reserve/protect starter codes, provision verified-safe target grants and Roles, reconcile Tenants without Member backfill, enable Staff onboarding, and correct RoleOption scope metadata.
+        VERIFY: grep -q "Ordered implementation" specs/03-identity-and-access/plan.md && grep -q "Existing Members are not backfilled" specs/03-identity-and-access/DATA_CONTRACT.md
+  - [ ] Provision and idempotently reconcile protected Staff/member, Supervisor/team, and Manager/division Roles with the approved explicit initial grants; reject reserved-code collisions and protected lifecycle/identity changes while retaining normal compatible grant editing.
+        VERIFY: grep -q "protected starter-role decision" specs/ROLE_ARCHITECTURE_FREEZE.md && grep -q "protected starter-role bundles" specs/PERMISSION_CATALOGUE_GLOBALIZATION.md
+  - [ ] Make normal Member onboarding atomically ensure same-Tenant Staff UserRole and Member-backed ActorProfile through the shared orchestration, with no request security fields and no Team/workflow assignment.
+        VERIFY: grep -q "ensureUserRoleAndRoleOnlyProfile" specs/03-identity-and-access/DATA_CONTRACT.md && grep -q "Staff UserRole" specs/04.2-member/DATA_CONTRACT.md

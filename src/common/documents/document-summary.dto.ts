@@ -28,6 +28,8 @@ export class DocumentVersionResponseDto {
   @ApiProperty() revisionCode!: string;
   @ApiProperty() uploadedFileName!: string;
   @ApiProperty() generatedFileName!: string;
+  @ApiProperty() mimeType!: string;
+  @ApiProperty() size!: number;
   @ApiProperty() uploadedBy!: { id: string; label: string };
   @ApiProperty() uploadedAt!: Date;
 }

@@ -114,6 +114,39 @@ export class WorkRequestAssignmentResponseDto {
   @ApiProperty() currentState!: string;
 }
 
+export class WorkRequestAssignmentHistoryResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ enum: ['DIVISION', 'TEAM', 'MEMBER'] }) level!: string;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  divisionId!: string | null;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true }) teamId!: string | null;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  memberId!: string | null;
+  @ApiProperty({ format: 'date-time' }) assignedAt!: Date;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  unassignedAt!: Date | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  replacedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true }) note!: string | null;
+  @ApiProperty({ type: Object }) assignedBy!: { id: string; label: string };
+}
+
+export class WorkRequestEventResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() action!: string;
+  @ApiPropertyOptional({ nullable: true }) priorState!: string | null;
+  @ApiPropertyOptional({ nullable: true }) resultingState!: string | null;
+  @ApiPropertyOptional({ nullable: true }) note!: string | null;
+  @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
+  @ApiProperty({ type: Object }) performedBy!: { id: string; label: string };
+}
+
+export class WorkRequestAvailableActionResponseDto {
+  @ApiProperty({ enum: WorkflowActionCode }) code!: WorkflowActionCode;
+  @ApiProperty() label!: string;
+  @ApiProperty() targetKind!: string;
+}
+
 export class WorkRequestWorkflowNoteDto {
   @ApiPropertyOptional({ description: 'Optional workflow note.' })
   @IsOptional()

@@ -11,6 +11,8 @@ import { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import type { NewDocumentDraft } from '../../common/documents/document-upload.pipeline';
 import type { NewDocumentVersionDraft } from '../../common/documents/document-upload.pipeline';
+import type { SessionActor } from '../../common/security/session.types';
+import { relatedWorkRequestVisibilityWhere } from '../../common/security/work-request-visibility';
 
 const select = {
   id: true,
@@ -192,11 +194,12 @@ export class ProjectRepository extends BaseRepository {
       });
     });
   }
-  list(args: { skip: number; take: number }) {
+  list(args: { skip: number; take: number }, actor?: SessionActor) {
     const tenantId = RequestContext.requireTenantId();
+    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
     return this.transaction((db) =>
       db.directProject.findMany({
-        where: { tenantId },
+        where: { tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) },
         skip: args.skip,
         take: args.take,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -204,16 +207,18 @@ export class ProjectRepository extends BaseRepository {
       }),
     );
   }
-  count() {
+  count(actor?: SessionActor) {
     const tenantId = RequestContext.requireTenantId();
+    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
     return this.transaction((db) =>
-      db.directProject.count({ where: { tenantId } }),
+      db.directProject.count({ where: { tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) } }),
     );
   }
-  find(id: string) {
+  find(id: string, actor?: SessionActor) {
     const tenantId = RequestContext.requireTenantId();
+    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
     return this.transaction((db) =>
-      db.directProject.findFirst({ where: { id, tenantId }, select }),
+      db.directProject.findFirst({ where: { id, tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) }, select }),
     );
   }
   async prepareStandaloneDocuments(

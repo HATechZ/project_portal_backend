@@ -31,6 +31,7 @@ import { DocumentUploadRequestRepository } from '../../common/documents/document
 import {
   DocumentUploadOperationCode,
   DocumentUploadOwnerCode,
+  PermissionCode,
 } from '../../generated/prisma/client';
 
 export interface BidUploadedFile {
@@ -315,22 +316,24 @@ export abstract class BidServiceBase {
 
   async findAll(
     query: PaginationQueryDto,
+    actor: SessionActor,
   ): Promise<PaginatedResult<BidResponseDto>> {
     return paginate(
       query,
-      async (args) => (await this.bids.list(args)).map(response),
-      () => this.bids.count(),
+      async (args) => (await this.bids.list(args, actor)).map(response),
+      () => this.bids.count(actor),
     );
   }
 
-  async findOne(id: string): Promise<BidResponseDto> {
-    const bid = await this.bids.find(id);
+  async findOne(id: string, actor: SessionActor): Promise<BidResponseDto> {
+    const bid = await this.bids.find(id, actor);
     if (!bid) throw notFound();
     return response(bid);
   }
 
-  async documents(id: string): Promise<DocumentSummaryDto[]> {
-    const bid = await this.bids.find(id);
+  async documents(id: string, actor: SessionActor): Promise<DocumentSummaryDto[]> {
+    assertPermission(actor, PermissionCode.VIEW_BID);
+    const bid = await this.bids.find(id, actor);
     if (!bid) throw notFound();
     return (await this.bids.documents(id)).map((document) =>
       documentSummary('BID', id, document),
@@ -340,8 +343,10 @@ export abstract class BidServiceBase {
   async documentVersions(
     id: string,
     documentId: string,
+    actor: SessionActor,
   ): Promise<DocumentVersionResponseDto[]> {
-    const bid = await this.bids.find(id);
+    assertPermission(actor, PermissionCode.VIEW_BID);
+    const bid = await this.bids.find(id, actor);
     if (!bid) throw notFound();
     const versions = await this.bids.documentVersions(id, documentId);
     if (!versions) throw notFound('Bid document was not found.');
@@ -490,6 +495,8 @@ function versionResponse(
     revisionCode: string;
     uploadedFileName: string | null;
     generatedFileName: string;
+    mimeType: string;
+    fileSizeBytes: bigint;
     uploadedByActor: { id: string; label: string };
     uploadedAt: Date;
   },
@@ -501,6 +508,8 @@ function versionResponse(
     revisionCode: version.revisionCode,
     uploadedFileName: version.uploadedFileName ?? '',
     generatedFileName: version.generatedFileName,
+    mimeType: version.mimeType,
+    size: Number(version.fileSizeBytes),
     uploadedBy: version.uploadedByActor,
     uploadedAt: version.uploadedAt,
   };
@@ -584,6 +593,19 @@ function badRequest(message: string): AppException {
     status: HttpStatus.BAD_REQUEST,
     message,
   });
+}
+function assertPermission(actor: SessionActor, permission: PermissionCode): void {
+  if (
+    !actor.role.rolePermissions.some(
+      ({ revokedAt, permission: grant }) =>
+        revokedAt === null && grant.code === permission,
+    )
+  )
+    throw new AppException({
+      code: AppErrorCode.Forbidden,
+      status: HttpStatus.FORBIDDEN,
+      message: "You don't have permission to perform this action.",
+    });
 }
 function notFound(message = 'Bid was not found.'): AppException {
   return new AppException({

@@ -25,6 +25,7 @@ describe('WorkRequestAssignmentProvider', () => {
       companyId: 'company-a',
       divisionId: 'division-a',
     },
+    activeTeamLeadMemberId: 'member-a',
   });
   const actor = (
     permission: WorkflowActionCode,
@@ -36,6 +37,7 @@ describe('WorkRequestAssignmentProvider', () => {
       role: {
         isSystemRole: customScope === null,
         customScope,
+        systemRole: { systemCode: 'tenant_super_admin' },
         userRolesByRoleId: [
           { teamId: customScope === 'team' ? 'team-a' : null },
         ],
@@ -47,6 +49,12 @@ describe('WorkRequestAssignmentProvider', () => {
             },
           },
         ],
+      },
+      member: {
+        id: 'member-a',
+        isActive: true,
+        company: { isActive: true },
+        divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
       },
     }) as never;
   const subject = (prepared = snapshot(State.CREATED)) => {
@@ -231,6 +239,48 @@ describe('WorkRequestAssignmentProvider', () => {
       provider.division('request-a', { divisionId: 'division-a' }, invalid),
     ).rejects.toThrow();
     expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it('maps assignment history to the explicit public response shape', async () => {
+    const history = jest.fn().mockResolvedValue([
+      {
+        id: 'assignment-a',
+        level: Level.TEAM,
+        divisionId: 'division-a',
+        teamId: 'team-a',
+        memberId: null,
+        assignedAt: new Date('2026-10-07T00:00:00.000Z'),
+        unassignedAt: null,
+        replacedAt: null,
+        note: 'Route to team',
+        assignedByActor: { id: 'actor-a', label: 'Coordinator' },
+        tenantId: 'must-not-leak',
+        workRequestId: 'must-not-leak',
+        assignedByActorId: 'must-not-leak',
+      },
+    ]);
+    const provider = new WorkRequestAssignmentProvider(
+      {} as never,
+      { execute: (work: () => Promise<unknown>) => work() } as never,
+      { find: jest.fn().mockResolvedValue({ id: 'request-a' }) } as never,
+      { history },
+      {} as never,
+    );
+
+    await expect(provider.history('request-a', {} as never)).resolves.toEqual([
+      {
+        id: 'assignment-a',
+        level: Level.TEAM,
+        divisionId: 'division-a',
+        teamId: 'team-a',
+        memberId: null,
+        assignedAt: new Date('2026-10-07T00:00:00.000Z'),
+        unassignedAt: null,
+        replacedAt: null,
+        note: 'Route to team',
+        assignedBy: { id: 'actor-a', label: 'Coordinator' },
+      },
+    ]);
   });
 
   it('enforces TEAM scope through the exact boundTeamId with no fallback', async () => {

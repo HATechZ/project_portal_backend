@@ -41,6 +41,7 @@ describe('WorkRequestWorkflowProvider', () => {
         companyId: 'company-a',
         isActive: true,
         company: { isActive: true },
+        divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
       },
     }) as never;
   const subject = (state: State, action: WorkflowActionCode) => {
