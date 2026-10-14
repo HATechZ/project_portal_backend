@@ -46,7 +46,7 @@ export class WorkRequestInfoProvider {
         const state = snapshot.request.events[0]?.resultingState;
         if (!state)
           throw conflict('Work Request has no current workflow state.');
-        if (state === 'DIVISION_HEAD_APPROVED')
+        if (state === 'DIVISION_HEAD_APPROVED' || state === 'FINAL_RELEASE')
           throw conflict('Work Request is no longer active.');
         if (!canAccessWorkRequest(actor, snapshot.request.assignments))
           throw forbidden();
@@ -104,7 +104,12 @@ export class WorkRequestInfoProvider {
     if (
       !actor.role.rolePermissions.some(
         ({ revokedAt, permission: grant }) =>
-          revokedAt === null && grant.code === permission,
+          revokedAt === null &&
+          grant.code === permission &&
+          (actor.role.customScope === null ||
+            grant.scopeCompatibilities?.some(
+              ({ scope }) => scope === actor.role.customScope,
+            )),
       )
     )
       throw forbidden();

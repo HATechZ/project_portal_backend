@@ -304,6 +304,10 @@ enum WorkflowActionCode {
   WR_DIVISION_LEAD_REQUEST_REVISION
   WR_DIVISION_HEAD_APPROVE
   WR_DIVISION_HEAD_REQUEST_REVISION
+  WR_CHECKING_APPROVE
+  WR_APPROVAL_APPROVE
+  WR_REQUEST_REVISION
+  WR_FINAL_RELEASE
 
   @@map("workflow_action_code")
 }
@@ -343,6 +347,10 @@ enum WorkRequestV1StateCode {
   TEAM_LEAD_APPROVED
   DIVISION_LEAD_APPROVED
   DIVISION_HEAD_APPROVED
+  CHECKING_REVIEW
+  APPROVAL_REVIEW
+  FINAL_REVIEW
+  FINAL_RELEASE
 
   @@map("work_request_v1_state_code")
 }
@@ -351,6 +359,9 @@ enum WorkRequestV1AssignmentLevelCode {
   DIVISION
   TEAM
   MEMBER
+  CHECKING
+  APPROVAL
+  FINAL_REVIEW
 
   @@map("work_request_v1_assignment_level_code")
 }
@@ -1725,6 +1736,7 @@ model WorkRequestV1Event {
   action             String                  @map("action") @db.VarChar(120)
   priorState         WorkRequestV1StateCode? @map("prior_state")
   resultingState     WorkRequestV1StateCode? @map("resulting_state")
+  responsibilityLevel WorkRequestV1AssignmentLevelCode? @map("responsibility_level")
   performedByActorId String                  @map("performed_by_actor_id") @db.Uuid
   occurredAt         DateTime                @default(now()) @map("occurred_at") @db.Timestamp(6)
   note               String?                 @map("note") @db.Text

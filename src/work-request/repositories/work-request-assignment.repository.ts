@@ -20,7 +20,6 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
     workRequestId: string,
     level: WorkRequestV1AssignmentLevelCode,
     targetId: string,
-    boundTeamId: string | null,
   ): Promise<WorkRequestAssignmentSnapshot | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -55,19 +54,6 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         ]),
       ) as WorkRequestAssignmentSnapshot['active'];
       const target = await this.target(db, level, targetId, active);
-      const boundTeam = boundTeamId
-        ? await db.team.findFirst({
-            where: { id: boundTeamId, tenantId, isActive: true },
-            select: { id: true, companyId: true, divisionId: true },
-          })
-        : null;
-      const activeTeamId = active[WorkRequestV1AssignmentLevelCode.TEAM];
-      const activeTeam = activeTeamId
-        ? await db.team.findFirst({
-            where: { id: activeTeamId, tenantId, isActive: true },
-            select: { leadMemberId: true },
-          })
-        : null;
       return {
         parentCompanyId:
           request.bid?.client.companyId ??
@@ -76,8 +62,6 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         state: request.events[0]?.resultingState ?? null,
         active,
         target,
-        boundTeam,
-        activeTeamLeadMemberId: activeTeam?.leadMemberId ?? null,
       };
     });
   }
@@ -158,6 +142,13 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
           note: input.note,
           idempotencyKey: input.idempotencyKey,
           correlationId: input.correlationId,
+          responsibilityLevel:
+            input.level === WorkRequestV1AssignmentLevelCode.MEMBER ||
+            input.level === WorkRequestV1AssignmentLevelCode.CHECKING ||
+            input.level === WorkRequestV1AssignmentLevelCode.APPROVAL ||
+            input.level === WorkRequestV1AssignmentLevelCode.FINAL_REVIEW
+              ? input.level
+              : undefined,
         },
         select: { id: true, action: true, occurredAt: true },
       });
@@ -182,6 +173,7 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
             companyId: division.companyId,
             divisionId: division.id,
             teamId: null,
+            permissionCodes: [],
           }
         : null;
     }
@@ -195,22 +187,61 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
             companyId: team.companyId,
             divisionId: team.divisionId,
             teamId: team.id,
+            permissionCodes: [],
           }
         : null;
     }
-    const teamId = active[WorkRequestV1AssignmentLevelCode.TEAM];
-    if (!teamId) return null;
     const member = await db.member.findFirst({
       where: {
         id: targetId,
         tenantId,
         isActive: true,
-        teamMembersByMemberId: { some: { tenantId, teamId, leftAt: null } },
       },
-      select: { companyId: true, divisionId: true },
+      select: {
+        companyId: true,
+        divisionId: true,
+        user: {
+          select: {
+            isActive: true,
+            userRolesByUserId: {
+              where: { revokedAt: null },
+              select: {
+                role: {
+                  select: {
+                    isActive: true,
+                    customScope: true,
+                    rolePermissions: {
+                      where: { revokedAt: null },
+                      select: { permission: { select: { code: true, scopeCompatibilities: { select: { scope: true } } } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
-    return member
-      ? { companyId: member.companyId, divisionId: member.divisionId, teamId }
-      : null;
+    if (!member?.user?.isActive) return null;
+    const permissionCodes = new Set<import('../../generated/prisma/client').PermissionCode>();
+    for (const grant of member.user.userRolesByUserId) {
+      const role = grant.role;
+      if (!role.isActive) continue;
+      for (const rolePermission of role.rolePermissions) {
+        if (
+          role.customScope === null ||
+          rolePermission.permission.scopeCompatibilities.some(
+            ({ scope }) => scope === role.customScope,
+          )
+        )
+          permissionCodes.add(rolePermission.permission.code);
+      }
+    }
+    return {
+      companyId: member.companyId,
+      divisionId: member.divisionId,
+      teamId: active[WorkRequestV1AssignmentLevelCode.TEAM] ?? null,
+      permissionCodes: [...permissionCodes],
+    };
   }
 }

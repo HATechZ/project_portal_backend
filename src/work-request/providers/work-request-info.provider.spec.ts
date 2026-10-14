@@ -41,12 +41,7 @@ describe('WorkRequestInfoProvider', () => {
       request: {
         events: [{ resultingState: State.MEMBER_ASSIGNED }],
         assignments: [
-          { level: 'DIVISION', divisionId: 'division-a' },
-          {
-            level: 'TEAM',
-            teamId: 'team-a',
-            team: { isActive: true, leadMemberId: 'member-a' },
-          },
+          { level: 'MEMBER', memberId: 'member-a' },
         ],
       },
       parent: {
@@ -123,44 +118,12 @@ describe('WorkRequestInfoProvider', () => {
     expect(repository.create).not.toHaveBeenCalled();
   });
 
-  it('does not derive request authority from a Team scope', async () => {
-    const { provider, repository } = subject(prepared('team-b'));
-
-    await expect(
-      provider.request(
-        'request-a',
-        { targetActorId: 'target-a', message: 'Clarify.' },
-        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'team'),
-      ),
-    ).resolves.toEqual({ id: 'info-a' });
-    expect(repository.create).toHaveBeenCalled();
-  });
-
-  it('requires a DIVISION-scoped requester and target to match the active Division', async () => {
-    const { provider, repository } = subject();
-
-    await expect(
-      provider.request(
-        'request-a',
-        { targetActorId: 'target-a', message: 'Clarify.' },
-        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'division'),
-      ),
-    ).resolves.toEqual({ id: 'info-a' });
-    expect(repository.create).toHaveBeenCalled();
-    expect(repository.create).toHaveBeenCalledTimes(1);
-  });
-
-  it('rejects a DIVISION-scoped request for a target outside the active Division', async () => {
-    const { provider, repository } = subject(prepared('team-a', 'division-b'));
-
-    await expect(
-      provider.request(
-        'request-a',
-        { targetActorId: 'target-a', message: 'Clarify.' },
-        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'division'),
-      ),
-    ).resolves.toEqual({ id: 'info-a' });
-    expect(repository.create).toHaveBeenCalled();
+  it('does not derive clarification authority from a Team or Division title alone', async () => {
+    const hierarchyOnly = prepared();
+    hierarchyOnly.request.assignments = [{ level: 'TEAM', teamId: 'team-a', team: { isActive: true, leadMemberId: 'member-a' } }];
+    const { provider, repository } = subject(hierarchyOnly);
+    await expect(provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify.' }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'team'))).rejects.toThrow();
+    expect(repository.create).not.toHaveBeenCalled();
   });
 
   it('appends a response only for the exact targeted actor and preserves the request', async () => {
@@ -200,6 +163,14 @@ describe('WorkRequestInfoProvider', () => {
         actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
       ),
     ).rejects.toThrow();
+  });
+
+  it('keeps the main state unchanged across reassignment during an open clarification', async () => {
+    const { provider, repository } = subject();
+    await provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify.' }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO));
+    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ stateAtRequest: State.MEMBER_ASSIGNED }));
+    await provider.respond('request-a', 'info-a', { message: 'Done.' }, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO));
+    expect(repository.prepare).toHaveBeenCalled();
   });
 
   it('returns tenant-scoped information history without changing workflow state', async () => {

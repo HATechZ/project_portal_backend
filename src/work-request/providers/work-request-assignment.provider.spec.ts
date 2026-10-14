@@ -1,4 +1,5 @@
 import {
+  PermissionCode,
   WorkflowActionCode,
   WorkRequestV1AssignmentLevelCode as Level,
   WorkRequestV1StateCode as State,
@@ -19,13 +20,8 @@ describe('WorkRequestAssignmentProvider', () => {
       companyId: 'company-a',
       divisionId: 'division-a',
       teamId: 'team-a',
+      permissionCodes: Object.values(PermissionCode),
     },
-    boundTeam: {
-      id: 'team-a',
-      companyId: 'company-a',
-      divisionId: 'division-a',
-    },
-    activeTeamLeadMemberId: 'member-a',
   });
   const actor = (
     permission: WorkflowActionCode,
@@ -197,28 +193,7 @@ describe('WorkRequestAssignmentProvider', () => {
     expect(repository.write).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [Level.TEAM, State.DIVISION_ASSIGNED, { DIVISION: 'division-b' }],
-    [
-      Level.MEMBER,
-      State.TEAM_ASSIGNED,
-      { DIVISION: 'division-b', TEAM: 'team-a' },
-    ],
-  ])('rejects %s outside the active Division', async (level, state, active) => {
-    const { provider, repository } = subject(snapshot(state, active));
-    await expect(
-      assign(
-        provider,
-        level,
-        level === Level.TEAM
-          ? WorkflowActionCode.WR_ASSIGN_TEAM
-          : WorkflowActionCode.WR_ASSIGN_MEMBER,
-      ),
-    ).rejects.toThrow();
-    expect(repository.write).not.toHaveBeenCalled();
-  });
-
-  it('rejects missing exact TeamMember membership without inferring another membership', async () => {
+  it('rejects an inactive or cross-company assignment target', async () => {
     const { provider, repository } = subject({
       ...snapshot(State.TEAM_ASSIGNED, {
         DIVISION: 'division-a',
@@ -283,20 +258,40 @@ describe('WorkRequestAssignmentProvider', () => {
     ]);
   });
 
-  it('enforces TEAM scope through the exact boundTeamId with no fallback', async () => {
-    const { provider, repository } = subject(
-      snapshot(State.TEAM_ASSIGNED, { DIVISION: 'division-a', TEAM: 'team-a' }),
-    );
-    await expect(
-      assign(
-        provider,
-        Level.MEMBER,
-        WorkflowActionCode.WR_ASSIGN_MEMBER,
-        undefined,
-        'team',
-      ),
-    ).resolves.toBeDefined();
-    expect(repository.write).toHaveBeenCalled();
+  it.each([Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW])(
+    'assigns %s independently with ASSIGN_REVIEWER',
+    async (level) => {
+      const { provider, repository } = subject(snapshot(State.MEMBER_ASSIGNED));
+      const reviewerActor = {
+        ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER),
+        role: {
+          ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER).role,
+          rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.ASSIGN_REVIEWER } }],
+        },
+      } as never;
+      await RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
+        provider.reviewer('request-a', { memberId: 'target-a', level }, reviewerActor),
+      );
+      expect(repository.write).toHaveBeenCalledWith(expect.objectContaining({ level, resultingState: State.MEMBER_ASSIGNED }));
+    },
+  );
+
+  it.each([
+    [Level.CHECKING, [PermissionCode.VIEW_WORK_REQUEST]],
+    [Level.APPROVAL, [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.APPROVE_WORK_REQUEST_REVIEW]],
+    [Level.FINAL_REVIEW, [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.REQUEST_WORK_REQUEST_REVISION]],
+  ])('rejects %s assignment when the target lacks mandatory capabilities', async (level, capabilities) => {
+    const prepared = snapshot(State.MEMBER_ASSIGNED);
+    prepared.target.permissionCodes = capabilities;
+    const { provider, repository } = subject(prepared);
+    const reviewerActor = {
+      ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER),
+      role: { ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER).role, rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.ASSIGN_REVIEWER } }] },
+    } as never;
+    await expect(RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
+      provider.reviewer('request-a', { memberId: 'target-a', level }, reviewerActor),
+    )).rejects.toThrow('lacks required capabilities');
+    expect(repository.write).not.toHaveBeenCalled();
   });
 
   it.each([

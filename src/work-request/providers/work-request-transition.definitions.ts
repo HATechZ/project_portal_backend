@@ -17,58 +17,42 @@ export type ReviewTransition = {
 export const WORK_REQUEST_REVIEW_TRANSITIONS = {
   [WorkflowActionCode.WR_SUBMIT]: {
     from: State.MEMBER_ASSIGNED,
-    to: State.MEMBER_SUBMITTED,
+    to: State.CHECKING_REVIEW,
     event: 'WORK_SUBMITTED',
     responsibility: Level.MEMBER,
     label: 'Submit Work Request',
     targetKind: 'submit',
   },
-  [WorkflowActionCode.WR_TEAM_LEAD_APPROVE]: {
-    from: State.MEMBER_SUBMITTED,
-    to: State.TEAM_LEAD_APPROVED,
-    event: 'TEAM_LEAD_APPROVED',
-    responsibility: Level.TEAM,
-    label: 'Approve by Team Lead',
+  [WorkflowActionCode.WR_CHECKING_APPROVE]: {
+    from: State.CHECKING_REVIEW,
+    to: State.APPROVAL_REVIEW,
+    event: 'CHECKING_APPROVED',
+    responsibility: Level.CHECKING,
+    label: 'Approve checking review',
     targetKind: 'workflow',
   },
-  [WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION]: {
-    from: State.MEMBER_SUBMITTED,
+  [WorkflowActionCode.WR_APPROVAL_APPROVE]: {
+    from: State.APPROVAL_REVIEW,
+    to: State.FINAL_REVIEW,
+    event: 'APPROVAL_APPROVED',
+    responsibility: Level.APPROVAL,
+    label: 'Approve approval review',
+    targetKind: 'workflow',
+  },
+  [WorkflowActionCode.WR_REQUEST_REVISION]: {
+    from: State.CHECKING_REVIEW,
     to: State.MEMBER_ASSIGNED,
     event: 'REVISION_REQUESTED',
-    responsibility: Level.TEAM,
-    label: 'Request Revision by Team Lead',
+    responsibility: Level.CHECKING,
+    label: 'Request revision',
     targetKind: 'workflow',
   },
-  [WorkflowActionCode.WR_DIVISION_LEAD_APPROVE]: {
-    from: State.TEAM_LEAD_APPROVED,
-    to: State.DIVISION_LEAD_APPROVED,
-    event: 'DIVISION_LEAD_APPROVED',
-    responsibility: Level.DIVISION,
-    label: 'Approve by Division Lead',
-    targetKind: 'workflow',
-  },
-  [WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION]: {
-    from: State.TEAM_LEAD_APPROVED,
-    to: State.TEAM_ASSIGNED,
-    event: 'REVISION_REQUESTED',
-    responsibility: Level.DIVISION,
-    label: 'Request Revision by Division Lead',
-    targetKind: 'workflow',
-  },
-  [WorkflowActionCode.WR_DIVISION_HEAD_APPROVE]: {
-    from: State.DIVISION_LEAD_APPROVED,
-    to: State.DIVISION_HEAD_APPROVED,
-    event: 'DIVISION_HEAD_APPROVED',
-    responsibility: Level.DIVISION,
-    label: 'Approve by Division Head',
-    targetKind: 'workflow',
-  },
-  [WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION]: {
-    from: State.DIVISION_LEAD_APPROVED,
-    to: State.DIVISION_ASSIGNED,
-    event: 'REVISION_REQUESTED',
-    responsibility: Level.DIVISION,
-    label: 'Request Revision by Division Head',
+  [WorkflowActionCode.WR_FINAL_RELEASE]: {
+    from: State.FINAL_REVIEW,
+    to: State.FINAL_RELEASE,
+    event: 'FINAL_RELEASED',
+    responsibility: Level.FINAL_REVIEW,
+    label: 'Release final package',
     targetKind: 'workflow',
   },
 } as const satisfies Partial<Record<WorkflowActionCode, ReviewTransition>>;
@@ -96,7 +80,25 @@ const ASSIGNMENT_TRANSITIONS = {
 
 export function reviewTransitionFor(
   action: WorkflowActionCode,
+  state?: State | null,
 ): ReviewTransition | undefined {
+  if (action === WorkflowActionCode.WR_REQUEST_REVISION && state) {
+    const responsibility = {
+      [State.CHECKING_REVIEW]: Level.CHECKING,
+      [State.APPROVAL_REVIEW]: Level.APPROVAL,
+      [State.FINAL_REVIEW]: Level.FINAL_REVIEW,
+    }[state];
+    return responsibility
+      ? {
+          from: state,
+          to: State.MEMBER_ASSIGNED,
+          event: 'REVISION_REQUESTED',
+          responsibility,
+          label: 'Request revision',
+          targetKind: 'workflow',
+        }
+      : undefined;
+  }
   return (
     WORK_REQUEST_REVIEW_TRANSITIONS as Partial<
       Record<WorkflowActionCode, ReviewTransition>
@@ -109,6 +111,23 @@ export function assignmentTransitionFor(
   state: State | null,
   replacing: boolean,
 ) {
+  if (
+    level === Level.CHECKING ||
+    level === Level.APPROVAL ||
+    level === Level.FINAL_REVIEW
+  ) {
+    if (
+      !state ||
+      !REVIEWER_ASSIGNMENT_STATES.includes(state as never)
+    )
+      return undefined;
+    return {
+      priorState: state,
+      resultingState: state,
+      action: `${level}_${replacing ? 'REASSIGNED' : 'ASSIGNED'}`,
+      replacing,
+    };
+  }
   const rule = ASSIGNMENT_TRANSITIONS[level];
   if (state !== (replacing ? rule.assigned : rule.initial)) return undefined;
   return {
@@ -118,6 +137,13 @@ export function assignmentTransitionFor(
     replacing,
   };
 }
+
+const REVIEWER_ASSIGNMENT_STATES = [
+  State.MEMBER_ASSIGNED,
+  State.CHECKING_REVIEW,
+  State.APPROVAL_REVIEW,
+  State.FINAL_REVIEW,
+] as const;
 
 export function workRequestTransitionRequestMetadata() {
   const requestId = RequestContext.requestId();

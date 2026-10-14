@@ -416,6 +416,7 @@ export abstract class WorkRequestServiceBase {
           action: event.action,
           priorState: event.priorState,
           resultingState: event.resultingState,
+          responsibilityLevel: event.responsibilityLevel,
           note: event.note,
           occurredAt: event.occurredAt,
           performedBy: event.performedByActor,

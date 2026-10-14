@@ -9,7 +9,10 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { WorkflowActionCode } from '../../generated/prisma/client';
+import {
+  WorkflowActionCode,
+  WorkRequestV1AssignmentLevelCode,
+} from '../../generated/prisma/client';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -104,6 +107,15 @@ export class AssignMemberDto extends WorkRequestAssignmentDto {
   memberId!: string;
 }
 
+export class AssignReviewerDto extends AssignMemberDto {
+  @ApiProperty({ enum: ['CHECKING', 'APPROVAL', 'FINAL_REVIEW'] })
+  @IsEnum(['CHECKING', 'APPROVAL', 'FINAL_REVIEW'])
+  level!: Extract<
+    WorkRequestV1AssignmentLevelCode,
+    'CHECKING' | 'APPROVAL' | 'FINAL_REVIEW'
+  >;
+}
+
 export class WorkRequestAssignmentResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() level!: string;
@@ -116,7 +128,7 @@ export class WorkRequestAssignmentResponseDto {
 
 export class WorkRequestAssignmentHistoryResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ enum: ['DIVISION', 'TEAM', 'MEMBER'] }) level!: string;
+  @ApiProperty({ enum: WorkRequestV1AssignmentLevelCode }) level!: string;
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   divisionId!: string | null;
   @ApiPropertyOptional({ format: 'uuid', nullable: true }) teamId!: string | null;
@@ -136,6 +148,8 @@ export class WorkRequestEventResponseDto {
   @ApiProperty() action!: string;
   @ApiPropertyOptional({ nullable: true }) priorState!: string | null;
   @ApiPropertyOptional({ nullable: true }) resultingState!: string | null;
+  @ApiPropertyOptional({ enum: WorkRequestV1AssignmentLevelCode, nullable: true })
+  responsibilityLevel!: WorkRequestV1AssignmentLevelCode | null;
   @ApiPropertyOptional({ nullable: true }) note!: string | null;
   @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
   @ApiProperty({ type: Object }) performedBy!: { id: string; label: string };

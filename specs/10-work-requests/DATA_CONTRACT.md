@@ -18,6 +18,8 @@ Work Request stores `priority` directly as a fixed, required domain value: `Low`
 
 ## Assignment history
 
+`WorkRequestV1Assignment.level` includes `DIVISION`, `TEAM`, `MEMBER`, `CHECKING`, `APPROVAL`, and `FINAL_REVIEW`. Reviewer levels hold only `memberId`; the active uniqueness rule is one non-replaced/non-unassigned row per request and level. `WorkRequestV1Event.responsibilityLevel` is nullable so historical events remain valid while generic workflow events snapshot the acting responsibility.
+
 Target assignment rows are tenant-owned UUID records with Work Request, level (`DIVISION`, `TEAM`, or `MEMBER`), exactly one matching Division/Team/Member target, `assignedByActorId`, `assignedAt`, nullable `unassignedAt`/`replacedAt`, and nullable reason/note. Tenant-qualified FKs apply where supported. A CHECK enforces target/level consistency; partial unique indexes permit at most one active target assignment per Work Request and level.
 
 Division assignment requires active same-tenant Division. Team assignment requires active same-tenant Team belonging to the active assigned Division. Member assignment requires active same-tenant Member in that Team’s Division and active TeamMember membership (`leftAt IS NULL`). Reassignment closes then inserts in one serializable UnitOfWork. History answers responsibility at any time; current routing is the active row(s) projection.

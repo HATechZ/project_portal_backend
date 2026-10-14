@@ -7,7 +7,7 @@ import type { SessionActor } from '../../common/security/session.types';
 import type { WorkRequestRecord } from '../repositories/work-request.records';
 import {
   assignmentTransitionFor,
-  WORK_REQUEST_REVIEW_TRANSITIONS,
+  reviewTransitionFor,
 } from './work-request-transition.definitions';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 @Injectable()
@@ -19,7 +19,14 @@ export class WorkRequestActionsProvider {
   ) {
     const grants = new Set(
       actor.role.rolePermissions
-        .filter(({ revokedAt }) => revokedAt === null)
+        .filter(
+          ({ revokedAt, permission }) =>
+            revokedAt === null &&
+            (actor.role.customScope === null ||
+              permission.scopeCompatibilities?.some(
+                ({ scope }) => scope === actor.role.customScope,
+              )),
+        )
         .map(({ permission }) => permission.code),
     );
     const hasActionPermission = (action: WorkflowActionCode) => {
@@ -29,7 +36,7 @@ export class WorkRequestActionsProvider {
         return false;
       }
     };
-    if (!record || actor.role.userRolesByRoleId.length !== 1) return [];
+    if (!record) return [];
     const parent = record.bid ?? record.directProject;
     const member = actor.member;
     if (
@@ -45,26 +52,13 @@ export class WorkRequestActionsProvider {
         assignment.divisionId ?? assignment.teamId ?? assignment.memberId,
       ]),
     );
-    const canDivision =
-      hasActionPermission(
-      WorkflowActionCode.WR_ASSIGN_DIVISION,
-      ) &&
-      (actor.role.customScope === 'company' ||
-        actor.role.systemRole?.systemCode === 'tenant_super_admin');
+    const canDivision = hasActionPermission(WorkflowActionCode.WR_ASSIGN_DIVISION);
     const canTeam =
       hasActionPermission(WorkflowActionCode.WR_ASSIGN_TEAM) &&
-      active.DIVISION !== undefined &&
-      member.divisionLeadsByMemberId.some(
-        ({ divisionId }) => divisionId === active.DIVISION,
-      );
+      active.DIVISION !== undefined;
     const canMember =
       hasActionPermission(WorkflowActionCode.WR_ASSIGN_MEMBER) &&
-      record.assignments.some(
-        (assignment) =>
-          assignment.level === 'TEAM' &&
-          assignment.team?.isActive === true &&
-          assignment.team.leadMemberId === member.id,
-      );
+      active.TEAM !== undefined;
     const actions = [] as {
       code: WorkflowActionCode;
       label: string;
@@ -97,44 +91,20 @@ export class WorkRequestActionsProvider {
         label: 'Assign Member',
         targetKind: 'member',
       });
-    const assignedMember = active.MEMBER === member.id;
-    const teamAssignment = record.assignments.find(
-      (assignment) => assignment.level === 'TEAM',
-    );
-    const canReviewTeam =
-      teamAssignment?.team?.isActive === true &&
-      teamAssignment.team.leadMemberId === member.id;
-    const canReviewDivision =
-      active.DIVISION !== undefined &&
-      member.divisionLeadsByMemberId.some(
-        ({ divisionId }) => divisionId === active.DIVISION,
-      );
-    const canInfoScope =
-      actor.role.customScope === 'company' ||
-      actor.role.systemRole?.systemCode === 'tenant_super_admin' ||
-      record.assignments.some(
-      (assignment) =>
-        assignment.level === 'MEMBER'
-          ? assignment.memberId === member.id
-          : assignment.level === 'TEAM'
-            ? assignment.team?.leadMemberId === member.id
-            : member.divisionLeadsByMemberId.some(
-                ({ divisionId }) => divisionId === assignment.divisionId,
-              ),
-      );
-    for (const [code, transition] of Object.entries(
-      WORK_REQUEST_REVIEW_TRANSITIONS,
-    ) as [
-      WorkflowActionCode,
-      (typeof WORK_REQUEST_REVIEW_TRANSITIONS)[keyof typeof WORK_REQUEST_REVIEW_TRANSITIONS],
-    ][]) {
-      const authorized =
-        transition.responsibility === 'MEMBER'
-          ? assignedMember
-          : transition.responsibility === 'TEAM'
-            ? canReviewTeam
-            : canReviewDivision;
-      if (state === transition.from && authorized && hasActionPermission(code))
+    const canInfoScope = Object.values(active).includes(member.id);
+    for (const code of [
+      WorkflowActionCode.WR_SUBMIT,
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      WorkflowActionCode.WR_APPROVAL_APPROVE,
+      WorkflowActionCode.WR_REQUEST_REVISION,
+      WorkflowActionCode.WR_FINAL_RELEASE,
+    ]) {
+      const transition = reviewTransitionFor(code, state);
+      if (
+        transition &&
+        active[transition.responsibility] === member.id &&
+        hasActionPermission(code)
+      )
         actions.push({
           code,
           label: transition.label,

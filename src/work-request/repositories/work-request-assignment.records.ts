@@ -1,4 +1,5 @@
 import {
+  PermissionCode,
   WorkRequestV1AssignmentLevelCode,
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
@@ -11,7 +12,6 @@ export type WorkRequestAssignmentSnapshot = {
     companyId: string;
     divisionId: string;
     teamId: string | null;
+    permissionCodes: PermissionCode[];
   } | null;
-  boundTeam: { id: string; companyId: string; divisionId: string } | null;
-  activeTeamLeadMemberId: string | null;
 };

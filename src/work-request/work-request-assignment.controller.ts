@@ -28,6 +28,7 @@ import { PermissionCode } from '../generated/prisma/client';
 import {
   AssignDivisionDto,
   AssignMemberDto,
+  AssignReviewerDto,
   AssignTeamDto,
   WorkRequestAssignmentHistoryResponseDto,
   WorkRequestAssignmentResponseDto,
@@ -105,5 +106,19 @@ export class WorkRequestAssignmentController {
     @ActiveActor() actor: SessionActor,
   ) {
     return this.service.assignMember(id, body, actor);
+  }
+
+  @Post('reviewer')
+  @FinalPermissions(PermissionCode.ASSIGN_REVIEWER)
+  @ApiOperation({ summary: 'Assign generic review responsibility by Work Request ID' })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
+  @ApiStandardOkResponse(WorkRequestAssignmentResponseDto)
+  @ResponseMessage('Work Request reviewer assigned successfully')
+  reviewer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AssignReviewerDto,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.assignReviewer(id, body, actor);
   }
 }

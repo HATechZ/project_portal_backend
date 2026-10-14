@@ -24,18 +24,13 @@ export const WORK_REQUEST_FINAL_PERMISSION_BY_ACTION = {
   [WorkflowActionCode.WR_ASSIGN_MEMBER]:
     PermissionCode.ASSIGN_WORK_REQUEST_MEMBER,
   [WorkflowActionCode.WR_SUBMIT]: PermissionCode.SUBMIT_WORK_REQUEST,
-  [WorkflowActionCode.WR_TEAM_LEAD_APPROVE]:
+  [WorkflowActionCode.WR_CHECKING_APPROVE]:
     PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
-  [WorkflowActionCode.WR_DIVISION_LEAD_APPROVE]:
+  [WorkflowActionCode.WR_APPROVAL_APPROVE]:
     PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
-  [WorkflowActionCode.WR_DIVISION_HEAD_APPROVE]:
-    PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
-  [WorkflowActionCode.WR_TEAM_LEAD_REQUEST_REVISION]:
+  [WorkflowActionCode.WR_REQUEST_REVISION]:
     PermissionCode.REQUEST_WORK_REQUEST_REVISION,
-  [WorkflowActionCode.WR_DIVISION_LEAD_REQUEST_REVISION]:
-    PermissionCode.REQUEST_WORK_REQUEST_REVISION,
-  [WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION]:
-    PermissionCode.REQUEST_WORK_REQUEST_REVISION,
+  [WorkflowActionCode.WR_FINAL_RELEASE]: PermissionCode.SUBMIT_FOR_REVIEW,
 } as const satisfies Partial<Record<WorkflowActionCode, PermissionCode>>;
 
 /** Work Request has no external-client action currently handled at runtime. */

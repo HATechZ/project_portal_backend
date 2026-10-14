@@ -16,6 +16,7 @@ import { WorkRequestAssignmentProvider } from './providers/work-request-assignme
 import {
   AssignDivisionDto,
   AssignMemberDto,
+  AssignReviewerDto,
   AssignTeamDto,
 } from './dtos/work-request.dto';
 import {
@@ -79,6 +80,10 @@ export class WorkRequestService extends WorkRequestServiceBase {
 
   assignMember(id: string, input: AssignMemberDto, actor: SessionActor) {
     return this.assignments.member(id, input, actor);
+  }
+
+  assignReviewer(id: string, input: AssignReviewerDto, actor: SessionActor) {
+    return this.assignments.reviewer(id, input, actor);
   }
 
   assignmentHistory(id: string, actor: SessionActor) {

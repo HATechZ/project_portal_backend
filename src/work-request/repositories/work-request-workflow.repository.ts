@@ -100,6 +100,7 @@ export class WorkRequestWorkflowRepository extends BaseRepository {
     action: string;
     priorState: WorkRequestV1StateCode;
     resultingState: WorkRequestV1StateCode;
+    responsibilityLevel?: WorkRequestV1AssignmentLevelCode;
     note?: string;
     idempotencyKey?: string;
     correlationId?: string;
@@ -115,6 +116,7 @@ export class WorkRequestWorkflowRepository extends BaseRepository {
           action: input.action,
           priorState: input.priorState,
           resultingState: input.resultingState,
+          responsibilityLevel: input.responsibilityLevel,
           performedByActorId: input.actorId,
           occurredAt,
           note: input.note,

@@ -16,6 +16,7 @@ All routes inherit Module 00 response envelopes (`success`, `message`, `data`, m
 | POST | `/:id/info-requests` | Request clarification |
 | POST | `/:id/info-requests/:infoRequestId/respond` | Respond to clarification |
 | GET | `/:id/assignments` | Assignment history/current responsibility |
+| POST | `/:id/assignments/reviewer` | Assign/reassign `CHECKING`, `APPROVAL`, or `FINAL_REVIEW` |
 | GET | `/:id/events` | Paginated audit/event history |
 | GET | `/:id/documents` | Scoped Work Request document list |
 | GET | `/:id/documents/:documentId/versions` | Scoped immutable document-version history, oldest to newest |
@@ -37,7 +38,7 @@ PATCH permits only explicitly approved mutable metadata (title and notes); it ne
 
 ## Workflow commands
 
-Division body is `{ divisionId, note? }`; Team is `{ teamId, note? }`; Member is `{ memberId, note? }`. Each validates hierarchy, active records/membership, parent/request scope, actor scope, and current state. Assignment responses return the new history row and derived request state/responsibility.
+Division body is `{ divisionId, note? }`; Team is `{ teamId, note? }`; Member is `{ memberId, note? }`; reviewer is `{ memberId, level: CHECKING|APPROVAL|FINAL_REVIEW, note? }`. Generic responsibility assignment validates active same-company membership and required effective capabilities, not business title or organization leadership. Assignment responses return the new history row and derived request state/responsibility.
 
 `POST /:id/actions` accepts configured `actionId` (or stable action code only if the current catalog contract exposes it), optional `note`, and action-specific declared payload. It must not accept arbitrary target status. The contracted actions are the transition-matrix actions: submit, Team/Division Lead/Division Head approval or revision request, and configured post-head handoff. Request/response info accepts a nonblank message plus only a scoped existing target allowed by the configured action; clarification preserves state unless configuration says otherwise.
 

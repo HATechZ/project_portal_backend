@@ -21,6 +21,7 @@ export class WorkRequestEventRepository extends BaseRepository {
           action: true,
           priorState: true,
           resultingState: true,
+          responsibilityLevel: true,
           note: true,
           occurredAt: true,
           performedByActor: { select: { id: true, label: true } },

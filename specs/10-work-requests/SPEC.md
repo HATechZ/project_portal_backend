@@ -9,6 +9,14 @@
 ## Purpose and boundary
 Work Request is a tenant-owned operational aggregate initiated against exactly one independent Bid or Project. It owns request creation, routing assignments, workflow event/audit history, request-info clarification, safe Work Request files, and backend-derived available actions. It does not merge Bid and Project, create a workspace/BidProject, own Team membership, or own document-code catalogues.
 
+## Generic responsibility workflow (current)
+
+The current V1 workflow is organization-neutral. `MEMBER` is the preparation responsibility; `CHECKING`, `APPROVAL`, and `FINAL_REVIEW` are independent member assignments. They are not security roles or employee titles. A responsibility is authorized only by compatible granted permission, active same-tenant Member, resource relationship, exact active assignment, and exact state; no role name, designation, Division/Team name, or lead relationship authorizes it.
+
+`MEMBER_ASSIGNED` is the preparation state. The generic route is `MEMBER_ASSIGNED --WR_SUBMIT--> CHECKING_REVIEW --WR_CHECKING_APPROVE--> APPROVAL_REVIEW --WR_APPROVAL_APPROVE--> FINAL_REVIEW --WR_FINAL_RELEASE--> FINAL_RELEASE`. `WR_REQUEST_REVISION` from each review state returns to `MEMBER_ASSIGNED`. It uses `SUBMIT_WORK_REQUEST`, `APPROVE_WORK_REQUEST_REVIEW`, `REQUEST_WORK_REQUEST_REVISION`, and `SUBMIT_FOR_REVIEW` respectively. Historical title-based states/actions remain readable compatibility data and are not emitted by this flow.
+
+Preparation is assigned with `ASSIGN_WORK_REQUEST_MEMBER`; each reviewer responsibility is assigned with `ASSIGN_REVIEWER`. Assignment checks active same-company Member status and mandatory effective capabilities (including document view where package access is required), records temporal replacement history, and permits one active assignment per responsibility. Request/response information is a side workflow: it never changes the main state or restores a prior assignee. Responsibility-driven events retain a nullable responsibility-level snapshot.
+
 The current `work_requests`, generic `documents`, category, attachment-category, project-only parent, mutable assignment columns, and legacy workflow structures are legacy persistence. They are not the V1 structural contract. This spec makes no runtime, Prisma, migration, seed, RLS, grant, or permission change.
 
 ## Business rules

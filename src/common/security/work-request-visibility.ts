@@ -19,6 +19,7 @@ export function workRequestVisibilityWhere(
   if (hasCompanyWorkRequestScope(actor)) return {};
   const member = actor.member;
   if (!member?.isActive || !member.company.isActive) return never();
+  const responsibility = activeAssignmentMember(member.id);
 
   switch (actor.role.customScope) {
     case 'division': {
@@ -26,15 +27,15 @@ export function workRequestVisibilityWhere(
         ({ divisionId }) => divisionId,
       );
       return divisionIds.length
-        ? activeAssignment(Level.DIVISION, { divisionId: { in: divisionIds } })
-        : never();
+        ? { OR: [responsibility, activeAssignment(Level.DIVISION, { divisionId: { in: divisionIds } })] }
+        : responsibility;
     }
     case 'team':
-      return activeAssignment(Level.TEAM, {
+      return { OR: [responsibility, activeAssignment(Level.TEAM, {
         team: { is: { isActive: true, leadMemberId: member.id } },
-      });
+      })] };
     case 'member':
-      return activeAssignment(Level.MEMBER, { memberId: member.id });
+      return responsibility;
     default:
       return never();
   }
@@ -47,6 +48,18 @@ export function canAccessWorkRequest(
   if (hasCompanyWorkRequestScope(actor)) return true;
   const member = actor.member;
   if (!member?.isActive || !member.company.isActive) return false;
+  if (
+    assignments.some(
+      (assignment) =>
+        active(assignment, Level.MEMBER) ||
+        active(assignment, Level.CHECKING) ||
+        active(assignment, Level.APPROVAL) ||
+        active(assignment, Level.FINAL_REVIEW)
+          ? assignment.memberId === member.id
+          : false,
+    )
+  )
+    return true;
   if (actor.role.customScope === 'division')
     return assignments.some(
       (assignment) =>
@@ -93,6 +106,19 @@ function activeAssignment(
   return {
     assignments: {
       some: { level, unassignedAt: null, replacedAt: null, ...target },
+    },
+  };
+}
+
+function activeAssignmentMember(memberId: string): Prisma.WorkRequestV1WhereInput {
+  return {
+    assignments: {
+      some: {
+        level: { in: [Level.MEMBER, Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW] },
+        memberId,
+        unassignedAt: null,
+        replacedAt: null,
+      },
     },
   };
 }

@@ -4,7 +4,6 @@ import {
 } from '../../generated/prisma/client';
 import { WorkRequestActionsProvider } from './work-request-actions.provider';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
-import { WORK_REQUEST_REVIEW_TRANSITIONS } from './work-request-transition.definitions';
 
 describe('WorkRequestActionsProvider', () => {
   const provider = new WorkRequestActionsProvider();
@@ -100,11 +99,14 @@ describe('WorkRequestActionsProvider', () => {
   });
 
   it('exposes Request Information only with its exact grant', () => {
+    const assigned = record(WorkRequestV1StateCode.MEMBER_ASSIGNED, [
+      { level: 'MEMBER', memberId: 'member' },
+    ]);
     expect(
       provider.available(
         actor([WorkflowActionCode.REQUEST_WORKFLOW_INFO]),
         WorkRequestV1StateCode.MEMBER_ASSIGNED,
-        record(WorkRequestV1StateCode.MEMBER_ASSIGNED),
+        assigned,
       ),
     ).toEqual([
       expect.objectContaining({
@@ -116,7 +118,7 @@ describe('WorkRequestActionsProvider', () => {
   it('exposes Respond Information only for an applicable open request target', () => {
     const applicable = record(
       WorkRequestV1StateCode.MEMBER_ASSIGNED,
-      [],
+      [{ level: 'MEMBER', memberId: 'member' }],
       [{ targetActorId: 'actor-a' }],
     );
     const responseActor = actor([WorkflowActionCode.RESPOND_WORKFLOW_INFO]);
@@ -141,7 +143,7 @@ describe('WorkRequestActionsProvider', () => {
     ).toEqual([]);
   });
 
-  it('does not derive information availability from a custom-role scope', () => {
+  it('does not derive information availability from Division authority alone', () => {
     expect(
       provider.available(
         actor([WorkflowActionCode.REQUEST_WORKFLOW_INFO], 'member', 'division'),
@@ -150,33 +152,32 @@ describe('WorkRequestActionsProvider', () => {
           { level: 'DIVISION', divisionId: 'division-other' },
         ]),
       ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [WorkflowActionCode.WR_CHECKING_APPROVE, WorkRequestV1StateCode.CHECKING_REVIEW, 'CHECKING'],
+    [WorkflowActionCode.WR_APPROVAL_APPROVE, WorkRequestV1StateCode.APPROVAL_REVIEW, 'APPROVAL'],
+    [WorkflowActionCode.WR_FINAL_RELEASE, WorkRequestV1StateCode.FINAL_REVIEW, 'FINAL_REVIEW'],
+  ])('exposes %s only to its exact generic responsibility', (code, state, level) => {
+    expect(
+      provider.available(
+        actor([code], 'reviewer-a'),
+        state,
+        record(state, [{ level, memberId: 'reviewer-a' }]),
+      ),
     ).toEqual([
       expect.objectContaining({
-        code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+        code,
       }),
     ]);
   });
 
-  it('uses the shared review transition definitions for available actions', () => {
-    const transition =
-      WORK_REQUEST_REVIEW_TRANSITIONS[WorkflowActionCode.WR_TEAM_LEAD_APPROVE];
-    expect(
-      provider.available(
-        actor([WorkflowActionCode.WR_TEAM_LEAD_APPROVE], 'team-lead-a'),
-        transition.from,
-        record(transition.from, [
-          {
-            level: 'TEAM',
-            teamId: 'team-a',
-            team: { isActive: true, leadMemberId: 'team-lead-a' },
-          },
-        ]),
-      ),
-    ).toEqual([
-      expect.objectContaining({
-        code: WorkflowActionCode.WR_TEAM_LEAD_APPROVE,
-        label: transition.label,
-      }),
-    ]);
+  it('does not expose generic review actions to a Team Lead assignment alone', () => {
+    expect(provider.available(
+      actor([WorkflowActionCode.WR_CHECKING_APPROVE], 'lead-a'),
+      WorkRequestV1StateCode.CHECKING_REVIEW,
+      record(WorkRequestV1StateCode.CHECKING_REVIEW, [{ level: 'TEAM', teamId: 'team-a', team: { isActive: true, leadMemberId: 'lead-a' } }]),
+    )).toEqual([]);
   });
 });

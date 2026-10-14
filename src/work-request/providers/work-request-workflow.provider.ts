@@ -61,8 +61,6 @@ export class WorkRequestWorkflowProvider {
     note: string | undefined,
     actor: SessionActor,
   ) {
-    const rule = reviewTransitionFor(action);
-    if (!rule) throw forbidden();
     return this.uow.execute(
       async () => {
         const metadata = workRequestTransitionRequestMetadata();
@@ -73,6 +71,8 @@ export class WorkRequestWorkflowProvider {
           throw conflict('This workflow request has already been applied.');
         const snapshot = await this.repository.prepare(id);
         if (!snapshot) throw notFound('Work Request was not found.');
+        const rule = reviewTransitionFor(action, snapshot.state);
+        if (!rule) throw forbidden();
         if (snapshot.state !== rule.from)
           throw conflict('Work Request is not in a valid workflow state.');
         this.assertAuthorized(actor, action, rule.responsibility, snapshot);
@@ -82,6 +82,7 @@ export class WorkRequestWorkflowProvider {
           action: rule.event,
           priorState: rule.from,
           resultingState: rule.to,
+          responsibilityLevel: rule.responsibility,
           note,
           ...metadata,
         });
@@ -115,12 +116,7 @@ export class WorkRequestWorkflowProvider {
     snapshot: WorkRequestWorkflowSnapshot,
   ) {
     const permission = getFinalPermissionForWorkRequestAction(action);
-    if (
-      !actor.role.rolePermissions.some(
-        ({ revokedAt, permission: grant }) =>
-          revokedAt === null && grant.code === permission,
-      )
-    )
+    if (!hasCompatiblePermission(actor, permission))
       throw forbidden();
     const member = actor.member;
     if (
@@ -135,23 +131,32 @@ export class WorkRequestWorkflowProvider {
       throw conflict('Work Request has no active required assignment.');
     if (responsibility === Level.MEMBER && member.id !== assigned)
       throw forbidden();
-    if (
-      responsibility === Level.TEAM &&
-      snapshot.teamLeadMemberId !== member.id
-    )
-      throw forbidden();
-    if (
-      responsibility === Level.DIVISION &&
-      !member.divisionLeadsByMemberId.some(
-        ({ divisionId }) => divisionId === assigned,
-      )
-    )
-      throw forbidden();
+    if (member.id !== assigned) throw forbidden();
   }
 }
 
 function isPhaseThreeAction(action: WorkflowActionCode): boolean {
-  return reviewTransitionFor(action) !== undefined;
+  return [
+    WorkflowActionCode.WR_CHECKING_APPROVE,
+    WorkflowActionCode.WR_APPROVAL_APPROVE,
+    WorkflowActionCode.WR_REQUEST_REVISION,
+    WorkflowActionCode.WR_FINAL_RELEASE,
+  ].includes(action as never);
+}
+
+function hasCompatiblePermission(
+  actor: SessionActor,
+  permission: ReturnType<typeof getFinalPermissionForWorkRequestAction>,
+): boolean {
+  return actor.role.rolePermissions.some(
+    ({ revokedAt, permission: grant }) =>
+      revokedAt === null &&
+      grant.code === permission &&
+      (actor.role.customScope === null ||
+        grant.scopeCompatibilities?.some(
+          ({ scope }) => scope === actor.role.customScope,
+        )),
+  );
 }
 function notFound(message: string) {
   return new AppException({

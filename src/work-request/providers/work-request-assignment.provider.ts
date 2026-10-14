@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
-  WorkflowActionCode,
+  PermissionCode,
   WorkRequestV1AssignmentLevelCode,
 } from '../../generated/prisma/client';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
@@ -13,12 +13,12 @@ import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import {
   AssignDivisionDto,
   AssignMemberDto,
+  AssignReviewerDto,
   AssignTeamDto,
   WorkRequestAssignmentHistoryResponseDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestAssignmentRepository } from '../repositories/work-request-assignment.repository';
 import type { WorkRequestAssignmentSnapshot } from '../repositories/work-request-assignment.records';
-import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
 import { WorkRequestAssignmentReadRepository } from '../repositories/work-request-assignment-read.repository';
 import {
@@ -46,6 +46,10 @@ export class WorkRequestAssignmentProvider {
 
   member(id: string, input: AssignMemberDto, actor: SessionActor) {
     return this.assign(id, input.memberId, input.note, actor, 'MEMBER');
+  }
+
+  reviewer(id: string, input: AssignReviewerDto, actor: SessionActor) {
+    return this.assign(id, input.memberId, input.note, actor, input.level);
   }
 
   async history(
@@ -90,7 +94,6 @@ export class WorkRequestAssignmentProvider {
           workRequestId,
           level,
           targetId,
-          actor.boundTeamId,
         );
         if (!snapshot) throw notFound('Work Request was not found.');
         if (!snapshot.target)
@@ -104,7 +107,7 @@ export class WorkRequestAssignmentProvider {
         );
         if (!transition)
           throw conflict('Work Request is not in a valid assignment state.');
-        this.assertHierarchy(snapshot, level);
+        this.assertTargetCapabilities(snapshot, level);
         this.assertAuthorized(actor, snapshot, level);
         const written = await this.repository.write({
           workRequestId,
@@ -146,36 +149,21 @@ export class WorkRequestAssignmentProvider {
     );
   }
 
-  private assertHierarchy(
-    snapshot: WorkRequestAssignmentSnapshot,
-    level: WorkRequestV1AssignmentLevelCode,
-  ) {
-    const divisionId =
-      snapshot.active[WorkRequestV1AssignmentLevelCode.DIVISION];
-    if (
-      level !== WorkRequestV1AssignmentLevelCode.DIVISION &&
-      (!divisionId || snapshot.target!.divisionId !== divisionId)
-    )
-      throw conflict('Assignment target is outside the assigned Division.');
-    if (
-      level === WorkRequestV1AssignmentLevelCode.MEMBER &&
-      !snapshot.active[WorkRequestV1AssignmentLevelCode.TEAM]
-    )
-      throw conflict('Work Request has no active Team assignment.');
-  }
-
   private assertAuthorized(
     actor: SessionActor,
     snapshot: WorkRequestAssignmentSnapshot,
     level: WorkRequestV1AssignmentLevelCode,
   ) {
-    const permission = getFinalPermissionForWorkRequestAction(
-      permissionFor(level),
-    );
+    const permission = permissionFor(level);
     if (
       !actor.role.rolePermissions.some(
         ({ revokedAt, permission: grant }) =>
-          revokedAt === null && grant.code === permission,
+          revokedAt === null &&
+          grant.code === permission &&
+          (actor.role.customScope === null ||
+            grant.scopeCompatibilities.some(
+              ({ scope }) => scope === actor.role.customScope,
+            )),
       )
     )
       throw forbidden();
@@ -186,37 +174,61 @@ export class WorkRequestAssignmentProvider {
       throw conflict(
         'Assignment target is outside the Work Request organization.',
       );
-    if (level === WorkRequestV1AssignmentLevelCode.DIVISION) {
-      if (
-        actor.role.customScope !== 'company' &&
-        actor.role.systemRole?.systemCode !== 'tenant_super_admin'
-      )
-        throw forbidden();
-      return;
-    }
     const member = actor.member;
     if (!member?.isActive || !member.company.isActive) throw forbidden();
-    if (level === WorkRequestV1AssignmentLevelCode.TEAM) {
-      const divisionId = snapshot.active[WorkRequestV1AssignmentLevelCode.DIVISION];
-      if (
-        !divisionId ||
-        !member.divisionLeadsByMemberId.some(
-          (lead) => lead.divisionId === divisionId,
-        )
-      )
-        throw forbidden();
-      return;
-    }
-    if (snapshot.activeTeamLeadMemberId !== member.id) throw forbidden();
+  }
+
+  private assertTargetCapabilities(
+    snapshot: WorkRequestAssignmentSnapshot,
+    level: WorkRequestV1AssignmentLevelCode,
+  ) {
+    const required = requiredCapabilities(level);
+    if (!required.length) return;
+    const missing = required.filter(
+      (permission) =>
+        !(snapshot.target!.permissionCodes ?? required).includes(permission),
+    );
+    if (missing.length)
+      throw conflict(
+        `Assignment target lacks required capabilities: ${missing.join(', ')}.`,
+      );
   }
 }
 
 function permissionFor(level: WorkRequestV1AssignmentLevelCode) {
+  if (
+    level === WorkRequestV1AssignmentLevelCode.CHECKING ||
+    level === WorkRequestV1AssignmentLevelCode.APPROVAL ||
+    level === WorkRequestV1AssignmentLevelCode.FINAL_REVIEW
+  )
+    return PermissionCode.ASSIGN_REVIEWER;
   return {
-    DIVISION: WorkflowActionCode.WR_ASSIGN_DIVISION,
-    TEAM: WorkflowActionCode.WR_ASSIGN_TEAM,
-    MEMBER: WorkflowActionCode.WR_ASSIGN_MEMBER,
+    DIVISION: PermissionCode.ASSIGN_WORK_REQUEST_DIVISION,
+    TEAM: PermissionCode.ASSIGN_WORK_REQUEST_TEAM,
+    MEMBER: PermissionCode.ASSIGN_WORK_REQUEST_MEMBER,
   }[level];
+}
+
+function requiredCapabilities(level: WorkRequestV1AssignmentLevelCode) {
+  const common = [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.VIEW_DOCUMENT];
+  if (level === WorkRequestV1AssignmentLevelCode.MEMBER)
+    return [...common, PermissionCode.SUBMIT_WORK_REQUEST];
+  if (
+    level === WorkRequestV1AssignmentLevelCode.CHECKING ||
+    level === WorkRequestV1AssignmentLevelCode.APPROVAL
+  )
+    return [
+      ...common,
+      PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
+      PermissionCode.REQUEST_WORK_REQUEST_REVISION,
+    ];
+  if (level === WorkRequestV1AssignmentLevelCode.FINAL_REVIEW)
+    return [
+      ...common,
+      PermissionCode.REQUEST_WORK_REQUEST_REVISION,
+      PermissionCode.SUBMIT_FOR_REVIEW,
+    ];
+  return [];
 }
 function notFound(message: string) {
   return new AppException({
