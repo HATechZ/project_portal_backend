@@ -34,6 +34,13 @@ It generates UUID v4 IDs and atomically provisions Tenant, Company, initial User
 UserRole, default role-only ActorProfile and approved permission matrix. Only a password hash
 crosses the provisioning boundary; password confirmation is validation-only.
 
+Each successful signup also creates the three standard demonstration `clients` records, scoped
+to the new Tenant and Company: Bluewater Marine Logistics, Meridian Offshore Services, and
+Seaport Engineering Partners. Each receives one active primary `client_contacts` record using
+the matching existing fixture name, test email, and designation. These records are part of the
+same provisioning transaction: a signup failure leaves none of them behind. They have no User
+identity or portal access state. Existing workspaces are intentionally not backfilled.
+
 Company reads and partial name/type updates use the existing Tenant UnitOfWork and RLS.
 Updates explicitly select writable fields and set updatedAt. They cannot move a Company,
 change its slug, create a second Company, or change activation. FK/unique constraints remain
@@ -41,7 +48,10 @@ authoritative under races; shared exception translation handles database errors.
 
 ## Migration impact and deferred scope
 
-None: no schema, migrations, grants, RLS policies or provisioning-function changes.
+No table or column change. One forward-only migration replaces the provisioning function so
+new Company workspaces receive the standard demonstration Client fixtures atomically. It must
+preserve its existing function signature, grants, RLS/security-definer behavior, and return
+shape. Existing workspaces are not backfilled.
 DivisionType values remain deferred. Division, Member, Team, and the existing `team_members`
 relation are specified but unimplemented in `04.1-division` → `04.2-member` → `04.3-team`.
 Those contracts honor existing Tenant/Company/Division composite relationships; `team_members`

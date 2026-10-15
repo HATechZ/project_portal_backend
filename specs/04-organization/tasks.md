@@ -73,6 +73,10 @@ this Company tasks list.
         VERIFY: test -f specs/04-organization/walkthrough.md && node scripts/verify-company-evidence.cjs
 
 - [ ] **Phase 6: Company Workspace signup**
+  - [x] Create the three standard demonstration Clients and their active primary contacts inside
+        new Company workspace provisioning, without creating Client portal identities or
+        backfilling existing workspaces.
+        VERIFY: test -f prisma/migrations/20261015000000_restore_default_company_clients_on_signup/migration.sql && grep -q "Bluewater Marine Logistics" prisma/migrations/20261015000000_restore_default_company_clients_on_signup/migration.sql && grep -q "Meridian Offshore Services" prisma/migrations/20261015000000_restore_default_company_clients_on_signup/migration.sql && grep -q "Seaport Engineering Partners" prisma/migrations/20261015000000_restore_default_company_clients_on_signup/migration.sql && grep -q "INSERT INTO public.client_contacts" prisma/migrations/20261015000000_restore_default_company_clients_on_signup/migration.sql
   - [x] Generate and return a stable public workspace slug without accepting it from the client
         VERIFY: grep -q "workspaceSlug" src/company/dtos/company-signup-response.dto.ts && grep -q "workspace_slug" src/company/repositories/company-signup.repository.ts && ! grep -q "workspaceSlug" src/company/dtos/company-signup.dto.ts
   - [x] Make CompanyType reference options available before authentication

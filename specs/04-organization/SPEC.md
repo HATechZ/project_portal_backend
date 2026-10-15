@@ -36,6 +36,10 @@ Division, Member, and Team contracts are respectively `04.1-division`, `04.2-mem
 - DR-03: Abbreviations are unique per Tenant, not globally. Signup trims name and abbreviation.
 - DR-04: Signup/retype require an existing CompanyType UUID. Legacy null types remain readable.
 - DR-05: The existing provisioning function generates UUID v4 IDs in PostgreSQL.
+- DR-05a: Company signup atomically creates the three standard demonstration Clients
+  (Bluewater Marine Logistics, Meridian Offshore Services, and Seaport Engineering Partners)
+  with one active primary ClientContact each. These contacts receive no User, role,
+  ActorProfile, credential, session, or portal access state.
 - DR-06: Company reads/updates require an active same-Tenant tenant_super_admin actor/session.
   Verified JWT establishes Tenant; caller x-tenant-id cannot override it. Signup/type reads
   are public and require neither a token nor a Tenant header.

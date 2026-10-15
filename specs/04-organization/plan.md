@@ -19,6 +19,8 @@ module; Company signup must not become a bypass for unverified resource/assignme
 - CompanySignupController -> CompanySignupService -> CompanySignupRepository -> existing
   narrow provisioning function. DTO validation runs before hashing. Only eight mapped fields,
   including password hash, cross the provisioning boundary; confirmation stays in validation.
+  The same SECURITY DEFINER transaction creates the three fixed demonstration Clients and their
+  primary contacts for the new Tenant/Company, without creating portal identities.
 - CompanyTypeController -> CompanyService -> CompanyQueryProvider -> CompanyRepository public
   reference read. No Tenant context or relay connection is needed.
 - CompanyController -> CompanyService -> CompanyQueryProvider -> scoped CompanyRepository
@@ -40,8 +42,10 @@ FK/unique constraints and RLS remain authoritative under races. Same-field updat
 commit wins, and omitted fields are preserved. Shared Prisma translation handles conflicts.
 
 Signup's existing SECURITY DEFINER function is its atomic boundary. It resolves tenant_super_admin,
-creates the default role-only profile and approved permission matrix. No schema/function/grant
-changes or cross-feature imports are introduced; app_relay remains outside this module.
+creates the default role-only profile and approved permission matrix, then writes the three
+fixed Client/ClientContact fixtures scoped to the newly created workspace. No public API or
+cross-feature import is introduced; the function signature, return shape, and app_user execute
+grant remain unchanged, and app_relay remains outside this module.
 
 ## Verification
 

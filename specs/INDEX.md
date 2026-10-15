@@ -11,7 +11,7 @@
 | [02](02-infrastructure/) Infrastructure | — | 4 | 15/15 | `[WIP]` | Retro-spec; only walkthrough remains |
 | [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | [Art. XI](rules/10-messaging.md); partial index skipped by owner; walkthrough remains |
 | [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/54 | `[WIP]` | Starter authorization gate approved; runtime remains unimplemented |
-| [04](04-organization/) Organization | 2 of 7 | 4 | 29/38 | `[WIP]` | Starter provisioning gated on authorization hardening |
+| [04](04-organization/) Organization | 2 of 7 | 4 | 30/39 | `[WIP]` | Default Client provisioning migration prepared; deploy pending |
 | [04.1](04.1-division/) Division | 1 (+DivisionType) | 4 | 11/12 | `[WIP]` | Normalized Tenant/Company name uniqueness and blocking preflight pending |
 | [04.1.1](04.1.1-division-lead-multiplicity/) Division Lead Multiplicity | 1 applied | 5 | 17/17 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (28 curls, 0 blockers, cleanup PASS) |
 | [04.2](04.2-member/) Member | 1 | 4 | 7/13 | `[WIP]` | Staff onboarding gated on authorization hardening |
@@ -63,7 +63,6 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-10-07 | Codex | 03-05,08-10.1 | 1-3 | Resource visibility/routing responsibility freeze; specs only |
 | 2026-09-24 | Codex | 07.1–07.3 | 4 | Focused tests + build PASS; walkthroughs pending |
 | 2026-09-24 | Codex + db-architect | 07.4 | 4 | Runtime/tests pass; walkthrough pending |
 | 2026-09-24 | Codex + db-architect | 10 | 1–3 | Work Request specs drafted; no runtime/data work |
@@ -73,3 +72,4 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-10-06 | Codex | 03 | 1 | Demo-data legacy-access policy frozen; specs only |
 | 2026-10-06 | Codex | 03,05 | 1 | Client scopes and resource-boundary rule frozen; specs only |
 | 2026-10-06 | Codex | 03,04–10 | 1 | Final atomic permission/scope freeze; specs only |
+| 2026-10-15 | Codex + db-architect | 04 | 1-4 | Default Client signup migration prepared; deployment pending |
