@@ -1,6 +1,8 @@
 import { Transform } from 'class-transformer';
 import {
   IsIn,
+  IsArray,
+  ArrayNotEmpty,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -171,6 +173,10 @@ export class WorkRequestWorkflowNoteDto {
 }
 
 export class CreateWorkRequestInfoRequestDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  parentInfoRequestId?: string;
   @ApiProperty({ format: 'uuid', description: 'Target Actor Profile ID' })
   @IsUUID()
   targetActorId!: string;
@@ -181,6 +187,11 @@ export class CreateWorkRequestInfoRequestDto {
   @IsNotEmpty()
   @MaxLength(10000)
   message!: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true })
+  @IsOptional()
+  @IsUUID(undefined, { each: true })
+  documentVersionIds?: string[];
 }
 
 export class RespondWorkRequestInfoRequestDto {
@@ -190,25 +201,45 @@ export class RespondWorkRequestInfoRequestDto {
   @IsNotEmpty()
   @MaxLength(10000)
   message!: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true })
+  @IsOptional()
+  @IsUUID(undefined, { each: true })
+  documentVersionIds?: string[];
+}
+
+export class WorkRequestInfoParticipantDto {
+  @ApiProperty({ format: 'uuid' }) actorId!: string;
+  @ApiProperty({ enum: ['INTERNAL_MEMBER', 'EXTERNAL_CLIENT_CONTACT'] })
+  type!: 'INTERNAL_MEMBER' | 'EXTERNAL_CLIENT_CONTACT';
+}
+
+export class WorkRequestInfoAttachmentDto {
+  @ApiProperty({ format: 'uuid' }) documentVersionId!: string;
 }
 
 export class WorkRequestInfoResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ format: 'uuid' }) respondedByActorId!: string;
+  @ApiProperty({ type: WorkRequestInfoParticipantDto }) responder!: WorkRequestInfoParticipantDto;
   @ApiProperty() message!: string;
   @ApiProperty() respondedAt!: Date;
+  @ApiProperty({ type: [WorkRequestInfoAttachmentDto] })
+  attachments!: WorkRequestInfoAttachmentDto[];
 }
 
 export class WorkRequestInfoRequestDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ format: 'uuid' }) requestedByActorId!: string;
-  @ApiProperty({ format: 'uuid' }) targetActorId!: string;
+  @ApiProperty({ type: WorkRequestInfoParticipantDto }) requester!: WorkRequestInfoParticipantDto;
+  @ApiProperty({ type: WorkRequestInfoParticipantDto }) target!: WorkRequestInfoParticipantDto;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true }) parentInfoRequestId!: string | null;
   @ApiProperty() message!: string;
   @ApiProperty({ enum: ['OPEN', 'RESPONDED', 'CANCELLED', 'SUPERSEDED'] })
   status!: string;
   @ApiProperty() stateAtRequest!: string;
   @ApiProperty() requestedAt!: Date;
   @ApiPropertyOptional() closedAt!: Date | null;
+  @ApiProperty({ type: [WorkRequestInfoAttachmentDto] })
+  attachments!: WorkRequestInfoAttachmentDto[];
   @ApiProperty({ type: [WorkRequestInfoResponseDto] })
   responses!: WorkRequestInfoResponseDto[];
 }
@@ -229,6 +260,52 @@ export class WorkRequestWorkflowResponseDto {
   @ApiProperty() action!: string;
   @ApiProperty() currentState!: string;
   @ApiProperty() occurredAt!: Date;
+}
+
+export class CreateWorkRequestClientSubmissionDto extends WorkRequestWorkflowNoteDto {
+  @ApiProperty({ type: String, format: 'uuid', isArray: true })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID(undefined, { each: true })
+  documentVersionIds!: string[];
+}
+
+export class WorkRequestClientDecisionDto extends WorkRequestWorkflowNoteDto {
+  @ApiProperty({ enum: ['ACCEPT', 'REJECT', 'REQUEST_REVISION'] })
+  @IsIn(['ACCEPT', 'REJECT', 'REQUEST_REVISION'])
+  decision!: 'ACCEPT' | 'REJECT' | 'REQUEST_REVISION';
+}
+
+export class RouteWorkRequestClientRevisionDto extends WorkRequestWorkflowNoteDto {
+  @ApiProperty({ enum: ['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'] })
+  @IsIn(['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'])
+  destination!: 'MEMBER' | 'CHECKING' | 'APPROVAL' | 'FINAL_REVIEW';
+}
+
+export class WorkRequestClientSubmissionResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() submissionNumber!: number;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true }) submittedAt!: Date | null;
+  @ApiProperty({ type: [String] }) documentVersionIds!: string[];
+  @ApiPropertyOptional({ type: Object, nullable: true }) decision!: {
+    id: string;
+    decision: 'ACCEPT' | 'REJECT' | 'REQUEST_REVISION';
+    decidedAt: Date;
+  } | null;
+}
+
+export class WorkRequestClientDecisionResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ enum: ['ACCEPT', 'REJECT', 'REQUEST_REVISION'] }) decision!: string;
+  @ApiProperty({ format: 'date-time' }) decidedAt!: Date;
+  @ApiProperty() currentState!: string;
+}
+
+export class WorkRequestClientRevisionRouteResponseDto {
+  @ApiProperty({ format: 'uuid' }) eventId!: string;
+  @ApiProperty({ enum: ['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'] }) destination!: string;
+  @ApiProperty() currentState!: string;
+  @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
 }
 
 export class WorkRequestResponseDto {

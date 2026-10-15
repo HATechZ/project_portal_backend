@@ -57,4 +57,41 @@ export class WorkRequestDocumentHistoryProvider {
       },
     }));
   }
+
+  async externalList(workRequestId: string) {
+    const published = await this.documents.externalDocuments(workRequestId);
+    return published.map(({ documentVersion: version }) => ({
+      documentId: version.document.id,
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      revisionCode: version.revisionCode,
+      uploadedFileName: version.uploadedFileName ?? '',
+      generatedFileName: version.generatedFileName ?? '',
+      mimeType: version.mimeType,
+      size: Number(version.fileSizeBytes),
+      uploadedAt: version.uploadedAt,
+    }));
+  }
+
+  async externalVersions(workRequestId: string, documentId: string) {
+    const published = await this.documents.externalVersions(workRequestId, documentId);
+    if (!published.length)
+      throw new AppException({
+        code: AppErrorCode.NotFound,
+        status: HttpStatus.NOT_FOUND,
+        message: 'Work Request document was not found.',
+      });
+    return published.map(({ documentVersion: version }) => ({
+      documentId,
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      revisionCode: version.revisionCode,
+      uploadedFileName: version.uploadedFileName ?? '',
+      generatedFileName: version.generatedFileName ?? '',
+      mimeType: version.mimeType,
+      size: Number(version.fileSizeBytes),
+      uploadedAt: version.uploadedAt,
+      uploadedBy: null,
+    }));
+  }
 }

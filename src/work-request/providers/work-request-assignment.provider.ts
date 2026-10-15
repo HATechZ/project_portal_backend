@@ -199,7 +199,8 @@ function permissionFor(level: WorkRequestV1AssignmentLevelCode) {
   if (
     level === WorkRequestV1AssignmentLevelCode.CHECKING ||
     level === WorkRequestV1AssignmentLevelCode.APPROVAL ||
-    level === WorkRequestV1AssignmentLevelCode.FINAL_REVIEW
+    level === WorkRequestV1AssignmentLevelCode.FINAL_REVIEW ||
+    level === WorkRequestV1AssignmentLevelCode.EXTERNAL_REVIEW
   )
     return PermissionCode.ASSIGN_REVIEWER;
   return {
@@ -209,7 +210,7 @@ function permissionFor(level: WorkRequestV1AssignmentLevelCode) {
   }[level];
 }
 
-function requiredCapabilities(level: WorkRequestV1AssignmentLevelCode) {
+export function requiredCapabilities(level: WorkRequestV1AssignmentLevelCode) {
   const common = [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.VIEW_DOCUMENT];
   if (level === WorkRequestV1AssignmentLevelCode.MEMBER)
     return [...common, PermissionCode.SUBMIT_WORK_REQUEST];
@@ -227,6 +228,12 @@ function requiredCapabilities(level: WorkRequestV1AssignmentLevelCode) {
       ...common,
       PermissionCode.REQUEST_WORK_REQUEST_REVISION,
       PermissionCode.SUBMIT_FOR_REVIEW,
+    ];
+  if (level === WorkRequestV1AssignmentLevelCode.EXTERNAL_REVIEW)
+    return [
+      ...common,
+      PermissionCode.SUBMIT_FOR_EXTERNAL_REVIEW,
+      PermissionCode.SUBMIT_CLIENT_REVISION,
     ];
   return [];
 }

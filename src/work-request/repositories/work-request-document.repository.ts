@@ -69,4 +69,66 @@ export class WorkRequestDocumentRepository extends BaseRepository {
       });
     });
   }
+
+  /** Exact versions published in submitted client packages; never working history. */
+  externalDocuments(workRequestId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestV1ClientSubmissionItem.findMany({
+        where: { tenantId, submission: { workRequestId } },
+        orderBy: [
+          { submission: { submissionNumber: 'asc' } },
+          { position: 'asc' },
+          { id: 'asc' },
+        ],
+        select: {
+          documentVersion: {
+            select: {
+              id: true,
+              versionNumber: true,
+              revisionCode: true,
+              uploadedFileName: true,
+              generatedFileName: true,
+              mimeType: true,
+              fileSizeBytes: true,
+              uploadedAt: true,
+              document: { select: { id: true } },
+            },
+          },
+        },
+      }),
+    );
+  }
+
+  externalVersions(workRequestId: string, documentId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestV1ClientSubmissionItem.findMany({
+        where: {
+          tenantId,
+          submission: { workRequestId },
+          documentVersion: { document: { id: documentId } },
+        },
+        orderBy: [
+          { submission: { submissionNumber: 'asc' } },
+          { position: 'asc' },
+          { id: 'asc' },
+        ],
+        select: {
+          documentVersion: {
+            select: {
+              id: true,
+              versionNumber: true,
+              revisionCode: true,
+              uploadedFileName: true,
+              generatedFileName: true,
+              mimeType: true,
+              fileSizeBytes: true,
+              uploadedAt: true,
+            },
+          },
+        },
+      }),
+    );
+  }
 }

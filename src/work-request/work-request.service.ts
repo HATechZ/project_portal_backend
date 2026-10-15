@@ -30,7 +30,11 @@ import { DocumentUploadRequestRepository } from '../common/documents/document-up
 import {
   WorkRequestActionDto,
   WorkRequestWorkflowNoteDto,
+  CreateWorkRequestClientSubmissionDto,
+  RouteWorkRequestClientRevisionDto,
+  WorkRequestClientDecisionDto,
 } from './dtos/work-request.dto';
+import { WorkRequestClientSubmissionProvider } from './providers/work-request-client-submission.provider';
 
 export type WorkRequestUploadedFile = {
   originalname: string;
@@ -53,6 +57,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     private readonly assignments: WorkRequestAssignmentProvider,
     private readonly workflow: WorkRequestWorkflowProvider,
     private readonly info: WorkRequestInfoProvider,
+    private readonly clientLifecycle: WorkRequestClientSubmissionProvider,
     @Inject(FILE_STORAGE) storage: FileStorage,
     receipts?: DocumentUploadRequestRepository,
   ) {
@@ -122,4 +127,8 @@ export class WorkRequestService extends WorkRequestServiceBase {
   infoHistory(id: string, actor: SessionActor) {
     return this.info.history(id, actor);
   }
+  submitClientPackage(id: string, input: CreateWorkRequestClientSubmissionDto, actor: SessionActor) { return this.clientLifecycle.submit(id, input, actor); }
+  clientSubmissions(id: string, actor: SessionActor) { return this.clientLifecycle.list(id, actor); }
+  clientDecision(id: string, submissionId: string, input: WorkRequestClientDecisionDto, actor: SessionActor) { return this.clientLifecycle.decide(id, submissionId, input, actor); }
+  routeClientRevision(id: string, input: RouteWorkRequestClientRevisionDto, actor: SessionActor) { return this.clientLifecycle.route(id, input, actor); }
 }

@@ -4,8 +4,12 @@ import {
 } from '../../generated/prisma/client';
 import { WorkRequestInfoProvider } from './work-request-info.provider';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
+import { RequestContext } from '../../common/context/request-context';
 
 describe('WorkRequestInfoProvider', () => {
+  beforeEach(() => {
+    jest.spyOn(RequestContext, 'requireTenantId').mockReturnValue('tenant-a');
+  });
   const actor = (
     permission: WorkflowActionCode,
     customScope: string | null = null,
@@ -13,6 +17,7 @@ describe('WorkRequestInfoProvider', () => {
   ) =>
     ({
       id: 'actor-a',
+      isActive: true,
       boundTeamId,
       role: {
         isSystemRole: customScope === null,
@@ -30,6 +35,7 @@ describe('WorkRequestInfoProvider', () => {
       },
       member: {
         id: 'member-a',
+        companyId: 'company-a',
         isActive: true,
         company: { isActive: true },
         divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
@@ -41,7 +47,8 @@ describe('WorkRequestInfoProvider', () => {
       request: {
         events: [{ resultingState: State.MEMBER_ASSIGNED }],
         assignments: [
-          { level: 'MEMBER', memberId: 'member-a' },
+          { level: 'MEMBER', memberId: 'member-target' },
+          { level: 'CHECKING', memberId: 'member-a' },
         ],
       },
       parent: {
@@ -49,13 +56,17 @@ describe('WorkRequestInfoProvider', () => {
         client: { companyId: 'company-a' },
       },
       target: {
+        id: 'target-a',
+        isActive: true,
         roleId: 'role-a',
         user: {
           isActive: true,
           userRolesByUserId: [{ roleId: 'role-a' }],
         },
         member: {
+          id: 'member-target',
           isActive: true,
+          company: { isActive: true },
           companyId: 'company-a',
           divisionId: targetDivisionId,
           teamMembersByMemberId: [
@@ -66,19 +77,35 @@ describe('WorkRequestInfoProvider', () => {
       },
     }) as never;
 
+  const record = (snapshot: ReturnType<typeof prepared>) => ({
+    id: 'info-a',
+    parentInfoRequestId: null,
+    requestedByActor: { id: 'actor-a', member: { id: 'member-a' }, clientContact: null },
+    targetActor: { id: 'target-a', member: { id: 'member-target' }, clientContact: null },
+    message: 'Clarify.',
+    status: 'OPEN',
+    stateAtRequest: State.MEMBER_ASSIGNED,
+    requestedAt: new Date('2026-10-15T00:00:00.000Z'),
+    closedAt: null,
+    attachments: [],
+    responses: [],
+  });
+
   const subject = (snapshot = prepared()) => {
+    snapshot.info = { requestedByActorId: 'actor-a', targetActorId: 'actor-a' };
     const repository = {
       prepare: jest.fn().mockResolvedValue(snapshot),
-      create: jest.fn().mockResolvedValue({ id: 'info-a' }),
+      create: jest.fn().mockResolvedValue({ request: record(snapshot), duplicate: false }),
       respond: jest.fn().mockResolvedValue({
         kind: 'ok',
-        response: { id: 'response-a' },
+        response: { id: 'response-a', message: 'Response.', respondedAt: new Date('2026-10-15T00:00:00.000Z'), attachments: [] },
       }),
-      history: jest.fn().mockResolvedValue([{ id: 'info-a' }]),
+      history: jest.fn().mockResolvedValue([record(snapshot)]),
     };
     const provider = new WorkRequestInfoProvider(
       repository as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
+      { enqueue: jest.fn() } as never,
     );
     return { provider, repository };
   };
@@ -92,7 +119,14 @@ describe('WorkRequestInfoProvider', () => {
         { targetActorId: 'target-a', message: 'Please clarify the load plan.' },
         actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
       ),
-    ).resolves.toEqual({ id: 'info-a' });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: 'info-a', parentInfoRequestId: null,
+        requester: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' },
+        target: { actorId: 'target-a', type: 'INTERNAL_MEMBER' },
+        status: 'OPEN', stateAtRequest: State.MEMBER_ASSIGNED, attachments: [], responses: [],
+      }),
+    );
 
     expect(repository.create).toHaveBeenCalledTimes(1);
     expect(repository.create).toHaveBeenCalledWith(
@@ -136,13 +170,17 @@ describe('WorkRequestInfoProvider', () => {
         { message: 'The plan is attached to the bid.' },
         actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
       ),
-    ).resolves.toEqual({ id: 'response-a' });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: 'response-a', responder: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' }, attachments: [],
+      }),
+    );
 
     expect(repository.respond).toHaveBeenCalledWith(
       'request-a',
       'info-a',
       'actor-a',
-      'The plan is attached to the bid.',
+      'The plan is attached to the bid.', undefined, undefined, undefined,
     );
     expect(repository.create).not.toHaveBeenCalled();
   });
@@ -181,7 +219,12 @@ describe('WorkRequestInfoProvider', () => {
         'request-a',
         actor(WorkflowActionCode.VIEW_WORK_REQUEST),
       ),
-    ).resolves.toEqual([{ id: 'info-a' }]);
-    expect(repository.history).toHaveBeenCalledWith('request-a');
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 'info-a', requester: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' },
+        target: { actorId: 'target-a', type: 'INTERNAL_MEMBER' }, attachments: [], responses: [],
+      }),
+    ]);
+    expect(repository.history).toHaveBeenCalledWith('request-a', undefined);
   });
 });

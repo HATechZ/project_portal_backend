@@ -20,6 +20,12 @@ Work Request stores `priority` directly as a fixed, required domain value: `Low`
 
 `WorkRequestV1Assignment.level` includes `DIVISION`, `TEAM`, `MEMBER`, `CHECKING`, `APPROVAL`, and `FINAL_REVIEW`. Reviewer levels hold only `memberId`; the active uniqueness rule is one non-replaced/non-unassigned row per request and level. `WorkRequestV1Event.responsibilityLevel` is nullable so historical events remain valid while generic workflow events snapshot the acting responsibility.
 
+## Phase C1 package, client submission, and decisions
+
+`EXTERNAL_REVIEW` is another member-targeted assignment level. V1 client packages use tenant-owned `WorkRequestV1ClientSubmission` rows with unique `(tenantId, workRequestId, submissionNumber)` and immutable `WorkRequestV1ClientSubmissionItem` rows referencing exact tenant-owned `WorkRequestV1DocumentVersion` IDs. A submitted row is never edited; a resubmission is a new numbered row.
+
+`WorkRequestV1ClientDecision` is tenant-owned, references one submission and the Work Request, records `ACCEPT`, `REJECT`, or `REQUEST_REVISION`, external actor/contact evidence, note, timestamp, correlation/idempotency, and is unique per submission. Events may reference the relevant submission/decision while historical events remain nullable. Tenant-qualified FKs, request/item ownership validation, event idempotency, and serializable writes protect cross-resource access and concurrent decisions.
+
 Target assignment rows are tenant-owned UUID records with Work Request, level (`DIVISION`, `TEAM`, or `MEMBER`), exactly one matching Division/Team/Member target, `assignedByActorId`, `assignedAt`, nullable `unassignedAt`/`replacedAt`, and nullable reason/note. Tenant-qualified FKs apply where supported. A CHECK enforces target/level consistency; partial unique indexes permit at most one active target assignment per Work Request and level.
 
 Division assignment requires active same-tenant Division. Team assignment requires active same-tenant Team belonging to the active assigned Division. Member assignment requires active same-tenant Member in that Team’s Division and active TeamMember membership (`leftAt IS NULL`). Reassignment closes then inserts in one serializable UnitOfWork. History answers responsibility at any time; current routing is the active row(s) projection.
@@ -40,4 +46,10 @@ Every owned table carries tenant ownership, TenantContext repository predicates,
 
 ## Document/version read contract
 
+## Phase C2 nested information requests
+
+`WorkRequestV1InfoRequest.parentInfoRequestId` is nullable and self-references the same tenant-qualified table. Root rows are null; child rows must reference a parent of the same Work Request, enforced by repository validation. Existing rows remain roots; no backfill is required. History is deterministic by request time and ID.
+
 `WorkRequestV1DocumentVersion` is the immutable history relation for a `WorkRequestV1Document`. Reads use tenant-qualified document ownership and return chronological `uploadedAt ASC, id ASC` history. Future version creation inserts a new row; it never updates or replaces an historical row.
+
+Information-request and response attachments are immutable tenant-owned joins to exact `WorkRequestV1DocumentVersion` rows. Command validation proves the referenced version belongs to the exact Work Request before insertion. Attachments never follow later versions and external reads expose them only when their containing clarification is participant-visible.

@@ -308,6 +308,11 @@ enum WorkflowActionCode {
   WR_APPROVAL_APPROVE
   WR_REQUEST_REVISION
   WR_FINAL_RELEASE
+  WR_SUBMIT_CLIENT_REVIEW
+  WR_CLIENT_ACCEPT
+  WR_CLIENT_REJECT
+  WR_CLIENT_REQUEST_REVISION
+  WR_ROUTE_CLIENT_REVISION
 
   @@map("workflow_action_code")
 }
@@ -351,6 +356,10 @@ enum WorkRequestV1StateCode {
   APPROVAL_REVIEW
   FINAL_REVIEW
   FINAL_RELEASE
+  CLIENT_REVIEW
+  ACCEPTED
+  REJECTED
+  CLIENT_REVISION_REQUESTED
 
   @@map("work_request_v1_state_code")
 }
@@ -362,8 +371,17 @@ enum WorkRequestV1AssignmentLevelCode {
   CHECKING
   APPROVAL
   FINAL_REVIEW
+  EXTERNAL_REVIEW
 
   @@map("work_request_v1_assignment_level_code")
+}
+
+enum WorkRequestV1ClientDecisionCode {
+  ACCEPT
+  REJECT
+  REQUEST_REVISION
+
+  @@map("work_request_v1_client_decision_code")
 }
 
 enum AttachmentSourceTypeCode {
@@ -570,6 +588,11 @@ model Tenant {
   workRequestV1DocumentClassificationEvents WorkRequestV1DocumentClassificationEvent[]
   workRequestV1InfoRequests                 WorkRequestV1InfoRequest[]
   workRequestV1InfoResponses                WorkRequestV1InfoResponse[]
+  workRequestV1InfoRequestAttachments       WorkRequestV1InfoRequestAttachment[]
+  workRequestV1InfoResponseAttachments      WorkRequestV1InfoResponseAttachment[]
+  workRequestV1ClientSubmissions             WorkRequestV1ClientSubmission[]
+  workRequestV1ClientSubmissionItems         WorkRequestV1ClientSubmissionItem[]
+  workRequestV1ClientDecisions               WorkRequestV1ClientDecision[]
   bidDetails                                BidDetail[]
   projectCredentialDeliveries               ProjectCredentialDelivery[]
   bidOutcomeEvents                          BidOutcomeEvent[]
@@ -779,6 +802,9 @@ model ActorProfile {
   workRequestV1InfoRequestsByRequestedByActorId               WorkRequestV1InfoRequest[]                 @relation("WorkRequestV1InfoRequestsRequestedByActorIdActorProfiles")
   workRequestV1InfoRequestsByTargetActorId                    WorkRequestV1InfoRequest[]                 @relation("WorkRequestV1InfoRequestsTargetActorIdActorProfiles")
   workRequestV1InfoResponsesByRespondedByActorId              WorkRequestV1InfoResponse[]                @relation("WorkRequestV1InfoResponsesRespondedByActorIdActorProfiles")
+  workRequestV1ClientSubmissionsCreated                       WorkRequestV1ClientSubmission[]            @relation("WorkRequestV1ClientSubmissionsCreatedByActorIdActorProfiles")
+  workRequestV1ClientSubmissionsSubmitted                     WorkRequestV1ClientSubmission[]            @relation("WorkRequestV1ClientSubmissionsSubmittedByActorIdActorProfiles")
+  workRequestV1ClientDecisions                                WorkRequestV1ClientDecision[]              @relation("WorkRequestV1ClientDecisionsDecidedByActorIdActorProfiles")
   projectStatusEventsByChangedByActorId                       ProjectStatusEvent[]                       @relation("ProjectStatusEventsChangedByActorIdActorProfiles")
   projectCredentialDeliveriesBySentByActorId                  ProjectCredentialDelivery[]                @relation("ProjectCredentialDeliveriesSentByActorIdActorProfiles")
   bidOutcomeEventsByDecidedByActorId                          BidOutcomeEvent[]                          @relation("BidOutcomeEventsDecidedByActorIdActorProfiles")
@@ -1688,6 +1714,8 @@ model WorkRequestV1 {
   events         WorkRequestV1Event[]       @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1")
   documents      WorkRequestV1Document[]    @relation("WorkRequestV1DocumentsWorkRequestIdWorkRequestsV1")
   infoRequests   WorkRequestV1InfoRequest[] @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1")
+  clientSubmissions WorkRequestV1ClientSubmission[] @relation("WorkRequestV1ClientSubmissionsWorkRequestIdWorkRequestsV1")
+  clientDecisions   WorkRequestV1ClientDecision[]   @relation("WorkRequestV1ClientDecisionsWorkRequestIdWorkRequestsV1")
 
   @@unique([id, tenantId])
   @@index([tenantId, bidId])
@@ -1737,6 +1765,8 @@ model WorkRequestV1Event {
   priorState         WorkRequestV1StateCode? @map("prior_state")
   resultingState     WorkRequestV1StateCode? @map("resulting_state")
   responsibilityLevel WorkRequestV1AssignmentLevelCode? @map("responsibility_level")
+  clientSubmissionId String?                 @map("client_submission_id") @db.Uuid
+  clientDecisionId   String?                 @map("client_decision_id") @db.Uuid
   performedByActorId String                  @map("performed_by_actor_id") @db.Uuid
   occurredAt         DateTime                @default(now()) @map("occurred_at") @db.Timestamp(6)
   note               String?                 @map("note") @db.Text
@@ -1746,10 +1776,14 @@ model WorkRequestV1Event {
   tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   workRequest      WorkRequestV1 @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   performedByActor ActorProfile  @relation("WorkRequestV1EventsPerformedByActorIdActorProfiles", fields: [performedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  clientSubmission WorkRequestV1ClientSubmission? @relation("WorkRequestV1EventsClientSubmissionIdWorkRequestV1ClientSubmissions", fields: [clientSubmissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  clientDecision   WorkRequestV1ClientDecision?   @relation("WorkRequestV1EventsClientDecisionIdWorkRequestV1ClientDecisions", fields: [clientDecisionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([id, tenantId])
   @@unique([tenantId, idempotencyKey])
   @@index([workRequestId, occurredAt(sort: Desc), id(sort: Desc)])
+  @@index([clientSubmissionId, tenantId])
+  @@index([clientDecisionId, tenantId])
   @@map("work_request_v1_events")
 }
 
@@ -1801,6 +1835,9 @@ model WorkRequestV1DocumentVersion {
   tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   document        WorkRequestV1Document @relation("WorkRequestV1DocumentVersionsWorkRequestV1DocumentIdWorkRequestV1Documents", fields: [workRequestV1DocumentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   uploadedByActor ActorProfile          @relation("WorkRequestV1DocumentVersionsUploadedByActorIdActorProfiles", fields: [uploadedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  clientSubmissionItems      WorkRequestV1ClientSubmissionItem[]      @relation("WorkRequestV1ClientSubmissionItemsDocumentVersionIdWorkRequestV1DocumentVersions")
+  infoRequestAttachments     WorkRequestV1InfoRequestAttachment[]    @relation("WorkRequestV1InfoRequestAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions")
+  infoResponseAttachments    WorkRequestV1InfoResponseAttachment[]   @relation("WorkRequestV1InfoResponseAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions")
 
   @@unique([id, tenantId])
   @@unique([tenantId, workRequestV1DocumentId, versionNumber])
@@ -1835,6 +1872,7 @@ model WorkRequestV1InfoRequest {
   tenantId           String                 @map("tenant_id") @db.Uuid
   id                 String                 @id @map("id") @db.Uuid
   workRequestId      String                 @map("work_request_id") @db.Uuid
+  parentInfoRequestId String?               @map("parent_info_request_id") @db.Uuid
   requestedByActorId String                 @map("requested_by_actor_id") @db.Uuid
   targetActorId      String                 @map("target_actor_id") @db.Uuid
   message            String                 @map("message") @db.Text
@@ -1842,15 +1880,22 @@ model WorkRequestV1InfoRequest {
   status             InfoRequestStatusCode  @default(OPEN) @map("status")
   requestedAt        DateTime               @default(now()) @map("requested_at") @db.Timestamp(6)
   closedAt           DateTime?              @map("closed_at") @db.Timestamp(6)
+  correlationId      String?                @map("correlation_id") @db.Uuid
+  idempotencyKey     String?                @map("idempotency_key") @db.VarChar(160)
 
   tenant           Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   workRequest      WorkRequestV1               @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  parentInfoRequest WorkRequestV1InfoRequest? @relation("WorkRequestV1InfoRequestParent", fields: [parentInfoRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  childInfoRequests WorkRequestV1InfoRequest[] @relation("WorkRequestV1InfoRequestParent")
   requestedByActor ActorProfile                @relation("WorkRequestV1InfoRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   targetActor      ActorProfile                @relation("WorkRequestV1InfoRequestsTargetActorIdActorProfiles", fields: [targetActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   responses        WorkRequestV1InfoResponse[] @relation("WorkRequestV1InfoResponsesInfoRequestIdWorkRequestV1InfoRequests")
+  attachments      WorkRequestV1InfoRequestAttachment[] @relation("WorkRequestV1InfoRequestAttachmentsInfoRequestIdWorkRequestV1InfoRequests")
 
   @@unique([id, tenantId])
+  @@unique([tenantId, idempotencyKey])
   @@index([workRequestId, requestedAt])
+  @@index([parentInfoRequestId, tenantId])
   @@index([targetActorId, status])
   @@map("work_request_v1_info_requests")
 }
@@ -1862,14 +1907,134 @@ model WorkRequestV1InfoResponse {
   respondedByActorId String   @map("responded_by_actor_id") @db.Uuid
   message            String   @map("message") @db.Text
   respondedAt        DateTime @default(now()) @map("responded_at") @db.Timestamp(6)
+  correlationId      String?  @map("correlation_id") @db.Uuid
+  idempotencyKey     String?  @map("idempotency_key") @db.VarChar(160)
 
   tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   infoRequest      WorkRequestV1InfoRequest @relation("WorkRequestV1InfoResponsesInfoRequestIdWorkRequestV1InfoRequests", fields: [infoRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   respondedByActor ActorProfile             @relation("WorkRequestV1InfoResponsesRespondedByActorIdActorProfiles", fields: [respondedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  attachments      WorkRequestV1InfoResponseAttachment[] @relation("WorkRequestV1InfoResponseAttachmentsInfoResponseIdWorkRequestV1InfoResponses")
 
   @@unique([id, tenantId])
+  @@unique([tenantId, idempotencyKey])
   @@index([infoRequestId, respondedAt])
   @@map("work_request_v1_info_responses")
+}
+
+/// Immutable document-version snapshot references attached to a clarification
+/// request. Command validation proves that the version belongs to the request's
+/// exact Work Request; this row preserves that historical version thereafter.
+model WorkRequestV1InfoRequestAttachment {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  infoRequestId     String   @map("info_request_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant          Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  infoRequest     WorkRequestV1InfoRequest     @relation("WorkRequestV1InfoRequestAttachmentsInfoRequestIdWorkRequestV1InfoRequests", fields: [infoRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentVersion WorkRequestV1DocumentVersion @relation("WorkRequestV1InfoRequestAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions", fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, infoRequestId, documentVersionId])
+  @@index([documentVersionId, tenantId])
+  @@map("work_request_v1_info_request_attachments")
+}
+
+/// Immutable document-version snapshot references attached to a clarification
+/// response. Command validation proves the version belongs to the addressed
+/// request's exact Work Request before this row is inserted.
+model WorkRequestV1InfoResponseAttachment {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  infoResponseId    String   @map("info_response_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant          Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  infoResponse    WorkRequestV1InfoResponse    @relation("WorkRequestV1InfoResponseAttachmentsInfoResponseIdWorkRequestV1InfoResponses", fields: [infoResponseId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentVersion WorkRequestV1DocumentVersion @relation("WorkRequestV1InfoResponseAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions", fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, infoResponseId, documentVersionId])
+  @@index([documentVersionId, tenantId])
+  @@map("work_request_v1_info_response_attachments")
+}
+
+/// Immutable package submitted for external/client review. A resubmission is a
+/// new numbered row rather than an update to an existing package.
+model WorkRequestV1ClientSubmission {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  id                 String   @id @map("id") @db.Uuid
+  workRequestId      String   @map("work_request_id") @db.Uuid
+  submissionNumber   Int      @map("submission_number")
+  createdByActorId   String   @map("created_by_actor_id") @db.Uuid
+  submittedByActorId String   @map("submitted_by_actor_id") @db.Uuid
+  submittedAt        DateTime @default(now()) @map("submitted_at") @db.Timestamp(6)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  correlationId      String?  @map("correlation_id") @db.Uuid
+  idempotencyKey     String?  @map("idempotency_key") @db.VarChar(160)
+
+  tenant           Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  workRequest      WorkRequestV1                       @relation("WorkRequestV1ClientSubmissionsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  createdByActor   ActorProfile                        @relation("WorkRequestV1ClientSubmissionsCreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  submittedByActor ActorProfile                        @relation("WorkRequestV1ClientSubmissionsSubmittedByActorIdActorProfiles", fields: [submittedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  items            WorkRequestV1ClientSubmissionItem[] @relation("WorkRequestV1ClientSubmissionItemsSubmissionIdWorkRequestV1ClientSubmissions")
+  decision         WorkRequestV1ClientDecision?        @relation("WorkRequestV1ClientDecisionsSubmissionIdWorkRequestV1ClientSubmissions")
+  events           WorkRequestV1Event[]                @relation("WorkRequestV1EventsClientSubmissionIdWorkRequestV1ClientSubmissions")
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, workRequestId, submissionNumber], map: "work_request_v1_client_submissions_tenant_request_number_key")
+  @@unique([tenantId, idempotencyKey], map: "work_request_v1_client_submissions_tenant_idempotency_key_key")
+  @@index([workRequestId, submittedAt])
+  @@map("work_request_v1_client_submissions")
+}
+
+/// Immutable item membership for a submitted client package.
+model WorkRequestV1ClientSubmissionItem {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  submissionId      String   @map("submission_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  position          Int      @map("position")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant          Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  submission      WorkRequestV1ClientSubmission @relation("WorkRequestV1ClientSubmissionItemsSubmissionIdWorkRequestV1ClientSubmissions", fields: [submissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentVersion WorkRequestV1DocumentVersion @relation("WorkRequestV1ClientSubmissionItemsDocumentVersionIdWorkRequestV1DocumentVersions", fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, submissionId, position], map: "work_request_v1_client_submission_items_submission_position_key")
+  @@unique([tenantId, submissionId, documentVersionId], map: "work_request_v1_client_submission_items_sub_doc_ver_key")
+  @@index([documentVersionId, tenantId])
+  @@map("work_request_v1_client_submission_items")
+}
+
+/// One immutable external/client decision per submitted package.
+model WorkRequestV1ClientDecision {
+  tenantId         String                          @map("tenant_id") @db.Uuid
+  id               String                          @id @map("id") @db.Uuid
+  workRequestId    String                          @map("work_request_id") @db.Uuid
+  submissionId     String                          @map("submission_id") @db.Uuid
+  decision         WorkRequestV1ClientDecisionCode @map("decision")
+  decidedByActorId String                          @map("decided_by_actor_id") @db.Uuid
+  note             String?                         @map("note") @db.Text
+  decidedAt        DateTime                        @default(now()) @map("decided_at") @db.Timestamp(6)
+  correlationId    String?                         @map("correlation_id") @db.Uuid
+  idempotencyKey   String?                         @map("idempotency_key") @db.VarChar(160)
+  createdAt        DateTime                        @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant         Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  workRequest    WorkRequestV1                @relation("WorkRequestV1ClientDecisionsWorkRequestIdWorkRequestsV1", fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  submission     WorkRequestV1ClientSubmission @relation("WorkRequestV1ClientDecisionsSubmissionIdWorkRequestV1ClientSubmissions", fields: [submissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  decidedByActor ActorProfile                 @relation("WorkRequestV1ClientDecisionsDecidedByActorIdActorProfiles", fields: [decidedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  events         WorkRequestV1Event[]         @relation("WorkRequestV1EventsClientDecisionIdWorkRequestV1ClientDecisions")
+
+  @@unique([id, tenantId])
+  @@unique([submissionId, tenantId], map: "work_request_v1_client_decisions_tenant_submission_key")
+  @@unique([tenantId, idempotencyKey], map: "work_request_v1_client_decisions_tenant_idempotency_key_key")
+  @@index([workRequestId, decidedAt])
+  @@map("work_request_v1_client_decisions")
 }
 
 model BusinessNameClaim {

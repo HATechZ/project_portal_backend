@@ -54,7 +54,8 @@ export function canAccessWorkRequest(
         active(assignment, Level.MEMBER) ||
         active(assignment, Level.CHECKING) ||
         active(assignment, Level.APPROVAL) ||
-        active(assignment, Level.FINAL_REVIEW)
+        active(assignment, Level.FINAL_REVIEW) ||
+        active(assignment, Level.EXTERNAL_REVIEW)
           ? assignment.memberId === member.id
           : false,
     )
@@ -114,7 +115,7 @@ function activeAssignmentMember(memberId: string): Prisma.WorkRequestV1WhereInpu
   return {
     assignments: {
       some: {
-        level: { in: [Level.MEMBER, Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW] },
+        level: { in: [Level.MEMBER, Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW, Level.EXTERNAL_REVIEW] },
         memberId,
         unassignedAt: null,
         replacedAt: null,

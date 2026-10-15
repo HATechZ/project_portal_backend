@@ -22,6 +22,9 @@ import { WorkRequestWorkflowRepository } from './repositories/work-request-workf
 import { WorkRequestInfoController } from './work-request-info.controller';
 import { WorkRequestInfoRepository } from './repositories/work-request-info.repository';
 import { WorkRequestInfoProvider } from './providers/work-request-info.provider';
+import { WorkRequestClientSubmissionController } from './work-request-client-submission.controller';
+import { WorkRequestClientSubmissionRepository } from './repositories/work-request-client-submission.repository';
+import { WorkRequestClientSubmissionProvider } from './providers/work-request-client-submission.provider';
 import { DocumentUploadRequestRepository } from '../common/documents/document-upload-request.repository';
 @Module({
   controllers: [
@@ -31,6 +34,7 @@ import { DocumentUploadRequestRepository } from '../common/documents/document-up
     WorkRequestAssignmentController,
     WorkRequestWorkflowController,
     WorkRequestInfoController,
+    WorkRequestClientSubmissionController,
   ],
   providers: [
     WorkRequestService,
@@ -50,6 +54,8 @@ import { DocumentUploadRequestRepository } from '../common/documents/document-up
     WorkRequestWorkflowProvider,
     WorkRequestInfoRepository,
     WorkRequestInfoProvider,
+    WorkRequestClientSubmissionRepository,
+    WorkRequestClientSubmissionProvider,
     DocumentUploadRequestRepository,
   ],
 })

@@ -40,4 +40,17 @@ export class WorkRequestReadRepository extends BaseRepository {
       }),
     );
   }
+  findForClient(id: string, clientId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestV1.findFirst({
+        where: {
+          id,
+          tenantId,
+          OR: [{ bid: { is: { clientId } } }, { directProject: { is: { clientId } } }],
+        },
+        select: workRequestSelect,
+      }),
+    );
+  }
 }

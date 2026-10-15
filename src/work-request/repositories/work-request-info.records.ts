@@ -1,5 +1,26 @@
 import { Prisma } from '../../generated/prisma/client';
 
+const participantSelect = {
+  id: true,
+  isActive: true,
+  member: {
+    select: {
+      id: true,
+      companyId: true,
+      isActive: true,
+      company: { select: { isActive: true } },
+    },
+  },
+  clientContact: {
+    select: {
+      id: true,
+      clientId: true,
+      isActive: true,
+      client: { select: { isActive: true } },
+    },
+  },
+} satisfies Prisma.ActorProfileSelect;
+
 export const workRequestInfoSelect = {
   id: true,
   bid: { select: { clientId: true, client: { select: { companyId: true } } } },
@@ -23,41 +44,7 @@ export const workRequestInfoSelect = {
   },
 } satisfies Prisma.WorkRequestV1Select;
 
-export const workRequestInfoTargetSelect = (tenantId: string) =>
-  ({
-    id: true,
-    roleId: true,
-    user: {
-      select: {
-        isActive: true,
-        userRolesByUserId: {
-          where: { tenantId, revokedAt: null },
-          select: { roleId: true },
-        },
-      },
-    },
-    member: {
-      select: {
-        companyId: true,
-        divisionId: true,
-        isActive: true,
-        teamMembersByMemberId: {
-          where: { tenantId, leftAt: null },
-          select: {
-            teamId: true,
-            team: { select: { isActive: true } },
-          },
-        },
-      },
-    },
-    clientContact: {
-      select: {
-        clientId: true,
-        isActive: true,
-        client: { select: { isActive: true } },
-      },
-    },
-  }) satisfies Prisma.ActorProfileSelect;
+export const workRequestInfoTargetSelect = () => participantSelect;
 
 type WorkRequestInfoRecord = Prisma.WorkRequestV1GetPayload<{
   select: typeof workRequestInfoSelect;
@@ -73,24 +60,28 @@ export type WorkRequestInfoSnapshot = {
   request: WorkRequestInfoRecord;
   target: WorkRequestInfoTarget | null;
   parent: WorkRequestInfoParent | null;
+  info: { requestedByActorId: string; targetActorId: string } | null;
 };
 
 export const workRequestInfoHistorySelect = {
   id: true,
-  requestedByActorId: true,
-  targetActorId: true,
+  parentInfoRequestId: true,
+  requestedByActor: { select: participantSelect },
+  targetActor: { select: participantSelect },
   message: true,
   status: true,
   stateAtRequest: true,
   requestedAt: true,
   closedAt: true,
+  attachments: { select: { documentVersionId: true } },
   responses: {
     orderBy: [{ respondedAt: 'asc' }, { id: 'asc' }],
     select: {
       id: true,
-      respondedByActorId: true,
+      respondedByActor: { select: participantSelect },
       message: true,
       respondedAt: true,
+      attachments: { select: { documentVersionId: true } },
     },
   },
 } satisfies Prisma.WorkRequestV1InfoRequestSelect;

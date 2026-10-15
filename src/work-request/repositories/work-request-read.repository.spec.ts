@@ -3,6 +3,10 @@ import { Prisma } from '../../generated/prisma/client';
 import { WorkRequestReadRepository } from './work-request-read.repository';
 
 describe('WorkRequestReadRepository', () => {
+  const companyActor = {
+    role: { customScope: 'company', systemRole: null },
+    member: null,
+  } as never;
   it('lists every Work Request in the active tenant without role-derived filtering', async () => {
     const findMany = jest
       .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
@@ -15,7 +19,7 @@ describe('WorkRequestReadRepository', () => {
     const tenantId = '00000000-0000-4000-8000-000000000001';
 
     await RequestContext.run({ tenantId } as never, () =>
-      repository.list(0, 20),
+      repository.list(0, 20, companyActor),
     );
 
     expect(findMany).toHaveBeenCalledWith(
@@ -27,7 +31,7 @@ describe('WorkRequestReadRepository', () => {
     );
   });
 
-  it('does not derive a list filter from a Team label or scope', async () => {
+  it('uses explicit company object scope without a role-name fallback', async () => {
     let receivedArgs: Prisma.WorkRequestV1FindManyArgs | undefined;
     const findMany = jest
       .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
@@ -41,13 +45,13 @@ describe('WorkRequestReadRepository', () => {
     } as never);
 
     await RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
-      repository.list(0, 20),
+      repository.list(0, 20, companyActor),
     );
 
     expect(receivedArgs?.where).toEqual({ tenantId: 'tenant-a' });
   });
 
-  it('does not derive a list filter from a Division label or scope', async () => {
+  it('keeps tenant isolation for an explicitly scoped actor', async () => {
     let receivedArgs: Prisma.WorkRequestV1FindManyArgs | undefined;
     const findMany = jest
       .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
@@ -61,7 +65,7 @@ describe('WorkRequestReadRepository', () => {
     } as never);
 
     await RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
-      repository.list(0, 20),
+      repository.list(0, 20, companyActor),
     );
 
     expect(receivedArgs?.where).toEqual({ tenantId: 'tenant-a' });

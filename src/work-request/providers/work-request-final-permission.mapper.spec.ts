@@ -15,9 +15,9 @@ describe('Work Request final permission mapping', () => {
       [WorkflowActionCode.WR_ASSIGN_DIVISION]:
         PermissionCode.ASSIGN_WORK_REQUEST_DIVISION,
       [WorkflowActionCode.WR_SUBMIT]: PermissionCode.SUBMIT_WORK_REQUEST,
-      [WorkflowActionCode.WR_TEAM_LEAD_APPROVE]:
+      [WorkflowActionCode.WR_CHECKING_APPROVE]:
         PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
-      [WorkflowActionCode.WR_DIVISION_HEAD_REQUEST_REVISION]:
+      [WorkflowActionCode.WR_REQUEST_REVISION]:
         PermissionCode.REQUEST_WORK_REQUEST_REVISION,
       [WorkflowActionCode.REQUEST_WORKFLOW_INFO]: PermissionCode.REQUEST_INFO,
       [WorkflowActionCode.RESPOND_WORKFLOW_INFO]:

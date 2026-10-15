@@ -437,23 +437,34 @@ export abstract class WorkRequestServiceBase {
     );
   }
   async documents(id: string, actor: SessionActor) {
-    const record = await this.reads.find(id, actor);
+    const external = isExternalClientActor(actor);
+    const record = external
+      ? await this.reads.findForClient(id, actor.clientContact?.clientId ?? '')
+      : await this.reads.find(id, actor);
     if (!record) throw notFound();
     assertWorkRequestExternalClientAccess(
       actor,
       record.bid ?? record.directProject,
     );
-    return this.history.list(id);
+    return external ? this.history.externalList(id) : this.history.list(id);
   }
   async documentVersions(id: string, documentId: string, actor: SessionActor) {
-    const record = await this.reads.find(id, actor);
+    const external = isExternalClientActor(actor);
+    const record = external
+      ? await this.reads.findForClient(id, actor.clientContact?.clientId ?? '')
+      : await this.reads.find(id, actor);
     if (!record) throw notFound();
     assertWorkRequestExternalClientAccess(
       actor,
       record.bid ?? record.directProject,
     );
-    return this.history.versions(id, documentId);
+    return external
+      ? this.history.externalVersions(id, documentId)
+      : this.history.versions(id, documentId);
   }
+}
+function isExternalClientActor(actor: SessionActor) {
+  return actor.role.customScope === 'client' || actor.role.customScope === 'client_contact';
 }
 function documentSummary(
   parentId: string,

@@ -17,6 +17,18 @@ The current V1 workflow is organization-neutral. `MEMBER` is the preparation res
 
 Preparation is assigned with `ASSIGN_WORK_REQUEST_MEMBER`; each reviewer responsibility is assigned with `ASSIGN_REVIEWER`. Assignment checks active same-company Member status and mandatory effective capabilities (including document view where package access is required), records temporal replacement history, and permits one active assignment per responsibility. Request/response information is a side workflow: it never changes the main state or restores a prior assignee. Responsibility-driven events retain a nullable responsibility-level snapshot.
 
+## Phase C1 — client-facing lifecycle
+
+`EXTERNAL_REVIEW` is an internal member responsibility, never a role or department. It is assigned through `ASSIGN_REVIEWER`, one active assignment per request, and requires effective `VIEW_WORK_REQUEST`, `VIEW_DOCUMENT`, `SUBMIT_FOR_EXTERNAL_REVIEW`, and `SUBMIT_CLIENT_REVISION`. No title, organization hierarchy, or role identity authorizes it.
+
+From `FINAL_RELEASE`, the exact EXTERNAL_REVIEW assignee selects one or more eligible V1 document-version IDs and submits an immutable client package with `SUBMIT_FOR_EXTERNAL_REVIEW`, producing `CLIENT_REVIEW`. Every submitted package is a numbered round; its items are immutable exact version references. A later internal version never changes a historical package. After client revision, resubmission uses `SUBMIT_CLIENT_REVISION` and creates a new round.
+
+Only an active external ClientContact linked to the request parent's Client, with the relevant external capability, may decide the latest submitted package: accept (`ACCEPT_FINAL_DELIVERY` → `ACCEPTED`), reject (`REJECT_FINAL_DELIVERY` → `REJECTED`), or request revision (`REQUEST_REVISION` → `CLIENT_REVISION_REQUESTED`). Tenant match alone is insufficient. External reads expose only the approved package snapshot and client-visible decision data, never working documents, assignments, or internal notes.
+
+Client revision routing is internal: the exact EXTERNAL_REVIEW assignee with `ROUTE_FOR_REVIEW` chooses an already-active destination responsibility (`MEMBER`, `CHECKING`, `APPROVAL`, or `FINAL_REVIEW`) and its corresponding generic state. It never creates assignments or routes by department/team/title. Submission, decision, and routing writes are serializable/idempotent, append audit events with submission/decision context, and publish after persistence.
+
+Phase C1 excludes parent completion/business-decision gating, Bid-to-Project conversion, archive/reopen, and nested information requests. Clarification remains unchanged; it is not expanded for client-review states in C1.
+
 The current `work_requests`, generic `documents`, category, attachment-category, project-only parent, mutable assignment columns, and legacy workflow structures are legacy persistence. They are not the V1 structural contract. This spec makes no runtime, Prisma, migration, seed, RLS, grant, or permission change.
 
 ## Business rules
@@ -108,5 +120,13 @@ Division reassignment is allowed only while the request is `DIVISION_ASSIGNED`; 
 After `DIVISION_HEAD_APPROVED`, Module 10 has completed its internal-review milestone and stops. It records the approval event/audit history and publishes its completion fact; it does not route to PM, TMS, CCR, or a named Division/Team. A future configured workflow resolver consumes that completion fact and determines the next stage.
 
 ## OWNER DECISION REQUIRED
+
+## Phase C2 nested clarification
+
+Information requests are an append-only side workflow. A root has no parent; a child references an earlier request on the same Work Request. Main state is unchanged, child response closes only the child, and nesting is arbitrary. Requests are allowed through `CLIENT_REVISION_REQUESTED` including `FINAL_RELEASE` and `CLIENT_REVIEW`, but not `ACCEPTED`/`REJECTED`.
+
+Internal participants are active same-tenant Members with an active request responsibility. External participants are active ClientContacts linked to the exact parent Client in visible review context. Permission, compatible scope, exact relationship, exact target, and open status are required; no role/title/organization label authorizes access. A child requester must be the parent requester or target. Reassignment never retargets history. Writes are idempotent and transactional; notifications go to the exact target/requester via outbox.
+
+`REQUEST_INFO` is compatible with `client` and `client_contact` scopes solely so a granted external ClientContact may initiate a C2 clarification. Compatibility never grants access: active contact, exact parent Client, externally visible lifecycle context, valid participant target, and request state remain mandatory.
 
 No unresolved owner decision blocks the Module 10 V1 contract. Creation is eligible only for Bid `BIDDING` and Direct Project `ACTIVE`. Files require positional `documentCodeIds[]`, with no unclassified or partial mapping.

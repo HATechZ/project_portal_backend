@@ -23,6 +23,7 @@ export class WorkRequestInfoRepository extends BaseRepository {
   async prepare(
     workRequestId: string,
     targetActorId?: string,
+    infoRequestId?: string,
   ): Promise<WorkRequestInfoSnapshot | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -34,11 +35,17 @@ export class WorkRequestInfoRepository extends BaseRepository {
       const target = targetActorId
         ? await db.actorProfile.findFirst({
             where: { id: targetActorId, tenantId, isActive: true },
-            select: workRequestInfoTargetSelect(tenantId),
+            select: workRequestInfoTargetSelect(),
+          })
+        : null;
+      const info = infoRequestId
+        ? await db.workRequestV1InfoRequest.findFirst({
+            where: { id: infoRequestId, tenantId, workRequestId },
+            select: { requestedByActorId: true, targetActorId: true },
           })
         : null;
       const parent = request.bid ?? request.directProject;
-      return { request, target, parent };
+      return { request, target, parent, info };
     });
   }
 
@@ -48,10 +55,26 @@ export class WorkRequestInfoRepository extends BaseRepository {
     targetActorId: string;
     message: string;
     stateAtRequest: WorkRequestV1StateCode;
+    parentInfoRequestId?: string;
+    documentVersionIds?: string[];
+    idempotencyKey?: string;
+    correlationId?: string;
   }) {
     const tenantId = RequestContext.requireTenantId();
-    return this.transaction((db) =>
-      db.workRequestV1InfoRequest.create({
+    return this.transaction(async (db) => {
+      if (input.parentInfoRequestId) {
+        const parent = await db.workRequestV1InfoRequest.findFirst({ where: { id: input.parentInfoRequestId, tenantId, workRequestId: input.workRequestId, status: InfoRequestStatusCode.OPEN }, select: { requestedByActorId: true, targetActorId: true } });
+        if (!parent) throw new Error('INFO_PARENT');
+        if (input.requestedByActorId !== parent.requestedByActorId && input.requestedByActorId !== parent.targetActorId) throw new Error('INFO_PARENT_PARTICIPANT');
+      }
+      const existing = input.idempotencyKey
+        ? await db.workRequestV1InfoRequest.findFirst({
+            where: { tenantId, idempotencyKey: input.idempotencyKey },
+            select: workRequestInfoHistorySelect,
+          })
+        : null;
+      if (existing) return { request: existing, duplicate: true };
+      const request = await db.workRequestV1InfoRequest.create({
         data: {
           id: randomUUID(),
           tenantId,
@@ -60,10 +83,21 @@ export class WorkRequestInfoRepository extends BaseRepository {
           targetActorId: input.targetActorId,
           message: input.message,
           stateAtRequest: input.stateAtRequest,
+          parentInfoRequestId: input.parentInfoRequestId,
+          idempotencyKey: input.idempotencyKey,
+          correlationId: input.correlationId,
+          attachments: {
+            create: (input.documentVersionIds ?? []).map((documentVersionId) => ({
+              id: randomUUID(),
+              tenantId,
+              documentVersionId,
+            })),
+          },
         },
         select: workRequestInfoHistorySelect,
-      }),
-    );
+      });
+      return { request, duplicate: false };
+    });
   }
 
   async respond(
@@ -71,9 +105,19 @@ export class WorkRequestInfoRepository extends BaseRepository {
     infoRequestId: string,
     actorId: string,
     message: string,
+    documentVersionIds?: string[],
+    idempotencyKey?: string,
+    correlationId?: string,
   ) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
+      const existing = idempotencyKey
+        ? await db.workRequestV1InfoResponse.findFirst({
+            where: { tenantId, idempotencyKey },
+            select: { id: true, respondedByActorId: true, message: true, respondedAt: true, attachments: { select: { documentVersionId: true } } },
+          })
+        : null;
+      if (existing) return { kind: 'duplicate' as const, response: existing };
       const request = await db.workRequestV1InfoRequest.findFirst({
         where: { id: infoRequestId, workRequestId, tenantId },
         select: { targetActorId: true, status: true },
@@ -101,26 +145,53 @@ export class WorkRequestInfoRepository extends BaseRepository {
             respondedByActorId: actorId,
             message,
             respondedAt: at,
+            idempotencyKey,
+            correlationId,
+            attachments: {
+              create: (documentVersionIds ?? []).map((documentVersionId) => ({
+                id: randomUUID(),
+                tenantId,
+                documentVersionId,
+              })),
+            },
           },
           select: {
             id: true,
             respondedByActorId: true,
             message: true,
             respondedAt: true,
+            attachments: { select: { documentVersionId: true } },
           },
         }),
       };
     });
   }
 
-  history(workRequestId: string) {
+  history(workRequestId: string, participantActorId?: string) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.workRequestV1InfoRequest.findMany({
-        where: { tenantId, workRequestId },
+        where: {
+          tenantId,
+          workRequestId,
+          ...(participantActorId
+            ? { OR: [{ requestedByActorId: participantActorId }, { targetActorId: participantActorId }] }
+            : {}),
+        },
         orderBy: [{ requestedAt: 'asc' }, { id: 'asc' }],
         select: workRequestInfoHistorySelect,
       }),
     );
+  }
+
+  async hasDocumentVersions(workRequestId: string, ids: string[]) {
+    const tenantId = RequestContext.requireTenantId();
+    const versions = await this.transaction((db) =>
+      db.workRequestV1DocumentVersion.findMany({
+        where: { tenantId, id: { in: ids }, document: { workRequestId } },
+        select: { id: true },
+      }),
+    );
+    return versions.length === ids.length;
   }
 }

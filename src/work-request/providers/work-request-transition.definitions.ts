@@ -114,7 +114,8 @@ export function assignmentTransitionFor(
   if (
     level === Level.CHECKING ||
     level === Level.APPROVAL ||
-    level === Level.FINAL_REVIEW
+    level === Level.FINAL_REVIEW ||
+    level === Level.EXTERNAL_REVIEW
   ) {
     if (
       !state ||
@@ -142,7 +143,10 @@ const REVIEWER_ASSIGNMENT_STATES = [
   State.MEMBER_ASSIGNED,
   State.CHECKING_REVIEW,
   State.APPROVAL_REVIEW,
-  State.FINAL_REVIEW,
+        State.FINAL_REVIEW,
+        State.FINAL_RELEASE,
+        State.CLIENT_REVIEW,
+        State.CLIENT_REVISION_REQUESTED,
 ] as const;
 
 export function workRequestTransitionRequestMetadata() {
