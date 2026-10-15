@@ -39,7 +39,11 @@ export class RolePermissionMutationProvider {
     this.assertUniquePermissionIds(input.permissionIds);
     const role = await this.requireRole(id);
     const protectedStarter = starterRole(role.customCode ?? '');
-    if (protectedStarter && input.scope && input.scope !== protectedStarter.scope)
+    if (
+      protectedStarter &&
+      input.scope &&
+      input.scope !== protectedStarter.scope
+    )
       throw new AppException({
         code: AppErrorCode.Conflict,
         status: HttpStatus.CONFLICT,

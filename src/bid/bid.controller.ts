@@ -258,7 +258,10 @@ const response = await fetch('/api/v1/bids', {
   @ApiOperation({ summary: 'List Bid documents' })
   @ApiStandardArrayResponse(DocumentSummaryDto, 'Bid documents returned')
   @ResponseMessage('Bid documents returned successfully')
-  documents(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  documents(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.documents(id, actor);
   }
 
@@ -283,7 +286,10 @@ const response = await fetch('/api/v1/bids', {
   @ApiOperation({ summary: 'Get All Bids' })
   @ResponseMessage('Bids returned successfully')
   @ApiPaginatedResponse(BidResponseDto)
-  findAll(@Query() query: PaginationQueryDto, @ActiveActor() actor: SessionActor) {
+  findAll(
+    @Query() query: PaginationQueryDto,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.findAll(query, actor);
   }
 
@@ -292,7 +298,10 @@ const response = await fetch('/api/v1/bids', {
   @ApiOperation({ summary: 'Get Bid by ID' })
   @ResponseMessage('Bid returned successfully')
   @ApiStandardOkResponse(BidResponseDto, 'Bid returned')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.findOne(id, actor);
   }
 

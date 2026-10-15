@@ -52,7 +52,9 @@ export class WorkRequestActionsProvider {
         assignment.divisionId ?? assignment.teamId ?? assignment.memberId,
       ]),
     );
-    const canDivision = hasActionPermission(WorkflowActionCode.WR_ASSIGN_DIVISION);
+    const canDivision = hasActionPermission(
+      WorkflowActionCode.WR_ASSIGN_DIVISION,
+    );
     const canTeam =
       hasActionPermission(WorkflowActionCode.WR_ASSIGN_TEAM) &&
       active.DIVISION !== undefined;

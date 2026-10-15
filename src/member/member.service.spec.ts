@@ -30,13 +30,16 @@ describe('MemberService', () => {
       passwordHasher as never,
       {} as never,
     );
-    await service.create({
-      name: 'Member',
-      email: 'member@example.test',
-      password: 'secret123',
-      divisionId: 'division-1',
-      designationId: 'designation-1',
-    }, 'creator-user-id');
+    await service.create(
+      {
+        name: 'Member',
+        email: 'member@example.test',
+        password: 'secret123',
+        divisionId: 'division-1',
+        designationId: 'designation-1',
+      },
+      'creator-user-id',
+    );
     expect(passwordHasher.hash).toHaveBeenCalledWith('secret123');
     expect(onboarding.createWithAccess).toHaveBeenCalledWith(
       'company-1',

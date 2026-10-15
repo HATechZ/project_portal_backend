@@ -235,7 +235,10 @@ const response = await fetch('/api/v1/projects', {
   @ApiOperation({ summary: 'List Project documents' })
   @ApiStandardArrayResponse(DocumentSummaryDto, 'Project documents returned')
   @ResponseMessage('Project documents returned successfully')
-  documents(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  documents(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.documents(id, actor);
   }
   @Get(':id/documents/:documentId/versions')
@@ -267,7 +270,10 @@ const response = await fetch('/api/v1/projects', {
   @ApiParam({ name: 'id', format: 'uuid', description: 'Project ID' })
   @ResponseMessage('Project returned successfully')
   @ApiStandardOkResponse(ProjectResponseDto, 'Project returned')
-  one(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  one(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.findOne(id, actor);
   }
   @Patch(':id')

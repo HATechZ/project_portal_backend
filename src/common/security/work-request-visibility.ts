@@ -27,13 +27,25 @@ export function workRequestVisibilityWhere(
         ({ divisionId }) => divisionId,
       );
       return divisionIds.length
-        ? { OR: [responsibility, activeAssignment(Level.DIVISION, { divisionId: { in: divisionIds } })] }
+        ? {
+            OR: [
+              responsibility,
+              activeAssignment(Level.DIVISION, {
+                divisionId: { in: divisionIds },
+              }),
+            ],
+          }
         : responsibility;
     }
     case 'team':
-      return { OR: [responsibility, activeAssignment(Level.TEAM, {
-        team: { is: { isActive: true, leadMemberId: member.id } },
-      })] };
+      return {
+        OR: [
+          responsibility,
+          activeAssignment(Level.TEAM, {
+            team: { is: { isActive: true, leadMemberId: member.id } },
+          }),
+        ],
+      };
     case 'member':
       return responsibility;
     default:
@@ -49,15 +61,14 @@ export function canAccessWorkRequest(
   const member = actor.member;
   if (!member?.isActive || !member.company.isActive) return false;
   if (
-    assignments.some(
-      (assignment) =>
-        active(assignment, Level.MEMBER) ||
-        active(assignment, Level.CHECKING) ||
-        active(assignment, Level.APPROVAL) ||
-        active(assignment, Level.FINAL_REVIEW) ||
-        active(assignment, Level.EXTERNAL_REVIEW)
-          ? assignment.memberId === member.id
-          : false,
+    assignments.some((assignment) =>
+      active(assignment, Level.MEMBER) ||
+      active(assignment, Level.CHECKING) ||
+      active(assignment, Level.APPROVAL) ||
+      active(assignment, Level.FINAL_REVIEW) ||
+      active(assignment, Level.EXTERNAL_REVIEW)
+        ? assignment.memberId === member.id
+        : false,
     )
   )
     return true;
@@ -79,7 +90,8 @@ export function canAccessWorkRequest(
     );
   if (actor.role.customScope === 'member')
     return assignments.some(
-      (assignment) => active(assignment, Level.MEMBER) && assignment.memberId === member.id,
+      (assignment) =>
+        active(assignment, Level.MEMBER) && assignment.memberId === member.id,
     );
   return false;
 }
@@ -111,11 +123,21 @@ function activeAssignment(
   };
 }
 
-function activeAssignmentMember(memberId: string): Prisma.WorkRequestV1WhereInput {
+function activeAssignmentMember(
+  memberId: string,
+): Prisma.WorkRequestV1WhereInput {
   return {
     assignments: {
       some: {
-        level: { in: [Level.MEMBER, Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW, Level.EXTERNAL_REVIEW] },
+        level: {
+          in: [
+            Level.MEMBER,
+            Level.CHECKING,
+            Level.APPROVAL,
+            Level.FINAL_REVIEW,
+            Level.EXTERNAL_REVIEW,
+          ],
+        },
         memberId,
         unassignedAt: null,
         replacedAt: null,

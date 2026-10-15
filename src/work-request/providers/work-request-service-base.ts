@@ -464,7 +464,10 @@ export abstract class WorkRequestServiceBase {
   }
 }
 function isExternalClientActor(actor: SessionActor) {
-  return actor.role.customScope === 'client' || actor.role.customScope === 'client_contact';
+  return (
+    actor.role.customScope === 'client' ||
+    actor.role.customScope === 'client_contact'
+  );
 }
 function documentSummary(
   parentId: string,

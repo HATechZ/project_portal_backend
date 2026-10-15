@@ -68,6 +68,8 @@ export function starterRole(code: string) {
   return STARTER_ROLES.find((role) => role.code === code);
 }
 
-export function isStarterRoleCode(code: string | null): code is StarterRoleCode {
+export function isStarterRoleCode(
+  code: string | null,
+): code is StarterRoleCode {
   return STARTER_ROLES.some((role) => role.code === code);
 }

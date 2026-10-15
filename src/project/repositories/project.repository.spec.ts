@@ -13,19 +13,23 @@ describe('ProjectRepository lifecycle foundation', () => {
     const actor = {
       role: { customScope: 'team', systemRole: null },
       member: {
-        id: 'member-a', isActive: true, company: { isActive: true },
+        id: 'member-a',
+        isActive: true,
+        company: { isActive: true },
         divisionLeadsByMemberId: [],
       },
     } as never;
     await RequestContext.run({ requestId: 'request-a', tenantId }, () =>
       repository.list({ skip: 0, take: 10 }, actor),
     );
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        tenantId,
-        workRequestsV1: expect.objectContaining({ some: expect.any(Object) }),
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId,
+          workRequestsV1: expect.objectContaining({ some: expect.any(Object) }),
+        }),
       }),
-    }));
+    );
   });
   it('persists the initial ACTIVE event with the direct Project in the tenant transaction', async () => {
     let directProjectCreateInput: { data: { tenantId: string } } | undefined;

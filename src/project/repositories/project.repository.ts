@@ -196,10 +196,15 @@ export class ProjectRepository extends BaseRepository {
   }
   list(args: { skip: number; take: number }, actor?: SessionActor) {
     const tenantId = RequestContext.requireTenantId();
-    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    const related = actor
+      ? relatedWorkRequestVisibilityWhere(actor)
+      : undefined;
     return this.transaction((db) =>
       db.directProject.findMany({
-        where: { tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) },
+        where: {
+          tenantId,
+          ...(related ? { workRequestsV1: { some: related } } : {}),
+        },
         skip: args.skip,
         take: args.take,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -209,16 +214,32 @@ export class ProjectRepository extends BaseRepository {
   }
   count(actor?: SessionActor) {
     const tenantId = RequestContext.requireTenantId();
-    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    const related = actor
+      ? relatedWorkRequestVisibilityWhere(actor)
+      : undefined;
     return this.transaction((db) =>
-      db.directProject.count({ where: { tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) } }),
+      db.directProject.count({
+        where: {
+          tenantId,
+          ...(related ? { workRequestsV1: { some: related } } : {}),
+        },
+      }),
     );
   }
   find(id: string, actor?: SessionActor) {
     const tenantId = RequestContext.requireTenantId();
-    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    const related = actor
+      ? relatedWorkRequestVisibilityWhere(actor)
+      : undefined;
     return this.transaction((db) =>
-      db.directProject.findFirst({ where: { id, tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) }, select }),
+      db.directProject.findFirst({
+        where: {
+          id,
+          tenantId,
+          ...(related ? { workRequestsV1: { some: related } } : {}),
+        },
+        select,
+      }),
     );
   }
   async prepareStandaloneDocuments(

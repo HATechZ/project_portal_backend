@@ -13,19 +13,23 @@ describe('BidRepository lifecycle foundation', () => {
     const actor = {
       role: { customScope: 'member', systemRole: null },
       member: {
-        id: 'member-a', isActive: true, company: { isActive: true },
+        id: 'member-a',
+        isActive: true,
+        company: { isActive: true },
         divisionLeadsByMemberId: [],
       },
     } as never;
     await RequestContext.run({ requestId: 'request-a', tenantId }, () =>
       repository.list({ skip: 0, take: 10 }, actor),
     );
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        tenantId,
-        workRequestsV1: expect.objectContaining({ some: expect.any(Object) }),
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId,
+          workRequestsV1: expect.objectContaining({ some: expect.any(Object) }),
+        }),
       }),
-    }));
+    );
   });
   it('persists the initial BIDDING event with the Bid in the tenant transaction', async () => {
     let bidCreateInput: { data: { tenantId: string } } | undefined;

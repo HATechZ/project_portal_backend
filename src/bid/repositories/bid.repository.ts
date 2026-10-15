@@ -213,12 +213,20 @@ export class BidRepository extends BaseRepository {
     );
   }
 
-  list(args: { skip: number; take: number }, actor?: SessionActor): Promise<BidRecord[]> {
+  list(
+    args: { skip: number; take: number },
+    actor?: SessionActor,
+  ): Promise<BidRecord[]> {
     const tenantId = RequestContext.requireTenantId();
-    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    const related = actor
+      ? relatedWorkRequestVisibilityWhere(actor)
+      : undefined;
     return this.transaction((db) =>
       db.bid.findMany({
-        where: { tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) },
+        where: {
+          tenantId,
+          ...(related ? { workRequestsV1: { some: related } } : {}),
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip: args.skip,
         take: args.take,
@@ -229,7 +237,9 @@ export class BidRepository extends BaseRepository {
 
   count(actor?: SessionActor): Promise<number> {
     const tenantId = RequestContext.requireTenantId();
-    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    const related = actor
+      ? relatedWorkRequestVisibilityWhere(actor)
+      : undefined;
     return this.transaction((db) =>
       db.bid.count({
         where: {
@@ -242,9 +252,18 @@ export class BidRepository extends BaseRepository {
 
   find(id: string, actor?: SessionActor): Promise<BidRecord | null> {
     const tenantId = RequestContext.requireTenantId();
-    const related = actor ? relatedWorkRequestVisibilityWhere(actor) : undefined;
+    const related = actor
+      ? relatedWorkRequestVisibilityWhere(actor)
+      : undefined;
     return this.transaction((db) =>
-      db.bid.findFirst({ where: { id, tenantId, ...(related ? { workRequestsV1: { some: related } } : {}) }, select: bidSelect }),
+      db.bid.findFirst({
+        where: {
+          id,
+          tenantId,
+          ...(related ? { workRequestsV1: { some: related } } : {}),
+        },
+        select: bidSelect,
+      }),
     );
   }
 

@@ -88,7 +88,10 @@ export class TeamController {
   @ApiOperation({ summary: 'Get a Team by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiStandardOkResponse(TeamResponseDto, 'Team returned')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.teamService.findOne(id, actor);
   }
 

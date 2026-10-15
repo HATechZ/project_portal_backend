@@ -44,8 +44,12 @@ describe('API response Swagger contracts', () => {
       '@ApiStandardArrayResponse(WorkRequestAssignmentHistoryResponseDto)',
     );
 
-    const history = source('src/work-request/work-request-history.controller.ts');
-    expect(history).toContain('@ApiPaginatedResponse(WorkRequestEventResponseDto)');
+    const history = source(
+      'src/work-request/work-request-history.controller.ts',
+    );
+    expect(history).toContain(
+      '@ApiPaginatedResponse(WorkRequestEventResponseDto)',
+    );
     expect(history).toContain(
       '@ApiStandardArrayResponse(WorkRequestAvailableActionResponseDto)',
     );

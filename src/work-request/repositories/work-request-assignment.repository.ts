@@ -212,7 +212,14 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
                     customScope: true,
                     rolePermissions: {
                       where: { revokedAt: null },
-                      select: { permission: { select: { code: true, scopeCompatibilities: { select: { scope: true } } } } },
+                      select: {
+                        permission: {
+                          select: {
+                            code: true,
+                            scopeCompatibilities: { select: { scope: true } },
+                          },
+                        },
+                      },
                     },
                   },
                 },
@@ -223,7 +230,9 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
       },
     });
     if (!member?.user?.isActive) return null;
-    const permissionCodes = new Set<import('../../generated/prisma/client').PermissionCode>();
+    const permissionCodes = new Set<
+      import('../../generated/prisma/client').PermissionCode
+    >();
     for (const grant of member.user.userRolesByUserId) {
       const role = grant.role;
       if (!role.isActive) continue;

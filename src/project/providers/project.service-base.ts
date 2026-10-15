@@ -356,7 +356,10 @@ export abstract class ProjectServiceBase {
     return response(project);
   }
 
-  async documents(id: string, actor: SessionActor): Promise<DocumentSummaryDto[]> {
+  async documents(
+    id: string,
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
     assertPermission(actor, PermissionCode.VIEW_PROJECT);
     const project = await this.projects.find(id, actor);
     if (!project) throw notFound();
@@ -542,7 +545,10 @@ function bad(message: string): AppException {
     message,
   });
 }
-function assertPermission(actor: SessionActor, permission: PermissionCode): void {
+function assertPermission(
+  actor: SessionActor,
+  permission: PermissionCode,
+): void {
   if (
     !actor.role.rolePermissions.some(
       ({ revokedAt, permission: grant }) =>

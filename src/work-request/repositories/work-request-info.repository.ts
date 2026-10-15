@@ -63,9 +63,21 @@ export class WorkRequestInfoRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       if (input.parentInfoRequestId) {
-        const parent = await db.workRequestV1InfoRequest.findFirst({ where: { id: input.parentInfoRequestId, tenantId, workRequestId: input.workRequestId, status: InfoRequestStatusCode.OPEN }, select: { requestedByActorId: true, targetActorId: true } });
+        const parent = await db.workRequestV1InfoRequest.findFirst({
+          where: {
+            id: input.parentInfoRequestId,
+            tenantId,
+            workRequestId: input.workRequestId,
+            status: InfoRequestStatusCode.OPEN,
+          },
+          select: { requestedByActorId: true, targetActorId: true },
+        });
         if (!parent) throw new Error('INFO_PARENT');
-        if (input.requestedByActorId !== parent.requestedByActorId && input.requestedByActorId !== parent.targetActorId) throw new Error('INFO_PARENT_PARTICIPANT');
+        if (
+          input.requestedByActorId !== parent.requestedByActorId &&
+          input.requestedByActorId !== parent.targetActorId
+        )
+          throw new Error('INFO_PARENT_PARTICIPANT');
       }
       const existing = input.idempotencyKey
         ? await db.workRequestV1InfoRequest.findFirst({
@@ -87,11 +99,13 @@ export class WorkRequestInfoRepository extends BaseRepository {
           idempotencyKey: input.idempotencyKey,
           correlationId: input.correlationId,
           attachments: {
-            create: (input.documentVersionIds ?? []).map((documentVersionId) => ({
-              id: randomUUID(),
-              tenantId,
-              documentVersionId,
-            })),
+            create: (input.documentVersionIds ?? []).map(
+              (documentVersionId) => ({
+                id: randomUUID(),
+                tenantId,
+                documentVersionId,
+              }),
+            ),
           },
         },
         select: workRequestInfoHistorySelect,
@@ -114,7 +128,13 @@ export class WorkRequestInfoRepository extends BaseRepository {
       const existing = idempotencyKey
         ? await db.workRequestV1InfoResponse.findFirst({
             where: { tenantId, idempotencyKey },
-            select: { id: true, respondedByActorId: true, message: true, respondedAt: true, attachments: { select: { documentVersionId: true } } },
+            select: {
+              id: true,
+              respondedByActorId: true,
+              message: true,
+              respondedAt: true,
+              attachments: { select: { documentVersionId: true } },
+            },
           })
         : null;
       if (existing) return { kind: 'duplicate' as const, response: existing };
@@ -175,7 +195,12 @@ export class WorkRequestInfoRepository extends BaseRepository {
           tenantId,
           workRequestId,
           ...(participantActorId
-            ? { OR: [{ requestedByActorId: participantActorId }, { targetActorId: participantActorId }] }
+            ? {
+                OR: [
+                  { requestedByActorId: participantActorId },
+                  { targetActorId: participantActorId },
+                ],
+              }
             : {}),
         },
         orderBy: [{ requestedAt: 'asc' }, { id: 'asc' }],

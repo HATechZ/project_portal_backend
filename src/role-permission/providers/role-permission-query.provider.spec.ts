@@ -50,7 +50,9 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
   const repository = {
     findVisiblePermissions: jest.fn().mockResolvedValue(catalogue),
     findPermission: jest.fn((id: string) =>
-      Promise.resolve(catalogue.find((candidate) => candidate.id === id) ?? null),
+      Promise.resolve(
+        catalogue.find((candidate) => candidate.id === id) ?? null,
+      ),
     ),
   };
   const provider = new RolePermissionQueryProvider(

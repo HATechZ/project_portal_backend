@@ -84,9 +84,7 @@ export function ApiStandardArrayResponse<TModel extends Type<unknown>>(
   );
 }
 
-export function ApiStandardAcceptedResponse(
-  description = 'Request accepted',
-) {
+export function ApiStandardAcceptedResponse(description = 'Request accepted') {
   return ApiAcceptedResponse({
     description,
     schema: {

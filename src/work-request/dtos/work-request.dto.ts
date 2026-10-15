@@ -133,7 +133,8 @@ export class WorkRequestAssignmentHistoryResponseDto {
   @ApiProperty({ enum: WorkRequestV1AssignmentLevelCode }) level!: string;
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   divisionId!: string | null;
-  @ApiPropertyOptional({ format: 'uuid', nullable: true }) teamId!: string | null;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true }) teamId!:
+    string | null;
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   memberId!: string | null;
   @ApiProperty({ format: 'date-time' }) assignedAt!: Date;
@@ -150,7 +151,10 @@ export class WorkRequestEventResponseDto {
   @ApiProperty() action!: string;
   @ApiPropertyOptional({ nullable: true }) priorState!: string | null;
   @ApiPropertyOptional({ nullable: true }) resultingState!: string | null;
-  @ApiPropertyOptional({ enum: WorkRequestV1AssignmentLevelCode, nullable: true })
+  @ApiPropertyOptional({
+    enum: WorkRequestV1AssignmentLevelCode,
+    nullable: true,
+  })
   responsibilityLevel!: WorkRequestV1AssignmentLevelCode | null;
   @ApiPropertyOptional({ nullable: true }) note!: string | null;
   @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
@@ -220,7 +224,8 @@ export class WorkRequestInfoAttachmentDto {
 
 export class WorkRequestInfoResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ type: WorkRequestInfoParticipantDto }) responder!: WorkRequestInfoParticipantDto;
+  @ApiProperty({ type: WorkRequestInfoParticipantDto })
+  responder!: WorkRequestInfoParticipantDto;
   @ApiProperty() message!: string;
   @ApiProperty() respondedAt!: Date;
   @ApiProperty({ type: [WorkRequestInfoAttachmentDto] })
@@ -229,9 +234,12 @@ export class WorkRequestInfoResponseDto {
 
 export class WorkRequestInfoRequestDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ type: WorkRequestInfoParticipantDto }) requester!: WorkRequestInfoParticipantDto;
-  @ApiProperty({ type: WorkRequestInfoParticipantDto }) target!: WorkRequestInfoParticipantDto;
-  @ApiPropertyOptional({ format: 'uuid', nullable: true }) parentInfoRequestId!: string | null;
+  @ApiProperty({ type: WorkRequestInfoParticipantDto })
+  requester!: WorkRequestInfoParticipantDto;
+  @ApiProperty({ type: WorkRequestInfoParticipantDto })
+  target!: WorkRequestInfoParticipantDto;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  parentInfoRequestId!: string | null;
   @ApiProperty() message!: string;
   @ApiProperty({ enum: ['OPEN', 'RESPONDED', 'CANCELLED', 'SUPERSEDED'] })
   status!: string;
@@ -285,7 +293,8 @@ export class RouteWorkRequestClientRevisionDto extends WorkRequestWorkflowNoteDt
 export class WorkRequestClientSubmissionResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() submissionNumber!: number;
-  @ApiPropertyOptional({ format: 'date-time', nullable: true }) submittedAt!: Date | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  submittedAt!: Date | null;
   @ApiProperty({ type: [String] }) documentVersionIds!: string[];
   @ApiPropertyOptional({ type: Object, nullable: true }) decision!: {
     id: string;
@@ -296,14 +305,16 @@ export class WorkRequestClientSubmissionResponseDto {
 
 export class WorkRequestClientDecisionResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty({ enum: ['ACCEPT', 'REJECT', 'REQUEST_REVISION'] }) decision!: string;
+  @ApiProperty({ enum: ['ACCEPT', 'REJECT', 'REQUEST_REVISION'] })
+  decision!: string;
   @ApiProperty({ format: 'date-time' }) decidedAt!: Date;
   @ApiProperty() currentState!: string;
 }
 
 export class WorkRequestClientRevisionRouteResponseDto {
   @ApiProperty({ format: 'uuid' }) eventId!: string;
-  @ApiProperty({ enum: ['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'] }) destination!: string;
+  @ApiProperty({ enum: ['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'] })
+  destination!: string;
   @ApiProperty() currentState!: string;
   @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
 }

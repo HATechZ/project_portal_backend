@@ -331,7 +331,10 @@ export abstract class BidServiceBase {
     return response(bid);
   }
 
-  async documents(id: string, actor: SessionActor): Promise<DocumentSummaryDto[]> {
+  async documents(
+    id: string,
+    actor: SessionActor,
+  ): Promise<DocumentSummaryDto[]> {
     assertPermission(actor, PermissionCode.VIEW_BID);
     const bid = await this.bids.find(id, actor);
     if (!bid) throw notFound();
@@ -594,7 +597,10 @@ function badRequest(message: string): AppException {
     message,
   });
 }
-function assertPermission(actor: SessionActor, permission: PermissionCode): void {
+function assertPermission(
+  actor: SessionActor,
+  permission: PermissionCode,
+): void {
   if (
     !actor.role.rolePermissions.some(
       ({ revokedAt, permission: grant }) =>

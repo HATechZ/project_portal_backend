@@ -16,7 +16,13 @@ describe('WorkRequestWorkflowProvider', () => {
   const snapshot = (state: State, active: Record<string, string> = {}) => ({
     state,
     parent: { clientId: 'client-a', companyId: 'company-a' },
-    active: { MEMBER: 'member-a', CHECKING: 'checking-a', APPROVAL: 'approval-a', FINAL_REVIEW: 'final-a', ...active },
+    active: {
+      MEMBER: 'member-a',
+      CHECKING: 'checking-a',
+      APPROVAL: 'approval-a',
+      FINAL_REVIEW: 'final-a',
+      ...active,
+    },
     teamLeadMemberId: 'team-lead-a',
   });
   const actor = (permission: WorkflowActionCode, memberId = 'member-a') =>
@@ -44,7 +50,11 @@ describe('WorkRequestWorkflowProvider', () => {
         divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
       },
     }) as never;
-  const subject = (state: State, action: WorkflowActionCode, active: Record<string, string> = {}) => {
+  const subject = (
+    state: State,
+    action: WorkflowActionCode,
+    active: Record<string, string> = {},
+  ) => {
     const repository = {
       prepare: jest.fn().mockResolvedValue(snapshot(state, active)),
       actionCode: jest.fn().mockResolvedValue({ code: action }),
@@ -66,13 +76,55 @@ describe('WorkRequestWorkflowProvider', () => {
   };
 
   it.each([
-    [State.MEMBER_ASSIGNED, WorkflowActionCode.WR_SUBMIT, State.CHECKING_REVIEW, 'member-a', 'MEMBER'],
-    [State.CHECKING_REVIEW, WorkflowActionCode.WR_CHECKING_APPROVE, State.APPROVAL_REVIEW, 'checking-a', 'CHECKING'],
-    [State.APPROVAL_REVIEW, WorkflowActionCode.WR_APPROVAL_APPROVE, State.FINAL_REVIEW, 'approval-a', 'APPROVAL'],
-    [State.FINAL_REVIEW, WorkflowActionCode.WR_FINAL_RELEASE, State.FINAL_RELEASE, 'final-a', 'FINAL_REVIEW'],
-    [State.CHECKING_REVIEW, WorkflowActionCode.WR_REQUEST_REVISION, State.MEMBER_ASSIGNED, 'checking-a', 'CHECKING'],
-    [State.APPROVAL_REVIEW, WorkflowActionCode.WR_REQUEST_REVISION, State.MEMBER_ASSIGNED, 'approval-a', 'APPROVAL'],
-    [State.FINAL_REVIEW, WorkflowActionCode.WR_REQUEST_REVISION, State.MEMBER_ASSIGNED, 'final-a', 'FINAL_REVIEW'],
+    [
+      State.MEMBER_ASSIGNED,
+      WorkflowActionCode.WR_SUBMIT,
+      State.CHECKING_REVIEW,
+      'member-a',
+      'MEMBER',
+    ],
+    [
+      State.CHECKING_REVIEW,
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      State.APPROVAL_REVIEW,
+      'checking-a',
+      'CHECKING',
+    ],
+    [
+      State.APPROVAL_REVIEW,
+      WorkflowActionCode.WR_APPROVAL_APPROVE,
+      State.FINAL_REVIEW,
+      'approval-a',
+      'APPROVAL',
+    ],
+    [
+      State.FINAL_REVIEW,
+      WorkflowActionCode.WR_FINAL_RELEASE,
+      State.FINAL_RELEASE,
+      'final-a',
+      'FINAL_REVIEW',
+    ],
+    [
+      State.CHECKING_REVIEW,
+      WorkflowActionCode.WR_REQUEST_REVISION,
+      State.MEMBER_ASSIGNED,
+      'checking-a',
+      'CHECKING',
+    ],
+    [
+      State.APPROVAL_REVIEW,
+      WorkflowActionCode.WR_REQUEST_REVISION,
+      State.MEMBER_ASSIGNED,
+      'approval-a',
+      'APPROVAL',
+    ],
+    [
+      State.FINAL_REVIEW,
+      WorkflowActionCode.WR_REQUEST_REVISION,
+      State.MEMBER_ASSIGNED,
+      'final-a',
+      'FINAL_REVIEW',
+    ],
   ])(
     'appends the expected event-derived state for %s',
     async (state, action, expected, assignee, responsibility) => {
@@ -97,7 +149,14 @@ describe('WorkRequestWorkflowProvider', () => {
       }
       expect(repository.append).toHaveBeenCalledTimes(1);
       expect(repository.append).toHaveBeenCalledWith(
-        expect.objectContaining({ priorState: state, resultingState: expected, actorId: 'actor-a', responsibilityLevel: responsibility, note: action === WorkflowActionCode.WR_SUBMIT ? undefined : 'note', idempotencyKey: 'request-a' }),
+        expect.objectContaining({
+          priorState: state,
+          resultingState: expected,
+          actorId: 'actor-a',
+          responsibilityLevel: responsibility,
+          note: action === WorkflowActionCode.WR_SUBMIT ? undefined : 'note',
+          idempotencyKey: 'request-a',
+        }),
       );
     },
   );
@@ -134,47 +193,109 @@ describe('WorkRequestWorkflowProvider', () => {
 
   it.each([
     [State.CHECKING_REVIEW, WorkflowActionCode.WR_CHECKING_APPROVE, 'member-a'],
-    [State.APPROVAL_REVIEW, WorkflowActionCode.WR_APPROVAL_APPROVE, 'checking-a'],
+    [
+      State.APPROVAL_REVIEW,
+      WorkflowActionCode.WR_APPROVAL_APPROVE,
+      'checking-a',
+    ],
     [State.FINAL_REVIEW, WorkflowActionCode.WR_FINAL_RELEASE, 'approval-a'],
-  ])('denies %s action to the wrong responsibility', async (state, action, memberId) => {
-    const { provider, repository } = subject(state, action);
-    await expect(RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
-      provider.action('request-a', 'action-a', undefined, undefined, actor(action, memberId)),
-    )).rejects.toThrow();
-    expect(repository.append).not.toHaveBeenCalled();
-  });
+  ])(
+    'denies %s action to the wrong responsibility',
+    async (state, action, memberId) => {
+      const { provider, repository } = subject(state, action);
+      await expect(
+        RequestContext.run(
+          { requestId: 'request-a', tenantId: 'tenant-a' },
+          () =>
+            provider.action(
+              'request-a',
+              'action-a',
+              undefined,
+              undefined,
+              actor(action, memberId),
+            ),
+        ),
+      ).rejects.toThrow();
+      expect(repository.append).not.toHaveBeenCalled();
+    },
+  );
 
   it('denies an assignee without the action permission and an inactive/cross-company assignee', async () => {
-    const { provider, repository } = subject(State.CHECKING_REVIEW, WorkflowActionCode.WR_CHECKING_APPROVE);
+    const { provider, repository } = subject(
+      State.CHECKING_REVIEW,
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+    );
     const noPermission = actor(WorkflowActionCode.WR_SUBMIT, 'checking-a');
-    await expect(RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
-      provider.action('request-a', 'action-a', undefined, undefined, noPermission),
-    )).rejects.toThrow();
-    const inactive = actor(WorkflowActionCode.WR_CHECKING_APPROVE, 'checking-a');
+    await expect(
+      RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
+        provider.action(
+          'request-a',
+          'action-a',
+          undefined,
+          undefined,
+          noPermission,
+        ),
+      ),
+    ).rejects.toThrow();
+    const inactive = actor(
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      'checking-a',
+    );
     (inactive as any).member.isActive = false;
-    await expect(RequestContext.run({ requestId: 'request-b', tenantId: 'tenant-a' }, () =>
-      provider.action('request-a', 'action-a', undefined, undefined, inactive),
-    )).rejects.toThrow();
+    await expect(
+      RequestContext.run({ requestId: 'request-b', tenantId: 'tenant-a' }, () =>
+        provider.action(
+          'request-a',
+          'action-a',
+          undefined,
+          undefined,
+          inactive,
+        ),
+      ),
+    ).rejects.toThrow();
     expect(repository.append).not.toHaveBeenCalled();
   });
 
   it('denies stale/replaced reviewers, unrelated assignments, cross-company actors, and incompatible scope', async () => {
-    const { provider, repository } = subject(State.CHECKING_REVIEW, WorkflowActionCode.WR_CHECKING_APPROVE, { CHECKING: 'replacement-a' });
+    const { provider, repository } = subject(
+      State.CHECKING_REVIEW,
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      { CHECKING: 'replacement-a' },
+    );
     const stale = actor(WorkflowActionCode.WR_CHECKING_APPROVE, 'checking-a');
-    await expect(RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
-      provider.action('request-a', 'action-a', undefined, undefined, stale),
-    )).rejects.toThrow();
-    const crossCompany = actor(WorkflowActionCode.WR_CHECKING_APPROVE, 'replacement-a');
+    await expect(
+      RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
+        provider.action('request-a', 'action-a', undefined, undefined, stale),
+      ),
+    ).rejects.toThrow();
+    const crossCompany = actor(
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      'replacement-a',
+    );
     (crossCompany as any).member.companyId = 'company-b';
-    await expect(RequestContext.run({ requestId: 'request-b', tenantId: 'tenant-b' }, () =>
-      provider.action('request-a', 'action-a', undefined, undefined, crossCompany),
-    )).rejects.toThrow();
-    const scoped = actor(WorkflowActionCode.WR_CHECKING_APPROVE, 'replacement-a');
+    await expect(
+      RequestContext.run({ requestId: 'request-b', tenantId: 'tenant-b' }, () =>
+        provider.action(
+          'request-a',
+          'action-a',
+          undefined,
+          undefined,
+          crossCompany,
+        ),
+      ),
+    ).rejects.toThrow();
+    const scoped = actor(
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      'replacement-a',
+    );
     (scoped as any).role.customScope = 'division';
-    (scoped as any).role.rolePermissions[0].permission.scopeCompatibilities = [];
-    await expect(RequestContext.run({ requestId: 'request-c', tenantId: 'tenant-a' }, () =>
-      provider.action('request-a', 'action-a', undefined, undefined, scoped),
-    )).rejects.toThrow();
+    (scoped as any).role.rolePermissions[0].permission.scopeCompatibilities =
+      [];
+    await expect(
+      RequestContext.run({ requestId: 'request-c', tenantId: 'tenant-a' }, () =>
+        provider.action('request-a', 'action-a', undefined, undefined, scoped),
+      ),
+    ).rejects.toThrow();
     expect(repository.append).not.toHaveBeenCalled();
   });
 

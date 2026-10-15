@@ -84,14 +84,18 @@ export class MemberService {
     await this.requireDesignation(input.designationId, company.id);
     const passwordHash = await this.passwordHasher.hash(input.password);
     return toMemberResponse(
-      await this.onboardingRepository.createWithAccess(company.id, {
-        name: input.name,
-        email: input.email,
-        passwordHash,
-        divisionId: input.divisionId,
-        designationId: input.designationId,
-        phone: input.phone,
-      }, assignedByUserId),
+      await this.onboardingRepository.createWithAccess(
+        company.id,
+        {
+          name: input.name,
+          email: input.email,
+          passwordHash,
+          divisionId: input.divisionId,
+          designationId: input.designationId,
+          phone: input.phone,
+        },
+        assignedByUserId,
+      ),
     );
   }
 

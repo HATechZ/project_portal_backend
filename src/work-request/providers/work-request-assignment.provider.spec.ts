@@ -266,33 +266,80 @@ describe('WorkRequestAssignmentProvider', () => {
         ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER),
         role: {
           ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER).role,
-          rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.ASSIGN_REVIEWER } }],
+          rolePermissions: [
+            {
+              revokedAt: null,
+              permission: { code: PermissionCode.ASSIGN_REVIEWER },
+            },
+          ],
         },
       } as never;
-      await RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
-        provider.reviewer('request-a', { memberId: 'target-a', level }, reviewerActor),
+      await RequestContext.run(
+        { requestId: 'request-a', tenantId: 'tenant-a' },
+        () =>
+          provider.reviewer(
+            'request-a',
+            { memberId: 'target-a', level },
+            reviewerActor,
+          ),
       );
-      expect(repository.write).toHaveBeenCalledWith(expect.objectContaining({ level, resultingState: State.MEMBER_ASSIGNED }));
+      expect(repository.write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level,
+          resultingState: State.MEMBER_ASSIGNED,
+        }),
+      );
     },
   );
 
   it.each([
     [Level.CHECKING, [PermissionCode.VIEW_WORK_REQUEST]],
-    [Level.APPROVAL, [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.APPROVE_WORK_REQUEST_REVIEW]],
-    [Level.FINAL_REVIEW, [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.REQUEST_WORK_REQUEST_REVISION]],
-  ])('rejects %s assignment when the target lacks mandatory capabilities', async (level, capabilities) => {
-    const prepared = snapshot(State.MEMBER_ASSIGNED);
-    prepared.target.permissionCodes = capabilities;
-    const { provider, repository } = subject(prepared);
-    const reviewerActor = {
-      ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER),
-      role: { ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER).role, rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.ASSIGN_REVIEWER } }] },
-    } as never;
-    await expect(RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
-      provider.reviewer('request-a', { memberId: 'target-a', level }, reviewerActor),
-    )).rejects.toThrow('lacks required capabilities');
-    expect(repository.write).not.toHaveBeenCalled();
-  });
+    [
+      Level.APPROVAL,
+      [
+        PermissionCode.VIEW_WORK_REQUEST,
+        PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
+      ],
+    ],
+    [
+      Level.FINAL_REVIEW,
+      [
+        PermissionCode.VIEW_WORK_REQUEST,
+        PermissionCode.REQUEST_WORK_REQUEST_REVISION,
+      ],
+    ],
+  ])(
+    'rejects %s assignment when the target lacks mandatory capabilities',
+    async (level, capabilities) => {
+      const prepared = snapshot(State.MEMBER_ASSIGNED);
+      prepared.target.permissionCodes = capabilities;
+      const { provider, repository } = subject(prepared);
+      const reviewerActor = {
+        ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER),
+        role: {
+          ...actor(WorkflowActionCode.WR_ASSIGN_MEMBER).role,
+          rolePermissions: [
+            {
+              revokedAt: null,
+              permission: { code: PermissionCode.ASSIGN_REVIEWER },
+            },
+          ],
+        },
+      } as never;
+      await expect(
+        RequestContext.run(
+          { requestId: 'request-a', tenantId: 'tenant-a' },
+          () =>
+            provider.reviewer(
+              'request-a',
+              { memberId: 'target-a', level },
+              reviewerActor,
+            ),
+        ),
+      ).rejects.toThrow('lacks required capabilities');
+      expect(repository.write).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     [

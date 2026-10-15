@@ -74,7 +74,10 @@ export class WorkRequestDocumentHistoryProvider {
   }
 
   async externalVersions(workRequestId: string, documentId: string) {
-    const published = await this.documents.externalVersions(workRequestId, documentId);
+    const published = await this.documents.externalVersions(
+      workRequestId,
+      documentId,
+    );
     if (!published.length)
       throw new AppException({
         code: AppErrorCode.NotFound,

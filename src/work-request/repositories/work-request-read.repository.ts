@@ -47,7 +47,10 @@ export class WorkRequestReadRepository extends BaseRepository {
         where: {
           id,
           tenantId,
-          OR: [{ bid: { is: { clientId } } }, { directProject: { is: { clientId } } }],
+          OR: [
+            { bid: { is: { clientId } } },
+            { directProject: { is: { clientId } } },
+          ],
         },
         select: workRequestSelect,
       }),

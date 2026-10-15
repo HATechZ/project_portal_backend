@@ -80,8 +80,16 @@ describe('WorkRequestInfoProvider', () => {
   const record = (snapshot: ReturnType<typeof prepared>) => ({
     id: 'info-a',
     parentInfoRequestId: null,
-    requestedByActor: { id: 'actor-a', member: { id: 'member-a' }, clientContact: null },
-    targetActor: { id: 'target-a', member: { id: 'member-target' }, clientContact: null },
+    requestedByActor: {
+      id: 'actor-a',
+      member: { id: 'member-a' },
+      clientContact: null,
+    },
+    targetActor: {
+      id: 'target-a',
+      member: { id: 'member-target' },
+      clientContact: null,
+    },
     message: 'Clarify.',
     status: 'OPEN',
     stateAtRequest: State.MEMBER_ASSIGNED,
@@ -95,10 +103,17 @@ describe('WorkRequestInfoProvider', () => {
     snapshot.info = { requestedByActorId: 'actor-a', targetActorId: 'actor-a' };
     const repository = {
       prepare: jest.fn().mockResolvedValue(snapshot),
-      create: jest.fn().mockResolvedValue({ request: record(snapshot), duplicate: false }),
+      create: jest
+        .fn()
+        .mockResolvedValue({ request: record(snapshot), duplicate: false }),
       respond: jest.fn().mockResolvedValue({
         kind: 'ok',
-        response: { id: 'response-a', message: 'Response.', respondedAt: new Date('2026-10-15T00:00:00.000Z'), attachments: [] },
+        response: {
+          id: 'response-a',
+          message: 'Response.',
+          respondedAt: new Date('2026-10-15T00:00:00.000Z'),
+          attachments: [],
+        },
       }),
       history: jest.fn().mockResolvedValue([record(snapshot)]),
     };
@@ -121,10 +136,14 @@ describe('WorkRequestInfoProvider', () => {
       ),
     ).resolves.toEqual(
       expect.objectContaining({
-        id: 'info-a', parentInfoRequestId: null,
+        id: 'info-a',
+        parentInfoRequestId: null,
         requester: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' },
         target: { actorId: 'target-a', type: 'INTERNAL_MEMBER' },
-        status: 'OPEN', stateAtRequest: State.MEMBER_ASSIGNED, attachments: [], responses: [],
+        status: 'OPEN',
+        stateAtRequest: State.MEMBER_ASSIGNED,
+        attachments: [],
+        responses: [],
       }),
     );
 
@@ -154,9 +173,21 @@ describe('WorkRequestInfoProvider', () => {
 
   it('does not derive clarification authority from a Team or Division title alone', async () => {
     const hierarchyOnly = prepared();
-    hierarchyOnly.request.assignments = [{ level: 'TEAM', teamId: 'team-a', team: { isActive: true, leadMemberId: 'member-a' } }];
+    hierarchyOnly.request.assignments = [
+      {
+        level: 'TEAM',
+        teamId: 'team-a',
+        team: { isActive: true, leadMemberId: 'member-a' },
+      },
+    ];
     const { provider, repository } = subject(hierarchyOnly);
-    await expect(provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify.' }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'team'))).rejects.toThrow();
+    await expect(
+      provider.request(
+        'request-a',
+        { targetActorId: 'target-a', message: 'Clarify.' },
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'team'),
+      ),
+    ).rejects.toThrow();
     expect(repository.create).not.toHaveBeenCalled();
   });
 
@@ -172,7 +203,9 @@ describe('WorkRequestInfoProvider', () => {
       ),
     ).resolves.toEqual(
       expect.objectContaining({
-        id: 'response-a', responder: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' }, attachments: [],
+        id: 'response-a',
+        responder: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' },
+        attachments: [],
       }),
     );
 
@@ -180,7 +213,10 @@ describe('WorkRequestInfoProvider', () => {
       'request-a',
       'info-a',
       'actor-a',
-      'The plan is attached to the bid.', undefined, undefined, undefined,
+      'The plan is attached to the bid.',
+      undefined,
+      undefined,
+      undefined,
     );
     expect(repository.create).not.toHaveBeenCalled();
   });
@@ -205,9 +241,20 @@ describe('WorkRequestInfoProvider', () => {
 
   it('keeps the main state unchanged across reassignment during an open clarification', async () => {
     const { provider, repository } = subject();
-    await provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify.' }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO));
-    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ stateAtRequest: State.MEMBER_ASSIGNED }));
-    await provider.respond('request-a', 'info-a', { message: 'Done.' }, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO));
+    await provider.request(
+      'request-a',
+      { targetActorId: 'target-a', message: 'Clarify.' },
+      actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ stateAtRequest: State.MEMBER_ASSIGNED }),
+    );
+    await provider.respond(
+      'request-a',
+      'info-a',
+      { message: 'Done.' },
+      actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
+    );
     expect(repository.prepare).toHaveBeenCalled();
   });
 
@@ -221,8 +268,11 @@ describe('WorkRequestInfoProvider', () => {
       ),
     ).resolves.toEqual([
       expect.objectContaining({
-        id: 'info-a', requester: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' },
-        target: { actorId: 'target-a', type: 'INTERNAL_MEMBER' }, attachments: [], responses: [],
+        id: 'info-a',
+        requester: { actorId: 'actor-a', type: 'INTERNAL_MEMBER' },
+        target: { actorId: 'target-a', type: 'INTERNAL_MEMBER' },
+        attachments: [],
+        responses: [],
       }),
     ]);
     expect(repository.history).toHaveBeenCalledWith('request-a', undefined);

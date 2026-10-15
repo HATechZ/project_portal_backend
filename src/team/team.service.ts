@@ -27,16 +27,24 @@ export class TeamService {
     actor: SessionActor,
   ): Promise<PaginatedResult<TeamResponseDto>> {
     const company = await this.requireScopedCompany();
-    const allowedTeamIds = await this.repository.findVisibleIds(company.id, actor);
+    const allowedTeamIds = await this.repository.findVisibleIds(
+      company.id,
+      actor,
+    );
     const divisionIds = query.divisionId
       ? [query.divisionId]
       : await this.repository.findCompanyDivisionIds(company.id);
     return paginate(
       query,
       async (args) =>
-        (await this.repository.findAll(company.id, divisionIds, args, allowedTeamIds)).map(
-          toTeamResponse,
-        ),
+        (
+          await this.repository.findAll(
+            company.id,
+            divisionIds,
+            args,
+            allowedTeamIds,
+          )
+        ).map(toTeamResponse),
       () => this.repository.count(company.id, divisionIds, allowedTeamIds),
     );
   }

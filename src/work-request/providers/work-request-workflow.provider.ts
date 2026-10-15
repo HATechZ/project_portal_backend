@@ -116,8 +116,7 @@ export class WorkRequestWorkflowProvider {
     snapshot: WorkRequestWorkflowSnapshot,
   ) {
     const permission = getFinalPermissionForWorkRequestAction(action);
-    if (!hasCompatiblePermission(actor, permission))
-      throw forbidden();
+    if (!hasCompatiblePermission(actor, permission)) throw forbidden();
     const member = actor.member;
     if (
       !snapshot.parent?.companyId ||

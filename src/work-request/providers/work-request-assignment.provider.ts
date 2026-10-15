@@ -211,7 +211,10 @@ function permissionFor(level: WorkRequestV1AssignmentLevelCode) {
 }
 
 export function requiredCapabilities(level: WorkRequestV1AssignmentLevelCode) {
-  const common = [PermissionCode.VIEW_WORK_REQUEST, PermissionCode.VIEW_DOCUMENT];
+  const common = [
+    PermissionCode.VIEW_WORK_REQUEST,
+    PermissionCode.VIEW_DOCUMENT,
+  ];
   if (level === WorkRequestV1AssignmentLevelCode.MEMBER)
     return [...common, PermissionCode.SUBMIT_WORK_REQUEST];
   if (

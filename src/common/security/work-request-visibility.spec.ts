@@ -1,5 +1,8 @@
 import { WorkRequestV1AssignmentLevelCode as Level } from '../../generated/prisma/client';
-import { canAccessWorkRequest, workRequestVisibilityWhere } from './work-request-visibility';
+import {
+  canAccessWorkRequest,
+  workRequestVisibilityWhere,
+} from './work-request-visibility';
 
 describe('Work Request internal visibility', () => {
   const actor = (scope: string | null, memberId = 'member-a') =>
@@ -17,7 +20,12 @@ describe('Work Request internal visibility', () => {
     }) as never;
 
   const assignments = [
-    { level: Level.DIVISION, divisionId: 'division-a', teamId: null, memberId: null },
+    {
+      level: Level.DIVISION,
+      divisionId: 'division-a',
+      teamId: null,
+      memberId: null,
+    },
     {
       level: Level.TEAM,
       divisionId: null,
@@ -25,7 +33,12 @@ describe('Work Request internal visibility', () => {
       memberId: null,
       team: { isActive: true, leadMemberId: 'member-a' },
     },
-    { level: Level.MEMBER, divisionId: null, teamId: null, memberId: 'member-a' },
+    {
+      level: Level.MEMBER,
+      divisionId: null,
+      teamId: null,
+      memberId: 'member-a',
+    },
   ];
 
   it.each(['division', 'team', 'member'])(
@@ -35,7 +48,12 @@ describe('Work Request internal visibility', () => {
       expect(canAccessWorkRequest(actor(scope), assignments)).toBe(true);
       expect(
         canAccessWorkRequest(actor(scope), [
-          { level: Level.MEMBER, divisionId: null, teamId: null, memberId: 'other' },
+          {
+            level: Level.MEMBER,
+            divisionId: null,
+            teamId: null,
+            memberId: 'other',
+          },
         ]),
       ).toBe(false);
     },

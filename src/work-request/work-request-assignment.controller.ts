@@ -110,7 +110,9 @@ export class WorkRequestAssignmentController {
 
   @Post('reviewer')
   @FinalPermissions(PermissionCode.ASSIGN_REVIEWER)
-  @ApiOperation({ summary: 'Assign generic review responsibility by Work Request ID' })
+  @ApiOperation({
+    summary: 'Assign generic review responsibility by Work Request ID',
+  })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardOkResponse(WorkRequestAssignmentResponseDto)
   @ResponseMessage('Work Request reviewer assigned successfully')

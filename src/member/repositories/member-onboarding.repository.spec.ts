@@ -35,14 +35,18 @@ describe('MemberOnboardingRepository', () => {
 
     await expect(
       RequestContext.run({ requestId: 'request-id', tenantId }, () =>
-        repository.createWithAccess('company-id', {
-          name: 'Jane Member',
-          email: 'jane@example.com',
-          passwordHash: 'hashed-password',
-          divisionId: 'division-id',
-          designationId: 'designation-id',
-          phone: '+1-555-0100',
-        }, 'creator-user-id'),
+        repository.createWithAccess(
+          'company-id',
+          {
+            name: 'Jane Member',
+            email: 'jane@example.com',
+            passwordHash: 'hashed-password',
+            divisionId: 'division-id',
+            designationId: 'designation-id',
+            phone: '+1-555-0100',
+          },
+          'creator-user-id',
+        ),
       ),
     ).resolves.toEqual(member);
 
@@ -55,11 +59,15 @@ describe('MemberOnboardingRepository', () => {
       }),
     );
     expect(db.actorProfile.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ memberId: 'member-id' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ memberId: 'member-id' }),
+      }),
     );
     expect(db.teamMember.create).not.toHaveBeenCalled();
     expect(db.role.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ customCode: 'staff' }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ customCode: 'staff' }),
+      }),
     );
   });
 });

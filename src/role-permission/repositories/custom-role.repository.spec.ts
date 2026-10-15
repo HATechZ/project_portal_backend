@@ -5,11 +5,21 @@ describe('CustomRoleRepository reserved starter codes', () => {
     'generates a collision-safe custom code for the reserved %s display name',
     async (name) => {
       const repository = new CustomRoleRepository({} as never);
-      const nextCode = (repository as unknown as {
-        nextCode: (db: unknown, tenantId: string, roleName: string) => Promise<string>;
-      }).nextCode;
+      const nextCode = (
+        repository as unknown as {
+          nextCode: (
+            db: unknown,
+            tenantId: string,
+            roleName: string,
+          ) => Promise<string>;
+        }
+      ).nextCode;
       await expect(
-        nextCode({ role: { findMany: jest.fn().mockResolvedValue([]) } }, 'tenant-a', name),
+        nextCode(
+          { role: { findMany: jest.fn().mockResolvedValue([]) } },
+          'tenant-a',
+          name,
+        ),
       ).resolves.toBe(`${name}_2`);
     },
   );

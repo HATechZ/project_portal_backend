@@ -156,28 +156,51 @@ describe('WorkRequestActionsProvider', () => {
   });
 
   it.each([
-    [WorkflowActionCode.WR_CHECKING_APPROVE, WorkRequestV1StateCode.CHECKING_REVIEW, 'CHECKING'],
-    [WorkflowActionCode.WR_APPROVAL_APPROVE, WorkRequestV1StateCode.APPROVAL_REVIEW, 'APPROVAL'],
-    [WorkflowActionCode.WR_FINAL_RELEASE, WorkRequestV1StateCode.FINAL_REVIEW, 'FINAL_REVIEW'],
-  ])('exposes %s only to its exact generic responsibility', (code, state, level) => {
-    expect(
-      provider.available(
-        actor([code], 'reviewer-a'),
-        state,
-        record(state, [{ level, memberId: 'reviewer-a' }]),
-      ),
-    ).toEqual([
-      expect.objectContaining({
-        code,
-      }),
-    ]);
-  });
+    [
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+      WorkRequestV1StateCode.CHECKING_REVIEW,
+      'CHECKING',
+    ],
+    [
+      WorkflowActionCode.WR_APPROVAL_APPROVE,
+      WorkRequestV1StateCode.APPROVAL_REVIEW,
+      'APPROVAL',
+    ],
+    [
+      WorkflowActionCode.WR_FINAL_RELEASE,
+      WorkRequestV1StateCode.FINAL_REVIEW,
+      'FINAL_REVIEW',
+    ],
+  ])(
+    'exposes %s only to its exact generic responsibility',
+    (code, state, level) => {
+      expect(
+        provider.available(
+          actor([code], 'reviewer-a'),
+          state,
+          record(state, [{ level, memberId: 'reviewer-a' }]),
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          code,
+        }),
+      ]);
+    },
+  );
 
   it('does not expose generic review actions to a Team Lead assignment alone', () => {
-    expect(provider.available(
-      actor([WorkflowActionCode.WR_CHECKING_APPROVE], 'lead-a'),
-      WorkRequestV1StateCode.CHECKING_REVIEW,
-      record(WorkRequestV1StateCode.CHECKING_REVIEW, [{ level: 'TEAM', teamId: 'team-a', team: { isActive: true, leadMemberId: 'lead-a' } }]),
-    )).toEqual([]);
+    expect(
+      provider.available(
+        actor([WorkflowActionCode.WR_CHECKING_APPROVE], 'lead-a'),
+        WorkRequestV1StateCode.CHECKING_REVIEW,
+        record(WorkRequestV1StateCode.CHECKING_REVIEW, [
+          {
+            level: 'TEAM',
+            teamId: 'team-a',
+            team: { isActive: true, leadMemberId: 'lead-a' },
+          },
+        ]),
+      ),
+    ).toEqual([]);
   });
 });

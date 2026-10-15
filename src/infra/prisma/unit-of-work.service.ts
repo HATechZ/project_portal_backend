@@ -76,13 +76,14 @@ export class UnitOfWorkService {
         'A public reference read cannot join a tenant unit of work',
       );
     }
-    return this.prisma.$transaction((transaction) => {
-      const executor: PrismaReferenceReadExecutor = Object.freeze({
-        $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
-          transaction.$queryRaw<TResult>(query),
-      });
-      return work(executor);
+    // Reference catalogues are explicitly unscoped and read-only. Running a
+    // single query in an interactive transaction reserves a pooled connection
+    // before the query can start, which can starve public endpoints under load.
+    const executor: PrismaReferenceReadExecutor = Object.freeze({
+      $queryRaw: <TResult = unknown>(query: Prisma.Sql) =>
+        this.prisma.$queryRaw<TResult>(query),
     });
+    return work(executor);
   }
 
   async executeLoginResolution<T>(
