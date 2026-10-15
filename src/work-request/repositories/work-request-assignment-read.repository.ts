@@ -25,6 +25,7 @@ export class WorkRequestAssignmentReadRepository extends BaseRepository {
           unassignedAt: true,
           replacedAt: true,
           note: true,
+          member: { select: { id: true, name: true } },
           assignedByActor: { select: { id: true, label: true } },
         },
       }),

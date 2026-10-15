@@ -228,6 +228,7 @@ describe('WorkRequestAssignmentProvider', () => {
         unassignedAt: null,
         replacedAt: null,
         note: 'Route to team',
+        member: null,
         assignedByActor: { id: 'actor-a', label: 'Coordinator' },
         tenantId: 'must-not-leak',
         workRequestId: 'must-not-leak',
@@ -253,10 +254,47 @@ describe('WorkRequestAssignmentProvider', () => {
         unassignedAt: null,
         replacedAt: null,
         note: 'Route to team',
+        assignee: null,
         assignedBy: { id: 'actor-a', label: 'Coordinator' },
       },
     ]);
   });
+
+  it.each([Level.MEMBER, Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW])(
+    'maps the %s target to the safe assignee display projection',
+    async (level) => {
+      const history = jest.fn().mockResolvedValue([
+        {
+          id: 'assignment-a',
+          level,
+          divisionId: null,
+          teamId: null,
+          memberId: 'member-a',
+          assignedAt: new Date('2026-10-15T00:00:00.000Z'),
+          unassignedAt: null,
+          replacedAt: null,
+          note: null,
+          member: { id: 'member-a', name: 'Safe Member Name' },
+          assignedByActor: { id: 'actor-a', label: 'Coordinator' },
+        },
+      ]);
+      const provider = new WorkRequestAssignmentProvider(
+        {} as never,
+        { execute: (work: () => Promise<unknown>) => work() } as never,
+        { find: jest.fn().mockResolvedValue({ id: 'request-a' }) } as never,
+        { history },
+        {} as never,
+      );
+
+      await expect(provider.history('request-a', {} as never)).resolves.toEqual([
+        expect.objectContaining({
+          memberId: 'member-a',
+          assignee: { id: 'member-a', label: 'Safe Member Name' },
+          assignedBy: { id: 'actor-a', label: 'Coordinator' },
+        }),
+      ]);
+    },
+  );
 
   it.each([Level.CHECKING, Level.APPROVAL, Level.FINAL_REVIEW])(
     'assigns %s independently with ASSIGN_REVIEWER',

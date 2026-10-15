@@ -20,6 +20,10 @@ Work Request stores `priority` directly as a fixed, required domain value: `Low`
 
 `WorkRequestV1Assignment.level` includes `DIVISION`, `TEAM`, `MEMBER`, `CHECKING`, `APPROVAL`, and `FINAL_REVIEW`. Reviewer levels hold only `memberId`; the active uniqueness rule is one non-replaced/non-unassigned row per request and level. `WorkRequestV1Event.responsibilityLevel` is nullable so historical events remain valid while generic workflow events snapshot the acting responsibility.
 
+Assignment history may join the existing Member relation only for a safe display projection on
+member-targeted rows: Member `id` and `name` map to response `assignee.id` and `assignee.label`.
+No additional fields, table, relation, Prisma model, or stored assignment data are introduced.
+
 ## Phase C1 package, client submission, and decisions
 
 `EXTERNAL_REVIEW` is another member-targeted assignment level. V1 client packages use tenant-owned `WorkRequestV1ClientSubmission` rows with unique `(tenantId, workRequestId, submissionNumber)` and immutable `WorkRequestV1ClientSubmissionItem` rows referencing exact tenant-owned `WorkRequestV1DocumentVersion` IDs. A submitted row is never edited; a resubmission is a new numbered row.

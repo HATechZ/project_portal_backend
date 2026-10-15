@@ -70,6 +70,9 @@ export class WorkRequestAssignmentProvider {
         unassignedAt: assignment.unassignedAt,
         replacedAt: assignment.replacedAt,
         note: assignment.note,
+        assignee: assignment.member
+          ? { id: assignment.member.id, label: assignment.member.name }
+          : null,
         assignedBy: assignment.assignedByActor,
       }));
     });

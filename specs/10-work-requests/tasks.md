@@ -6,7 +6,7 @@
       VERIFY: `Select-String -Path prisma/schema.prisma -Pattern '^model WorkRequest$|^model WorkRequestAssignment$|^model WorkRequestAuditLog$'`
 - [ ] Implement isolated multipart create, Bid/Project XOR validation, generic document-code mapping, initial event, and no initial assignment.
       VERIFY: `corepack yarn test --runInBand --testPathPatterns=work-request`
-- [ ] Implement scoped Division, Team, and Member assignment history with active membership validation.
+- [ ] Implement scoped Division, Team, and Member assignment history with active membership validation and safe Member assignee display projection.
       VERIFY: `corepack yarn test --runInBand --testPathPatterns=work-request`
 - [ ] Implement derived workflow state, the explicit transition matrix, generic revision return paths, clarification behavior, available actions, outbox publication, and focused tenant/concurrency tests.
       VERIFY: `corepack yarn test --runInBand --testPathPatterns=work-request`

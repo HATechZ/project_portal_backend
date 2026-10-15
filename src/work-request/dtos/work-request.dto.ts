@@ -143,6 +143,12 @@ export class WorkRequestAssignmentHistoryResponseDto {
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   replacedAt!: Date | null;
   @ApiPropertyOptional({ nullable: true }) note!: string | null;
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Object,
+    description: 'Safe target Member display projection for member-targeted assignments.',
+  })
+  assignee!: { id: string; label: string } | null;
   @ApiProperty({ type: Object }) assignedBy!: { id: string; label: string };
 }
 

@@ -38,6 +38,12 @@ Reject both/neither parent, category/categoryId, type, attachment category, sour
 
 List extends current `PaginationQueryDto`; supported filters are one parent (`bidId` or `projectId`), exact priority (`Low`, `Medium`, or `High`), derived workflow state, current assigned Division/Team/Member, and current responsibility. No category filters. Detail includes derived state, parent/priority, current and historic assignments, safe file summary, and `availableActions` or its dedicated resource.
 
+`GET /api/v1/work-requests/:id/assignments` preserves every assignment-history field and its
+chronological order. For `MEMBER`, `CHECKING`, `APPROVAL`, and `FINAL_REVIEW` rows, it additionally
+returns `assignee: { id, label }`, projected only from the target Member's ID and display name.
+Division and Team rows return `assignee: null`. This display projection neither changes scope nor
+authorization and never exposes Member email, User data, designation, organization, or access state.
+
 PATCH permits only explicitly approved mutable metadata (title and notes); it never changes parent, priority, assignment, state, actor, tenant, files, or audit history. Changes subject to current workflow state are rejected with 409.
 
 ## Workflow commands
