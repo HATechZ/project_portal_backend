@@ -26,6 +26,7 @@ describe('WorkRequestAssignmentProvider', () => {
   const actor = (
     permission: WorkflowActionCode,
     customScope: string | null = null,
+    withMember = true,
   ) =>
     ({
       id: 'actor-a',
@@ -46,12 +47,15 @@ describe('WorkRequestAssignmentProvider', () => {
           },
         ],
       },
-      member: {
-        id: 'member-a',
-        isActive: true,
-        company: { isActive: true },
-        divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
-      },
+      member: withMember
+        ? {
+            id: 'member-a',
+            companyId: 'company-a',
+            isActive: true,
+            company: { isActive: true },
+            divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
+          }
+        : null,
     }) as never;
   const subject = (prepared = snapshot(State.CREATED)) => {
     const repository = {
@@ -213,6 +217,92 @@ describe('WorkRequestAssignmentProvider', () => {
     await expect(
       provider.division('request-a', { divisionId: 'division-a' }, invalid),
     ).rejects.toThrow();
+    expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [Level.DIVISION, State.CREATED, {}, WorkflowActionCode.WR_ASSIGN_DIVISION],
+    [
+      Level.TEAM,
+      State.DIVISION_ASSIGNED,
+      { DIVISION: 'division-a' },
+      WorkflowActionCode.WR_ASSIGN_TEAM,
+    ],
+    [
+      Level.MEMBER,
+      State.TEAM_ASSIGNED,
+      { DIVISION: 'division-a', TEAM: 'team-a' },
+      WorkflowActionCode.WR_ASSIGN_MEMBER,
+    ],
+  ])(
+    'allows tenant_super_admin without a Member to route %s with its exact permission',
+    async (level, state, active, permission) => {
+      const { provider, repository } = subject(snapshot(state, active));
+      const admin = actor(permission, null, false);
+      await RequestContext.run(
+        { requestId: 'request-a', tenantId: 'tenant-a' },
+        () => {
+          if (level === Level.DIVISION)
+            return provider.division(
+              'request-a',
+              { divisionId: 'target-a' },
+              admin,
+            );
+          if (level === Level.TEAM)
+            return provider.team('request-a', { teamId: 'target-a' }, admin);
+          return provider.member('request-a', { memberId: 'target-a' }, admin);
+        },
+      );
+      expect(repository.write).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('denies tenant_super_admin without the exact routing permission', async () => {
+    const { provider, repository } = subject();
+    await expect(
+      provider.division(
+        'request-a',
+        { divisionId: 'target-a' },
+        actor(WorkflowActionCode.VIEW_WORK_REQUEST, null, false),
+      ),
+    ).rejects.toThrow("You don't have permission");
+    expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it('preserves parent-company and state/prerequisite validation for tenant_super_admin routing', async () => {
+    const wrongCompany = subject({
+      ...snapshot(State.CREATED),
+      target: { ...snapshot(State.CREATED).target, companyId: 'company-b' },
+    });
+    await expect(
+      wrongCompany.provider.division(
+        'request-a',
+        { divisionId: 'target-a' },
+        actor(WorkflowActionCode.WR_ASSIGN_DIVISION, null, false),
+      ),
+    ).rejects.toThrow('outside the Work Request organization');
+    expect(wrongCompany.repository.write).not.toHaveBeenCalled();
+
+    const wrongState = subject(snapshot(State.CREATED));
+    await expect(
+      wrongState.provider.team(
+        'request-a',
+        { teamId: 'target-a' },
+        actor(WorkflowActionCode.WR_ASSIGN_TEAM, null, false),
+      ),
+    ).rejects.toThrow('not in a valid assignment state');
+    expect(wrongState.repository.write).not.toHaveBeenCalled();
+  });
+
+  it('denies a missing or foreign-tenant Work Request before routing authorization', async () => {
+    const { provider, repository } = subject(null);
+    await expect(
+      provider.division(
+        'foreign-request',
+        { divisionId: 'target-a' },
+        actor(WorkflowActionCode.WR_ASSIGN_DIVISION, null, false),
+      ),
+    ).rejects.toThrow('Work Request was not found');
     expect(repository.write).not.toHaveBeenCalled();
   });
 

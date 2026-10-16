@@ -23,6 +23,7 @@ describe('WorkRequestActionsProvider', () => {
     permissions: WorkflowActionCode[],
     memberId = 'member',
     customScope: string | null = null,
+    withMember = true,
   ) =>
     ({
       id: 'actor-a',
@@ -39,16 +40,65 @@ describe('WorkRequestActionsProvider', () => {
           permission: { code: getFinalPermissionForWorkRequestAction(code) },
         })),
       },
-      member: {
-        id: memberId,
-        isActive: true,
-        companyId: 'company',
-        company: { isActive: true },
-        division: { isActive: true },
-        divisionId: 'division',
-        divisionLeadsByMemberId: [],
-      },
+      member: withMember
+        ? {
+            id: memberId,
+            isActive: true,
+            companyId: 'company',
+            company: { isActive: true },
+            division: { isActive: true },
+            divisionId: 'division',
+            divisionLeadsByMemberId: [],
+          }
+        : null,
     }) as never;
+  it.each([
+    [WorkRequestV1StateCode.CREATED, [], WorkflowActionCode.WR_ASSIGN_DIVISION],
+    [
+      WorkRequestV1StateCode.DIVISION_ASSIGNED,
+      [{ level: 'DIVISION', divisionId: 'division-a' }],
+      WorkflowActionCode.WR_ASSIGN_TEAM,
+    ],
+    [
+      WorkRequestV1StateCode.TEAM_ASSIGNED,
+      [
+        { level: 'DIVISION', divisionId: 'division-a' },
+        { level: 'TEAM', teamId: 'team-a' },
+      ],
+      WorkflowActionCode.WR_ASSIGN_MEMBER,
+    ],
+  ])(
+    'exposes %s routing to tenant_super_admin without a Member when explicitly granted',
+    (state, assignments, code) => {
+      expect(
+        provider.available(
+          actor([code], 'member', null, false),
+          state,
+          record(state, assignments),
+        ),
+      ).toContainEqual(expect.objectContaining({ code }));
+    },
+  );
+  it('does not expose tenant-super-admin routing without its exact permission', () => {
+    expect(
+      provider.available(
+        actor([], 'member', null, false),
+        WorkRequestV1StateCode.CREATED,
+        record(WorkRequestV1StateCode.CREATED),
+      ),
+    ).toEqual([]);
+  });
+  it('does not expose submit to tenant_super_admin without the exact Member assignment', () => {
+    expect(
+      provider.available(
+        actor([WorkflowActionCode.WR_SUBMIT], 'member', null, false),
+        WorkRequestV1StateCode.MEMBER_ASSIGNED,
+        record(WorkRequestV1StateCode.MEMBER_ASSIGNED, [
+          { level: 'MEMBER', memberId: 'member-a' },
+        ]),
+      ),
+    ).toEqual([]);
+  });
   it('exposes division assignment only at CREATED with its specific grant', () => {
     expect(
       provider.available(

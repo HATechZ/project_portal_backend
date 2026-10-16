@@ -50,6 +50,15 @@ PATCH permits only explicitly approved mutable metadata (title and notes); it ne
 
 Division body is `{ divisionId, note? }`; Team is `{ teamId, note? }`; Member is `{ memberId, note? }`; reviewer is `{ memberId, level: CHECKING|APPROVAL|FINAL_REVIEW, note? }`. Generic responsibility assignment validates active same-company membership and required effective capabilities, not business title or organization leadership. Assignment responses return the new history row and derived request state/responsibility.
 
+**Initial-routing tenant-super-admin exception:** a system-defined `tenant_super_admin` may
+perform only the Division, Team, and Member routing commands without an ActorProfile Member
+link. The actor still requires the exact compatible explicit routing permission; trusted
+same-tenant context; a visible Work Request; valid routing state and predecessor assignment;
+and an active same-tenant target in the Work Request parent Company. This is not a general
+super-admin bypass. It does not apply to submit, checking/approval/final-review decisions or
+revision, information, client, or external-review actions; those retain their normal exact
+responsibility and relationship requirements.
+
 `POST /:id/actions` accepts configured `actionId` (or stable action code only if the current catalog contract exposes it), optional `note`, and action-specific declared payload. It must not accept arbitrary target status. The contracted actions are the transition-matrix actions: submit, Team/Division Lead/Division Head approval or revision request, and configured post-head handoff. Request/response info accepts a nonblank message plus only a scoped existing target allowed by the configured action; clarification preserves state unless configuration says otherwise.
 
 Phase C1 uses explicit bodies: client submission `{ documentVersionIds: UUID[], note? }`; client decision `{ decision: ACCEPT|REJECT|REQUEST_REVISION, note? }`; client-revision route `{ destination: MEMBER|CHECKING|APPROVAL|FINAL_REVIEW, note? }`. Submission is available only to the assigned EXTERNAL_REVIEW internal member in `FINAL_RELEASE`; decisions are available only to the linked active ClientContact against the latest undecided submitted package in `CLIENT_REVIEW`; routing is available only to assigned EXTERNAL_REVIEW in `CLIENT_REVISION_REQUESTED`. Responses expose safe IDs, round, state, timestamps, note/decision, and submitted version metadata only to authorized callers.

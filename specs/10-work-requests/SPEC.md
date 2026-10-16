@@ -17,6 +17,14 @@ The current V1 workflow is organization-neutral. `MEMBER` is the preparation res
 
 Preparation is assigned with `ASSIGN_WORK_REQUEST_MEMBER`; each reviewer responsibility is assigned with `ASSIGN_REVIEWER`. Assignment checks active same-company Member status and mandatory effective capabilities (including document view where package access is required), records temporal replacement history, and permits one active assignment per responsibility. Request/response information is a side workflow: it never changes the main state or restores a prior assignee. Responsibility-driven events retain a nullable responsibility-level snapshot.
 
+**Initial-routing tenant-super-admin exception:** the system-defined `tenant_super_admin` may
+execute only Division, Team, and Member initial routing/reassignment without an ActorProfile
+Member link, provided it holds the exact compatible explicit routing permission and all
+tenant, parent-Company, target, state, predecessor-assignment, visibility, and idempotency
+checks pass. This is not a general bypass and does not apply to `WR_SUBMIT`, checking,
+approval, final-release, revision, information, client, or external-review actions; those
+continue to require their ordinary exact responsibility and relationship checks.
+
 ## Phase C1 — client-facing lifecycle
 
 `EXTERNAL_REVIEW` is an internal member responsibility, never a role or department. It is assigned through `ASSIGN_REVIEWER`, one active assignment per request, and requires effective `VIEW_WORK_REQUEST`, `VIEW_DOCUMENT`, `SUBMIT_FOR_EXTERNAL_REVIEW`, and `SUBMIT_CLIENT_REVISION`. No title, organization hierarchy, or role identity authorizes it.

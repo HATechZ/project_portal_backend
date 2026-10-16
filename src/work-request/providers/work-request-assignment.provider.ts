@@ -25,6 +25,7 @@ import {
   assignmentTransitionFor,
   workRequestTransitionRequestMetadata,
 } from './work-request-transition.definitions';
+import { hasTenantSuperAdminRoutingAuthority } from './work-request-routing-authority';
 
 @Injectable()
 export class WorkRequestAssignmentProvider {
@@ -177,6 +178,7 @@ export class WorkRequestAssignmentProvider {
       throw conflict(
         'Assignment target is outside the Work Request organization.',
       );
+    if (hasTenantSuperAdminRoutingAuthority(actor, level)) return;
     const member = actor.member;
     if (!member?.isActive || !member.company.isActive) throw forbidden();
   }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   WorkflowActionCode,
+  WorkRequestV1AssignmentLevelCode,
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import type { SessionActor } from '../../common/security/session.types';
@@ -10,6 +11,7 @@ import {
   reviewTransitionFor,
 } from './work-request-transition.definitions';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
+import { hasTenantSuperAdminRoutingAuthority } from './work-request-routing-authority';
 @Injectable()
 export class WorkRequestActionsProvider {
   available(
@@ -39,13 +41,16 @@ export class WorkRequestActionsProvider {
     if (!record) return [];
     const parent = record.bid ?? record.directProject;
     const member = actor.member;
-    if (
-      !parent ||
-      !member?.isActive ||
-      !member.company.isActive ||
-      member.companyId !== parent.client.companyId
-    )
-      return [];
+    if (!parent) return [];
+    const hasMemberInParentCompany =
+      member?.isActive === true &&
+      member.company.isActive === true &&
+      member.companyId === parent.client.companyId;
+    const hasAdminRoutingAuthority = hasTenantSuperAdminRoutingAuthority(
+      actor,
+      WorkRequestV1AssignmentLevelCode.DIVISION,
+    );
+    if (!hasMemberInParentCompany && !hasAdminRoutingAuthority) return [];
     const active = Object.fromEntries(
       record.assignments.map((assignment) => [
         assignment.level,
@@ -93,7 +98,9 @@ export class WorkRequestActionsProvider {
         label: 'Assign Member',
         targetKind: 'member',
       });
-    const canInfoScope = Object.values(active).includes(member.id);
+    const canInfoScope = member
+      ? Object.values(active).includes(member.id)
+      : false;
     for (const code of [
       WorkflowActionCode.WR_SUBMIT,
       WorkflowActionCode.WR_CHECKING_APPROVE,
@@ -104,6 +111,7 @@ export class WorkRequestActionsProvider {
       const transition = reviewTransitionFor(code, state);
       if (
         transition &&
+        member &&
         active[transition.responsibility] === member.id &&
         hasActionPermission(code)
       )
