@@ -19,4 +19,4 @@ The pipeline validates request mapping/file policy/code scope, creates storage m
 
 ## Explicit constraints
 
-No schema/migration/seed work occurs in this specification phase. Any later schema reshape is delegated under Article IX and follows the proposed data contract. No generic document API, frontend persistence model, folder-tree schema, or TMS implementation is added.
+No schema/migration/seed work occurs in this specification phase. Any later schema reshape is delegated under Article IX and follows the proposed data contract. No generic document API, frontend persistence model, folder-tree schema, or company-specific workflow implementation is added.

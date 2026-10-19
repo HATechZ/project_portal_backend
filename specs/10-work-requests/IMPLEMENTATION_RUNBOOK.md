@@ -1,0 +1,80 @@
+# Work Request Route Model — Implementation Runbook
+
+When the user says `Implement Work Request Phase N`, Codex MUST read this runbook, [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md), and the referenced frozen authoritative specs before modifying code.
+
+Codex must never ask the user to restate frozen rules; reopen a completed phase only for a proven defect/blocker; inspect the current working tree; treat latest completed runtime as implementation context and frozen specs as business authority; make delta-only changes; avoid unrelated redesign; never hardcode company/Division names; never authorize by role name; and never treat permission alone as sufficient.
+
+## Command protocol
+
+1. Read this runbook, status, and Phase-N references; inspect current tree.
+2. Verify every prerequisite phase is `COMPLETE` and its successor readiness is `READY`.
+3. If not, do not implement; report the exact blocker.
+4. If yes, mark Phase N `IN_PROGRESS`, implement only Phase N, and run its Completion Gate.
+5. On success mark it `COMPLETE`, evaluate/update successor readiness; on failure retain `IN_PROGRESS` or set `BLOCKED` with evidence.
+6. Never implement Phase N+1 in the same request.
+
+Final implementation responses must state `PHASE N: COMPLETE | BLOCKED | IN_PROGRESS`, `NEXT PHASE: READY | NOT READY`, and `NEXT COMMAND: Implement Work Request Phase N+1`; Phase 7 instead states `WORK REQUEST ROUTE MODEL: COMPLETE | NOT COMPLETE`.
+
+## Non-negotiable completion and readiness policy
+
+A phase may be marked `COMPLETE` only when every in-scope task is finished; every leaf task is verified; focused and applicable integration/API tests pass; authorization, Tenant/RLS, concurrency/idempotency, migration, and legacy/cutover checks applicable to that phase pass; required build/type and spec-contract checks pass; `git diff --check` passes; no in-scope defect, unresolved TODO/FIXME, temporary bypass, weakened security rule, or skipped owner requirement remains. Partial success is never `COMPLETE`.
+
+`NEXT PHASE: READY` is permitted only when current Phase is `COMPLETE`, every current Completion Gate/validation passed, no blocker or in-scope defect remains, prior completed phases still pass their required regression checks, and the repository is coherent for the successor. Otherwise it is exactly `NEXT PHASE: NOT READY`; never describe it as mostly/conditionally/ready-enough. A blocker stops implementation.
+
+Before marking any future phase complete, Codex must conduct a second self-review of implementation versus its Phase specification, `tasks.md`, [Test Matrix](TEST_MATRIX.md), authorization rules, and applicable schema/migration contract. It must check missing requirements, retained pre-route behavior, permission-only authorization, role/Division-name hardcoding, tenant/responsibility gaps, idempotency/concurrency gaps, mutable history, route skipping, revision/resume errors, conversation leakage, and C1/C3 regression. Any finding prevents `COMPLETE` and successor readiness.
+
+## Phase 1 — Permission Catalogue & Implementation Design
+
+**A. Purpose:** finalize safe capability/responsibility mapping before persistence. **B. Prerequisites:** status overall NOT_STARTED; no prior phase. **C. References:** [SPEC](SPEC.md), [API](API_CONTRACT.md), [Data](DATA_CONTRACT.md), [Route](ROUTE_AND_EXECUTION_LIFECYCLE.md), [Revision](REVISION_AND_RESUME.md), [Communication](REQUEST_INFO_COMMUNICATION.md), [Client](CLIENT_GATEWAY_RECONSIDERATION.md). **D. Inspect:** current `PermissionCode`, scope compatibilities, provisioning/reconciliation, final permission mapper, guards, and Work Request providers.
+
+**E. In scope:** map create, route define/amend, Team/Member sequencing, submit/complete, three revision classes, communication, Client submission/decision, reconsideration. **F. Out:** route runtime, schema, migrations, 10.1/10.2. **G. Areas:** permission catalogue/provisioning, `work-request-final-permission.mapper`, authorization tests/spec status. **H. Schema:** only an approved generic permission migration if catalogue audit proves a gap. **I. API:** endpoint-to-capability mapping only. **J. Permissions:** reuse existing generic codes first; otherwise smallest generic scoped addition—never speculative/company-specific. **K. Rules:** every mapping still requires permission + scope + active Tenant actor + relationship + exact responsibility + context.
+
+**L. Tests:** catalogue/scope and negative authorization matrix. **M. Validation:** focused permission tests, `corepack yarn verify:spec`, `git diff --check`. **N. Completion Gate:** every Phase 2–7 command has final mapping and no speculative gap. **O. Next-Phase Readiness:** Phase 2 `READY` only after the gate passes. **P. Final report:** mappings reused/added, scope policy, tests, blockers, Phase 2 readiness.
+
+## Phase 2 — Persistence, RLS, Constraints & Cutover
+
+**A. Purpose:** add safe route-model persistence and cutover. **B. Prerequisites:** Phase 1 COMPLETE/Phase 2 READY. **C. References:** [Data](DATA_CONTRACT.md), [Cutover](MIGRATION_CUTOVER.md), [Route](ROUTE_AND_EXECUTION_LIFECYCLE.md), [Revision](REVISION_AND_RESUME.md), [Communication](REQUEST_INFO_COMMUNICATION.md), [Client](CLIENT_GATEWAY_RECONSIDERATION.md). **D. Inspect:** `WorkRequestV1`, events/assignments/C1/C2 models, migrations, RLS/grant patterns, repository transaction patterns.
+
+**E. In scope:** origin/responsible lead/cutover, route versions/steps/amendments, cycles/sequences, revisions, conversations/messages/attachments, reconsideration. **F. Out:** workflow endpoints and C1 behavior changes. **G. Areas:** Prisma, migration, Work Request repositories/records, RLS tests. **H. Schema:** additive only; tenant FKs, indexes, unique active/ordinal/idempotency constraints, RLS, immutable protections. **I. API:** none until coherent persistence exists. **J. Permissions:** consume Phase-1 mapping only. **K. Rules:** preserve legacy V1/C1/C2/C3; never fabricate history or reparent data.
+
+**L. Tests:** fresh migration, legacy cutover, RLS, FK/ordering/active invariants, append-only and idempotency triggers. **M. Validation:** disposable PostgreSQL migration/catalog/RLS checks plus Prisma validate/generate/build/spec/diff. **N. Completion Gate:** DB evidence proves persistence and legacy preservation. **O. Next-Phase Readiness:** Phase 3 READY only after migration validation passes. **P. Final report:** migration paths/status, catalog constraints/RLS proof, cutover evidence, blockers.
+
+## Phase 3 — Main Route Creation, Amendment & Main Projection
+
+**A. Purpose:** implement ordered main-route behavior. **B. Prerequisites:** Phase 2 COMPLETE/Phase 3 READY. **C. References:** [Route](ROUTE_AND_EXECUTION_LIFECYCLE.md), [API](API_CONTRACT.md), [Visibility](WORKFLOW_PROJECTIONS_VISIBILITY.md), [Test Matrix](TEST_MATRIX.md). **D. Inspect:** create DTO/controller/service/repository, response mapper, event/outbox, current reads/actions, responsible DivisionLead relations.
+
+**E. In scope:** create with exact origin/responsible lead and >=1 intermediate, repeats, derived tail, progression, amendment, main projection. **F. Out:** Team/Member execution, revisions, communication, Client decisions. **G. Areas:** Work Request DTO/controller/service, route provider/repository/records, main reads/mapper/actions, tests. **H. Schema:** consume Phase-2 relations only. **I. API:** create/route/progress/amendment endpoints. **J. Permissions:** Phase-1 mappings plus exact responsible-lead check. **K. Rules:** forward follows route only; amendment only future steps; no completed/current rewrite.
+
+**L. Tests:** zero intermediate, repeated occurrence, tail derivation, forward ordering, amendment/replay/concurrency, tenant/responsibility. **M. Validation:** focused route/API tests, migration-backed integration where available, build/spec/diff. **N. Completion Gate:** route API/auth/concurrency tests pass. **O. Next-Phase Readiness:** Phase 4 READY only when occurrence/progression is authoritative. **P. Final report:** routes/data created, tests, invariants, readiness.
+
+## Phase 4 — Internal Division / Team / Member Execution
+
+**A. Purpose:** implement sequential internal execution. **B. Prerequisites:** Phase 3 COMPLETE/Phase 4 READY. **C. References:** [Route](ROUTE_AND_EXECUTION_LIFECYCLE.md), [Visibility](WORKFLOW_PROJECTIONS_VISIBILITY.md), [API](API_CONTRACT.md), [Test Matrix](TEST_MATRIX.md). **D. Inspect:** Team/Member/DivisionLead relations, assignment/workflow providers, visibility, actions, document ownership.
+
+**E. In scope:** Division cycles, fixed Team sequences, Member sequences, late Member append, submit/Team completion, internal projection/actions. **F. Out:** source revision, communication, C1 gateway. **G. Areas:** execution providers/repositories/records, DTO/controllers, visibility/actions/mapper/tests. **H. Schema:** consume Phase-2 cycle/step relations. **I. API:** sequence, append, submit, complete, internal-cycle read. **J. Permissions:** Phase-1 sequence/submit/complete mappings. **K. Rules:** Teams frozen after start; Members append only; one active step; repeated Division gets new cycle.
+
+**L. Tests:** order, freeze, repeat cycle, immutable completed steps, append/submit races, exact Team/Member responsibility. **M. Validation:** focused execution/API/RLS tests, build/spec/diff. **N. Completion Gate:** deterministic sequential activation/history/auth passes. **O. Next-Phase Readiness:** Phase 5 READY only when pause points are deterministic. **P. Final report:** execution coverage, tests, limitations, readiness.
+
+## Phase 5 — Source-Based Revision / Resume & Formal Revision Trigger
+
+**A. Purpose:** implement direct source revision/resume and the 10.1 trigger. **B. Prerequisites:** Phase 4 COMPLETE/Phase 5 READY. **C. References:** [Revision](REVISION_AND_RESUME.md), [Route](ROUTE_AND_EXECUTION_LIFECYCLE.md), [Test Matrix](TEST_MATRIX.md), `10.1-documents/FORMAL_REVISION_LIFECYCLE.md`. **D. Inspect:** execution context, event/outbox, Documents version references, current revision provider/tests.
+
+**E. In scope:** Member/Team/Cross-Division revision request, direct correction resubmit, round/pause/resume audit, formal trigger. **F. Out:** 10.1 implementation and Client gateway. **G. Areas:** revision provider/repository/records/controllers, execution pause/resume, actions/events/tests. **H. Schema:** consume Phase-2 revisions. **I. API:** revision and resubmit/history routes. **J. Permissions:** Phase-1 revision mappings. **K. Rules:** internal revisions non-formal; committed `CROSS_DIVISION_FORMAL` exactly once is sole 10.1 trigger; Client request alone is non-formal.
+
+**L. Tests:** direct A→D, Team A→C, Division B→D, repeat rounds, no intermediate replay, idempotency/concurrency, trigger exclusivity. **M. Validation:** focused revision/API tests, outbox/audit proof, build/spec/diff. **N. Completion Gate:** direct resume passes and formal trigger is deterministic. **O. Next-Phase Readiness:** Phase 6 READY only after trigger contract is stable. **P. Final report:** classifications/events, trigger proof, tests, readiness.
+
+## Phase 6 — Private Communication, Visibility & Available Actions
+
+**A. Purpose:** add pair-private communication and complete visibility/actions. **B. Prerequisites:** Phase 5 COMPLETE/Phase 6 READY. **C. References:** [Communication](REQUEST_INFO_COMMUNICATION.md), [Visibility](WORKFLOW_PROJECTIONS_VISIBILITY.md), [API](API_CONTRACT.md), [Test Matrix](TEST_MATRIX.md). **D. Inspect:** C2 provider/repository (historical only), Work Request visibility/actions, documents/attachments, external access.
+
+**E. In scope:** recipient discovery, fan-out, canonical pair conversation, immutable messages/attachments, former read/no-send, main/internal projections, complete actions. **F. Out:** C2 conversion, realtime infrastructure, Client gateway. **G. Areas:** communication providers/repos/controllers/records, visibility/actions/history mappers/tests. **H. Schema:** consume Phase-2 conversation relations. **I. API:** recipient/send/read/reply/main/internal history. **J. Permissions:** Phase-1 communication mapping. **K. Rules:** no group conversation/open-close lifecycle; new route requests never use C2 semantics.
+
+**L. Tests:** relationship matrix, privacy, fan-out, continuity, former read/no-send, RLS, action non-leakage. **M. Validation:** focused communication/visibility/API/RLS tests, build/spec/diff. **N. Completion Gate:** privacy and available-actions proof passes. **O. Next-Phase Readiness:** Phase 7 READY only when C2 cannot leak into route model. **P. Final report:** communication/RLS/action results and readiness.
+
+## Phase 7 — C1 Client Gateway, Reconsideration, C3 Compatibility & Final Regression
+
+**A. Purpose:** complete Client gateway/reconsideration and prove total compatibility. **B. Prerequisites:** Phase 6 COMPLETE/Phase 7 READY. **C. References:** [Client](CLIENT_GATEWAY_RECONSIDERATION.md), [Cutover](MIGRATION_CUTOVER.md), [Test Matrix](TEST_MATRIX.md), C3 specs, C1 client lifecycle specs. **D. Inspect:** C1 submission/decision provider/repository/tests, Client authorization, C3 readiness/conversion, documents, current regressions.
+
+**E. In scope:** Originating final gateway, Client revision coordination, reconsideration, C1/C3 regression. **F. Out:** C1 package redesign, C3 aggregate redesign, 10.1/10.2. **G. Areas:** Client-submission/reconsideration providers/repos/controllers, actions/visibility/tests. **H. Schema:** consume Phase-2 reconsideration persistence. **I. API:** origin-gateway submission and reconsideration flow. **J. Permissions:** Phase-1 Client/reconsideration mappings. **K. Rules:** package IDs remain exact/immutable; C3 all-current-cycle-WR-accepted gate unchanged.
+
+**L. Tests:** origin-only gateway, Client accept/revision/reject, one-time reconsideration, C1 package pinning, C3 readiness, full regression/RLS/cutover. **M. Validation:** full suite, DB migration validation, build, `corepack yarn verify:spec`, `git diff --check`. **N. Completion Gate:** all Phase 1–7 and regression gates pass. **O. Next-Phase Readiness:** route model COMPLETE only on all gates. **P. Final report:** complete/blocked status, totals, remaining risks, no false DB claims.

@@ -32,8 +32,9 @@
 | [09](09-project/) Project | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent direct Project; replaces combined workspace design |
 | Documents (future allocation) | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
 | Workflow Engine (future allocation) | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
-| [10](10-work-requests/) Work Requests | redesign required | 1 | 0/6 | `[DRAFT]` | Bid/Project XOR and event-derived state specified |
-| [10.1](10.1-documents/) Shared Documents | 6 proposed | 4 | 0/10 | `[WIP]` | Phase 1 foundation implemented; independent verification pending |
+| [10](10-work-requests/) Route-Based Work Requests | additive route/cycle/revision/communication redesign | 3 | 0/7 | `[SPEC APPROVED]` | [Runbook](10-work-requests/IMPLEMENTATION_RUNBOOK.md) is phased execution authority; [status](10-work-requests/IMPLEMENTATION_STATUS.md) is continuity authority; pre-route V1 preserved historically |
+| [10.1](10.1-documents/) Shared Documents | 6 proposed + additive session/revision proposal | 4 | 0/10 | `[WIP]` | Current foundation preserved; weekly revision/upload-storage contracts frozen; implementation pending |
+| [10.2](10.2-document-management/) Document Management Reads | additive future scope | 3 | 0/0 | `[SPEC APPROVED]` | Next-week tree/search/read/naming policy; depends on 10.1 |
 | 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
 | 12 Notifications | 2 | 0 | — | `[NOT STARTED]` | Consumes 02's mail queue |
 | 13 Audit | 1 | 0 | — | `[NOT STARTED]` | |

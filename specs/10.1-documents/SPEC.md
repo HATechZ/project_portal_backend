@@ -2,6 +2,8 @@
 
 **Status:** Gate 3 draft; implementation not started. **Runtime target:** shared document pipeline consumed by Bid, Direct Project, and Work Request. **API ownership:** parent controllers; there is no generic document controller.
 
+**Weekly-scope authority:** [Formal Revision Lifecycle](FORMAL_REVISION_LIFECYCLE.md) freezes the additive generic revision contract; [Document Upload & Storage Lifecycle](UPLOAD_STORAGE_LIFECYCLE.md) freezes provider-neutral upload/storage evolution. Those contracts preserve this module's current document/version rules and C1 exact-package snapshots.
+
 ## Boundary
 
 This module defines one reusable, storage-agnostic document pipeline for validation, document-code validation, naming, original-name tracking, protected storage, metadata, immutable versions, cleanup, and audit. Bid, Direct Project, and Work Request remain independent aggregates, routes, authorization boundaries, and persistence owners. This module neither merges them nor revives legacy `Document`/folder structures.
@@ -43,6 +45,6 @@ an unrelated Tenant document; external Client/ClientContact rules remain indepen
 
 ## Out of scope
 
-Frontend folder trees, preview/download UI, move/delete-folder UI, TMS workflow implementation, file deletion, generic cross-parent API, and unrelated Bid/Project/Work Request changes are out of scope. Folder structure remains presentation; document classification/version/storage metadata is backend truth.
+Frontend folder trees, preview/download UI, move/delete-folder UI, company-specific workflow implementations, file deletion, generic cross-parent API, and unrelated Bid/Project/Work Request changes are out of scope. Folder structure remains presentation; document classification/version/storage metadata is backend truth.
 
 Legacy Direct Project versions with `generatedFileName = null` are preserved and are never assigned a fabricated historical name without provable naming data.

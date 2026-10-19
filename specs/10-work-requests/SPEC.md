@@ -1,6 +1,18 @@
-# SPEC: 10 — Work Requests
+# SPEC: 10 — Route-Based Work Requests
 
-**Status:** Draft — Gates 1–3. **Runtime target:** `src/work-request/**`. **API base:** `/api/v1/work-requests`.
+**Status:** authoritative redesign contract; implementation of this model has not started. **Runtime target:** `src/work-request/**`. **API base:** `/api/v1/work-requests`.
+
+> **AUTHORITATIVE ROUTE MODEL:** The route-based contracts in this directory supersede the pre-route linear workflow text below for all newly created compatible Work Requests. The retained text is **HISTORICAL / PRE-ROUTE MODEL**, useful only to preserve existing V1 records and APIs through the documented cutover. It must not be used to authorize or implement new route-based behavior.
+
+> **AUTHORIZATION:** `permission + compatible scope + active same-Tenant actor + exact Work Request/resource relationship + exact responsibility + valid workflow context = ALLOW`. User is login/security identity; Member is internal business person; ActorProfile is acting context. No Division/Team name, company-specific identity, role name/code, title, or designation is an authorization semantic. `tenant_super_admin` is own-Tenant only and has no workflow-responsibility bypass.
+
+> **RESPONSIBLE ORIGINATING LEAD:** Every route-based Work Request persists its Originating Division and the exact active Division Lead bound as its Responsible Originating Division Lead. Only that bound Lead holds Work Request-specific originating-lead authority: initial route definition, permitted future-route amendment, Originating final review, Client gateway/submission handling, Client revision coordination, and one-time reconsideration request. Another active Lead of the same Division has no such authority merely through Division membership. Transfer is an explicit, auditable Work Request responsibility change; it is never inferred.
+
+> **PERMISSION POLICY:** Reuse an existing generic permission whenever it correctly represents a route-based capability. If the catalogue audit proves that a required capability cannot be represented safely, implementation may add the smallest necessary generic permission with explicit scope compatibility, catalogue provisioning/reconciliation, and authorization tests. A permission alone never authorizes a command; exact resource, responsibility, and workflow context remain required. No speculative new permission name is frozen here.
+
+> **CURRENT AUTHORITY:** [Route & Execution Lifecycle](ROUTE_AND_EXECUTION_LIFECYCLE.md), [Revision & Resume](REVISION_AND_RESUME.md), [Request Info Communication](REQUEST_INFO_COMMUNICATION.md), [Workflow Projections & Visibility](WORKFLOW_PROJECTIONS_VISIBILITY.md), [Client Gateway & Reconsideration](CLIENT_GATEWAY_RECONSIDERATION.md), [Migration Cutover](MIGRATION_CUTOVER.md), and [Test Matrix](TEST_MATRIX.md) govern this module. C1 exact package snapshots and C3 current-cycle readiness remain preserved.
+
+## HISTORICAL / PRE-ROUTE V1 MATERIAL
 
 > **SUPERSEDED ROLE CONTENT:** [`ROLE_ARCHITECTURE_FREEZE.md`](../ROLE_ARCHITECTURE_FREEZE.md) is authoritative. Fixed-role rules, grant matrices, role-name authorization, and legacy custom-scope statements here are retained only as historical implementation context.
 
@@ -78,7 +90,7 @@ The hierarchy describes routing authority, not hard-coded role checks. Every com
 
 The current action catalogue supplies `ADD_WORK_REQUEST`, `ADD_WORK_REQUEST_DOCUMENT`, `ADD_WORK_REQUEST_NOTE`, `REQUEST_WORKFLOW_INFO`, `RESPOND_WORKFLOW_INFO`, and `ASSIGN_MEMBER`; only the first five are Work Request capabilities. Approved new catalogue codes are `VIEW_WORK_REQUEST`, `UPDATE_WORK_REQUEST`, `WR_ASSIGN_DIVISION`, `WR_ASSIGN_TEAM`, `WR_ASSIGN_MEMBER`, `WR_SUBMIT`, `WR_TEAM_LEAD_APPROVE`, `WR_TEAM_LEAD_REQUEST_REVISION`, `WR_DIVISION_LEAD_APPROVE`, `WR_DIVISION_LEAD_REQUEST_REVISION`, `WR_DIVISION_HEAD_APPROVE`, and `WR_DIVISION_HEAD_REQUEST_REVISION`. Authorization is never inferred from role names.
 
-### Fixed-role permission baseline
+### HISTORICAL / PRE-ROUTE fixed-role permission baseline
 
 The canonical fixed system-role code is `tenant_super_admin`. It is not an authorization bypass. The following baseline grants are only the Work Request permissions; every command additionally requires authenticated tenant context, an active ActorProfile and role assignment, the permission, current Work Request state, object scope, organization relationship, and an active Work Request assignment where the transition requires one.
 

@@ -1,4 +1,18 @@
-# Data Contract: 10 — Work Requests
+# Data Contract: 10 — Route-Based Work Requests
+
+> **AUTHORITATIVE DATA CONTRACT:** The route-based concepts are additive future persistence. The pre-route V1 contract below is **HISTORICAL / PRE-ROUTE MODEL** retained for lossless read compatibility; it is not a schema blueprint for new route-based Work Requests. Exact target Prisma names/migration SQL are deferred until approved implementation design.
+
+## Route-based persistence summary
+
+The new model requires tenant-qualified, append-only/immutable history for route versions and route-step occurrences; one Division execution cycle per activated route occurrence; ordered Team steps per Division cycle; ordered Member steps per Team step; revisions/resume links; pair conversations/messages/attachments; and reconsideration history. `WorkRequestV1`, events, documents/versions, C1 package rows, C2 historical rows, and C3 Bid-cycle relation remain preserved. See [Route & Execution Lifecycle](ROUTE_AND_EXECUTION_LIFECYCLE.md), [Revision & Resume](REVISION_AND_RESUME.md), [Request Info Communication](REQUEST_INFO_COMMUNICATION.md), [Client Gateway & Reconsideration](CLIENT_GATEWAY_RECONSIDERATION.md), and [Migration Cutover](MIGRATION_CUTOVER.md).
+
+Persist route position, internal-cycle position, revision pause/resume, and Client lifecycle as separate facts/projections; do not create one giant global enum or mutable status sufficient to reconstruct history. New tables require tenant-qualified FKs, RLS `USING`/`WITH CHECK`, least grants, sequence/one-active constraints, idempotency uniqueness, and append-only protections where specified.
+
+The Work Request persists `originatingDivisionId` and `responsibleOriginatingDivisionLeadId` as separate tenant-qualified facts. The latter identifies the exact active DivisionLead responsibility bound at creation; it is not derivable from Division membership. A transfer requires a separate append-only responsibility-change record with predecessor, successor, actor, reason, timestamp, and correlation.
+
+Conceptual relations are: `WorkRequestRouteVersion` (origin, responsible originating lead, predecessor/amendment and route plan); `WorkRequestRouteStep` (occurrence, ordinal, kind, Division, activation/completion); `WorkRequestDivisionCycle` (one per activated Division occurrence); `WorkRequestTeamStep` and `WorkRequestMemberStep` (parent cycle/step, ordinal, target, immutable lifecycle); `WorkRequestRevision` (classification, requester, actual source, exact contexts, resume destination, round, formal trigger); `WorkRequestConversation` (canonical pair per Work Request); `WorkRequestMessage` and immutable attachment references; and `WorkRequestReconsideration` with one request/decision history. These are conceptual names, not approved Prisma names.
+
+## HISTORICAL / PRE-ROUTE DATA CONTRACT
 
 ## Redesign boundary
 

@@ -1,4 +1,41 @@
-# API Contract: 10 — Work Requests
+# API Contract: 10 — Route-Based Work Requests
+
+> **AUTHORITATIVE API:** This contract governs new route-based Work Requests. Routes in the retained pre-route section below are **HISTORICAL / PRE-ROUTE MODEL** compatibility endpoints only; they are not a target API for the route model. All routes inherit Module 00 envelope, error mapping, UUID validation, `x-request-id`, pagination, and guard conventions.
+
+## Route-based surface
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/work-requests` | Create a route-based request with ordered intermediate Division IDs; server derives origin-final and Client tail. |
+| GET | `/api/v1/work-requests/:id/route` | Main route/progress projection. |
+| POST | `/api/v1/work-requests/:id/route-amendments` | Exact Responsible Originating Division Lead appends a versioned amendment to remaining future route steps. |
+| GET | `/api/v1/work-requests/:id/internal-cycles/:cycleId` | Authorized Division/Team/Member execution projection. |
+| POST | `/api/v1/work-requests/:id/division-cycles/:cycleId/team-sequence` | Define the active Division cycle's fixed ordered Team sequence. |
+| POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/member-sequence` | Define the active Team's ordered Member sequence. |
+| POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/member-steps` | Append a future Member step to the active Team sequence. |
+| POST | `/api/v1/work-requests/:id/member-steps/:memberStepId/submit` | Submit current Member work. |
+| POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/complete` | Complete current Team work. |
+| POST | `/api/v1/work-requests/:id/route-steps/:routeStepId/forward` | Normal forward only to the next approved route occurrence. |
+| POST | `/api/v1/work-requests/:id/revisions` | Request internal Member, internal Team, or cross-Division formal revision. |
+| POST | `/api/v1/work-requests/:id/revisions/:revisionId/resubmit` | Source correction returns directly to preserved requester/resume destination. |
+| GET | `/api/v1/work-requests/:id/communication-recipients` | Context-valid exact people available to the caller. |
+| POST | `/api/v1/work-requests/:id/conversations/messages` | Fan out one initial message to one or more exact recipients. |
+| GET | `/api/v1/work-requests/:id/conversations/:conversationId` | Pair-only continuous conversation history. |
+| POST | `/api/v1/work-requests/:id/conversations/:conversationId/messages` | Append a pair-conversation message. |
+| GET | `/api/v1/work-requests/:id/main-history` | Main route/handoff history only. |
+| GET | `/api/v1/work-requests/:id/internal-history` | Authorized internal execution/revision history. |
+| POST | `/api/v1/work-requests/:id/client-submissions` | Originating final-review gateway submits immutable C1 package. |
+| POST | `/api/v1/work-requests/:id/client-submissions/:submissionId/decision` | Authorized ClientContact accepts, rejects, or requests revision. |
+| POST | `/api/v1/work-requests/:id/reconsideration` | Exact Responsible Originating Division Lead's single reconsideration request. |
+| POST | `/api/v1/work-requests/:id/reconsideration/decision` | Authorized ClientContact accepts or denies that request. |
+
+Create body: `{ bidId XOR projectId, title, priority, notes?, originatingDivisionId, intermediateDivisionIds: UUID[1..], files?, documentCodeIds? }`. `originatingDivisionId` must be an active Division led by the caller; the server binds the caller's exact active DivisionLead responsibility as Responsible Originating Division Lead. Clients cannot send that responsibility ID, derived tail, route version/step/cycle IDs, Team/Member sequences, state, actor, tenant, storage/version/revision fields, formal revision round, or reconsideration state. `intermediateDivisionIds` preserves order and permits duplicate IDs.
+
+Sequence bodies contain only ordered target UUIDs and optional note. Amendment contains a base route version plus a complete replacement of **remaining future intermediate occurrences**; the service derives immutable tail steps and rejects completed/current modifications. Revision contains classification, exact valid source target, reason/note, and no caller-controlled requester/resume/formal-round field. Initial communication contains `recipientActorIds: UUID[1..]`, nonblank message, and exact owned document-version IDs; reply contains message/attachment IDs only.
+
+Responses are safe projections: IDs, occurrence/cycle/sequence positions, derived progress, permitted actions, safe person labels, exact immutable document-version IDs, timestamps, and immutable event references. They never expose tenant internals, storage keys, authorization internals, or private conversations of another pair. Standard errors: 400 malformed/server-owned fields; 403 permission/scope/exact-responsibility failure; 404 inaccessible resource/target; 409 stale route version, invalid current position, frozen Team sequence, duplicate/idempotent command, concurrent append, invalid revision resume, or exhausted reconsideration. Each route reuses a semantically correct existing generic permission where possible; only a catalogue audit may authorize the smallest required new generic permission, never by a speculative route-specific name.
+
+## HISTORICAL / PRE-ROUTE API
 
 All routes inherit Module 00 response envelopes (`success`, `message`, `data`, metadata/request ID), UUID validation, AppException mapping, pagination, Swagger decorators, and the AccessToken → TenantContext → Authentication → ObjectScope → Permissions guard chain. Controllers return plain data and do not query or construct envelopes.
 

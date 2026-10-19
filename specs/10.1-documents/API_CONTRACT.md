@@ -17,7 +17,7 @@ All routes inherit Module 00 envelope, request ID, multipart limits, error mappi
 | GET | `/api/v1/work-requests/:id/documents` | Existing valid read retained | `VIEW_WORK_REQUEST`; tenant, request scope |
 | GET | `/api/v1/work-requests/:id/documents/:documentId/versions` | Existing valid read retained | `VIEW_WORK_REQUEST`; tenant, request scope |
 
-The listed actions are the current catalogue; no role-name checks or super-admin bypasses are authorized. Future TMS maps M1 to producer/version uploader and M2/M3 to checking/approval without changing this route lineage rule.
+The listed actions are the current catalogue; no role-name checks or super-admin bypasses are authorized. Current authorization is exclusively: permission + compatible scope + same Tenant/resource + exact responsibility or relationship where required + valid workflow state = ALLOW. No fixed department, team, title, or role identity is an authorization semantic.
 
 ## Multipart requests
 
