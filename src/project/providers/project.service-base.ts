@@ -37,6 +37,7 @@ import type { DocumentSummaryDto } from '../../common/documents/document-summary
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
 import type { SessionActor } from '../../common/security/session.types';
 import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
+import { normalizeDirectProjectName } from '../../common/projects/direct-project-creation';
 import {
   DocumentUploadOperationCode,
   DocumentUploadOwnerCode,
@@ -531,7 +532,7 @@ function response(value: ProjectRecord): ProjectResponseDto {
   };
 }
 function normalizeName(value: string): string {
-  return value.trim().toLowerCase();
+  return normalizeDirectProjectName(value);
 }
 function normalizeShipment(value: string): string {
   if (!/^\d{1,2}$/.test(value))

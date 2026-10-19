@@ -157,6 +157,15 @@ export class BidRepository extends BaseRepository {
             changedByActorId: input.actorId,
           },
         });
+        await db.bidBusinessCycle.create({
+          data: {
+            id: randomUUID(),
+            tenantId,
+            bidId: input.id,
+            cycleNumber: 1,
+            openedByActorId: input.actorId,
+          },
+        });
         if (input.files.length) {
           await db.bidDocument.createMany({
             data: input.files.map(

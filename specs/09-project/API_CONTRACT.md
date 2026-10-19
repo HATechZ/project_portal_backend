@@ -31,3 +31,7 @@ Create trims/case-folds the name, validates scoped active Client/POL/POD/Cargo/V
 ## PATCH `/api/v1/projects/:id/documents/:documentId/document-code`
 
 Accepts `{ "documentCodeId": "uuid" }`. The target must be an active tenant Marketing Document Code. It changes only current classification metadata, records a classification audit event and transactional Project update outbox event, and never re-uploads, changes `originalFileName`, `storageKey`, bytes, revision, or an already-created version's generated filename. Multiple files may use the same Document Code.
+
+## C3 conversion compatibility
+
+The Bid C3 `POST /api/v1/bids/:id/business-outcome` route may create a new DirectProject transactionally. There is deliberately no Project-side “convert Bid” endpoint, no shared workspace route, and no direct Project API that accepts a Bid ID/source-Bid field. A converted Project is read through normal scoped Project reads and the scoped Bid conversion-history read.

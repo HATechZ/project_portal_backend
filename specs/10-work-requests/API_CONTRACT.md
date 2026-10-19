@@ -78,3 +78,7 @@ External create is permitted only to a ClientContact with an explicitly granted 
 `GET /:id/documents` returns safe metadata for documents owned by the scoped Work Request. `GET /:id/documents/:documentId/versions` returns immutable V1 version rows in deterministic oldest-to-newest order (`uploadedAt ASC`, then `id ASC`). Neither route exposes binary content, tenant IDs, or internal storage keys. A document ID belonging to another request is not found.
 
 `GET /:id/available-actions` returns the backend’s safe action descriptors (stable identity, label, optional input requirement/target kind) after evaluating latest derived state, permission, active ActorProfile/role grant, object scope, active assignment, parent relationship, and organization hierarchy. It exposes no client-side authorization matrix and does not authorize callers by role name alone. A false/empty result is correct when any one predicate fails.
+
+## C3 parent/cycle compatibility
+
+No C3 endpoint changes this Work Request API. When creating a Bid-owned request, the server (not the client) records the parent Bid's current business-cycle membership; when creating a DirectProject-owned request it records no Bid cycle. No request may carry both parents or become Project-owned because its Bid later converts. C3 business-outcome readiness consumes this persisted membership and latest C1 client lifecycle records only; it does not alter routing, available actions, C1, or C2 contracts.

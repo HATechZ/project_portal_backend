@@ -1,0 +1,1 @@
+ALTER TYPE "bid_status_code" ADD VALUE IF NOT EXISTS 'ARCHIVED';

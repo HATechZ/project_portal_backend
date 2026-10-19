@@ -1,6 +1,12 @@
 import { DomainEventType } from './domain-event';
 import { BidCreated, BidUpdated } from './bid-events';
 import {
+  BidArchivedReviewRequested,
+  BidBusinessCycleOpened,
+  BidBusinessOutcomeDecided,
+  BidConvertedToProject,
+} from './bid-business-events';
+import {
   ProjectCreated,
   ProjectStatusChanged,
   ProjectUpdated,
@@ -22,6 +28,10 @@ import { WorkRequestTransitioned } from './work-request-events';
 export const DOMAIN_EVENT_TYPES: DomainEventType[] = [
   BidCreated,
   BidUpdated,
+  BidBusinessOutcomeDecided,
+  BidConvertedToProject,
+  BidArchivedReviewRequested,
+  BidBusinessCycleOpened,
   ProjectCreated,
   ProjectUpdated,
   ProjectStatusChanged,

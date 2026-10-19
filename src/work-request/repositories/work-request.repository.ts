@@ -90,12 +90,36 @@ export class WorkRequestRepository extends BaseRepository {
   create(input: WorkRequestCreateInput) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
+      let bidBusinessCycleId: string | null = null;
+      if (input.bidId) {
+        const bid = await db.bid.findFirst({
+          where: { id: input.bidId, tenantId },
+          select: {
+            statusEvents: {
+              take: 1,
+              orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+              select: { toStatus: { select: { code: true } } },
+            },
+            businessCycles: {
+              where: { closedAt: null },
+              take: 1,
+              orderBy: [{ openedAt: 'desc' }, { id: 'desc' }],
+              select: { id: true },
+            },
+          },
+        });
+        if (bid?.statusEvents[0]?.toStatus.code !== 'BIDDING')
+          throw new Error('WR_PARENT_INACTIVE');
+        bidBusinessCycleId = bid.businessCycles[0]?.id ?? null;
+        if (!bidBusinessCycleId) throw new Error('WR_BID_CYCLE');
+      }
       await db.workRequestV1.create({
         data: {
           id: input.id,
           tenantId,
           bidId: input.bidId,
           directProjectId: input.projectId,
+          bidBusinessCycleId,
           title: input.title,
           priority: input.priority,
           notes: input.notes,

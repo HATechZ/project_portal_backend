@@ -319,6 +319,7 @@ enum WorkflowActionCode {
 
 enum BidStatusCode {
   BIDDING
+  ARCHIVED
 
   @@map("bid_status_code")
 }
@@ -574,6 +575,10 @@ model Tenant {
   bidDocuments                              BidDocument[]
   bidDocumentVersions                       BidDocumentVersion[]
   bidDocumentClassificationEvents           BidDocumentClassificationEvent[]
+  bidBusinessCycles                         BidBusinessCycle[]
+  bidBusinessOutcomes                       BidBusinessOutcome[]
+  bidProjectConversions                     BidProjectConversion[]
+  bidArchivedReviewRequests                 BidArchivedReviewRequest[]
   businessNameClaims                        BusinessNameClaim[]
   projectStatusEvents                       ProjectStatusEvent[]
   directProjectStatusEvents                 DirectProjectStatusEvent[]
@@ -789,6 +794,10 @@ model ActorProfile {
   bidDocumentsByUploadedByActorId                             BidDocument[]                              @relation("BidDocumentsUploadedByActorIdActorProfiles")
   bidDocumentVersionsByUploadedByActorId                      BidDocumentVersion[]                       @relation("BidDocumentVersionsUploadedByActorIdActorProfiles")
   bidDocumentClassificationEventsByChangedByActorId           BidDocumentClassificationEvent[]           @relation("BidDocumentClassificationEventsChangedByActorIdActorProfiles")
+  bidBusinessCyclesOpened                                      BidBusinessCycle[]                          @relation("BidBusinessCyclesOpenedByActorIdActorProfiles")
+  bidBusinessOutcomesDecided                                   BidBusinessOutcome[]                        @relation("BidBusinessOutcomesDecidedByActorIdActorProfiles")
+  bidProjectConversionsConverted                               BidProjectConversion[]                      @relation("BidProjectConversionsConvertedByActorIdActorProfiles")
+  bidArchivedReviewRequestsRequested                           BidArchivedReviewRequest[]                  @relation("BidArchivedReviewRequestsRequestedByActorIdActorProfiles")
   directProjectStatusEventsByChangedByActorId                 DirectProjectStatusEvent[]                 @relation("DirectProjectStatusEventsChangedByActorIdActorProfiles")
   directProjectDocumentsByUploadedByActorId                   DirectProjectDocument[]                    @relation("DirectProjectDocumentsUploadedByActorIdActorProfiles")
   directProjectDocumentVersionsByUploadedByActorId            DirectProjectDocumentVersion[]             @relation("DirectProjectDocumentVersionsUploadedByActorIdActorProfiles")
@@ -1424,12 +1433,127 @@ model Bid {
   documents         BidDocument[]      @relation("BidDocumentsBidIdBids")
   businessNameClaim BusinessNameClaim? @relation("BusinessNameClaimsBidIdBids")
   workRequestsV1    WorkRequestV1[]    @relation("WorkRequestV1BidIdBids")
+  businessCycles    BidBusinessCycle[] @relation("BidBusinessCyclesBidIdBids")
+  businessOutcomes  BidBusinessOutcome[] @relation("BidBusinessOutcomesBidIdBids")
+  projectConversion BidProjectConversion? @relation("BidProjectConversionsBidIdBids")
+  archivedReviewRequests BidArchivedReviewRequest[] @relation("BidArchivedReviewRequestsBidIdBids")
 
   @@unique([id, tenantId])
   @@index([clientId, tenantId])
   @@index([createdAt])
   @@index([tenantId])
   @@map("bids")
+}
+
+/// C3 commercial-attempt history. A row is never repurposed for a later cycle.
+model BidBusinessCycle {
+  tenantId                       String   @map("tenant_id") @db.Uuid
+  id                             String   @id @map("id") @db.Uuid
+  bidId                          String   @map("bid_id") @db.Uuid
+  cycleNumber                    Int      @map("cycle_number")
+  openedByActorId                String?  @map("opened_by_actor_id") @db.Uuid
+  openedAt                       DateTime @default(now()) @map("opened_at") @db.Timestamp(6)
+  closedAt                       DateTime? @map("closed_at") @db.Timestamp(6)
+  reopenedFromOutcomeId          String?  @map("reopened_from_outcome_id") @db.Uuid
+  openedByC3BaselineMigration    Boolean  @default(false) @map("opened_by_c3_baseline_migration")
+  idempotencyKey                 String?  @map("idempotency_key") @db.VarChar(160)
+
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid                 Bid                 @relation("BidBusinessCyclesBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  openedByActor       ActorProfile?       @relation("BidBusinessCyclesOpenedByActorIdActorProfiles", fields: [openedByActorId, tenantId], references: [id, tenantId], onDelete: SetNull, onUpdate: Cascade)
+  reopenedFromOutcome BidBusinessOutcome? @relation("BidBusinessCyclesReopenedFromOutcome", fields: [reopenedFromOutcomeId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
+  outcome             BidBusinessOutcome? @relation("BidBusinessOutcomesBusinessCycle")
+  workRequestsV1      WorkRequestV1[]     @relation("WorkRequestV1BidBusinessCycle")
+  conversion          BidProjectConversion? @relation("BidProjectConversionsBusinessCycle")
+
+  @@unique([id, tenantId, bidId])
+  @@unique([tenantId, bidId, cycleNumber])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, bidId, openedAt])
+  @@index([tenantId, bidId, closedAt])
+  @@map("bid_business_cycles")
+}
+
+/// C3 terminal business decisions. Work Request client decisions remain separate.
+model BidBusinessOutcome {
+  tenantId         String         @map("tenant_id") @db.Uuid
+  id               String         @id @map("id") @db.Uuid
+  bidId            String         @map("bid_id") @db.Uuid
+  businessCycleId  String         @map("business_cycle_id") @db.Uuid
+  outcome          BidOutcomeCode @map("outcome")
+  decidedByActorId String         @map("decided_by_actor_id") @db.Uuid
+  decidedAt        DateTime       @default(now()) @map("decided_at") @db.Timestamp(6)
+  note             String?        @map("note") @db.Text
+  correlationId    String?        @map("correlation_id") @db.Uuid
+  idempotencyKey   String?        @map("idempotency_key") @db.VarChar(160)
+
+  tenant          Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid             Bid                           @relation("BidBusinessOutcomesBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  businessCycle   BidBusinessCycle              @relation("BidBusinessOutcomesBusinessCycle", fields: [businessCycleId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
+  decidedByActor  ActorProfile                  @relation("BidBusinessOutcomesDecidedByActorIdActorProfiles", fields: [decidedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  reopenedCycles  BidBusinessCycle[]            @relation("BidBusinessCyclesReopenedFromOutcome")
+  conversion      BidProjectConversion?         @relation("BidProjectConversionsOutcome")
+  reviewRequests  BidArchivedReviewRequest[]    @relation("BidArchivedReviewRequestsRejectedOutcome")
+
+  @@unique([id, tenantId, bidId])
+  @@unique([businessCycleId, tenantId])
+  @@unique([businessCycleId, tenantId, bidId])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, bidId, decidedAt])
+  @@map("bid_business_outcomes")
+}
+
+/// Immutable provenance for the one possible C3 Bid-to-DirectProject conversion.
+model BidProjectConversion {
+  tenantId             String   @map("tenant_id") @db.Uuid
+  id                   String   @id @map("id") @db.Uuid
+  bidId                String   @map("bid_id") @db.Uuid
+  directProjectId      String   @map("direct_project_id") @db.Uuid
+  businessCycleId      String   @map("business_cycle_id") @db.Uuid
+  bidBusinessOutcomeId String   @map("bid_business_outcome_id") @db.Uuid
+  convertedByActorId   String   @map("converted_by_actor_id") @db.Uuid
+  convertedAt          DateTime @default(now()) @map("converted_at") @db.Timestamp(6)
+  note                 String?  @map("note") @db.Text
+  correlationId        String?  @map("correlation_id") @db.Uuid
+  idempotencyKey       String?  @map("idempotency_key") @db.VarChar(160)
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid                Bid                 @relation("BidProjectConversionsBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  directProject      DirectProject       @relation("BidProjectConversionsDirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  businessCycle      BidBusinessCycle    @relation("BidProjectConversionsBusinessCycle", fields: [businessCycleId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
+  bidBusinessOutcome BidBusinessOutcome  @relation("BidProjectConversionsOutcome", fields: [bidBusinessOutcomeId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
+  convertedByActor   ActorProfile        @relation("BidProjectConversionsConvertedByActorIdActorProfiles", fields: [convertedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([bidId, tenantId])
+  @@unique([directProjectId, tenantId])
+  @@unique([bidBusinessOutcomeId, tenantId])
+  @@unique([businessCycleId, tenantId, bidId])
+  @@unique([bidBusinessOutcomeId, tenantId, bidId])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, businessCycleId])
+  @@map("bid_project_conversions")
+}
+
+/// Append-only request for an archived Bid to be reviewed before a later restore.
+model BidArchivedReviewRequest {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  bidId             String   @map("bid_id") @db.Uuid
+  rejectedOutcomeId String   @map("rejected_outcome_id") @db.Uuid
+  requestedByActorId String  @map("requested_by_actor_id") @db.Uuid
+  requestedAt       DateTime @default(now()) @map("requested_at") @db.Timestamp(6)
+  note              String?  @map("note") @db.Text
+  correlationId     String?  @map("correlation_id") @db.Uuid
+  idempotencyKey    String?  @map("idempotency_key") @db.VarChar(160)
+
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bid             Bid                @relation("BidArchivedReviewRequestsBidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  rejectedOutcome BidBusinessOutcome @relation("BidArchivedReviewRequestsRejectedOutcome", fields: [rejectedOutcomeId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
+  requestedByActor ActorProfile      @relation("BidArchivedReviewRequestsRequestedByActorIdActorProfiles", fields: [requestedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, bidId, requestedAt])
+  @@map("bid_archived_review_requests")
 }
 
 model BidStatusEvent {
@@ -1581,6 +1705,7 @@ model DirectProject {
   documents         DirectProjectDocument[]    @relation("DirectProjectDocumentsDirectProjectIdDirectProjects")
   businessNameClaim BusinessNameClaim?         @relation("BusinessNameClaimsDirectProjectIdDirectProjects")
   workRequestsV1    WorkRequestV1[]            @relation("WorkRequestV1DirectProjectIdDirectProjects")
+  bidProjectConversion BidProjectConversion?   @relation("BidProjectConversionsDirectProjectIdDirectProjects")
 
   @@unique([id, tenantId])
   @@index([clientId, tenantId])
@@ -1699,6 +1824,7 @@ model WorkRequestV1 {
   id               String                    @id @map("id") @db.Uuid
   bidId            String?                   @map("bid_id") @db.Uuid
   directProjectId  String?                   @map("direct_project_id") @db.Uuid
+  bidBusinessCycleId String?                 @map("bid_business_cycle_id") @db.Uuid
   title            String                    @map("title") @db.VarChar(260)
   priority         WorkRequestV1PriorityCode @map("priority")
   notes            String?                   @map("notes") @db.Text
@@ -1709,6 +1835,7 @@ model WorkRequestV1 {
   tenant         Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   bid            Bid?                       @relation("WorkRequestV1BidIdBids", fields: [bidId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   directProject  DirectProject?             @relation("WorkRequestV1DirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  bidBusinessCycle BidBusinessCycle?        @relation("WorkRequestV1BidBusinessCycle", fields: [bidBusinessCycleId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
   createdByActor ActorProfile               @relation("WorkRequestV1CreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   assignments    WorkRequestV1Assignment[]  @relation("WorkRequestV1AssignmentsWorkRequestIdWorkRequestsV1")
   events         WorkRequestV1Event[]       @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1")
@@ -1720,6 +1847,7 @@ model WorkRequestV1 {
   @@unique([id, tenantId])
   @@index([tenantId, bidId])
   @@index([tenantId, directProjectId])
+  @@index([tenantId, bidBusinessCycleId, bidId])
   @@index([createdAt])
   @@map("work_requests_v1")
 }

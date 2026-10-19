@@ -43,6 +43,9 @@ describe('BidRepository lifecycle foundation', () => {
           };
         }
       | undefined;
+    let cycleInput:
+      | { data: { tenantId: string; bidId: string; cycleNumber: number; openedByActorId: string } }
+      | undefined;
     const bidCreate = (input: { data: { tenantId: string } }) => {
       bidCreateInput = input;
       return Promise.resolve({});
@@ -104,6 +107,14 @@ describe('BidRepository lifecycle foundation', () => {
           },
           businessNameClaim: { create: jest.fn().mockResolvedValue({}) },
           bidStatusEvent: { create: statusEventCreate },
+          bidBusinessCycle: {
+            create: (input: {
+              data: { tenantId: string; bidId: string; cycleNumber: number; openedByActorId: string };
+            }) => {
+              cycleInput = input;
+              return Promise.resolve({});
+            },
+          },
           bidDocument: { createMany: jest.fn() },
           bidDocumentVersion: { createMany: jest.fn() },
         }),
@@ -141,6 +152,9 @@ describe('BidRepository lifecycle foundation', () => {
         toStatusId: 'bidding-status',
         changedByActorId: 'actor-a',
       },
+    });
+    expect(cycleInput).toMatchObject({
+      data: { tenantId, bidId: 'bid-a', cycleNumber: 1, openedByActorId: 'actor-a' },
     });
   });
 

@@ -13,6 +13,7 @@ import type { NewDocumentDraft } from '../../common/documents/document-upload.pi
 import type { NewDocumentVersionDraft } from '../../common/documents/document-upload.pipeline';
 import type { SessionActor } from '../../common/security/session.types';
 import { relatedWorkRequestVisibilityWhere } from '../../common/security/work-request-visibility';
+import { createDirectProject } from '../../common/projects/direct-project-creation';
 
 const select = {
   id: true,
@@ -106,29 +107,12 @@ export class ProjectRepository extends BaseRepository {
         vesselId: input.vesselId,
         documentCodeIds: input.files.map((file) => file.documentCodeId),
       });
-      const status = await db.directProjectStatus.findUniqueOrThrow({
-        where: { code: 'ACTIVE' },
-        select: { id: true },
-      });
-      await db.directProject.create({
-        data: {
-          id: input.id,
-          tenantId,
-          name: input.name,
-          clientId: input.clientId,
-          polId: input.polId,
-          podId: input.podId,
-          cargoId: input.cargoId,
-          vesselId: input.vesselId,
-          projectCode: input.projectCode,
-          polNameSnapshot: input.snapshots.polName,
-          podNameSnapshot: input.snapshots.podName,
-          cargoCodeSnapshot: input.snapshots.cargoCode,
-          vesselCodeSnapshot: input.snapshots.vesselCode,
-          shipmentNumber: input.shipmentNumber,
-          createdByActorId: input.actorId,
-          documents: {
-            create: input.files.map(
+      await createDirectProject(db, {
+        ...input,
+        tenantId,
+        snapshots: input.snapshots,
+        documents: {
+          create: input.files.map(
               ({
                 id,
                 versionId,
@@ -168,24 +152,6 @@ export class ProjectRepository extends BaseRepository {
                 },
               }),
             ),
-          },
-        },
-      });
-      await db.businessNameClaim.create({
-        data: {
-          id: randomUUID(),
-          tenantId,
-          normalizedName: input.normalizedName,
-          directProjectId: input.id,
-        },
-      });
-      await db.directProjectStatusEvent.create({
-        data: {
-          id: randomUUID(),
-          tenantId,
-          directProjectId: input.id,
-          toStatusId: status.id,
-          changedByActorId: input.actorId,
         },
       });
       return db.directProject.findFirstOrThrow({

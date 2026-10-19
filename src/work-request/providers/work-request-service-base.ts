@@ -566,6 +566,10 @@ function mapReferenceError(error: unknown): Error {
   if (error.message === 'WR_PARENT_XOR')
     return bad('Supply exactly one Bid or Project.');
   if (error.message === 'WR_PARENT') return notFound('Parent was not found.');
+  if (error.message === 'WR_PARENT_INACTIVE')
+    return conflict('Parent is not eligible for a Work Request.');
+  if (error.message === 'WR_BID_CYCLE')
+    return conflict('Bid has no active business cycle.');
   if (error.message === 'WR_DOCUMENT_CODE')
     return notFound('A Document Code was not found or inactive.');
   return error;
