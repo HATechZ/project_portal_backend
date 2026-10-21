@@ -8,8 +8,8 @@
 
 **PRECONDITION CHECK:** Overall and Phase 1 are `NOT_STARTED`; no persistence/runtime phase may begin. **IMPLEMENTATION TASKS:**
 
-- [ ] Map every route command to a catalogue-audited generic permission and exact responsibility policy. Spec: `IMPLEMENTATION_RUNBOOK.md` Phase 1; `SPEC.md` Authorization. Assertion: no command is permission-only or name-authorized.
-      VERIFY: rg -q "Permission Catalogue & Implementation Design" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
+- [x] Map every route command to a catalogue-audited generic permission and exact responsibility policy. Spec: `IMPLEMENTATION_RUNBOOK.md` Phase 1; `SPEC.md` Authorization. Assertion: no command is permission-only or name-authorized.
+      VERIFY: rg -q "WORK_REQUEST_ROUTE_COMMAND_POLICY" src/work-request/providers/work-request-final-permission.mapper.ts && rg -q "isRouteCommandAuthorized" src/work-request/providers/work-request-final-permission.mapper.spec.ts
 
 **PHASE SELF-REVIEW:** Compare every mapping against `SPEC.md` Authorization and `IMPLEMENTATION_RUNBOOK.md` Phase 1; reject permission-only/name-based authorization.
       VERIFY: rg -q "Non-negotiable completion and readiness policy" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
