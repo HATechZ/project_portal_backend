@@ -42,7 +42,7 @@ import { assertWorkRequestExternalClientAccess } from './work-request-external-c
 
 export abstract class WorkRequestServiceBase {
   protected constructor(
-    private readonly repository: WorkRequestRepository,
+    protected readonly repository: WorkRequestRepository,
     private readonly reads: WorkRequestReadRepository,
     private readonly eventsRepository: WorkRequestEventRepository,
     private readonly uow: UnitOfWorkService,
@@ -272,6 +272,12 @@ export abstract class WorkRequestServiceBase {
     actor: SessionActor,
   ) {
     const codeIds = input.documentCodeIds ?? [];
+    const actorMemberId = actor.member?.id;
+    if (!actorMemberId) throw bad('An active Member context is required.');
+    const originatingDivisionId = input.originatingDivisionId;
+    const intermediateDivisionIds = input.intermediateDivisionIds;
+    if (!originatingDivisionId || !intermediateDivisionIds?.length)
+      throw bad('An originating Division and at least one intermediate Division are required.');
     let reference: Awaited<ReturnType<WorkRequestRepository['prepareCreate']>>;
     try {
       reference = await this.repository.prepareCreate(
@@ -346,6 +352,9 @@ export abstract class WorkRequestServiceBase {
           priority: input.priority,
           notes: input.notes,
           actorId: actor.id,
+          actorMemberId,
+          originatingDivisionId,
+          intermediateDivisionIds,
           files,
         }),
       );

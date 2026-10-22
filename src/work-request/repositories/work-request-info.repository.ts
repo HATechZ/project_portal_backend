@@ -20,6 +20,16 @@ export class WorkRequestInfoRepository extends BaseRepository {
     super(uow);
   }
 
+  isRouteWorkRequest(workRequestId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestRoute.findFirst({
+        where: { tenantId, workRequestId },
+        select: { id: true },
+      }),
+    );
+  }
+
   async prepare(
     workRequestId: string,
     targetActorId?: string,

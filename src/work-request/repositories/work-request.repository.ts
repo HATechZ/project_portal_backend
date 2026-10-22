@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import {
   Prisma,
+  WorkRequestRouteStepKind,
   WorkRequestV1PriorityCode,
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
@@ -136,6 +137,33 @@ export class WorkRequestRepository extends BaseRepository {
           performedByActorId: input.actorId,
         },
       });
+      if (input.originatingDivisionId && input.intermediateDivisionIds) {
+      const lead = await db.divisionLead.findFirst({
+        where: { tenantId, divisionId: input.originatingDivisionId, memberId: input.actorMemberId, revokedAt: null },
+        select: { id: true },
+      });
+      if (!lead) throw new Error('WR_ROUTE_ORIGIN_LEAD');
+      const divisionIds = [...new Set([input.originatingDivisionId, ...input.intermediateDivisionIds])];
+      const divisions = await db.division.findMany({ where: { tenantId, id: { in: divisionIds }, isActive: true }, select: { id: true } });
+      if (divisions.length !== divisionIds.length) throw new Error('WR_ROUTE_DIVISION');
+      const cutovers = await db.$queryRaw<Array<{ cutoverAt: Date }>>(Prisma.sql`SELECT cutover_at AS "cutoverAt" FROM work_request_route_cutovers WHERE id = 1`);
+      if (!cutovers[0]) throw new Error('WR_ROUTE_CUTOVER');
+      const routeId = randomUUID(), versionId = randomUUID();
+      const steps = [
+        { id: randomUUID(), kind: WorkRequestRouteStepKind.ORIGIN_START, divisionId: input.originatingDivisionId },
+        ...input.intermediateDivisionIds.map((divisionId) => ({ id: randomUUID(), kind: WorkRequestRouteStepKind.INTERMEDIATE, divisionId })),
+        { id: randomUUID(), kind: WorkRequestRouteStepKind.ORIGIN_FINAL_REVIEW, divisionId: input.originatingDivisionId },
+        { id: randomUUID(), kind: WorkRequestRouteStepKind.CLIENT, divisionId: null },
+      ];
+      await db.workRequestRoute.create({ data: { id: routeId, tenantId, workRequestId: input.id, bidId: input.bidId, directProjectId: input.projectId, bidBusinessCycleId, originatingDivisionId: input.originatingDivisionId, responsibleOriginatingDivisionLeadId: lead.id, cutoverAt: cutovers[0].cutoverAt } });
+      await db.workRequestRouteVersion.create({ data: { id: versionId, tenantId, routeId, versionNumber: 1, createdByActorId: input.actorId } });
+      await db.workRequestRouteStep.createMany({ data: steps.map((step, ordinal) => ({ ...step, tenantId, routeId, routeVersionId: versionId, ordinal: ordinal + 1, activatedAt: ordinal === 0 ? new Date() : null })) });
+      const originCycleId = randomUUID();
+      await db.workRequestDivisionCycle.create({ data: { id: originCycleId, tenantId, routeId, routeStepId: steps[0].id } });
+      await db.workRequestRouteProjection.create({ data: { id: randomUUID(), tenantId, routeId, routeVersionId: versionId, routeStepId: steps[0].id, divisionCycleId: originCycleId } });
+      await db.workRequestRouteEvent.create({ data: { id: randomUUID(), tenantId, routeId, routeStepId: steps[0].id, action: 'ROUTE_CREATED', performedByActorId: input.actorId } });
+      await db.workRequestRouteEvent.create({ data: { id: randomUUID(), tenantId, routeId, routeStepId: steps[0].id, divisionCycleId: originCycleId, action: 'DIVISION_CYCLE_ACTIVATED', performedByActorId: input.actorId } });
+      }
       if (input.files.length)
         await db.workRequestV1Document.createMany({
           data: input.files.map((file) => ({
@@ -193,6 +221,63 @@ export class WorkRequestRepository extends BaseRepository {
         select: workRequestSelect,
       });
     });
+  }
+  routeProjection(workRequestId: string, memberId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const route = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId, responsibleOriginatingLead: { is: { memberId, revokedAt: null } } }, include: { projection: true, steps: { orderBy: { ordinal: 'asc' }, include: { division: { select: { id: true, name: true } } } } } });
+      return route;
+    });
+  }
+  forwardRoute(workRequestId: string, stepId: string, actorId: string, memberId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const route = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, include: { projection: true } });
+      if (!route?.projection?.routeStepId || route.projection.routeStepId !== stepId) throw new Error('WR_ROUTE_POSITION');
+      const current = await db.workRequestRouteStep.findFirst({ where: { tenantId, id: stepId, routeId: route.id } });
+      if (!current || current.completedAt) throw new Error('WR_ROUTE_POSITION');
+      if (current.divisionId) {
+        const lead = await db.divisionLead.findFirst({ where: { tenantId, divisionId: current.divisionId, memberId, revokedAt: null }, select: { id: true } });
+        if (!lead) throw new Error('WR_ROUTE_DIVISION_LEAD');
+        const cycle = await db.workRequestDivisionCycle.findFirst({ where: { tenantId, routeId: route.id, routeStepId: current.id } });
+        if (!cycle?.completedAt) throw new Error('WR_DIVISION_CYCLE_INCOMPLETE');
+      }
+      const next = await db.workRequestRouteStep.findFirst({ where: { tenantId, routeId: route.id, routeVersionId: route.projection.routeVersionId ?? current.routeVersionId, ordinal: current.ordinal + 1 } });
+      if (!next) throw new Error('WR_ROUTE_COMPLETE');
+      // The Client tail is entered only by Phase 7's C1 gateway.  A normal
+      // forward here would create a Client-visible position without its
+      // immutable exact-version package.
+      if (next.kind === WorkRequestRouteStepKind.CLIENT)
+        throw new Error('WR_ROUTE_CLIENT_GATEWAY');
+      const now = new Date();
+      await db.workRequestRouteStep.update({ where: { id: current.id }, data: { completedAt: now } });
+      await db.workRequestRouteStep.update({ where: { id: next.id }, data: { activatedAt: now } });
+      const nextCycleId = next.divisionId ? randomUUID() : null;
+      if (nextCycleId) await db.workRequestDivisionCycle.create({ data: { id: nextCycleId, tenantId, routeId: route.id, routeStepId: next.id, activatedAt: now } });
+      await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: route.id, tenantId } }, data: { routeStepId: next.id, divisionCycleId: nextCycleId, teamStepId: null, memberStepId: null, updatedAt: now } });
+      await db.workRequestRouteEvent.create({ data: { id: randomUUID(), tenantId, routeId: route.id, routeStepId: next.id, action: 'ROUTE_FORWARDED', performedByActorId: actorId } });
+      if (nextCycleId) await db.workRequestRouteEvent.create({ data: { id: randomUUID(), tenantId, routeId: route.id, routeStepId: next.id, divisionCycleId: nextCycleId, action: 'DIVISION_CYCLE_ACTIVATED', performedByActorId: actorId } });
+      return this.routeProjection(workRequestId, memberId);
+    }, { isolationLevel: 'Serializable' });
+  }
+  amendRoute(workRequestId: string, input: { baseRouteVersionId: string; intermediateDivisionIds: string[] }, actorId: string, memberId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const route = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId, responsibleOriginatingLead: { is: { memberId, revokedAt: null } } }, include: { projection: true, versions: { orderBy: { versionNumber: 'desc' }, take: 1 } } });
+      if (!route?.projection || route.projection.routeVersionId !== input.baseRouteVersionId || !route.projection.routeStepId) throw new Error('WR_ROUTE_STALE');
+      const active = await db.workRequestRouteStep.findFirst({ where: { tenantId, id: route.projection.routeStepId, routeId: route.id } });
+      if (!active) throw new Error('WR_ROUTE_POSITION');
+      const ids = [...new Set(input.intermediateDivisionIds)];
+      const divisions = ids.length ? await db.division.findMany({ where: { tenantId, id: { in: ids }, isActive: true }, select: { id: true } }) : [];
+      if (divisions.length !== ids.length) throw new Error('WR_ROUTE_DIVISION');
+      const versionId = randomUUID();
+      await db.workRequestRouteVersion.create({ data: { id: versionId, tenantId, routeId: route.id, versionNumber: (route.versions[0]?.versionNumber ?? 0) + 1, predecessorVersionId: input.baseRouteVersionId, createdByActorId: actorId } });
+      const steps = [...input.intermediateDivisionIds.map((divisionId) => ({ id: randomUUID(), kind: WorkRequestRouteStepKind.INTERMEDIATE, divisionId })), { id: randomUUID(), kind: WorkRequestRouteStepKind.ORIGIN_FINAL_REVIEW, divisionId: route.originatingDivisionId }, { id: randomUUID(), kind: WorkRequestRouteStepKind.CLIENT, divisionId: null }];
+      await db.workRequestRouteStep.createMany({ data: steps.map((step, index) => ({ ...step, tenantId, routeId: route.id, routeVersionId: versionId, ordinal: active.ordinal + index + 1 })) });
+      await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: route.id, tenantId } }, data: { routeVersionId: versionId } });
+      await db.workRequestRouteEvent.create({ data: { id: randomUUID(), tenantId, routeId: route.id, routeStepId: active.id, action: 'ROUTE_AMENDED', performedByActorId: actorId } });
+      return this.routeProjection(workRequestId, memberId);
+    }, { isolationLevel: 'Serializable' });
   }
   async prepareStandaloneDocuments(
     workRequestId: string,
@@ -487,6 +572,9 @@ type WorkRequestCreateInput = {
   priority: WorkRequestV1PriorityCode;
   notes?: string;
   actorId: string;
+  actorMemberId: string;
+  originatingDivisionId: string;
+  intermediateDivisionIds: string[];
   files: {
     id: string;
     versionId: string;

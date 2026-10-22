@@ -32,7 +32,7 @@
 | [09](09-project/) Project | redesign required | 3 | 0/5 | `[SPEC APPROVED]` | Independent direct Project; replaces combined workspace design |
 | Documents (future allocation) | 5 | 0 | — | `[NOT STARTED]` | Storage-agnostic; DocumentCodeOption moved to 07 |
 | Workflow Engine (future allocation) | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
-| [10](10-work-requests/) Route-Based Work Requests | additive route/cycle/revision/communication redesign | 3 | 0/7 | `[SPEC APPROVED]` | [Runbook](10-work-requests/IMPLEMENTATION_RUNBOOK.md) is phased execution authority; [status](10-work-requests/IMPLEMENTATION_STATUS.md) is continuity authority; pre-route V1 preserved historically |
+| [10](10-work-requests/) Route-Based Work Requests | additive route/cycle/revision/communication redesign | 4 | 5/7 | `[WIP]` | Phases 1-5 complete; Phase 6 is READY. [Runbook](10-work-requests/IMPLEMENTATION_RUNBOOK.md) is phased execution authority; pre-route V1 preserved historically |
 | [10.1](10.1-documents/) Shared Documents | 6 proposed + additive session/revision proposal | 4 | 0/10 | `[WIP]` | Current foundation preserved; weekly revision/upload-storage contracts frozen; implementation pending |
 | [10.2](10.2-document-management/) Document Management Reads | additive future scope | 3 | 0/0 | `[SPEC APPROVED]` | Next-week tree/search/read/naming policy; depends on 10.1 |
 | 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
@@ -64,13 +64,13 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-09-24 | Codex | 07.1–07.3 | 4 | Focused tests + build PASS; walkthroughs pending |
-| 2026-09-24 | Codex + db-architect | 07.4 | 4 | Runtime/tests pass; walkthrough pending |
-| 2026-09-24 | Codex + db-architect | 10 | 1–3 | Work Request specs drafted; no runtime/data work |
-| 2026-10-02 | Codex + db-architect | 10.1 | 1–3 | Shared document/version specs; no code or schema changes |
-| 2026-10-05 | Codex | 03,04,08–10 | 1 | Dynamic-role architecture frozen; no implementation changes |
 | 2026-10-05 | Codex | 03,10 | 1 | Permission globalization matrix frozen; no implementation changes |
 | 2026-10-06 | Codex | 03 | 1 | Demo-data legacy-access policy frozen; specs only |
 | 2026-10-06 | Codex | 03,05 | 1 | Client scopes and resource-boundary rule frozen; specs only |
 | 2026-10-06 | Codex | 03,04–10 | 1 | Final atomic permission/scope freeze; specs only |
 | 2026-10-15 | Codex + db-architect | 04 | 1-4 | Default Client signup migration prepared; deployment pending |
+| 2026-10-22 | Codex + db-architect | 10 | 4 | Phase 2 remains blocked: disposable PostgreSQL cannot initialize in sandbox; remote C3 reconciliation remains UNKNOWN |
+| 2026-10-22 | Codex + db-architect | 10 | 4 | Validation DB declared available but `DATABASE_URL_VALIDATION` was not injected; no DB connection attempted |
+| 2026-10-22 | Codex + db-architect | 10 | 4 | Local PostgreSQL 18 is reachable but lacks a non-interactive admin credential; no DB changed |
+| 2026-10-22 | Codex + db-architect | 10 | 4 | Docker validation DB healthy; clean chain blocks pre-C3 on tenant_super_admin bootstrap assertion |
+| 2026-10-22 | Codex + db-architect | 10 | 4 | Phase 2 complete: disposable chain/C3/RLS/cutover and self-review PASS |

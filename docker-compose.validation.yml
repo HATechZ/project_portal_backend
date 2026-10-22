@@ -1,0 +1,29 @@
+name: project-portal-validation
+
+# Disposable database used only for migration/catalog validation. It is deliberately
+# separate from docker-compose.yml so the normal local infrastructure and every
+# existing project database remain untouched.
+services:
+  postgres-validation:
+    image: postgres:18-alpine
+    container_name: project-portal-postgres-validation
+    environment:
+      POSTGRES_DB: portal_wr_validation
+      POSTGRES_USER: portal_validation_owner
+      # The container is disposable and its port is loopback-only. This avoids
+      # persisting a credential while retaining a real PostgreSQL role boundary.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - project-portal-validation-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal_validation_owner -d portal_wr_validation"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: "no"
+
+volumes:
+  project-portal-validation-postgres-data:
+    name: project-portal-validation-postgres-data

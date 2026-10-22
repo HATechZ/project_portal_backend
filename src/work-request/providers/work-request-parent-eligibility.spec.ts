@@ -16,6 +16,8 @@ describe('Work Request parent lifecycle eligibility', () => {
       directProject: kind === 'project' ? { shipmentNumber: '01' } : null,
       title: 'Request',
       priority: WorkRequestV1PriorityCode.High,
+      originatingDivisionId: 'division-a',
+      intermediateDivisionIds: ['division-b'],
       notes: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -55,6 +57,7 @@ describe('Work Request parent lifecycle eligibility', () => {
       {} as never,
       {} as never,
       {},
+      undefined,
     );
     return { service, create };
   }
@@ -65,10 +68,12 @@ describe('Work Request parent lifecycle eligibility', () => {
       ...(kind === 'bid' ? { bidId: 'bid-a' } : { projectId: 'project-a' }),
       title: 'Request',
       priority: WorkRequestV1PriorityCode.High,
+      originatingDivisionId: 'division-a',
+      intermediateDivisionIds: ['division-b'],
     };
     const operation = RequestContext.run(
       { requestId: 'request-a', tenantId },
-      () => service.create(input, [], { id: 'actor-a' } as never),
+      () => service.create(input, [], { id: 'actor-a', member: { id: 'member-a' } } as never),
     );
     return { operation, create };
   }

@@ -116,6 +116,7 @@ describe('WorkRequestInfoProvider', () => {
         },
       }),
       history: jest.fn().mockResolvedValue([record(snapshot)]),
+      isRouteWorkRequest: jest.fn().mockResolvedValue(null),
     };
     const provider = new WorkRequestInfoProvider(
       repository as never,
@@ -156,6 +157,19 @@ describe('WorkRequestInfoProvider', () => {
       }),
     );
     expect(repository.respond).not.toHaveBeenCalled();
+  });
+
+  it('rejects the historical C2 request/respond lifecycle for a route Work Request', async () => {
+    const { provider, repository } = subject();
+    repository.isRouteWorkRequest.mockResolvedValue({ id: 'route-a' });
+    await expect(
+      provider.request(
+        'request-a',
+        { targetActorId: 'target-a', message: 'This must be private pair communication.' },
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(repository.create).not.toHaveBeenCalled();
   });
 
   it('requires the request-information grant before persistence', async () => {

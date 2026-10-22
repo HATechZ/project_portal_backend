@@ -34,6 +34,8 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
+        if (await this.repository.isRouteWorkRequest?.(id))
+          throw conflict('Route Work Requests use private pair communication.');
         this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(id, input.targetActorId);
         if (!snapshot?.parent || !snapshot.target) throw notFound();
@@ -95,6 +97,8 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
+        if (await this.repository.isRouteWorkRequest?.(id))
+          throw conflict('Route Work Requests use private pair communication.');
         this.assertPermission(actor, WorkflowActionCode.RESPOND_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(
           id,
@@ -146,6 +150,8 @@ export class WorkRequestInfoProvider {
 
   async history(id: string, actor: SessionActor) {
     return this.uow.execute(async () => {
+      if (await this.repository.isRouteWorkRequest?.(id))
+        throw conflict('Route Work Requests use private pair communication.');
       const snapshot = await this.repository.prepare(id);
       if (!snapshot?.parent) throw notFound();
       this.assertParticipant(

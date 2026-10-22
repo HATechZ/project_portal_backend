@@ -56,6 +56,14 @@ the applicable spec/SDD/Definition of Done, especially security/authentication/a
 tenant isolation/RLS/object-scope, migration/schema integrity, required focused tests, required
 SDD/spec verification, or diagnostics necessary to resolve an actual failure.
 
+## Phased Implementation Execution Contract
+
+When the user says `Implement Work Request Phase N`, use `specs/10-work-requests/tasks.md` as the executable queue. Start at the first unchecked Phase-N leaf task, implement it, run its `VERIFY:` assertion, and tick it only after PASS; immediately continue with the next unchecked Phase-N leaf task until the Phase Completion Gate passes or a genuine non-recoverable blocker exists.
+
+Inspection alone is never implementation. A missing guessed path, compile/test/lint failure caused by current work, missing derivable helper, unchecked task, or required specialist delegation is recoverable: search/diagnose, implement/fix or delegate, rerun, and continue. Required specialist work is delegated automatically and the parent task resumes after its result. Missing or failing required phase tests are implementation work, not blockers. Do not finish after status/spec/runbook-only edits while runtime tasks remain. `IN_PROGRESS` is an internal active-work state, not a normal final response; if another safe implementation/debugging action exists, keep working. Never automatically implement Phase N+1.
+
+`BLOCKED` means work cannot safely continue only for an unresolved owner/business decision; unavailable, non-provisionable required external environment/dependency; a safety/security rule forbidding the required action; unavailable required specialist/tool capability; unrelated pre-existing failure outside scope that prevents validation and cannot safely be fixed; or contradictory authoritative requirements without deterministic resolution. Before returning `BLOCKED`, prove: `No safe executable phase task remains that can be performed from current repository authority.` If an unchecked task can safely be implemented, `BLOCKED` is forbidden. A final phase response is only `PHASE N: COMPLETE` or `PHASE N: BLOCKED` with its exact approved blocker.
+
 ## Commands
 
 ```bash

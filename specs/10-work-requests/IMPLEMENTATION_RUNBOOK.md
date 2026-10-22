@@ -6,20 +6,26 @@ Codex must never ask the user to restate frozen rules; reopen a completed phase 
 
 ## Command protocol
 
-1. Read this runbook, status, and Phase-N references; inspect current tree.
-2. Verify every prerequisite phase is `COMPLETE` and its successor readiness is `READY`.
-3. If not, do not implement; report the exact blocker.
-4. If yes, mark Phase N `IN_PROGRESS`, implement only Phase N, and run its Completion Gate.
-5. On success mark it `COMPLETE`, evaluate/update successor readiness; on failure retain `IN_PROGRESS` or set `BLOCKED` with evidence.
-6. Never implement Phase N+1 in the same request.
+When the user says `Implement Work Request Phase N`, Codex MUST load Phase-N scope/status/references, verify prerequisites, mark Phase N `IN_PROGRESS`, and use `tasks.md` as its executable queue: implement the first unchecked Phase-N leaf, run its `VERIFY:` assertion, tick only after PASS, and continue to the next unchecked leaf. It MUST debug recoverable failures, use required specialist agents, run the Completion Gate, self-review, and update status before returning. It returns only when Phase N is `COMPLETE` or a concrete non-recoverable blocker exists; “implementation is still required” is never a blocker.
 
-Final implementation responses must state `PHASE N: COMPLETE | BLOCKED | IN_PROGRESS`, `NEXT PHASE: READY | NOT READY`, and `NEXT COMMAND: Implement Work Request Phase N+1`; Phase 7 instead states `WORK REQUEST ROUTE MODEL: COMPLETE | NOT COMPLETE`.
+1. Read this runbook, status, Phase-N references, and only the directly relevant implementation area; reuse unaffected current-session evidence.
+2. Verify every prerequisite phase is `COMPLETE` and its successor readiness is `READY`. If not, identify the exact prerequisite blocker.
+3. Mark Phase N `IN_PROGRESS`, implement only Phase N, and keep taking the next safe concrete implementation/debugging action until its Completion Gate is resolved.
+4. A guessed/missing path, failed search/read, stale import, compile/type/lint/build failure caused by current work, focused-test failure, missing helper/provider derivable from frozen specs, specialist delegation, or recoverable validation fixture/tooling issue is recoverable: inspect, fix, rerun, and continue. Search for the current symbol/implementation when a path is absent.
+5. Where repository rules require a specialist, automatically delegate, wait, consume its result, and continue the parent Phase N task. Database/schema/migration work routes to `database-architect`; delegation alone never ends the phase.
+6. On success mark Phase N `COMPLETE` and evaluate successor readiness. `BLOCKED` is permitted only for the repository blocker taxonomy: unresolved owner/business decision, unavailable non-provisionable external dependency, safety/security prohibition, unavailable required specialist/tool, unrelated unfixable pre-existing validation failure, or contradictory authority. Unfinished code, missing/failing required tests, unchecked tasks, and current-work failures are implementation work, not blockers. Before returning `BLOCKED`, prove no safe executable Phase-N task remains. Never implement Phase N+1 in the same request.
+
+For an implementation phase, Codex MUST NOT finish after status/runbook/spec-only edits while executable runtime or debugging work remains. Before returning `IN_PROGRESS` or `BLOCKED`, it must determine whether another safe concrete action follows from the repository and frozen authority; if yes, continue. `IN_PROGRESS` is internal active-work state and is not normally final-facing; it is permitted as a final result only if external interruption makes further execution impossible. Final responses normally state `PHASE N: COMPLETE` / `NEXT PHASE: READY`, or `PHASE N: BLOCKED` / `NEXT PHASE: NOT READY` plus the exact blocker. Phase 7 instead states `WORK REQUEST ROUTE MODEL: COMPLETE | NOT COMPLETE`.
 
 ## Non-negotiable completion and readiness policy
 
 A phase may be marked `COMPLETE` only when every in-scope task is finished; every leaf task is verified; focused and applicable integration/API tests pass; authorization, Tenant/RLS, concurrency/idempotency, migration, and legacy/cutover checks applicable to that phase pass; required build/type and spec-contract checks pass; `git diff --check` passes; no in-scope defect, unresolved TODO/FIXME, temporary bypass, weakened security rule, or skipped owner requirement remains. Partial success is never `COMPLETE`.
 
 `NEXT PHASE: READY` is permitted only when current Phase is `COMPLETE`, every current Completion Gate/validation passed, no blocker or in-scope defect remains, prior completed phases still pass their required regression checks, and the repository is coherent for the successor. Otherwise it is exactly `NEXT PHASE: NOT READY`; never describe it as mostly/conditionally/ready-enough. A blocker stops implementation.
+
+## Cross-phase defect remediation
+
+If Phase N proves an in-scope defect in an earlier COMPLETE phase, do not continue on that foundation and do not seek owner re-approval where frozen authority determines the repair. Temporarily mark only the affected phase `IN_PROGRESS` or `BLOCKED`, repair only the proven defect using required specialists (including `database-architect` for database/schema work), and rerun its completion/regression gates. Restore COMPLETE only after those gates pass, then automatically resume Phase N in the same task. The later-discovered defect invalidates the earlier COMPLETE status until repaired. Owner re-approval is required only for a genuine unresolved business decision or unsafe external operation. Stop only for a genuine owner/business ambiguity, unsafe external/non-disposable database action, or non-derivable architectural contradiction. Never automatically start Phase N+1.
 
 Before marking any future phase complete, Codex must conduct a second self-review of implementation versus its Phase specification, `tasks.md`, [Test Matrix](TEST_MATRIX.md), authorization rules, and applicable schema/migration contract. It must check missing requirements, retained pre-route behavior, permission-only authorization, role/Division-name hardcoding, tenant/responsibility gaps, idempotency/concurrency gaps, mutable history, route skipping, revision/resume errors, conversation leakage, and C1/C3 regression. Any finding prevents `COMPLETE` and successor readiness.
 

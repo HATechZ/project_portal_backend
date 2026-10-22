@@ -13,6 +13,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   WorkflowActionCode,
+  WorkRequestRouteRevisionClassification,
   WorkRequestV1AssignmentLevelCode,
 } from '../../generated/prisma/client';
 
@@ -64,6 +65,17 @@ export class CreateWorkRequestDto {
   @Transform(array)
   @IsUUID(undefined, { each: true })
   documentCodeIds?: string[];
+  @ApiProperty({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  originatingDivisionId?: string;
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, minItems: 1 })
+  @Transform(array)
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID(undefined, { each: true })
+  intermediateDivisionIds?: string[];
 }
 
 export class UpdateWorkRequestDto {
@@ -80,6 +92,116 @@ export class UpdateWorkRequestDto {
   @IsString()
   @MaxLength(10000)
   notes?: string;
+}
+
+export class AmendWorkRequestRouteDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  baseRouteVersionId!: string;
+  @ApiProperty({ type: String, format: 'uuid', isArray: true })
+  @Transform(array)
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  intermediateDivisionIds!: string[];
+}
+
+export class DefineWorkRequestTeamSequenceDto {
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, minItems: 1 })
+  @Transform(array)
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID(undefined, { each: true })
+  teamIds!: string[];
+}
+
+export class DefineWorkRequestMemberSequenceDto {
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, minItems: 1 })
+  @Transform(array)
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID(undefined, { each: true })
+  memberIds!: string[];
+}
+
+export class AppendWorkRequestMemberStepDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  memberId!: string;
+}
+
+export class RequestWorkRequestRouteRevisionDto {
+  @ApiProperty({ enum: WorkRequestRouteRevisionClassification })
+  @IsEnum(WorkRequestRouteRevisionClassification)
+  classification!: WorkRequestRouteRevisionClassification;
+  @ApiProperty({ format: 'uuid', description: 'Exact active source Actor Profile ID.' })
+  @IsUUID()
+  sourceActorId!: string;
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  sourceMemberStepId?: string;
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  sourceTeamStepId?: string;
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  sourceDivisionCycleId?: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10000)
+  reason!: string;
+}
+
+export class ResubmitWorkRequestRouteRevisionDto {
+  @ApiPropertyOptional({ description: 'Optional correction note.' })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(10000)
+  note?: string;
+}
+
+/** Phase 6 route-private communication.  This deliberately is not the V1/C2
+ * request/respond DTO: a send fans out immutable pair messages. */
+export class SendWorkRequestRouteMessageDto {
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, minItems: 1 })
+  @Transform(array)
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID(undefined, { each: true })
+  recipientActorIds!: string[];
+
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10000)
+  message!: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true })
+  @IsOptional()
+  @Transform(array)
+  @IsUUID(undefined, { each: true })
+  documentVersionIds?: string[];
+}
+
+export class ReplyWorkRequestRouteMessageDto {
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10000)
+  message!: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true })
+  @IsOptional()
+  @Transform(array)
+  @IsUUID(undefined, { each: true })
+  documentVersionIds?: string[];
 }
 
 class WorkRequestAssignmentDto {
@@ -168,7 +290,8 @@ export class WorkRequestEventResponseDto {
 }
 
 export class WorkRequestAvailableActionResponseDto {
-  @ApiProperty({ enum: WorkflowActionCode }) code!: WorkflowActionCode;
+  @ApiProperty({ description: 'Backend-derived executable action code.' })
+  code!: string;
   @ApiProperty() label!: string;
   @ApiProperty() targetKind!: string;
 }
@@ -294,6 +417,14 @@ export class RouteWorkRequestClientRevisionDto extends WorkRequestWorkflowNoteDt
   @ApiProperty({ enum: ['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'] })
   @IsIn(['MEMBER', 'CHECKING', 'APPROVAL', 'FINAL_REVIEW'])
   destination!: 'MEMBER' | 'CHECKING' | 'APPROVAL' | 'FINAL_REVIEW';
+}
+
+export class RequestWorkRequestReconsiderationDto extends WorkRequestWorkflowNoteDto {}
+
+export class DecideWorkRequestReconsiderationDto extends WorkRequestWorkflowNoteDto {
+  @ApiProperty({ enum: ['ACCEPT', 'DENY'] })
+  @IsIn(['ACCEPT', 'DENY'])
+  decision!: 'ACCEPT' | 'DENY';
 }
 
 export class WorkRequestClientSubmissionResponseDto {

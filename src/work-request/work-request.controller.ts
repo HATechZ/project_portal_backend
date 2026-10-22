@@ -42,6 +42,7 @@ import {
 import { PermissionCode } from '../generated/prisma/client';
 import {
   CreateWorkRequestDto,
+  AmendWorkRequestRouteDto,
   UpdateWorkRequestDto,
   WorkRequestResponseDto,
 } from './dtos/work-request.dto';
@@ -119,5 +120,20 @@ export class WorkRequestController {
     @ActiveActor() actor: SessionActor,
   ) {
     return this.service.update(id, body, actor);
+  }
+  @Get(':id/route')
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
+  route(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.route(id, actor);
+  }
+  @Post(':id/route-steps/:stepId/forward')
+  @FinalPermissions(PermissionCode.ROUTE_FOR_REVIEW)
+  forward(@Param('id', ParseUUIDPipe) id: string, @Param('stepId', ParseUUIDPipe) stepId: string, @ActiveActor() actor: SessionActor) {
+    return this.service.forwardRoute(id, stepId, actor);
+  }
+  @Post(':id/route-amendments')
+  @FinalPermissions(PermissionCode.UPDATE_WORK_REQUEST)
+  amend(@Param('id', ParseUUIDPipe) id: string, @Body() body: AmendWorkRequestRouteDto, @ActiveActor() actor: SessionActor) {
+    return this.service.amendRoute(id, body, actor);
   }
 }

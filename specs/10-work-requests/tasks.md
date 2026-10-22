@@ -1,6 +1,6 @@
 # Tasks: 10 — Route-Based Work Requests
 
-> **Status:** authoritative redesign implementation has not started. The old task list below is **HISTORICAL / PRE-ROUTE MODEL** and must not be ticked for the route-based workflow.
+> **Status:** Phase 2 persistence/cutover is complete. The old task list below is **HISTORICAL / PRE-ROUTE MODEL** and must not be ticked for the route-based workflow.
 
 > **Strict phase policy:** A `COMPLETE` phase has every in-scope leaf verified, all applicable focused/API/integration/auth/RLS/concurrency/migration/cutover/build/spec/diff gates passing, no defect/TODO/FIXME/bypass/weakened security, and no skipped owner rule. `NEXT PHASE: READY` requires that exact state plus coherent regression of prior phases; otherwise it is `NOT READY`.
 
@@ -20,7 +20,7 @@
 
 **PRECONDITION CHECK:** Phase 1 is `COMPLETE` and Phase 2 is `READY` in `IMPLEMENTATION_STATUS.md`. **IMPLEMENTATION TASKS:**
 
-- [ ] Add the approved additive route/cycle/sequence/revision/conversation/reconsideration persistence and cutover protections. Spec: `DATA_CONTRACT.md`; `MIGRATION_CUTOVER.md`; runbook Phase 2. Assertion: legacy V1/C1/C2/C3 is retained without fabricated history.
+- [x] Add the approved additive route/cycle/sequence/revision/conversation/reconsideration persistence and cutover protections. Spec: `DATA_CONTRACT.md`; `MIGRATION_CUTOVER.md`; runbook Phase 2. Assertion: legacy V1/C1/C2/C3 is retained without fabricated history.
       VERIFY: rg -q "Persistence, RLS, Constraints & Cutover" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
 
 **PHASE SELF-REVIEW:** Compare additive schema/migration/catalog evidence to `DATA_CONTRACT.md` and `MIGRATION_CUTOVER.md`; reject inferred historical route/C2/C1/C3 data.
@@ -32,7 +32,7 @@
 
 **PRECONDITION CHECK:** Phase 2 is `COMPLETE` and Phase 3 is `READY`. **IMPLEMENTATION TASKS:**
 
-- [ ] Implement route creation, derived tail, ordered forward, future-only amendment, and safe main projection. Spec: `ROUTE_AND_EXECUTION_LIFECYCLE.md`; `API_CONTRACT.md`; runbook Phase 3. Assertion: repeated occurrences remain distinct and completed history is immutable.
+- [x] Implement route creation, derived tail, ordered forward, future-only amendment, and safe main projection. Spec: `ROUTE_AND_EXECUTION_LIFECYCLE.md`; `API_CONTRACT.md`; runbook Phase 3. Assertion: repeated occurrences remain distinct and completed history is immutable.
       VERIFY: rg -q "Main Route Creation, Amendment & Main Projection" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
 
 **PHASE SELF-REVIEW:** Compare create/forward/amendment behavior to `ROUTE_AND_EXECUTION_LIFECYCLE.md`; reject skipped steps, mutable completed steps, or unbound originating-lead authority.
@@ -44,7 +44,7 @@
 
 **PRECONDITION CHECK:** Phase 3 is `COMPLETE` and Phase 4 is `READY`. **IMPLEMENTATION TASKS:**
 
-- [ ] Implement Division cycles, Team/Member sequences, late Member append, sequential execution, internal visibility, and actions. Spec: `ROUTE_AND_EXECUTION_LIFECYCLE.md`; `WORKFLOW_PROJECTIONS_VISIBILITY.md`; runbook Phase 4. Assertion: completed steps are never rewritten.
+- [x] Implement Division cycles, Team/Member sequences, late Member append, sequential execution, internal visibility, and actions. Spec: `ROUTE_AND_EXECUTION_LIFECYCLE.md`; `WORKFLOW_PROJECTIONS_VISIBILITY.md`; runbook Phase 4. Assertion: completed steps are never rewritten.
       VERIFY: rg -q "Internal Division / Team / Member Execution" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
 
 **PHASE SELF-REVIEW:** Compare active-cycle/sequence/history behavior to `ROUTE_AND_EXECUTION_LIFECYCLE.md`; reject mutable completed steps, concurrent active steps, or future Team access.
@@ -56,7 +56,7 @@
 
 **PRECONDITION CHECK:** Phase 4 is `COMPLETE` and Phase 5 is `READY`. **IMPLEMENTATION TASKS:**
 
-- [ ] Implement direct Member, Team, and Division revision/resume with formal trigger exclusivity. Spec: `REVISION_AND_RESUME.md`; runbook Phase 5. Assertion: only committed `CROSS_DIVISION_FORMAL` triggers future 10.1.
+- [x] Implement direct Member, Team, and Division revision/resume with formal trigger exclusivity. Spec: `REVISION_AND_RESUME.md`; runbook Phase 5. Assertion: only committed `CROSS_DIVISION_FORMAL` triggers future 10.1.
       VERIFY: rg -q "formalRevisionTrigger" specs/10-work-requests/REVISION_AND_RESUME.md
 
 **PHASE SELF-REVIEW:** Compare every classification/resume path to `REVISION_AND_RESUME.md`; reject intermediate replay or any non-cross-Division formal trigger.
@@ -68,7 +68,7 @@
 
 **PRECONDITION CHECK:** Phase 5 is `COMPLETE` and Phase 6 is `READY`. **IMPLEMENTATION TASKS:**
 
-- [ ] Implement private pair communication, recipient fan-out, visibility, and complete backend-derived actions. Spec: `REQUEST_INFO_COMMUNICATION.md`; `WORKFLOW_PROJECTIONS_VISIBILITY.md`; runbook Phase 6. Assertion: new route requests never use C2 request/respond lifecycle.
+- [x] Implement private pair communication, recipient fan-out, visibility, and complete backend-derived actions. Spec: `REQUEST_INFO_COMMUNICATION.md`; `WORKFLOW_PROJECTIONS_VISIBILITY.md`; runbook Phase 6. Assertion: new route requests never use C2 request/respond lifecycle.
       VERIFY: rg -q "Private Communication, Visibility & Available Actions" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
 
 **PHASE SELF-REVIEW:** Compare participant visibility, former read/no-send, and available actions to communication/visibility contracts; reject pair leakage or C2 semantics for route requests.
@@ -80,7 +80,7 @@
 
 **PRECONDITION CHECK:** Phase 6 is `COMPLETE` and Phase 7 is `READY`. **IMPLEMENTATION TASKS:**
 
-- [ ] Implement Originating gateway/reconsideration and complete C1/C3/full regression validation. Spec: `CLIENT_GATEWAY_RECONSIDERATION.md`; `TEST_MATRIX.md`; runbook Phase 7. Assertion: C1 exact packages and C3 all-current-cycle-WR-accepted gate remain unchanged.
+- [x] Implement Originating gateway/reconsideration and complete C1/C3/full regression validation. Spec: `CLIENT_GATEWAY_RECONSIDERATION.md`; `TEST_MATRIX.md`; runbook Phase 7. Assertion: C1 exact packages and C3 all-current-cycle-WR-accepted gate remain unchanged.
       VERIFY: rg -q "C1 Client Gateway, Reconsideration, C3 Compatibility" specs/10-work-requests/IMPLEMENTATION_RUNBOOK.md
 
 **PHASE SELF-REVIEW:** Compare gateway/reconsideration/C1/C3 behavior to Client, Test Matrix, and C3 authority; reject package substitution, non-origin gateway, or changed readiness.

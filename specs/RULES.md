@@ -47,6 +47,10 @@ Never write one needing a database, Redis, or the network.
     outbox inside the producer's transaction, never to the transport directly; a broker write
     in a transaction is a dual write. → [`rules/10-messaging.md`](rules/10-messaging.md)
 
+## Implementation blocker semantics
+
+`BLOCKED` is permitted only for an unresolved owner/business decision; unavailable and non-provisionable required external environment/dependency; a safety/security rule forbidding the action; unavailable required specialist/tool capability; unrelated pre-existing failure outside scope that prevents validation and cannot safely be fixed; or contradictory authoritative requirements without deterministic resolution. Unfinished runtime/API work, unchecked tasks, missing or failing required tests, current-work compile/type/lint failures, missing derivable helpers/endpoints, guessed paths, and available specialist delegation are never blockers. Before returning `BLOCKED`, prove that no safe executable phase task remains from current repository authority; otherwise implement/fix, verify, and continue.
+
 ## Read only what you need
 
 | You are about to… | Read only… |

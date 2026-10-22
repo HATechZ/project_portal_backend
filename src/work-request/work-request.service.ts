@@ -20,6 +20,9 @@ import {
   AssignTeamDto,
 } from './dtos/work-request.dto';
 import {
+  AmendWorkRequestRouteDto,
+} from './dtos/work-request.dto';
+import {
   CreateWorkRequestInfoRequestDto,
   RespondWorkRequestInfoRequestDto,
 } from './dtos/work-request.dto';
@@ -35,6 +38,10 @@ import {
   WorkRequestClientDecisionDto,
 } from './dtos/work-request.dto';
 import { WorkRequestClientSubmissionProvider } from './providers/work-request-client-submission.provider';
+import { WorkRequestRouteActionsProvider } from './providers/work-request-route-actions.provider';
+import { WorkRequestRouteClientProvider } from './providers/work-request-route-client.provider';
+import { WorkRequestCommunicationProvider } from './providers/work-request-communication.provider';
+import { WorkRequestRouteReconsiderationDecisionCode } from '../generated/prisma/client';
 
 export type WorkRequestUploadedFile = {
   originalname: string;
@@ -58,8 +65,11 @@ export class WorkRequestService extends WorkRequestServiceBase {
     private readonly workflow: WorkRequestWorkflowProvider,
     private readonly info: WorkRequestInfoProvider,
     private readonly clientLifecycle: WorkRequestClientSubmissionProvider,
+    private readonly routeActions: WorkRequestRouteActionsProvider,
+    private readonly routeClient: WorkRequestRouteClientProvider,
     @Inject(FILE_STORAGE) storage: FileStorage,
     receipts?: DocumentUploadRequestRepository,
+    private readonly communications?: WorkRequestCommunicationProvider,
   ) {
     super(
       repository,
@@ -73,6 +83,11 @@ export class WorkRequestService extends WorkRequestServiceBase {
       storage,
       receipts,
     );
+  }
+
+  override async availableActions(id: string, actor: SessionActor) {
+    const routeActions = await this.routeActions.available(id, actor);
+    return routeActions ?? super.availableActions(id, actor);
   }
 
   assignDivision(id: string, input: AssignDivisionDto, actor: SessionActor) {
@@ -132,10 +147,10 @@ export class WorkRequestService extends WorkRequestServiceBase {
     input: CreateWorkRequestClientSubmissionDto,
     actor: SessionActor,
   ) {
-    return this.clientLifecycle.submit(id, input, actor);
+    return this.routeClient.isRoute(id).then((route) => route ? this.routeClient.submit(id, input, actor) : this.clientLifecycle.submit(id, input, actor));
   }
   clientSubmissions(id: string, actor: SessionActor) {
-    return this.clientLifecycle.list(id, actor);
+    return this.routeClient.isRoute(id).then((route) => route ? this.routeClient.list(id, actor) : this.clientLifecycle.list(id, actor));
   }
   clientDecision(
     id: string,
@@ -143,13 +158,34 @@ export class WorkRequestService extends WorkRequestServiceBase {
     input: WorkRequestClientDecisionDto,
     actor: SessionActor,
   ) {
-    return this.clientLifecycle.decide(id, submissionId, input, actor);
+    return this.routeClient.isRoute(id).then((route) => route ? this.routeClient.decide(id, submissionId, input, actor) : this.clientLifecycle.decide(id, submissionId, input, actor));
   }
-  routeClientRevision(
+  async routeClientRevision(
     id: string,
     input: RouteWorkRequestClientRevisionDto,
     actor: SessionActor,
   ) {
+    if (await this.routeClient.isRoute(id))
+      return this.routeClient.coordinateRevision(id, actor);
     return this.clientLifecycle.route(id, input, actor);
+  }
+  requestReconsideration(id: string, input: { note?: string }, actor: SessionActor) {
+    return this.routeClient.requestReconsideration(id, input.note, actor);
+  }
+  decideReconsideration(id: string, input: { decision: 'ACCEPT' | 'DENY'; note?: string }, actor: SessionActor) {
+    return this.routeClient.decideReconsideration(id, input.decision as WorkRequestRouteReconsiderationDecisionCode, input.note, actor);
+  }
+  route(id: string, actor: SessionActor) {
+    if (this.communications) return this.communications.mainHistory(id, actor);
+    if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
+    return this.repository.routeProjection(id, actor.member.id);
+  }
+  forwardRoute(id: string, stepId: string, actor: SessionActor) {
+    if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
+    return this.repository.forwardRoute(id, stepId, actor.id, actor.member.id);
+  }
+  amendRoute(id: string, input: AmendWorkRequestRouteDto, actor: SessionActor) {
+    if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
+    return this.repository.amendRoute(id, input, actor.id, actor.member.id);
   }
 }
