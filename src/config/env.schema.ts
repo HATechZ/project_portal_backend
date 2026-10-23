@@ -73,6 +73,23 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
   RABBITMQ_URL: Joi.string()
     .uri({ scheme: ['amqp', 'amqps'] })
     .default('amqp://portal:portal@127.0.0.1:5672'),
+  MESSAGING_RABBITMQ_CONSUMER_ENABLED: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .default(false),
+  MESSAGING_RABBITMQ_CONSUMER_QUEUE: Joi.string()
+    .trim()
+    .pattern(/^[a-zA-Z0-9._-]+$/)
+    .default('application'),
+  MESSAGING_RABBITMQ_RETRY_DELAY_MS: Joi.number()
+    .integer()
+    .min(100)
+    .default(1000),
+  MESSAGING_RABBITMQ_MAX_ATTEMPTS: Joi.number()
+    .integer()
+    .min(1)
+    .max(100)
+    .default(5),
 })
   .and('SMTP_USER', 'SMTP_PASSWORD')
   .unknown(true);

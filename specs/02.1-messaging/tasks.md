@@ -1,6 +1,6 @@
 # Tasks: 02.1 — Messaging & Domain Events
 
-**Status:** Gate 4 — Phases 5, 6 (all but partial index), 7, 8, 9 (lint/build) complete
+**Status:** Gate 4 — implementation and focused verification complete; repository lint blocks sign-off
 **Spec Reference:** `specs/02.1-messaging/SPEC.md`
 **Plan Reference:** `specs/02.1-messaging/plan.md`
 
@@ -37,10 +37,10 @@
   - [x] Deliver in-process through the CQRS bus so handlers are transport-agnostic
         VERIFY: grep -q "CqrsModule" src/infra/messaging/messaging.module.ts && grep -q "EventBus" src/infra/messaging/in-process-event.transport.ts
 
-- [ ] **Phase 6: Transactional outbox** (11/13 — see the two notes above)
+- [x] **Phase 6: Transactional outbox**
   - [x] Land both models in the generated schema
         VERIFY: grep -q "model OutboxMessage" prisma/schema.prisma && grep -q "model ProcessedEvent" prisma/schema.prisma
-  - [ ] Keep the relay's backlog query independent of total history
+  - [x] Keep the relay's backlog query independent of total history
         VERIFY: grep -rq "outbox_messages_unpublished_idx" prisma/migrations/
   - [x] Write the outbox through the unit of work so it joins the producer's transaction
         VERIFY: grep -q "extends BaseRepository" src/infra/messaging/outbox.repository.ts && ! grep -q "PrismaService" src/infra/messaging/outbox.repository.ts
@@ -71,9 +71,9 @@
   - [x] Confine every broker import to messaging infrastructure
         VERIFY: test $(grep -rlE "amqplib|amqp-connection-manager|amqp\.connect" src --include=*.ts | grep -v "^src/infra/messaging/" | wc -l) -eq 0
   - [x] Declare a durable topic exchange so bindings can overlap
-        VERIFY: grep -q "'topic'" src/infra/messaging/rabbitmq-event.transport.ts && grep -q "durable: true" src/infra/messaging/rabbitmq-event.transport.ts
+        VERIFY: grep -q "'topic'" src/infra/messaging/rabbitmq-topology.ts && grep -q "durable: true" src/infra/messaging/rabbitmq-topology.ts
   - [x] Dead-letter rather than discard a poisoned message
-        VERIFY: grep -q "x-dead-letter-exchange" src/infra/messaging/rabbitmq-event.transport.ts
+        VERIFY: grep -q "x-dead-letter-exchange" src/infra/messaging/rabbitmq-topology.ts
   - [x] Carry tenant and causality in headers, never in the routing key
         VERIFY: grep -q "x-tenant-id" src/infra/messaging/rabbitmq-event.transport.ts && grep -q "x-correlation-id" src/infra/messaging/rabbitmq-event.transport.ts
   - [x] Keep exchange and routing-key literals out of feature modules
@@ -100,7 +100,7 @@
 - [ ] **Phase 9: Sign-off**
   - [x] Register every new module in `PLACEHOLDERS.md`
         VERIFY: grep -q "src/infra/messaging/messaging.module.ts" specs/PLACEHOLDERS.md
-  - [x] Lint and build clean
-        VERIFY: yarn lint && yarn build
-  - [ ] Record the HTTP walkthrough ([Art. V](../rules/05-walkthrough.md))
+  - [ ] Lint and build clean
+        VERIFY: corepack yarn lint && corepack yarn build
+  - [x] Record the HTTP walkthrough ([Art. V](../rules/05-walkthrough.md))
         VERIFY: test -f specs/02.1-messaging/walkthrough.md && grep -qi "PASS\|FAIL" specs/02.1-messaging/walkthrough.md

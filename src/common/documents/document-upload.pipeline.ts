@@ -168,7 +168,7 @@ const MIME: Readonly<Record<string, readonly string[]>> = {
   '.zip': ['application/zip', 'application/x-zip-compressed'],
 };
 function safeName(value: string) {
-  const name = basename(value).trim();
+  const name = basename(value).normalize('NFC').trim();
   if (!name || name.length > 260) throw bad('Uploaded filename is invalid.');
   return name;
 }

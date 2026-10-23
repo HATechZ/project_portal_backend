@@ -11,6 +11,8 @@ import {
   type FileStorage,
 } from '../../contracts/storage/file-storage.port';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import { OutboxService } from '../../infra/messaging/outbox.service';
+import { DocumentVersionCreated } from '../../contracts/events/document-events';
 import {
   CreateWorkRequestDto,
   UpdateWorkRequestDto,
@@ -26,7 +28,11 @@ import { WorkRequestDocumentHistoryProvider } from './work-request-document-hist
 import { WorkRequestNamingProvider } from './work-request-naming.provider';
 import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
 import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
-import { formatDirectProjectDocumentFileName } from '../../common/documents/document-naming';
+import {
+  formatDirectProjectDocumentFileName,
+  nextBidRevisionCode,
+  nextProjectRevisionCode,
+} from '../../common/documents/document-naming';
 import { WorkRequestV1StateCode } from '../../generated/prisma/client';
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
 import type {
@@ -52,6 +58,7 @@ export abstract class WorkRequestServiceBase {
     private readonly naming: WorkRequestNamingProvider,
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
+    private readonly outbox?: OutboxService,
   ) {}
   async createStandaloneDocuments(
     id: string,
@@ -83,11 +90,12 @@ export abstract class WorkRequestServiceBase {
         requestId,
       }));
     if (replay) return replay.response as unknown as DocumentSummaryDto[];
+    const revisionCode = context.naming.kind === 'BID' ? 'A' : '01';
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds,
       codes: context.codes,
-      revisionCode: 'A',
+      revisionCode,
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents`,
       generatedFileName: (code, uploadedFileName) =>
         context.naming.kind === 'BID'
@@ -96,14 +104,14 @@ export abstract class WorkRequestServiceBase {
               documentCode: code.code,
               documentName: code.name,
               uploadedFileName,
-              revisionCode: 'A',
+              revisionCode,
             })!
           : formatDirectProjectDocumentFileName({
               ...context.naming,
               documentCode: code.code,
               documentName: code.name,
               uploadedFileName,
-              revisionCode: 'A',
+              revisionCode,
             }),
     });
     let stored: string[] = [];
@@ -115,6 +123,25 @@ export abstract class WorkRequestServiceBase {
           actor.id,
           drafts,
         );
+        if (result && this.outbox)
+          await this.outbox.enqueueAll(
+            result.map(
+              (document) =>
+                new DocumentVersionCreated(
+                  {
+                    tenantId: RequestContext.requireTenantId(),
+                    actorId: actor.id,
+                    correlationId: requestId,
+                  },
+                  {
+                    owner: 'WORK_REQUEST',
+                    parentId: id,
+                    documentId: document.id,
+                    versionId: document.versions[0].id,
+                  },
+                ),
+            ),
+          );
         if (result && this.receipts)
           await this.receipts.write({
             owner: DocumentUploadOwnerCode.WORK_REQUEST,
@@ -173,10 +200,7 @@ export abstract class WorkRequestServiceBase {
         requestId,
       }));
     if (replay) return replay.response as unknown as DocumentVersionResponseDto;
-    if (
-      request.events[0]?.resultingState !==
-      WorkRequestV1StateCode.MEMBER_ASSIGNED
-    )
+    if (!allowsWorkRequestDocumentVersion(request.events[0]?.resultingState))
       throw conflict(
         'Work Request is not accepting working document versions.',
       );
@@ -185,7 +209,9 @@ export abstract class WorkRequestServiceBase {
       request.assignments[0]?.memberId !== actor.member.id
     )
       throw notFound('You are not the assigned Work Request Member.');
-    const revisionCode = context.revisionCode;
+    const revisionCode = request.bid
+      ? nextBidRevisionCode(context.revisionCode)
+      : nextProjectRevisionCode(context.revisionCode);
     const file = DocumentUploadPipeline.prepareVersion({
       upload,
       revisionCode,
@@ -233,6 +259,22 @@ export abstract class WorkRequestServiceBase {
             actor.id,
             file,
           );
+          if (result && this.outbox)
+            await this.outbox.enqueue(
+              new DocumentVersionCreated(
+                {
+                  tenantId: RequestContext.requireTenantId(),
+                  actorId: actor.id,
+                  correlationId: requestId,
+                },
+                {
+                  owner: 'WORK_REQUEST',
+                  parentId: id,
+                  documentId,
+                  versionId: result.id,
+                },
+              ),
+            );
           if (result && this.receipts)
             await this.receipts.write({
               owner: DocumentUploadOwnerCode.WORK_REQUEST,
@@ -277,7 +319,9 @@ export abstract class WorkRequestServiceBase {
     const originatingDivisionId = input.originatingDivisionId;
     const intermediateDivisionIds = input.intermediateDivisionIds;
     if (!originatingDivisionId || !intermediateDivisionIds?.length)
-      throw bad('An originating Division and at least one intermediate Division are required.');
+      throw bad(
+        'An originating Division and at least one intermediate Division are required.',
+      );
     let reference: Awaited<ReturnType<WorkRequestRepository['prepareCreate']>>;
     try {
       reference = await this.repository.prepareCreate(
@@ -300,12 +344,13 @@ export abstract class WorkRequestServiceBase {
     )
       throw conflict('Parent naming context is invalid.');
     const id = randomUUID();
+    const revisionCode = reference.bidNaming ? 'A' : '01';
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds: codeIds,
       codes: reference.codes,
       allowEmpty: true,
-      revisionCode: 'A',
+      revisionCode,
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents`,
       generatedFileName: (code, uploadedFileName) =>
         reference.bidNaming
@@ -314,7 +359,7 @@ export abstract class WorkRequestServiceBase {
               documentCode: code.code,
               documentName: code.name,
               uploadedFileName,
-              revisionCode: 'A',
+              revisionCode,
             })!
           : formatDirectProjectDocumentFileName({
               projectCode: reference.projectNaming.projectCode!,
@@ -324,7 +369,7 @@ export abstract class WorkRequestServiceBase {
               documentCode: code.code,
               documentName: code.name,
               uploadedFileName,
-              revisionCode: 'A',
+              revisionCode,
             }),
     });
     const files = drafts.map((file) => ({
@@ -343,8 +388,8 @@ export abstract class WorkRequestServiceBase {
     let stored: string[] = [];
     try {
       stored = await DocumentUploadPipeline.putAll(this.storage, drafts);
-      const record = await this.uow.execute(() =>
-        this.repository.create({
+      const record = await this.uow.execute(async () => {
+        const created = await this.repository.create({
           id,
           bidId: input.bidId,
           projectId: input.projectId,
@@ -356,8 +401,27 @@ export abstract class WorkRequestServiceBase {
           originatingDivisionId,
           intermediateDivisionIds,
           files,
-        }),
-      );
+        });
+        if (this.outbox)
+          await this.outbox.enqueueAll(
+            drafts.map(
+              (file) =>
+                new DocumentVersionCreated(
+                  {
+                    tenantId: RequestContext.requireTenantId(),
+                    actorId: actor.id,
+                  },
+                  {
+                    owner: 'WORK_REQUEST',
+                    parentId: id,
+                    documentId: file.documentId,
+                    versionId: file.versionId,
+                  },
+                ),
+            ),
+          );
+        return created;
+      });
       return toWorkRequestResponse(record);
     } catch (error) {
       await DocumentUploadPipeline.compensate(this.storage, stored, (key) =>
@@ -569,6 +633,11 @@ function conflict(message: string) {
     status: 409,
     message,
   });
+}
+export function allowsWorkRequestDocumentVersion(
+  state: WorkRequestV1StateCode | null | undefined,
+) {
+  return state === WorkRequestV1StateCode.MEMBER_ASSIGNED;
 }
 function mapReferenceError(error: unknown): Error {
   if (!(error instanceof Error)) return error as Error;

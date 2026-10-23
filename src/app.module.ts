@@ -37,6 +37,7 @@ import { StorageModule } from './infra/storage/storage.module';
 import { BidModule } from './bid/bid.module';
 import { ProjectModule } from './project/project.module';
 import { WorkRequestModule } from './work-request/work-request.module';
+import { DocumentManagementModule } from './document-management/document-management.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { WorkRequestModule } from './work-request/work-request.module';
     BidModule,
     ProjectModule,
     WorkRequestModule,
+    DocumentManagementModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -18,7 +18,6 @@ import {
   ApiStandardCreatedArrayResponse,
   ApiStandardCreatedResponse,
   ApiStandardNotFoundResponse,
-  ApiStandardOkResponse,
   ApiStandardUnauthorizedResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
@@ -120,7 +119,7 @@ export class WorkRequestDocumentController {
     return this.service.appendDocumentVersion(id, documentId, file, actor);
   }
   @Get()
-  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Documents by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardArrayResponse(
@@ -135,7 +134,7 @@ export class WorkRequestDocumentController {
     return this.service.documents(id, actor);
   }
   @Get(':documentId/versions')
-  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({
     summary: 'Get Document Versions by Work Request ID and Document ID',
   })

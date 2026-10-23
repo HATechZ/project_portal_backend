@@ -11,6 +11,7 @@ import {
   ProjectStatusChanged,
   ProjectUpdated,
 } from '../../contracts/events/project-events';
+import { DocumentVersionCreated } from '../../contracts/events/document-events';
 import {
   FILE_STORAGE,
   type FileStorage,
@@ -31,6 +32,7 @@ import { ProjectStorageCleanupRepository } from '../repositories/project-storage
 import {
   deriveProjectCode,
   formatDirectProjectDocumentFileName,
+  nextProjectRevisionCode,
 } from '../../common/documents/document-naming';
 import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
 import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
@@ -95,7 +97,7 @@ export abstract class ProjectServiceBase {
       uploads,
       documentCodeIds,
       codes: context.codes,
-      revisionCode: 'A',
+      revisionCode: '01',
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents`,
       generatedFileName: (code, uploadedFileName) =>
         formatDirectProjectDocumentFileName({
@@ -105,7 +107,7 @@ export abstract class ProjectServiceBase {
           shipmentNumber: context.project.shipmentNumber!,
           documentCode: code.code,
           documentName: code.name,
-          revisionCode: 'A',
+          revisionCode: '01',
           uploadedFileName,
         }),
     });
@@ -118,6 +120,25 @@ export abstract class ProjectServiceBase {
           actor.id,
           drafts,
         );
+        if (result)
+          await this.outbox.enqueueAll(
+            result.map(
+              (document) =>
+                new DocumentVersionCreated(
+                  {
+                    tenantId: RequestContext.requireTenantId(),
+                    actorId: actor.id,
+                    correlationId: requestId,
+                  },
+                  {
+                    owner: 'PROJECT',
+                    parentId: projectId,
+                    documentId: document.id,
+                    versionId: document.versions[0].id,
+                  },
+                ),
+            ),
+          );
         if (result && this.receipts)
           await this.receipts.write({
             owner: DocumentUploadOwnerCode.DIRECT_PROJECT,
@@ -183,7 +204,7 @@ export abstract class ProjectServiceBase {
       throw bad('Project naming context is invalid.');
     const file = DocumentUploadPipeline.prepareVersion({
       upload,
-      revisionCode: context.revisionCode,
+      revisionCode: nextProjectRevisionCode(context.revisionCode),
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents/${documentId}/versions`,
       generatedFileName: (uploadedFileName) =>
         formatDirectProjectDocumentFileName({
@@ -194,7 +215,7 @@ export abstract class ProjectServiceBase {
           documentCode: context.documentCodeSnapshot ?? '',
           documentName:
             context.documentNameSnapshot ?? context.documentCodeSnapshot ?? '',
-          revisionCode: context.revisionCode,
+          revisionCode: nextProjectRevisionCode(context.revisionCode),
           uploadedFileName,
         }),
     });
@@ -209,6 +230,22 @@ export abstract class ProjectServiceBase {
             actor.id,
             file,
           );
+          if (result)
+            await this.outbox.enqueue(
+              new DocumentVersionCreated(
+                {
+                  tenantId: RequestContext.requireTenantId(),
+                  actorId: actor.id,
+                  correlationId: requestId,
+                },
+                {
+                  owner: 'PROJECT',
+                  parentId: projectId,
+                  documentId,
+                  versionId: result.id,
+                },
+              ),
+            );
           if (result && this.receipts)
             await this.receipts.write({
               owner: DocumentUploadOwnerCode.DIRECT_PROJECT,
@@ -275,7 +312,7 @@ export abstract class ProjectServiceBase {
       documentCodeIds,
       codes: reference.documentCodes,
       allowEmpty: true,
-      revisionCode: 'A',
+      revisionCode: '01',
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents`,
       generatedFileName: (code, uploadedFileName) =>
         formatDirectProjectDocumentFileName({
@@ -285,7 +322,7 @@ export abstract class ProjectServiceBase {
           shipmentNumber,
           documentCode: code.code,
           documentName: code.name,
-          revisionCode: 'A',
+          revisionCode: '01',
           uploadedFileName,
         }),
     });
@@ -323,6 +360,20 @@ export abstract class ProjectServiceBase {
           files,
           snapshots: reference,
         });
+        await this.outbox.enqueueAll(
+          drafts.map(
+            (file) =>
+              new DocumentVersionCreated(
+                { tenantId: RequestContext.requireTenantId(), actorId },
+                {
+                  owner: 'PROJECT',
+                  parentId: projectId,
+                  documentId: file.documentId,
+                  versionId: file.versionId,
+                },
+              ),
+          ),
+        );
         const origin = { tenantId: RequestContext.requireTenantId(), actorId };
         await this.outbox.enqueue(new ProjectCreated(origin, { projectId }));
         await this.outbox.enqueue(

@@ -1,4 +1,6 @@
+import { createReadStream } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import type { Readable } from 'node:stream';
 import { dirname, resolve, sep } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import type {
@@ -20,6 +22,10 @@ export class LocalFileStorageService implements FileStorage {
 
   async remove(storageKey: string): Promise<void> {
     await rm(this.pathFor(storageKey), { force: true });
+  }
+
+  openReadStream(storageKey: string): Promise<Readable> {
+    return Promise.resolve(createReadStream(this.pathFor(storageKey)));
   }
 
   private pathFor(storageKey: string): string {

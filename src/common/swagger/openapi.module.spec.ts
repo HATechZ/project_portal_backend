@@ -137,7 +137,7 @@ describe('Scalar docs security configuration', () => {
     )?.[1];
 
     expect(html).toContain(
-      'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.71.0',
+      'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.75.1',
     );
     expect(inlineScript).toBeDefined();
 
@@ -146,7 +146,7 @@ describe('Scalar docs security configuration', () => {
     new Function('Scalar', inlineScript ?? '')({ createApiReference });
 
     expect(createApiReference).toHaveBeenCalledWith(
-      '#api-reference',
+      '#scalar-api-reference',
       expect.objectContaining({
         url: '/docs-json',
         defaultRequestBodyView: 'form',

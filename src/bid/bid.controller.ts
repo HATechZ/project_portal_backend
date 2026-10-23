@@ -187,7 +187,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Post(':id/documents')
-  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
+  @FinalPermissions(PermissionCode.UPDATE_BID)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -223,7 +223,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Post(':id/documents/:documentId/versions')
-  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
+  @FinalPermissions(PermissionCode.UPDATE_BID)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024, files: 1 },
@@ -254,7 +254,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Get(':id/documents')
-  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @FinalPermissions(PermissionCode.VIEW_BID)
   @ApiOperation({ summary: 'List Bid documents' })
   @ApiStandardArrayResponse(DocumentSummaryDto, 'Bid documents returned')
   @ResponseMessage('Bid documents returned successfully')
@@ -266,7 +266,7 @@ const response = await fetch('/api/v1/bids', {
   }
 
   @Get(':id/documents/:documentId/versions')
-  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @FinalPermissions(PermissionCode.VIEW_BID)
   @ApiOperation({ summary: 'List immutable Bid document versions' })
   @ApiStandardArrayResponse(
     DocumentVersionResponseDto,

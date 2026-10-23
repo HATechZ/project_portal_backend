@@ -4,5 +4,6 @@
  */
 export const EVENT_EXCHANGE = 'portal.events';
 export const EVENT_DEAD_LETTER_EXCHANGE = 'portal.events.dlx';
+export const EVENT_RETRY_EXCHANGE = 'portal.events.retry';
 
 export const EVENT_REGISTRY = Symbol('EVENT_REGISTRY');

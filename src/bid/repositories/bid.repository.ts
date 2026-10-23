@@ -415,7 +415,7 @@ export class BidRepository extends BaseRepository {
       });
       if (!document) return null;
       const versionNumber = (document.versions[0]?.versionNumber ?? 0) + 1;
-      return db.bidDocumentVersion.create({
+      const created = await db.bidDocumentVersion.create({
         data: {
           id: file.versionId,
           tenantId,
@@ -432,6 +432,11 @@ export class BidRepository extends BaseRepository {
         },
         select: versionSelect,
       });
+      await db.bidDocument.update({
+        where: { id: document.id },
+        data: { revisionCode: file.revisionCode },
+      });
+      return created;
     });
   }
   documents(bidId: string) {

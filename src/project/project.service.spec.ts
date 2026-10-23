@@ -37,7 +37,7 @@ describe('ProjectService', () => {
       ...overrides.repository,
     };
     const uow: any = { execute: jest.fn((work) => work()) };
-    const outbox: any = { enqueue: jest.fn() };
+    const outbox: any = { enqueue: jest.fn(), enqueueAll: jest.fn() };
     const cleanup: any = { enqueue: jest.fn() };
     const storage: any = { put: jest.fn(), remove: jest.fn() };
     return {

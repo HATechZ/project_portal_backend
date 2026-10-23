@@ -119,12 +119,12 @@ export function generateDocsHtml(jsonPath: string): string {
     </style>
   </head>
   <body>
-    <div id="api-reference"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.71.0"></script>
+    <div id="scalar-api-reference"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.75.1"></script>
     <script>
       var configuration = ${serializeForScript(configuration)};
 ${scalarAuthorizationNormalizationScript}
-      Scalar.createApiReference('#api-reference', configuration);
+      Scalar.createApiReference('#scalar-api-reference', configuration);
     </script>
   </body>
 </html>`;

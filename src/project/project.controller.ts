@@ -163,7 +163,7 @@ const response = await fetch('/api/v1/projects', {
     );
   }
   @Post(':id/documents')
-  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
+  @FinalPermissions(PermissionCode.UPDATE_PROJECT)
   @UseInterceptors(
     FilesInterceptor('files', 20, { limits: { fileSize: 25 * 1024 * 1024 } }),
   )
@@ -201,7 +201,7 @@ const response = await fetch('/api/v1/projects', {
     );
   }
   @Post(':id/documents/:documentId/versions')
-  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
+  @FinalPermissions(PermissionCode.UPDATE_PROJECT)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024, files: 1 },
@@ -231,7 +231,7 @@ const response = await fetch('/api/v1/projects', {
     return this.service.appendDocumentVersion(id, documentId, file, actor);
   }
   @Get(':id/documents')
-  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @FinalPermissions(PermissionCode.VIEW_PROJECT)
   @ApiOperation({ summary: 'List Project documents' })
   @ApiStandardArrayResponse(DocumentSummaryDto, 'Project documents returned')
   @ResponseMessage('Project documents returned successfully')
@@ -242,7 +242,7 @@ const response = await fetch('/api/v1/projects', {
     return this.service.documents(id, actor);
   }
   @Get(':id/documents/:documentId/versions')
-  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @FinalPermissions(PermissionCode.VIEW_PROJECT)
   @ApiOperation({ summary: 'List immutable Project document versions' })
   @ApiStandardArrayResponse(
     DocumentVersionResponseDto,

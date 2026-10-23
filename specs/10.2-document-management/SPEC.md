@@ -1,6 +1,6 @@
 # SPEC: 10.2 — Document Management Reads, Tree, Naming & Version Policy
 
-**Status:** authoritative next-week contract; implementation not started. **Depends on:** `10.1-documents` upload/session and formal-revision contracts. **Boundary:** logical document management reads only; no storage provider, upload, schema, migration, C1/C2/C3, or workflow redesign.
+**Status:** reconciled implementation authority; runtime implementation not started. **Depends on:** final-audited `10.1-documents`, Work Request route model, and 02.1 transactional outbox. **Boundary:** logical document management reads only; no storage provider, upload, schema, migration, C1/C2/C3, or workflow redesign.
 
 ## Audit
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | generated filename / immutable version / exact C1 package links | PARTIAL | preserve current canonical facts; complete read/naming policy |
 | Bid alphabetic revision | PARTIAL | freeze initial `A` and server progression policy |
-| Project numeric revision | MISSING | owner format decision required |
+| Project numeric revision | IMPLEMENTED UPSTREAM | preserve `01` start and minimum width two |
 | logical tree, search, preview, download | MISSING | new provider-neutral read contracts |
 | folder tree queries / authorization tests | MISSING | new next-week requirements |
 

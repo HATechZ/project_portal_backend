@@ -35,6 +35,10 @@ export interface EnvironmentVariables {
   MESSAGING_RELAY_BATCH_SIZE: number;
   MESSAGING_TRANSPORT: 'in-process' | 'rabbitmq';
   RABBITMQ_URL: string;
+  MESSAGING_RABBITMQ_CONSUMER_ENABLED: boolean;
+  MESSAGING_RABBITMQ_CONSUMER_QUEUE: string;
+  MESSAGING_RABBITMQ_RETRY_DELAY_MS: number;
+  MESSAGING_RABBITMQ_MAX_ATTEMPTS: number;
 }
 
 export const env = {
@@ -70,4 +74,8 @@ export const env = {
   messagingRelayBatchSize: 'MESSAGING_RELAY_BATCH_SIZE',
   messagingTransport: 'MESSAGING_TRANSPORT',
   rabbitmqUrl: 'RABBITMQ_URL',
+  messagingRabbitmqConsumerEnabled: 'MESSAGING_RABBITMQ_CONSUMER_ENABLED',
+  messagingRabbitmqConsumerQueue: 'MESSAGING_RABBITMQ_CONSUMER_QUEUE',
+  messagingRabbitmqRetryDelayMs: 'MESSAGING_RABBITMQ_RETRY_DELAY_MS',
+  messagingRabbitmqMaxAttempts: 'MESSAGING_RABBITMQ_MAX_ATTEMPTS',
 } as const satisfies Record<string, keyof EnvironmentVariables>;

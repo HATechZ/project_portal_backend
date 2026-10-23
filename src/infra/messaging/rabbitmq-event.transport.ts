@@ -14,9 +14,8 @@ import { Channel } from 'amqplib';
 import type { AppConfiguration } from '../../config/configuration';
 import { DomainEventEnvelope } from '../../contracts/events/domain-event';
 import { EventTransport } from './event-transport.port';
-
-const EXCHANGE = 'portal.events';
-const DLX = 'portal.events.dlx';
+import { EVENT_EXCHANGE } from './messaging.constants';
+import { declareRabbitMqTopology } from './rabbitmq-topology';
 
 /**
  * Adapter #2 — delivery via RabbitMQ.
@@ -42,7 +41,7 @@ export class RabbitMqEventTransport
   private channel?: ChannelWrapper;
   private readonly enabled: boolean;
 
-  constructor(private readonly config: ConfigService<AppConfiguration>) {
+  constructor(private readonly config: ConfigService<AppConfiguration, true>) {
     this.enabled =
       config.get('messaging.transport', { infer: true }) === 'rabbitmq';
 
@@ -53,11 +52,10 @@ export class RabbitMqEventTransport
     this.channel = this.connection.createChannel({
       json: false,
       setup: async (ch: Channel) => {
-        await ch.assertExchange(DLX, 'topic', { durable: true });
-        await ch.assertExchange(EXCHANGE, 'topic', {
-          durable: true,
-          arguments: { 'x-dead-letter-exchange': DLX },
-        });
+        await declareRabbitMqTopology(
+          ch,
+          this.config.get('messaging', { infer: true }),
+        );
       },
     });
   }
@@ -65,7 +63,7 @@ export class RabbitMqEventTransport
   async onApplicationBootstrap(): Promise<void> {
     if (!this.enabled) return;
     await this.channel?.waitForConnect();
-    this.logger.log(`Connected to RabbitMQ — exchange: ${EXCHANGE}`);
+    this.logger.log(`Connected to RabbitMQ — exchange: ${EVENT_EXCHANGE}`);
   }
 
   async onApplicationShutdown(): Promise<void> {
@@ -77,7 +75,7 @@ export class RabbitMqEventTransport
   async publish(event: DomainEventEnvelope): Promise<void> {
     if (!this.enabled) return;
     await this.channel!.publish(
-      EXCHANGE,
+      EVENT_EXCHANGE,
       event.routingKey,
       Buffer.from(JSON.stringify(event)),
       {
@@ -85,6 +83,7 @@ export class RabbitMqEventTransport
         contentType: 'application/json',
         headers: {
           'x-tenant-id': event.tenantId,
+          'x-event-id': event.eventId,
           'x-correlation-id': event.correlationId ?? null,
           'x-event-type': event.eventType,
         },

@@ -9,10 +9,10 @@ Current canonical Bid formatter is:
 Example: `21128 PERSISTED-CRA-CA2-01-100-A Stowage Plan.pdf`.
 Project formatter in shared contract omits Bidding Number:
 `<ProjectCode>-<CargoCode>-<VesselCode>-<ShipmentNumber>-<DocumentCode>-<RevisionCode> <DocumentCodeName>.<extension>`.
-Example: `SKM-CRA-CA2-01-100-A Stowage Plan.pdf`.
+Example: `SKM-CRA-CA2-01-100-01 Stowage Plan.pdf`.
 Current DirectProject-backed Work Request generated-name null behavior conflicts with that target Project formatter; preserve it until 10.1 implementation aligns it—do not invent a third naming system.
 
-Server uses canonical snapshots, safe document-code name, uploaded extension, existing whitespace sanitization, and the current 260-character limit. Client cannot supply any canonical fragment, generated name, key, version, or revision. Historical generated names never recalculate; key/version identity resolves collisions, not filename. Existing uppercase code/revision casing is preserved. Unsafe/path separator characters are removed by existing safe-name rules; Unicode normalization policy is an owner decision before any cross-provider implementation.
+Server uses canonical snapshots, NFC-normalized safe document-code/source names, uploaded extension, existing whitespace sanitization, and the current 260-character limit. Client cannot supply any canonical fragment, generated name, key, version, or revision. Historical generated names never recalculate; key/version identity resolves collisions, not filename. Existing uppercase code/revision casing is preserved. Unsafe/path separator characters are removed by existing safe-name rules.
 
 ## New next-week rules
 

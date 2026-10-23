@@ -113,45 +113,45 @@ export class ProjectRepository extends BaseRepository {
         snapshots: input.snapshots,
         documents: {
           create: input.files.map(
-              ({
-                id,
-                versionId,
-                documentCodeId,
-                documentCodeSnapshot,
-                documentNameSnapshot,
-                originalFileName,
-                generatedFileName,
-                storageKey,
-                mimeType,
-                fileSizeBytes,
-              }) => ({
-                id,
-                documentCodeId,
-                documentCodeSnapshot,
-                documentNameSnapshot,
-                originalFileName,
-                generatedFileName,
-                storageKey,
-                mimeType,
-                fileSizeBytes,
-                revisionCode: 'A',
-                uploadedByActorId: input.actorId,
-                versions: {
-                  create: {
-                    id: versionId,
-                    versionNumber: 1,
-                    originalFileName,
-                    uploadedFileName: originalFileName,
-                    generatedFileName,
-                    storageKey,
-                    mimeType,
-                    fileSizeBytes,
-                    revisionCode: 'A',
-                    uploadedByActorId: input.actorId,
-                  },
+            ({
+              id,
+              versionId,
+              documentCodeId,
+              documentCodeSnapshot,
+              documentNameSnapshot,
+              originalFileName,
+              generatedFileName,
+              storageKey,
+              mimeType,
+              fileSizeBytes,
+            }) => ({
+              id,
+              documentCodeId,
+              documentCodeSnapshot,
+              documentNameSnapshot,
+              originalFileName,
+              generatedFileName,
+              storageKey,
+              mimeType,
+              fileSizeBytes,
+              revisionCode: 'A',
+              uploadedByActorId: input.actorId,
+              versions: {
+                create: {
+                  id: versionId,
+                  versionNumber: 1,
+                  originalFileName,
+                  uploadedFileName: originalFileName,
+                  generatedFileName,
+                  storageKey,
+                  mimeType,
+                  fileSizeBytes,
+                  revisionCode: 'A',
+                  uploadedByActorId: input.actorId,
                 },
-              }),
-            ),
+              },
+            }),
+          ),
         },
       });
       return db.directProject.findFirstOrThrow({
@@ -349,7 +349,7 @@ export class ProjectRepository extends BaseRepository {
         },
       });
       if (!document) return null;
-      return db.directProjectDocumentVersion.create({
+      const created = await db.directProjectDocumentVersion.create({
         data: {
           id: file.versionId,
           tenantId,
@@ -366,6 +366,11 @@ export class ProjectRepository extends BaseRepository {
         },
         select: versionSelect,
       });
+      await db.directProjectDocument.update({
+        where: { id: document.id },
+        data: { revisionCode: file.revisionCode },
+      });
+      return created;
     });
   }
   documents(projectId: string) {

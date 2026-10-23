@@ -46,6 +46,10 @@ export interface AppConfiguration {
     relayBatchSize: number;
     transport: 'in-process' | 'rabbitmq';
     rabbitmqUrl: string;
+    rabbitmqConsumerEnabled: boolean;
+    rabbitmqConsumerQueue: string;
+    rabbitmqRetryDelayMs: number;
+    rabbitmqMaxAttempts: number;
   };
 }
 
@@ -112,6 +116,16 @@ export default function configuration(): AppConfiguration {
         'in-process' | 'rabbitmq',
       rabbitmqUrl:
         process.env.RABBITMQ_URL ?? 'amqp://portal:portal@127.0.0.1:5672',
+      rabbitmqConsumerEnabled:
+        process.env.MESSAGING_RABBITMQ_CONSUMER_ENABLED === 'true',
+      rabbitmqConsumerQueue:
+        process.env.MESSAGING_RABBITMQ_CONSUMER_QUEUE ?? 'application',
+      rabbitmqRetryDelayMs: Number(
+        process.env.MESSAGING_RABBITMQ_RETRY_DELAY_MS ?? 1000,
+      ),
+      rabbitmqMaxAttempts: Number(
+        process.env.MESSAGING_RABBITMQ_MAX_ATTEMPTS ?? 5,
+      ),
     },
   };
 }

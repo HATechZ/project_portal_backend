@@ -68,6 +68,7 @@ directory exists, so this table cannot silently rot.
 | `src/bid/bid.module.ts` | `specs/08-bid` |
 | `src/project/project.module.ts` | `specs/09-project` |
 | `src/work-request/work-request.module.ts` | `specs/10-work-requests` |
+| `src/document-management/document-management.module.ts` | `specs/10.2-document-management` |
 
 `src/app.module.ts` is the composition root and is exempt â€” it registers modules but owns no
 domain surface of its own.

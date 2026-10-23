@@ -73,14 +73,36 @@ export function nextDocumentVersionMetadata(input: {
   };
 }
 
+export function nextBidRevisionCode(previous?: string): string {
+  if (!previous) return 'A';
+  if (!/^[A-Z]+$/.test(previous))
+    throw new Error('DOCUMENT_NAMING_BID_REVISION');
+  const letters = previous.split('');
+  let carry = 1;
+  for (let index = letters.length - 1; index >= 0 && carry; index -= 1) {
+    const value = letters[index].charCodeAt(0) - 64 + carry;
+    letters[index] = String.fromCharCode(((value - 1) % 26) + 65);
+    carry = value > 26 ? 1 : 0;
+  }
+  return `${carry ? 'A' : ''}${letters.join('')}`;
+}
+
+export function nextProjectRevisionCode(previous?: string): string {
+  if (!previous) return '01';
+  if (!/^\d+$/.test(previous))
+    throw new Error('DOCUMENT_NAMING_PROJECT_REVISION');
+  const next = BigInt(previous) + 1n;
+  return next.toString().padStart(Math.max(2, previous.length), '0');
+}
+
 function safeUploadedFileName(value: string): string {
-  const name = basename(value).trim();
+  const name = basename(value).normalize('NFC').trim();
   if (!name) throw new Error('DOCUMENT_NAMING_FILE_NAME');
   return name;
 }
 
 function safeDocumentName(value: string): string {
-  const name = basename(value).trim();
+  const name = basename(value).normalize('NFC').trim();
   if (!name) throw new Error('DOCUMENT_NAMING_DOCUMENT_NAME');
   return name;
 }

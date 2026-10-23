@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
+import { DiscoveryModule } from '@nestjs/core';
 import type { AppConfiguration } from '../../config/configuration';
 import { EventRegistry } from './event-registry';
 import { EVENT_TRANSPORT } from './event-transport.port';
@@ -11,6 +12,8 @@ import { OutboxRelayService } from './outbox-relay.service';
 import { OutboxRepository } from './outbox.repository';
 import { OutboxService } from './outbox.service';
 import { RabbitMqEventTransport } from './rabbitmq-event.transport';
+import { RabbitMqEventConsumer } from './rabbitmq-event.consumer';
+import { RabbitMqEventDispatcher } from './rabbitmq-event.dispatcher';
 
 /**
  * Global so any module can raise an event without importing a messaging module
@@ -29,11 +32,13 @@ import { RabbitMqEventTransport } from './rabbitmq-event.transport';
  */
 @Global()
 @Module({
-  imports: [CqrsModule.forRoot()],
+  imports: [CqrsModule.forRoot(), DiscoveryModule],
   providers: [
     EventRegistry,
     InProcessEventTransport,
     RabbitMqEventTransport,
+    RabbitMqEventDispatcher,
+    RabbitMqEventConsumer,
     OutboxRepository,
     OutboxService,
     InboxRepository,

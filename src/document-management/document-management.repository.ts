@@ -1,0 +1,290 @@
+import { Injectable } from '@nestjs/common';
+import { RequestContext } from '../common/context/request-context';
+import type { SessionActor } from '../common/security/session.types';
+import {
+  relatedWorkRequestVisibilityWhere,
+  workRequestVisibilityWhere,
+} from '../common/security/work-request-visibility';
+import { BaseRepository } from '../infra/prisma/base.repository';
+import { UnitOfWorkService } from '../infra/prisma/unit-of-work.service';
+
+type Owner = 'BID' | 'PROJECT' | 'WORK_REQUEST';
+
+type VersionRow = {
+  id: string;
+  storageKey: string;
+  generatedFileName: string | null;
+  uploadedFileName: string | null;
+  mimeType: string;
+  fileSizeBytes: bigint;
+  versionNumber: number;
+  revisionCode: string;
+  uploadedAt: Date;
+  uploadedByActorId: string;
+};
+
+export type ExactDocumentVersion = VersionRow & {
+  owner: Owner;
+  parentId: string;
+  documentId: string;
+  documentCode: string | null;
+  documentCodeId: string | null;
+  workRequestId: string | null;
+  sourceKind: 'BID' | 'PROJECT' | null;
+  sourceId: string | null;
+};
+
+/**
+ * The single Documents 10.2 read boundary. Every internal query starts with
+ * tenant and parent visibility; external reads use immutable C1 item membership.
+ */
+@Injectable()
+export class DocumentManagementRepository extends BaseRepository {
+  constructor(uow: UnitOfWorkService) {
+    super(uow);
+  }
+
+  async exact(
+    versionId: string,
+    actor: SessionActor,
+  ): Promise<ExactDocumentVersion | null> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      if (actor.clientContact) {
+        const contact = actor.clientContact;
+        if (!contact.isActive || !contact.client.isActive) return null;
+        const packaged = await db.workRequestV1ClientSubmissionItem.findFirst({
+          where: {
+            tenantId,
+            // Membership is exact: a sibling version is never implicitly visible.
+            documentVersionId: versionId,
+            submission: {
+              workRequest: {
+                OR: [
+                  { bid: { is: { clientId: contact.clientId } } },
+                  { directProject: { is: { clientId: contact.clientId } } },
+                ],
+              },
+            },
+          },
+          include: { documentVersion: { include: { document: true } } },
+        });
+        return packaged
+          ? map(
+              'WORK_REQUEST',
+              packaged.documentVersion.document.workRequestId,
+              packaged.documentVersion.workRequestV1DocumentId,
+              packaged.documentVersion,
+            )
+          : null;
+      }
+
+      const related = relatedWorkRequestVisibilityWhere(actor);
+      const bid = await db.bidDocumentVersion.findFirst({
+        where: {
+          id: versionId,
+          tenantId,
+          bidDocument: {
+            bid: {
+              is: {
+                ...(related ? { workRequestsV1: { some: related } } : {}),
+              },
+            },
+          },
+        },
+        include: { bidDocument: true },
+      });
+      if (bid) return map('BID', bid.bidDocument.bidId, bid.bidDocumentId, bid);
+
+      const project = await db.directProjectDocumentVersion.findFirst({
+        where: {
+          id: versionId,
+          tenantId,
+          directProjectDocument: {
+            directProject: {
+              is: {
+                ...(related ? { workRequestsV1: { some: related } } : {}),
+              },
+            },
+          },
+        },
+        include: { directProjectDocument: true },
+      });
+      if (project)
+        return map(
+          'PROJECT',
+          project.directProjectDocument.directProjectId,
+          project.directProjectDocumentId,
+          project,
+        );
+
+      const work = await db.workRequestV1DocumentVersion.findFirst({
+        where: {
+          id: versionId,
+          tenantId,
+          document: {
+            workRequest: { is: workRequestVisibilityWhere(actor) },
+          },
+        },
+        include: { document: true },
+      });
+      return work
+        ? map(
+            'WORK_REQUEST',
+            work.document.workRequestId,
+            work.workRequestV1DocumentId,
+            work,
+          )
+        : null;
+    });
+  }
+
+  async search(
+    query: string | undefined,
+    actor: SessionActor,
+  ): Promise<ExactDocumentVersion[]> {
+    // C1 users receive exact immutable package items through exact() only.
+    if (actor.clientContact) return [];
+
+    const tenantId = RequestContext.requireTenantId();
+    const name = query
+      ? { contains: query, mode: 'insensitive' as const }
+      : undefined;
+    return this.transaction(async (db) => {
+      const related = relatedWorkRequestVisibilityWhere(actor);
+      const [bids, projects, work] = await Promise.all([
+        db.bidDocumentVersion.findMany({
+          where: {
+            tenantId,
+            bidDocument: {
+              bid: {
+                is: {
+                  ...(related ? { workRequestsV1: { some: related } } : {}),
+                },
+              },
+            },
+            OR: name
+              ? [{ generatedFileName: name }, { uploadedFileName: name }]
+              : undefined,
+          },
+          include: { bidDocument: true },
+        }),
+        db.directProjectDocumentVersion.findMany({
+          where: {
+            tenantId,
+            directProjectDocument: {
+              directProject: {
+                is: {
+                  ...(related ? { workRequestsV1: { some: related } } : {}),
+                },
+              },
+            },
+            OR: name
+              ? [{ generatedFileName: name }, { uploadedFileName: name }]
+              : undefined,
+          },
+          include: { directProjectDocument: true },
+        }),
+        db.workRequestV1DocumentVersion.findMany({
+          where: {
+            tenantId,
+            document: {
+              workRequest: { is: workRequestVisibilityWhere(actor) },
+            },
+            OR: name
+              ? [{ generatedFileName: name }, { uploadedFileName: name }]
+              : undefined,
+          },
+          include: {
+            document: {
+              include: {
+                workRequest: { select: { bidId: true, directProjectId: true } },
+              },
+            },
+          },
+        }),
+      ]);
+      return [
+        ...bids.map((value) =>
+          map('BID', value.bidDocument.bidId, value.bidDocumentId, value, {
+            documentCode: value.bidDocument.documentCodeSnapshot,
+            documentCodeId: value.bidDocument.documentCodeId,
+            workRequestId: null,
+            sourceKind: 'BID',
+            sourceId: value.bidDocument.bidId,
+          }),
+        ),
+        ...projects.map((value) =>
+          map(
+            'PROJECT',
+            value.directProjectDocument.directProjectId,
+            value.directProjectDocumentId,
+            value,
+            {
+              documentCode: value.directProjectDocument.documentCodeSnapshot,
+              documentCodeId: value.directProjectDocument.documentCodeId,
+              workRequestId: null,
+              sourceKind: 'PROJECT',
+              sourceId: value.directProjectDocument.directProjectId,
+            },
+          ),
+        ),
+        ...work.map((value) =>
+          map(
+            'WORK_REQUEST',
+            value.document.workRequestId,
+            value.workRequestV1DocumentId,
+            value,
+            {
+              documentCode: value.document.documentCodeSnapshot,
+              documentCodeId: value.document.documentCodeId,
+              workRequestId: value.document.workRequestId,
+              sourceKind: value.document.workRequest.bidId ? 'BID' : 'PROJECT',
+              sourceId:
+                value.document.workRequest.bidId ??
+                value.document.workRequest.directProjectId,
+            },
+          ),
+        ),
+      ].sort(
+        (left, right) =>
+          right.uploadedAt.getTime() - left.uploadedAt.getTime() ||
+          right.id.localeCompare(left.id),
+      );
+    });
+  }
+
+  async timezone(): Promise<string> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const config = await db.portalConfig.findFirst({
+        where: { tenantId },
+        select: { defaultTimezone: true },
+      });
+      return config?.defaultTimezone ?? 'UTC';
+    });
+  }
+}
+
+function map(
+  owner: Owner,
+  parentId: string,
+  documentId: string,
+  value: VersionRow,
+  metadata: Pick<
+    ExactDocumentVersion,
+    | 'documentCode'
+    | 'documentCodeId'
+    | 'workRequestId'
+    | 'sourceKind'
+    | 'sourceId'
+  > = {
+    documentCode: null,
+    documentCodeId: null,
+    workRequestId: null,
+    sourceKind: null,
+    sourceId: null,
+  },
+): ExactDocumentVersion {
+  return { owner, parentId, documentId, ...metadata, ...value };
+}

@@ -9,7 +9,7 @@
 | [01](01-persistence/) Persistence | — | 4 | 15/17 | `[WIP]` | DBML-authority task retired (schema being redesigned); UoW test suite deleted |
 | [01.1](01.1-schema-integrity/) Schema Integrity & Tenant Isolation | reshapes 52 | 4 | 44/45 | `[WIP]` | Applied + catalog-verified; UoW fail-closed test suite deleted, needs new proof |
 | [02](02-infrastructure/) Infrastructure | — | 4 | 15/15 | `[WIP]` | Retro-spec; only walkthrough remains |
-| [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | [Art. XI](rules/10-messaging.md); partial index skipped by owner; walkthrough remains |
+| [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | RabbitMQ complete; repository-wide lint baseline blocks Gate 5 |
 | [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/54 | `[WIP]` | Starter authorization gate approved; runtime remains unimplemented |
 | [04](04-organization/) Organization | 2 of 7 | 4 | 30/39 | `[WIP]` | Default Client provisioning migration prepared; deploy pending |
 | [04.1](04.1-division/) Division | 1 (+DivisionType) | 4 | 11/12 | `[WIP]` | Normalized Tenant/Company name uniqueness and blocking preflight pending |
@@ -34,7 +34,7 @@
 | Workflow Engine (future allocation) | 4 | 0 | — | `[NOT STARTED]` | Which role fires which action from which status |
 | [10](10-work-requests/) Route-Based Work Requests | additive route/cycle/revision/communication redesign | 4 | 5/7 | `[WIP]` | Phases 1-5 complete; Phase 6 is READY. [Runbook](10-work-requests/IMPLEMENTATION_RUNBOOK.md) is phased execution authority; pre-route V1 preserved historically |
 | [10.1](10.1-documents/) Shared Documents | 6 proposed + additive session/revision proposal | 4 | 0/10 | `[WIP]` | Current foundation preserved; weekly revision/upload-storage contracts frozen; implementation pending |
-| [10.2](10.2-document-management/) Document Management Reads | additive future scope | 3 | 0/0 | `[SPEC APPROVED]` | Next-week tree/search/read/naming policy; depends on 10.1 |
+| [10.2](10.2-document-management/) Document Management Reads | derived read scope | 3 | 0/14 | `[SPEC APPROVED]` | Reconciled with final 10.1/routes/outbox; ready to implement |
 | 11 Info Requests & Revisions | 7 | 0 | — | `[NOT STARTED]` | |
 | 12 Notifications | 2 | 0 | — | `[NOT STARTED]` | Consumes 02's mail queue |
 | 13 Audit | 1 | 0 | — | `[NOT STARTED]` | |
@@ -64,8 +64,6 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-10-05 | Codex | 03,10 | 1 | Permission globalization matrix frozen; no implementation changes |
-| 2026-10-06 | Codex | 03 | 1 | Demo-data legacy-access policy frozen; specs only |
 | 2026-10-06 | Codex | 03,05 | 1 | Client scopes and resource-boundary rule frozen; specs only |
 | 2026-10-06 | Codex | 03,04–10 | 1 | Final atomic permission/scope freeze; specs only |
 | 2026-10-15 | Codex + db-architect | 04 | 1-4 | Default Client signup migration prepared; deployment pending |
@@ -74,3 +72,5 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Local PostgreSQL 18 is reachable but lacks a non-interactive admin credential; no DB changed |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Docker validation DB healthy; clean chain blocks pre-C3 on tenant_super_admin bootstrap assertion |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Phase 2 complete: disposable chain/C3/RLS/cutover and self-review PASS |
+| 2026-10-23 | Codex + db-architect | 02.1 | 1-4 | RabbitMQ complete; pre-existing lint baseline blocks Gate 5 |
+| 2026-10-23 | Codex | 10.2 | 1-3 | Reconciled read/tree contracts and executable queue against frozen upstream |

@@ -4,6 +4,7 @@ import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { RequestContext } from '../../common/context/request-context';
 import { BidCreated, BidUpdated } from '../../contracts/events/bid-events';
+import { DocumentVersionCreated } from '../../contracts/events/document-events';
 import { PaginationQueryDto } from '../../common/pagination/dtos/pagination-query.dto';
 import { paginate } from '../../common/pagination/paginate';
 import { PaginatedResult } from '../../common/pagination/paginated-result';
@@ -22,7 +23,10 @@ import { BidStorageCleanupRepository } from '../repositories/bid-storage-cleanup
 import { OutboxService } from '../../infra/messaging/outbox.service';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { formatBidDocumentFileName } from '../../common/utils/bid-document-file-name';
-import { deriveProjectCode } from '../../common/documents/document-naming';
+import {
+  deriveProjectCode,
+  nextBidRevisionCode,
+} from '../../common/documents/document-naming';
 import { DocumentUploadPipeline } from '../../common/documents/document-upload.pipeline';
 import type { DocumentSummaryDto } from '../../common/documents/document-summary.dto';
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
@@ -108,6 +112,25 @@ export abstract class BidServiceBase {
           actor.id,
           drafts,
         );
+        if (result)
+          await this.outbox.enqueueAll(
+            result.map(
+              (document) =>
+                new DocumentVersionCreated(
+                  {
+                    tenantId: RequestContext.requireTenantId(),
+                    actorId: actor.id,
+                    correlationId: requestId,
+                  },
+                  {
+                    owner: 'BID',
+                    parentId: bidId,
+                    documentId: document.id,
+                    versionId: document.versions[0].id,
+                  },
+                ),
+            ),
+          );
         if (result && this.receipts)
           await this.receipts.write({
             owner: DocumentUploadOwnerCode.BID,
@@ -164,7 +187,7 @@ export abstract class BidServiceBase {
     if (replay) return replay.response as unknown as DocumentVersionResponseDto;
     const file = DocumentUploadPipeline.prepareVersion({
       upload,
-      revisionCode: context.revisionCode,
+      revisionCode: nextBidRevisionCode(context.revisionCode),
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/bids/${bidId}/documents/${documentId}/versions`,
       generatedFileName: (uploadedFileName) =>
         bidFileName({
@@ -190,6 +213,22 @@ export abstract class BidServiceBase {
             actor.id,
             file,
           );
+          if (result)
+            await this.outbox.enqueue(
+              new DocumentVersionCreated(
+                {
+                  tenantId: RequestContext.requireTenantId(),
+                  actorId: actor.id,
+                  correlationId: requestId,
+                },
+                {
+                  owner: 'BID',
+                  parentId: bidId,
+                  documentId,
+                  versionId: result.id,
+                },
+              ),
+            );
           if (result && this.receipts)
             await this.receipts.write({
               owner: DocumentUploadOwnerCode.BID,
@@ -295,6 +334,20 @@ export abstract class BidServiceBase {
           files,
           snapshots: reference,
         });
+        await this.outbox.enqueueAll(
+          drafts.map(
+            (file) =>
+              new DocumentVersionCreated(
+                { tenantId: RequestContext.requireTenantId(), actorId },
+                {
+                  owner: 'BID',
+                  parentId: bidId,
+                  documentId: file.documentId,
+                  versionId: file.versionId,
+                },
+              ),
+          ),
+        );
         await this.outbox.enqueue(
           new BidCreated(
             { tenantId: RequestContext.requireTenantId(), actorId },
