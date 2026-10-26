@@ -13,6 +13,7 @@ type Owner = 'BID' | 'PROJECT' | 'WORK_REQUEST';
 type VersionRow = {
   id: string;
   storageKey: string;
+  originalFileName: string;
   generatedFileName: string | null;
   uploadedFileName: string | null;
   mimeType: string;
@@ -32,6 +33,9 @@ export type ExactDocumentVersion = VersionRow & {
   workRequestId: string | null;
   sourceKind: 'BID' | 'PROJECT' | null;
   sourceId: string | null;
+  sourceLabel?: string;
+  documentName?: string | null;
+  documentCodeSortOrder?: number;
 };
 
 /**
@@ -92,7 +96,9 @@ export class DocumentManagementRepository extends BaseRepository {
             },
           },
         },
-        include: { bidDocument: true },
+        include: {
+          bidDocument: { include: { bid: { include: { client: true } } } },
+        },
       });
       if (bid) return map('BID', bid.bidDocument.bidId, bid.bidDocumentId, bid);
 
@@ -108,7 +114,11 @@ export class DocumentManagementRepository extends BaseRepository {
             },
           },
         },
-        include: { directProjectDocument: true },
+        include: {
+          directProjectDocument: {
+            include: { directProject: { include: { client: true } } },
+          },
+        },
       });
       if (project)
         return map(
@@ -126,7 +136,18 @@ export class DocumentManagementRepository extends BaseRepository {
             workRequest: { is: workRequestVisibilityWhere(actor) },
           },
         },
-        include: { document: true },
+        include: {
+          document: {
+            include: {
+              workRequest: {
+                include: {
+                  bid: { include: { client: true } },
+                  directProject: { include: { client: true } },
+                },
+              },
+            },
+          },
+        },
       });
       return work
         ? map(
@@ -147,9 +168,6 @@ export class DocumentManagementRepository extends BaseRepository {
     if (actor.clientContact) return [];
 
     const tenantId = RequestContext.requireTenantId();
-    const name = query
-      ? { contains: query, mode: 'insensitive' as const }
-      : undefined;
     return this.transaction(async (db) => {
       const related = relatedWorkRequestVisibilityWhere(actor);
       const [bids, projects, work] = await Promise.all([
@@ -163,11 +181,15 @@ export class DocumentManagementRepository extends BaseRepository {
                 },
               },
             },
-            OR: name
-              ? [{ generatedFileName: name }, { uploadedFileName: name }]
-              : undefined,
           },
-          include: { bidDocument: true },
+          include: {
+            bidDocument: {
+              include: {
+                bid: { include: { client: true } },
+                documentCode: true,
+              },
+            },
+          },
         }),
         db.directProjectDocumentVersion.findMany({
           where: {
@@ -179,11 +201,12 @@ export class DocumentManagementRepository extends BaseRepository {
                 },
               },
             },
-            OR: name
-              ? [{ generatedFileName: name }, { uploadedFileName: name }]
-              : undefined,
           },
-          include: { directProjectDocument: true },
+          include: {
+            directProjectDocument: {
+              include: { directProject: { include: { client: true } } },
+            },
+          },
         }),
         db.workRequestV1DocumentVersion.findMany({
           where: {
@@ -191,14 +214,17 @@ export class DocumentManagementRepository extends BaseRepository {
             document: {
               workRequest: { is: workRequestVisibilityWhere(actor) },
             },
-            OR: name
-              ? [{ generatedFileName: name }, { uploadedFileName: name }]
-              : undefined,
           },
           include: {
             document: {
               include: {
-                workRequest: { select: { bidId: true, directProjectId: true } },
+                workRequest: {
+                  include: {
+                    bid: { include: { client: true } },
+                    directProject: { include: { client: true } },
+                  },
+                },
+                documentCode: true,
               },
             },
           },
@@ -212,6 +238,9 @@ export class DocumentManagementRepository extends BaseRepository {
             workRequestId: null,
             sourceKind: 'BID',
             sourceId: value.bidDocument.bidId,
+            sourceLabel: bidLabel(value.bidDocument.bid),
+            documentName: value.bidDocument.documentNameSnapshot,
+            documentCodeSortOrder: value.bidDocument.documentCode?.sortOrder,
           }),
         ),
         ...projects.map((value) =>
@@ -226,6 +255,10 @@ export class DocumentManagementRepository extends BaseRepository {
               workRequestId: null,
               sourceKind: 'PROJECT',
               sourceId: value.directProjectDocument.directProjectId,
+              sourceLabel: projectLabel(
+                value.directProjectDocument.directProject,
+              ),
+              documentName: value.directProjectDocument.documentNameSnapshot,
             },
           ),
         ),
@@ -243,6 +276,13 @@ export class DocumentManagementRepository extends BaseRepository {
               sourceId:
                 value.document.workRequest.bidId ??
                 value.document.workRequest.directProjectId,
+              sourceLabel: value.document.workRequest.bid
+                ? bidLabel(value.document.workRequest.bid)
+                : value.document.workRequest.directProject
+                  ? projectLabel(value.document.workRequest.directProject)
+                  : undefined,
+              documentName: value.document.documentNameSnapshot,
+              documentCodeSortOrder: value.document.documentCode?.sortOrder,
             },
           ),
         ),
@@ -266,6 +306,21 @@ export class DocumentManagementRepository extends BaseRepository {
   }
 }
 
+function bidLabel(bid: {
+  biddingNumber: string;
+  name: string;
+  client: { name: string };
+}): string {
+  return `${bid.biddingNumber} - ${bid.client.name} - ${bid.name}`;
+}
+function projectLabel(project: {
+  projectCode: string | null;
+  name: string;
+  client: { name: string };
+}): string {
+  return `${project.projectCode ?? ''} - ${project.client.name} - ${project.name}`;
+}
+
 function map(
   owner: Owner,
   parentId: string,
@@ -278,6 +333,9 @@ function map(
     | 'workRequestId'
     | 'sourceKind'
     | 'sourceId'
+    | 'sourceLabel'
+    | 'documentName'
+    | 'documentCodeSortOrder'
   > = {
     documentCode: null,
     documentCodeId: null,

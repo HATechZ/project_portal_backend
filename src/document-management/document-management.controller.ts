@@ -16,10 +16,11 @@ import { FinalPermissionsGuard } from '../common/security/final-permissions.guar
 import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { PermissionCode } from '../generated/prisma/client';
+import { DocumentManagementService } from './document-management.service';
 import {
-  DocumentManagementService,
-  type SearchInput,
-} from './document-management.service';
+  SearchDocumentsQueryDto,
+  TreeQueryDto,
+} from './dtos/document-management-query.dto';
 
 @Controller()
 @UseGuards(
@@ -33,50 +34,42 @@ export class DocumentManagementController {
 
   @Get('documents/tree')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
-  tree(
-    @Query('parentNodeId') parentNodeId: string | undefined,
-    @ActiveActor() actor: SessionActor,
-  ) {
-    return this.service.tree(parentNodeId, actor);
+  tree(@Query() input: TreeQueryDto, @ActiveActor() actor: SessionActor) {
+    return this.service.tree(input, actor);
   }
 
   @Get('documents/tree/:nodeId/children')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   children(
     @Param('nodeId') nodeId: string,
+    @Query() input: TreeQueryDto,
     @ActiveActor() actor: SessionActor,
   ) {
-    return this.service.tree(nodeId, actor);
+    return this.service.tree({ ...input, parentNodeId: nodeId }, actor);
   }
 
   @Get('documents/search')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
-  search(@Query() input: SearchInput, @ActiveActor() actor: SessionActor) {
-    return this.service.search(
-      {
-        ...input,
-        limit: input.limit ? Number(input.limit) : undefined,
-        versionNumber: input.versionNumber
-          ? Number(input.versionNumber)
-          : undefined,
-      },
-      actor,
-    );
+  search(
+    @Query() input: SearchDocumentsQueryDto,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.search(input, actor);
   }
 
-  @Get('document-versions/:id')
+  @Get('document-versions/:versionId')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   exact(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionId', ParseUUIDPipe) id: string,
     @ActiveActor() actor: SessionActor,
   ) {
     return this.service.exact(id, actor);
   }
 
-  @Get('document-versions/:id/preview')
+  @Get('document-versions/:versionId/preview')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   async preview(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionId', ParseUUIDPipe) id: string,
     @Res() response: Response,
     @ActiveActor() actor: SessionActor,
   ) {
@@ -87,10 +80,10 @@ export class DocumentManagementController {
     file.body.pipe(response);
   }
 
-  @Get('document-versions/:id/download')
+  @Get('document-versions/:versionId/download')
   @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
   async download(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionId', ParseUUIDPipe) id: string,
     @Res() response: Response,
     @ActiveActor() actor: SessionActor,
   ) {

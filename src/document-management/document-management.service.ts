@@ -27,12 +27,20 @@ export type SearchInput = {
   mode?: 'latest' | 'exact';
   cursor?: string;
   limit?: number;
+  sort?: 'uploadedAt:desc';
 };
 
 type FileProjection = {
   versionId: string;
   owner: { kind: ExactDocumentVersion['owner']; id: string };
+  sourceParent: {
+    kind: NonNullable<ExactDocumentVersion['sourceKind']>;
+    id: string;
+  } | null;
+  workRequestId: string | null;
   documentId: string;
+  documentCode: string | null;
+  originalFileName: string | null;
   versionNumber: number;
   revisionCode: string;
   uploadedFileName: string | null;
@@ -50,6 +58,8 @@ type TreeNode = {
   hasChildren: boolean;
   itemCount?: number;
   file?: FileProjection;
+  sortAt?: number;
+  codeSortOrder?: number;
 };
 
 @Injectable()
@@ -64,25 +74,17 @@ export class DocumentManagementService {
   }
 
   async search(input: SearchInput, actor: SessionActor) {
-    if (
-      !input.q &&
-      !input.parentId &&
-      !input.documentCodeId &&
-      !input.workRequestId
-    ) {
+    if (!hasBound(input)) {
       throw badRequest(
         'Search requires a query or bounded parent/code filter.',
       );
     }
     const filtered = this.filter(
-      await this.documents.search(input.q, actor),
+      await this.documents.search(undefined, actor),
       input,
     );
     const mode = input.mode ?? 'latest';
-    const versions =
-      mode === 'latest'
-        ? [...new Map(filtered.map((item) => [item.documentId, item])).values()]
-        : filtered;
+    const versions = mode === 'latest' ? latestVersions(filtered) : filtered;
     const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
     const start = input.cursor ? decodeCursor(input.cursor) : 0;
     const page = versions.slice(start, start + limit);
@@ -96,7 +98,7 @@ export class DocumentManagementService {
   }
 
   async tree(
-    parentNodeId: string | undefined,
+    input: { parentNodeId?: string; cursor?: string; limit?: number },
     actor: SessionActor,
   ): Promise<TreeNode[]> {
     const [versions, timezone] = await Promise.all([
@@ -104,9 +106,14 @@ export class DocumentManagementService {
       this.documents.timezone(),
     ]);
     const all = treeNodes(versions, timezone);
-    return all.filter((node) =>
-      parentNodeId ? node.parentNodeId === parentNodeId : node.type === 'ROOT',
+    const children = all.filter((node) =>
+      input.parentNodeId
+        ? node.parentNodeId === input.parentNodeId
+        : node.type === 'ROOT',
     );
+    const start = input.cursor ? decodeCursor(input.cursor) : 0;
+    const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+    return children.slice(start, start + limit);
   }
 
   async preview(id: string, actor: SessionActor) {
@@ -127,6 +134,7 @@ export class DocumentManagementService {
   ): ExactDocumentVersion[] {
     return versions.filter(
       (value) =>
+        (!input.q || matchesQuery(value, input.q)) &&
         (!input.parentKind || value.sourceKind === input.parentKind) &&
         (!input.parentId || value.sourceId === input.parentId) &&
         (!input.workRequestId || value.workRequestId === input.workRequestId) &&
@@ -179,26 +187,33 @@ function treeNodes(
 ): TreeNode[] {
   const nodes = new Map<string, TreeNode>();
   const add = (node: TreeNode) => nodes.set(node.nodeId, node);
+  const rootId = nodeId('root');
+  if (versions.some((value) => value.sourceKind && value.sourceId)) {
+    add({
+      nodeId: rootId,
+      type: 'ROOT',
+      label: 'Documents',
+      hasChildren: true,
+    });
+  }
   for (const value of versions) {
     if (!value.sourceKind || !value.sourceId) continue;
     const rootType = value.sourceKind;
-    const rootId = nodeId('group', rootType);
-    const code = value.documentCode ?? 'Unclassified';
+    const codeKey =
+      value.documentCodeId ?? value.documentCode ?? 'Unclassified';
+    const code =
+      [value.documentCode, value.documentName]
+        .filter((part): part is string => Boolean(part))
+        .join(' ') || 'Unclassified';
     const parentId = nodeId('parent', rootType, value.sourceId);
-    const codeId = nodeId('code', parentId, code);
+    const codeId = nodeId('code', parentId, codeKey);
     const date = dateLabel(value.uploadedAt, timezone);
     const dateId = nodeId('date', codeId, date);
     const fileId = nodeId('file', value.id);
     add({
-      nodeId: rootId,
-      type: 'ROOT',
-      label: rootType === 'BID' ? 'Bids / Proposals' : 'Projects Portfolio',
-      hasChildren: true,
-    });
-    add({
       nodeId: parentId,
       type: rootType,
-      label: value.sourceId,
+      label: value.sourceLabel ?? value.sourceId,
       parentNodeId: rootId,
       hasChildren: true,
     });
@@ -208,6 +223,7 @@ function treeNodes(
       label: code,
       parentNodeId: parentId,
       hasChildren: true,
+      codeSortOrder: value.documentCodeSortOrder,
     });
     add({
       nodeId: dateId,
@@ -215,6 +231,7 @@ function treeNodes(
       label: date,
       parentNodeId: codeId,
       hasChildren: true,
+      sortAt: value.uploadedAt.getTime(),
     });
     add({
       nodeId: fileId,
@@ -225,14 +242,23 @@ function treeNodes(
       file: projection(value),
     });
   }
-  return [...nodes.values()].sort(treeOrder);
+  return [...nodes.values()]
+    .sort(treeOrder)
+    .map(({ sortAt: _sortAt, codeSortOrder: _codeSortOrder, ...node }) => node);
 }
 
 function projection(value: ExactDocumentVersion): FileProjection {
   return {
     versionId: value.id,
     owner: { kind: value.owner, id: value.parentId },
+    sourceParent:
+      value.sourceKind && value.sourceId
+        ? { kind: value.sourceKind, id: value.sourceId }
+        : null,
+    workRequestId: value.workRequestId,
     documentId: value.documentId,
+    documentCode: value.documentCode,
+    originalFileName: value.originalFileName,
     versionNumber: value.versionNumber,
     revisionCode: value.revisionCode,
     uploadedFileName: value.uploadedFileName,
@@ -241,6 +267,55 @@ function projection(value: ExactDocumentVersion): FileProjection {
     size: Number(value.fileSizeBytes),
     uploadedAt: value.uploadedAt,
   };
+}
+function hasBound(input: SearchInput): boolean {
+  return Boolean(
+    input.q ||
+    input.parentKind ||
+    input.parentId ||
+    input.workRequestId ||
+    input.documentCodeId ||
+    input.dateFrom ||
+    input.dateTo ||
+    input.revisionCode ||
+    input.versionNumber !== undefined ||
+    input.mimeType ||
+    input.uploaderId,
+  );
+}
+function latestVersions(
+  versions: ExactDocumentVersion[],
+): ExactDocumentVersion[] {
+  const latest = new Map<string, ExactDocumentVersion>();
+  for (const version of versions) {
+    const prior = latest.get(version.documentId);
+    if (
+      !prior ||
+      version.uploadedAt > prior.uploadedAt ||
+      (version.uploadedAt.getTime() === prior.uploadedAt.getTime() &&
+        version.id > prior.id)
+    ) {
+      latest.set(version.documentId, version);
+    }
+  }
+  return [...latest.values()].sort(
+    (left, right) =>
+      right.uploadedAt.getTime() - left.uploadedAt.getTime() ||
+      right.id.localeCompare(left.id),
+  );
+}
+function matchesQuery(value: ExactDocumentVersion, query: string): boolean {
+  const needle = query.normalize('NFC').toLocaleLowerCase();
+  return [
+    value.sourceLabel,
+    value.documentCode,
+    value.documentName,
+    value.originalFileName,
+    value.uploadedFileName,
+    value.generatedFileName,
+  ].some((field) =>
+    field?.normalize('NFC').toLocaleLowerCase().includes(needle),
+  );
 }
 function dateLabel(value: Date, timezone: string): string {
   const fields = new Intl.DateTimeFormat('en-GB', {
@@ -267,8 +342,18 @@ function treeOrder(left: TreeNode, right: TreeNode): number {
     return (left.parentNodeId ?? '').localeCompare(right.parentNodeId ?? '');
   if (ranks[left.type] !== ranks[right.type])
     return ranks[left.type] - ranks[right.type];
+  if (left.type === 'DOCUMENT_CODE' && right.type === 'DOCUMENT_CODE')
+    return (
+      (left.codeSortOrder ?? Number.MAX_SAFE_INTEGER) -
+        (right.codeSortOrder ?? Number.MAX_SAFE_INTEGER) ||
+      left.label.localeCompare(right.label) ||
+      left.nodeId.localeCompare(right.nodeId)
+    );
   if (left.type === 'DATE' && right.type === 'DATE')
-    return right.label.localeCompare(left.label);
+    return (
+      (right.sortAt ?? 0) - (left.sortAt ?? 0) ||
+      right.label.localeCompare(left.label)
+    );
   if (left.type === 'FILE' && right.type === 'FILE' && left.file && right.file)
     return (
       left.file.uploadedAt.getTime() - right.file.uploadedAt.getTime() ||

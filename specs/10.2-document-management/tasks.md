@@ -23,11 +23,11 @@
 - [x] Consume immutable server-allocated revision/version facts; 10.2 must never allocate, rewrite, or infer them from names.
       VERIFY: rg -q "exact-version only" specs/10.2-document-management/DATA_CONTRACT.md
 - [x] Implement authorized exact-version projection/resolver for internal, C1 external package, C2, and 10.1 references.
-      VERIFY: rg -q "No latest-version substitution is valid" specs/10.2-document-management/DATA_CONTRACT.md
+      VERIFY: corepack yarn test document-management --runInBand
 - [x] Implement lazy logical tree nodes and visibility-safe counts, including Work Request versions only under their visible immutable source Bid/Project root.
-      VERIFY: rg -q "inaccessible documents never affect node existence/count/date/file metadata" specs/10.2-document-management/DOCUMENT_TREE_SEARCH_READS.md && rg -q "Work Request-owned versions" specs/10.2-document-management/DATA_CONTRACT.md
+      VERIFY: corepack yarn test document-management --runInBand
 - [x] Implement metadata search with bounded filters, cursor pagination, and deterministic sorting.
-      VERIFY: rg -q "pagination is cursor-based" specs/10.2-document-management/DOCUMENT_TREE_SEARCH_READS.md
+      VERIFY: corepack yarn test document-management --runInBand
 - [x] Implement exact-version preview and download through the storage port.
       VERIFY: rg -q "Preview/download require exact version ID" specs/10.2-document-management/DOCUMENT_TREE_SEARCH_READS.md
 - [x] Add future S3-provider compatibility tests without changing logical tree/search/version semantics.
@@ -36,6 +36,6 @@
 ## Validation
 
 - [x] Run focused naming/version/link/tree/search/read authorization tests.
-      VERIFY: corepack yarn test --runInBand --testPathPatterns=document
+      VERIFY: corepack yarn test document-management --runInBand
 - [x] Run C1/C2/C3/document/full backend regression and focused lint/build/spec checks without attempting repository-wide legacy lint repair.
-      VERIFY: corepack yarn build && corepack yarn verify:spec && corepack yarn test document-management --runInBand
+      VERIFY: corepack yarn test document-management --runInBand && corepack yarn build && corepack yarn verify:spec
