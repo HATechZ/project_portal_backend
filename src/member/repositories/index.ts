@@ -1,5 +1,6 @@
 export * from './member-access.repository';
 export * from './member-onboarding.repository';
+export * from './member-existing-user-onboarding.repository';
 export * from './member-relations.repository';
 export * from './member-removal.repository';
 export * from './member.records';

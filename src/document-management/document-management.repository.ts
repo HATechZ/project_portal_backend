@@ -22,6 +22,7 @@ type VersionRow = {
   revisionCode: string;
   uploadedAt: Date;
   uploadedByActorId: string;
+  uploadedByActor?: { label: string };
 };
 
 export type ExactDocumentVersion = VersionRow & {
@@ -36,6 +37,7 @@ export type ExactDocumentVersion = VersionRow & {
   sourceLabel?: string;
   documentName?: string | null;
   documentCodeSortOrder?: number;
+  uploadedByLabel?: string;
 };
 
 /**
@@ -71,7 +73,24 @@ export class DocumentManagementRepository extends BaseRepository {
               },
             },
           },
-          include: { documentVersion: { include: { document: true } } },
+          include: {
+            documentVersion: {
+              include: {
+                document: {
+                  include: {
+                    documentCode: true,
+                    workRequest: {
+                      include: {
+                        bid: { include: { client: true } },
+                        directProject: { include: { client: true } },
+                      },
+                    },
+                  },
+                },
+                uploadedByActor: { select: { label: true } },
+              },
+            },
+          },
         });
         return packaged
           ? map(
@@ -79,6 +98,31 @@ export class DocumentManagementRepository extends BaseRepository {
               packaged.documentVersion.document.workRequestId,
               packaged.documentVersion.workRequestV1DocumentId,
               packaged.documentVersion,
+              {
+                documentCode:
+                  packaged.documentVersion.document.documentCodeSnapshot,
+                documentCodeId:
+                  packaged.documentVersion.document.documentCodeId,
+                workRequestId: packaged.documentVersion.document.workRequestId,
+                sourceKind: packaged.documentVersion.document.workRequest.bidId
+                  ? 'BID'
+                  : 'PROJECT',
+                sourceId:
+                  packaged.documentVersion.document.workRequest.bidId ??
+                  packaged.documentVersion.document.workRequest.directProjectId,
+                sourceLabel: packaged.documentVersion.document.workRequest.bid
+                  ? bidLabel(packaged.documentVersion.document.workRequest.bid)
+                  : packaged.documentVersion.document.workRequest.directProject
+                    ? projectLabel(
+                        packaged.documentVersion.document.workRequest
+                          .directProject,
+                      )
+                    : undefined,
+                documentName:
+                  packaged.documentVersion.document.documentNameSnapshot,
+                documentCodeSortOrder:
+                  packaged.documentVersion.document.documentCode?.sortOrder,
+              },
             )
           : null;
       }
@@ -97,10 +141,26 @@ export class DocumentManagementRepository extends BaseRepository {
           },
         },
         include: {
-          bidDocument: { include: { bid: { include: { client: true } } } },
+          bidDocument: {
+            include: {
+              bid: { include: { client: true } },
+              documentCode: true,
+            },
+          },
+          uploadedByActor: { select: { label: true } },
         },
       });
-      if (bid) return map('BID', bid.bidDocument.bidId, bid.bidDocumentId, bid);
+      if (bid)
+        return map('BID', bid.bidDocument.bidId, bid.bidDocumentId, bid, {
+          documentCode: bid.bidDocument.documentCodeSnapshot,
+          documentCodeId: bid.bidDocument.documentCodeId,
+          workRequestId: null,
+          sourceKind: 'BID',
+          sourceId: bid.bidDocument.bidId,
+          sourceLabel: bidLabel(bid.bidDocument.bid),
+          documentName: bid.bidDocument.documentNameSnapshot,
+          documentCodeSortOrder: bid.bidDocument.documentCode?.sortOrder,
+        });
 
       const project = await db.directProjectDocumentVersion.findFirst({
         where: {
@@ -116,8 +176,12 @@ export class DocumentManagementRepository extends BaseRepository {
         },
         include: {
           directProjectDocument: {
-            include: { directProject: { include: { client: true } } },
+            include: {
+              directProject: { include: { client: true } },
+              documentCode: true,
+            },
           },
+          uploadedByActor: { select: { label: true } },
         },
       });
       if (project)
@@ -126,6 +190,19 @@ export class DocumentManagementRepository extends BaseRepository {
           project.directProjectDocument.directProjectId,
           project.directProjectDocumentId,
           project,
+          {
+            documentCode: project.directProjectDocument.documentCodeSnapshot,
+            documentCodeId: project.directProjectDocument.documentCodeId,
+            workRequestId: null,
+            sourceKind: 'PROJECT',
+            sourceId: project.directProjectDocument.directProjectId,
+            sourceLabel: projectLabel(
+              project.directProjectDocument.directProject,
+            ),
+            documentName: project.directProjectDocument.documentNameSnapshot,
+            documentCodeSortOrder:
+              project.directProjectDocument.documentCode?.sortOrder,
+          },
         );
 
       const work = await db.workRequestV1DocumentVersion.findFirst({
@@ -145,8 +222,10 @@ export class DocumentManagementRepository extends BaseRepository {
                   directProject: { include: { client: true } },
                 },
               },
+              documentCode: true,
             },
           },
+          uploadedByActor: { select: { label: true } },
         },
       });
       return work
@@ -155,6 +234,22 @@ export class DocumentManagementRepository extends BaseRepository {
             work.document.workRequestId,
             work.workRequestV1DocumentId,
             work,
+            {
+              documentCode: work.document.documentCodeSnapshot,
+              documentCodeId: work.document.documentCodeId,
+              workRequestId: work.document.workRequestId,
+              sourceKind: work.document.workRequest.bidId ? 'BID' : 'PROJECT',
+              sourceId:
+                work.document.workRequest.bidId ??
+                work.document.workRequest.directProjectId,
+              sourceLabel: work.document.workRequest.bid
+                ? bidLabel(work.document.workRequest.bid)
+                : work.document.workRequest.directProject
+                  ? projectLabel(work.document.workRequest.directProject)
+                  : undefined,
+              documentName: work.document.documentNameSnapshot,
+              documentCodeSortOrder: undefined,
+            },
           )
         : null;
     });
@@ -189,6 +284,7 @@ export class DocumentManagementRepository extends BaseRepository {
                 documentCode: true,
               },
             },
+            uploadedByActor: { select: { label: true } },
           },
         }),
         db.directProjectDocumentVersion.findMany({
@@ -204,8 +300,12 @@ export class DocumentManagementRepository extends BaseRepository {
           },
           include: {
             directProjectDocument: {
-              include: { directProject: { include: { client: true } } },
+              include: {
+                directProject: { include: { client: true } },
+                documentCode: true,
+              },
             },
+            uploadedByActor: { select: { label: true } },
           },
         }),
         db.workRequestV1DocumentVersion.findMany({
@@ -227,6 +327,7 @@ export class DocumentManagementRepository extends BaseRepository {
                 documentCode: true,
               },
             },
+            uploadedByActor: { select: { label: true } },
           },
         }),
       ]);
@@ -259,6 +360,8 @@ export class DocumentManagementRepository extends BaseRepository {
                 value.directProjectDocument.directProject,
               ),
               documentName: value.directProjectDocument.documentNameSnapshot,
+              documentCodeSortOrder:
+                value.directProjectDocument.documentCode?.sortOrder,
             },
           ),
         ),
@@ -344,5 +447,12 @@ function map(
     sourceId: null,
   },
 ): ExactDocumentVersion {
-  return { owner, parentId, documentId, ...metadata, ...value };
+  return {
+    owner,
+    parentId,
+    documentId,
+    ...metadata,
+    ...value,
+    uploadedByLabel: value.uploadedByActor?.label,
+  };
 }

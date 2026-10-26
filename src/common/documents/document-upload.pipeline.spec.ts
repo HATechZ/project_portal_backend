@@ -56,6 +56,36 @@ describe('DocumentUploadPipeline', () => {
       ),
     ).toThrow('Document Code');
   });
+  it('maps optional per-file metadata by position and normalizes blank values', () => {
+    const drafts = DocumentUploadPipeline.prepare({
+      ...input(
+        [upload(), upload('detail.pdf')],
+        [...codes.keys(), ...codes.keys()],
+      ),
+      descriptions: ['  Main plan  ', ''],
+      shipmentNumbers: [' S-001 ', ''],
+    });
+    expect(drafts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          description: 'Main plan',
+          shipmentNumber: 'S-001',
+        }),
+        expect.objectContaining({ description: null, shipmentNumber: null }),
+      ]),
+    );
+  });
+  it('rejects incomplete optional metadata arrays before storage', () => {
+    expect(() =>
+      DocumentUploadPipeline.prepare({
+        ...input(
+          [upload(), upload('detail.pdf')],
+          [...codes.keys(), ...codes.keys()],
+        ),
+        descriptions: ['only one'],
+      }),
+    ).toThrow('descriptions');
+  });
   it('compensates stored files when persistence fails', async () => {
     const storage = {
       put: jest.fn(),

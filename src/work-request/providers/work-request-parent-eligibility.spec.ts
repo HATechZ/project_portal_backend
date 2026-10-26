@@ -39,6 +39,7 @@ describe('Work Request parent lifecycle eligibility', () => {
         bidNaming: null,
         codes: new Map<string, string>(),
       }),
+      findCreateReplay: jest.fn().mockResolvedValue(null),
       create,
     };
     const service = new WorkRequestService(
@@ -56,8 +57,14 @@ describe('Work Request parent lifecycle eligibility', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
       {},
       undefined,
+      undefined,
+      undefined,
+      undefined,
+      { assertCanAccess: jest.fn() },
     );
     return { service, create };
   }
@@ -73,7 +80,11 @@ describe('Work Request parent lifecycle eligibility', () => {
     };
     const operation = RequestContext.run(
       { requestId: 'request-a', tenantId },
-      () => service.create(input, [], { id: 'actor-a', member: { id: 'member-a' } } as never),
+      () =>
+        service.create(input, [], {
+          id: 'actor-a',
+          member: { id: 'member-a' },
+        } as never),
     );
     return { operation, create };
   }

@@ -1986,6 +1986,8 @@ model WorkRequestV1Document {
   documentCodeSnapshot String?  @map("document_code_snapshot") @db.VarChar(20)
   documentNameSnapshot String?  @map("document_name_snapshot") @db.VarChar(180)
   originalFileName     String   @map("original_file_name") @db.VarChar(260)
+  description          String?  @map("description") @db.Text
+  shipmentNumber       String?  @map("shipment_number") @db.VarChar(10)
   generatedFileName    String?  @map("generated_file_name") @db.VarChar(260)
   storageKey           String   @map("storage_key") @db.Text
   mimeType             String   @map("mime_type") @db.VarChar(120)

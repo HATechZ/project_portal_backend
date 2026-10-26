@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream';
+import { describe, expect, it, jest } from '@jest/globals';
 import { AppException } from '../common/exceptions/app-exception';
 import type { SessionActor } from '../common/security/session.types';
 import { DocumentManagementRepository } from './document-management.repository';
@@ -129,6 +130,72 @@ describe('DocumentManagementService tree contract', () => {
     ).not.toContain('hidden');
     expect(repository.search).toHaveBeenCalledWith(undefined, actor);
   });
+
+  it('groups at the tenant timezone boundary and orders code, date, and files deterministically', async () => {
+    const rows = [
+      version({
+        id: 'file-b',
+        uploadedAt: new Date('2026-01-01T18:30:00.000Z'),
+        documentCode: '200 Later',
+        documentCodeId: 'code-later',
+        documentCodeSortOrder: 20,
+      }),
+      version({
+        id: 'file-a',
+        uploadedAt: new Date('2026-01-01T18:30:00.000Z'),
+        documentCode: '100 First',
+        documentCodeId: 'code-first',
+        documentCodeSortOrder: 10,
+      }),
+      version({
+        id: 'file-c',
+        uploadedAt: new Date('2026-01-01T18:30:00.000Z'),
+        documentCode: '100 First',
+        documentCodeId: 'code-first',
+        documentCodeSortOrder: 10,
+      }),
+    ];
+    const { service } = subject(rows);
+    const [root] = await service.tree({}, actor);
+    const [parent] = await service.tree({ parentNodeId: root.nodeId }, actor);
+    const codes = await service.tree({ parentNodeId: parent.nodeId }, actor);
+    expect(codes.map((node) => node.label)).toEqual([
+      '100 First Project Information',
+      '200 Later Project Information',
+    ]);
+    const [date] = await service.tree({ parentNodeId: codes[0].nodeId }, actor);
+    expect(date.label).toBe('02-01-2026');
+    expect(
+      (await service.tree({ parentNodeId: date.nodeId })).map(
+        (node) => node.file?.versionId,
+      ),
+    ).toEqual(['file-a', 'file-c']);
+  });
+});
+
+describe('DocumentManagementService preview and download contract', () => {
+  it('authorizes and validates preview MIME before opening storage, then streams the exact version', async () => {
+    const { service, repository, storage } = subject();
+    repository.exact.mockResolvedValueOnce(null);
+    await expect(service.preview('hidden', actor)).rejects.toBeInstanceOf(
+      AppException,
+    );
+    expect(storage.openReadStream).not.toHaveBeenCalled();
+
+    repository.exact.mockResolvedValueOnce(version({ mimeType: 'text/plain' }));
+    await expect(service.preview('plain', actor)).rejects.toBeInstanceOf(
+      AppException,
+    );
+    expect(storage.openReadStream).not.toHaveBeenCalled();
+
+    repository.exact.mockResolvedValueOnce(
+      version({ id: 'exact-version', storageKey: 'safe/exact-key' }),
+    );
+    const file = await service.download('exact-version', actor);
+    expect(storage.openReadStream).toHaveBeenCalledWith('safe/exact-key');
+    expect(file.body).toBeInstanceOf(Readable);
+    expect(file.name).toBe('A.pdf');
+  });
 });
 
 describe('DocumentManagementService search contract', () => {
@@ -173,7 +240,7 @@ describe('DocumentManagementService search contract', () => {
     ['date from', { dateFrom: at(4).toISOString() }, ['newest', 'project']],
     ['date to', { dateTo: at(2).toISOString() }, ['older']],
     ['revision', { revisionCode: 'B' }, ['newest']],
-    ['version number', { versionNumber: 1 }, ['older', 'project']],
+    ['version number', { versionNumber: 1 }, ['project', 'older']],
     ['mime', { mimeType: 'image/png' }, ['older']],
     ['uploader', { uploaderId: 'uploader-b' }, ['older']],
   ];
@@ -223,5 +290,17 @@ describe('DocumentManagementService search contract', () => {
         )
       ).items.map((item) => item.versionId),
     ).toEqual(['older']);
+  });
+
+  it('uses uploadedAt DESC then versionId DESC as the deterministic default sort', async () => {
+    const { service } = subject([
+      version({ id: 'version-a', documentId: 'document-a', uploadedAt: at(5) }),
+      version({ id: 'version-b', documentId: 'document-b', uploadedAt: at(5) }),
+    ]);
+    expect(
+      (
+        await service.search({ parentId: 'bid-a', mode: 'exact' }, actor)
+      ).items.map((item) => item.versionId),
+    ).toEqual(['version-b', 'version-a']);
   });
 });

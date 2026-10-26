@@ -13,6 +13,8 @@ import {
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { OutboxService } from '../../infra/messaging/outbox.service';
 import { DocumentVersionCreated } from '../../contracts/events/document-events';
+import { WorkRequestTransitioned } from '../../contracts/events/work-request-events';
+import { ObjectScopeProvider } from '../../common/security/object-scope.provider';
 import {
   CreateWorkRequestDto,
   UpdateWorkRequestDto,
@@ -59,11 +61,14 @@ export abstract class WorkRequestServiceBase {
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
     private readonly outbox?: OutboxService,
+    private readonly objectScope = new ObjectScopeProvider(),
   ) {}
   async createStandaloneDocuments(
     id: string,
     uploads: WorkRequestUploadedFile[],
     documentCodeIds: string[],
+    descriptions: string[] | undefined,
+    shipmentNumbers: string[] | undefined,
     actor: SessionActor,
   ): Promise<DocumentSummaryDto[]> {
     let context: Awaited<
@@ -94,6 +99,8 @@ export abstract class WorkRequestServiceBase {
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds,
+      descriptions,
+      shipmentNumbers,
       codes: context.codes,
       revisionCode,
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents`,
@@ -332,6 +339,15 @@ export abstract class WorkRequestServiceBase {
     } catch (error) {
       throw mapReferenceError(error);
     }
+    if (!reference.parent.companyId)
+      throw new AppException({
+        code: AppErrorCode.OutOfScope,
+        status: HttpStatus.FORBIDDEN,
+        message: "You don't have access to this resource.",
+      });
+    this.objectScope.assertCanAccess(actor, {
+      allOf: [{ kind: 'memberCompany', companyId: reference.parent.companyId }],
+    });
     if (reference.parent.state !== (input.bidId ? 'BIDDING' : 'ACTIVE'))
       throw conflict('Parent is not eligible for a Work Request.');
     if (
@@ -343,11 +359,17 @@ export abstract class WorkRequestServiceBase {
         !reference.projectNaming.shipmentNumber)
     )
       throw conflict('Parent naming context is invalid.');
+    const requestId = RequestContext.requestId()!;
+    const replay = await this.repository.findCreateReplay(requestId, actor.id);
+    if (replay) return toWorkRequestResponse(replay);
     const id = randomUUID();
+    const creationEventId = randomUUID();
     const revisionCode = reference.bidNaming ? 'A' : '01';
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds: codeIds,
+      descriptions: input.descriptions,
+      shipmentNumbers: input.shipmentNumbers,
       codes: reference.codes,
       allowEmpty: true,
       revisionCode,
@@ -379,6 +401,8 @@ export abstract class WorkRequestServiceBase {
       documentCodeSnapshot: file.documentCode,
       documentNameSnapshot: file.documentName,
       originalFileName: file.originalFileName,
+      description: file.description,
+      shipmentNumber: file.shipmentNumber,
       generatedFileName: file.generatedFileName,
       storageKey: file.storageKey,
       mimeType: file.mimeType,
@@ -398,18 +422,36 @@ export abstract class WorkRequestServiceBase {
           notes: input.notes,
           actorId: actor.id,
           actorMemberId,
+          creationEventId,
+          idempotencyKey: requestId,
+          revisionCode,
           originatingDivisionId,
           intermediateDivisionIds,
           files,
         });
         if (this.outbox)
-          await this.outbox.enqueueAll(
-            drafts.map(
+          await this.outbox.enqueueAll([
+            new WorkRequestTransitioned(
+              {
+                tenantId: RequestContext.requireTenantId(),
+                actorId: actor.id,
+                eventId: creationEventId,
+                correlationId: requestId,
+              },
+              {
+                workRequestId: id,
+                action: 'WORK_REQUEST_CREATED',
+                priorState: '',
+                resultingState: WorkRequestV1StateCode.CREATED,
+              },
+            ),
+            ...drafts.map(
               (file) =>
                 new DocumentVersionCreated(
                   {
                     tenantId: RequestContext.requireTenantId(),
                     actorId: actor.id,
+                    correlationId: requestId,
                   },
                   {
                     owner: 'WORK_REQUEST',
@@ -419,7 +461,7 @@ export abstract class WorkRequestServiceBase {
                   },
                 ),
             ),
-          );
+          ]);
         return created;
       });
       return toWorkRequestResponse(record);
@@ -550,6 +592,8 @@ function documentSummary(
     documentCodeSnapshot: string | null;
     documentNameSnapshot: string | null;
     originalFileName: string;
+    description: string | null;
+    shipmentNumber: string | null;
     versions: Array<{
       id: string;
       versionNumber: number;
@@ -573,6 +617,9 @@ function documentSummary(
       name: document.documentNameSnapshot!,
     },
     originalFileName: document.originalFileName,
+    description: document.description,
+    shipmentNumber: document.shipmentNumber,
+    lastUpdatedAt: version.uploadedAt,
     latestVersion: {
       versionId: version.id,
       versionNumber: version.versionNumber,

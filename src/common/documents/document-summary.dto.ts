@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class DocumentSummaryDto {
   @ApiProperty({ format: 'uuid' }) documentId!: string;
@@ -8,6 +8,10 @@ export class DocumentSummaryDto {
   };
   @ApiProperty() documentCode!: { id: string; code: string; name: string };
   @ApiProperty() originalFileName!: string;
+  @ApiPropertyOptional({ nullable: true }) description?: string | null;
+  @ApiPropertyOptional({ nullable: true }) shipmentNumber?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  lastUpdatedAt?: Date | null;
   @ApiProperty() latestVersion!: {
     versionId: string;
     versionNumber: number;

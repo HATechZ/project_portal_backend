@@ -34,7 +34,33 @@ const array = ({ value }: { value: unknown }) =>
 export const WORK_REQUEST_PRIORITIES = ['Low', 'Medium', 'High'] as const;
 export type WorkRequestPriority = (typeof WORK_REQUEST_PRIORITIES)[number];
 
-export class CreateWorkRequestDto {
+export class WorkRequestDocumentMetadataDto {
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    description:
+      'Optional repeated values positionally mapped to files. Blank values are stored as null.',
+  })
+  @IsOptional()
+  @Transform(array)
+  @IsString({ each: true })
+  @MaxLength(10000, { each: true })
+  descriptions?: string[];
+
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    description:
+      'Optional repeated values positionally mapped to files. Blank values are stored as null.',
+  })
+  @IsOptional()
+  @Transform(array)
+  @IsString({ each: true })
+  @MaxLength(10, { each: true })
+  shipmentNumbers?: string[];
+}
+
+export class CreateWorkRequestDto extends WorkRequestDocumentMetadataDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @Transform(optionalTrim)
   @IsOptional()
@@ -133,7 +159,10 @@ export class RequestWorkRequestRouteRevisionDto {
   @ApiProperty({ enum: WorkRequestRouteRevisionClassification })
   @IsEnum(WorkRequestRouteRevisionClassification)
   classification!: WorkRequestRouteRevisionClassification;
-  @ApiProperty({ format: 'uuid', description: 'Exact active source Actor Profile ID.' })
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Exact active source Actor Profile ID.',
+  })
   @IsUUID()
   sourceActorId!: string;
   @ApiPropertyOptional({ format: 'uuid' })
@@ -268,7 +297,8 @@ export class WorkRequestAssignmentHistoryResponseDto {
   @ApiPropertyOptional({
     nullable: true,
     type: Object,
-    description: 'Safe target Member display projection for member-targeted assignments.',
+    description:
+      'Safe target Member display projection for member-targeted assignments.',
   })
   assignee!: { id: string; label: string } | null;
   @ApiProperty({ type: Object }) assignedBy!: { id: string; label: string };
@@ -475,9 +505,12 @@ export class WorkRequestResponseDto {
     documentCodeId: string | null;
     documentCode: string | null;
     originalFileName: string;
+    description: string | null;
+    shipmentNumber: string | null;
     generatedFileName: string | null;
     mimeType: string;
     size: number;
+    lastUpdatedAt: Date | null;
   }[];
   @ApiProperty({ type: [Object] }) availableActions!: unknown[];
   @ApiProperty() createdAt!: Date;

@@ -16,6 +16,9 @@ export class WorkRequestDocumentHistoryProvider {
         name: document.documentNameSnapshot,
       },
       originalFileName: document.originalFileName,
+      description: document.description,
+      shipmentNumber: document.shipmentNumber,
+      lastUpdatedAt: document.versions[0]?.uploadedAt ?? null,
       latestVersion: document.versions[0]
         ? {
             versionId: document.versions[0].id,

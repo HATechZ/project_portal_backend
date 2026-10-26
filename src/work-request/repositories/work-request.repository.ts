@@ -88,6 +88,26 @@ export class WorkRequestRepository extends BaseRepository {
       };
     });
   }
+  findCreateReplay(idempotencyKey: string, actorId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const event = await db.workRequestV1Event.findFirst({
+        where: {
+          tenantId,
+          action: 'WORK_REQUEST_CREATED',
+          idempotencyKey,
+          performedByActorId: actorId,
+        },
+        select: { workRequestId: true },
+      });
+      return event
+        ? db.workRequestV1.findFirst({
+            where: { id: event.workRequestId, tenantId },
+            select: workRequestSelect,
+          })
+        : null;
+    });
+  }
   create(input: WorkRequestCreateInput) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -129,12 +149,14 @@ export class WorkRequestRepository extends BaseRepository {
       });
       await db.workRequestV1Event.create({
         data: {
-          id: randomUUID(),
+          id: input.creationEventId,
           tenantId,
           workRequestId: input.id,
           action: 'WORK_REQUEST_CREATED',
           resultingState: WorkRequestV1StateCode.CREATED,
           performedByActorId: input.actorId,
+          correlationId: input.idempotencyKey,
+          idempotencyKey: input.idempotencyKey,
         },
       });
       if (input.originatingDivisionId && input.intermediateDivisionIds) {
@@ -269,6 +291,8 @@ export class WorkRequestRepository extends BaseRepository {
             documentCodeSnapshot: file.documentCodeSnapshot,
             documentNameSnapshot: file.documentNameSnapshot,
             originalFileName: file.originalFileName,
+            description: file.description,
+            shipmentNumber: file.shipmentNumber,
             generatedFileName: file.generatedFileName,
             storageKey: file.storageKey,
             mimeType: file.mimeType,
@@ -291,7 +315,7 @@ export class WorkRequestRepository extends BaseRepository {
             storageKey: file.storageKey,
             mimeType: file.mimeType,
             fileSizeBytes: file.fileSizeBytes,
-            revisionCode: 'A',
+            revisionCode: input.revisionCode,
             uploadedByActorId: input.actorId,
           })),
         });
@@ -651,6 +675,8 @@ export class WorkRequestRepository extends BaseRepository {
             documentCodeSnapshot: file.documentCode,
             documentNameSnapshot: file.documentName,
             originalFileName: file.originalFileName,
+            description: file.description,
+            shipmentNumber: file.shipmentNumber,
             generatedFileName: file.generatedFileName,
             storageKey: file.storageKey,
             mimeType: file.mimeType,
@@ -786,6 +812,8 @@ const documentSummarySelect = {
   documentCodeSnapshot: true,
   documentNameSnapshot: true,
   originalFileName: true,
+  description: true,
+  shipmentNumber: true,
   versions: {
     take: 1,
     orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
@@ -849,6 +877,9 @@ type WorkRequestCreateInput = {
   notes?: string;
   actorId: string;
   actorMemberId: string;
+  creationEventId: string;
+  idempotencyKey: string;
+  revisionCode: string;
   originatingDivisionId: string;
   intermediateDivisionIds: string[];
   files: {
@@ -858,6 +889,8 @@ type WorkRequestCreateInput = {
     documentCodeSnapshot: string;
     documentNameSnapshot: string;
     originalFileName: string;
+    description: string | null;
+    shipmentNumber: string | null;
     generatedFileName: string | null;
     storageKey: string;
     mimeType: string;

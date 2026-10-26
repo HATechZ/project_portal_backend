@@ -9,6 +9,7 @@ import {
 } from '../infra/crypto/password-hasher.port';
 import {
   CreateMemberDto,
+  CreateMemberFromExistingUserDto,
   MemberAccessLinkDto,
   MemberQueryDto,
   LedDivisionResponseDto,
@@ -24,6 +25,7 @@ import {
 } from './providers';
 import {
   MemberAccessRepository,
+  MemberExistingUserOnboardingRepository,
   MemberOnboardingRepository,
   MemberRecord,
   MemberRelationsRepository,
@@ -37,6 +39,7 @@ export class MemberService {
   constructor(
     private readonly repository: MemberRepository,
     private readonly accessRepository: MemberAccessRepository,
+    private readonly existingUserOnboardingRepository: MemberExistingUserOnboardingRepository,
     private readonly onboardingRepository: MemberOnboardingRepository,
     private readonly relationsRepository: MemberRelationsRepository,
     @Inject(PASSWORD_HASHER) private readonly passwordHasher: PasswordHasher,
@@ -96,6 +99,14 @@ export class MemberService {
         },
         assignedByUserId,
       ),
+    );
+  }
+
+  async createFromExistingUser(
+    input: CreateMemberFromExistingUserDto,
+  ): Promise<MemberResponseDto> {
+    return toMemberResponse(
+      await this.existingUserOnboardingRepository.createAndLink(input),
     );
   }
 

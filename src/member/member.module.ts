@@ -3,6 +3,7 @@ import { MemberController } from './member.controller';
 import { MemberService } from './member.service';
 import {
   MemberAccessRepository,
+  MemberExistingUserOnboardingRepository,
   MemberOnboardingRepository,
   MemberRelationsRepository,
   MemberRemovalRepository,
@@ -15,6 +16,7 @@ import {
     MemberService,
     MemberRepository,
     MemberAccessRepository,
+    MemberExistingUserOnboardingRepository,
     MemberOnboardingRepository,
     MemberRelationsRepository,
     MemberRemovalRepository,

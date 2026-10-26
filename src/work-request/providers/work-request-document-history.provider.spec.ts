@@ -45,6 +45,32 @@ describe('WorkRequestDocumentHistoryProvider', () => {
     );
     expect(result[0]).not.toHaveProperty('checksum');
   });
+  it('returns document metadata and a server-derived last update timestamp', async () => {
+    const repository = {
+      documents: jest.fn().mockResolvedValue([
+        {
+          id: 'document',
+          documentCodeId: 'code',
+          documentCodeSnapshot: 'DOC',
+          documentNameSnapshot: 'Document',
+          originalFileName: 'plan.pdf',
+          description: 'Main plan',
+          shipmentNumber: 'S-001',
+          versions: [version],
+        },
+      ]),
+    };
+    const [result] = await new WorkRequestDocumentHistoryProvider(
+      repository as never,
+    ).list('request');
+    expect(result).toEqual(
+      expect.objectContaining({
+        description: 'Main plan',
+        shipmentNumber: 'S-001',
+        lastUpdatedAt: version.uploadedAt,
+      }),
+    );
+  });
   it('rejects a document that is not owned by the requested Work Request', async () => {
     const repository = { versions: jest.fn().mockResolvedValue(null) };
     await expect(

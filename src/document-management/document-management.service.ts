@@ -36,6 +36,7 @@ type FileProjection = {
   sourceParent: {
     kind: NonNullable<ExactDocumentVersion['sourceKind']>;
     id: string;
+    label: string;
   } | null;
   workRequestId: string | null;
   documentId: string;
@@ -47,7 +48,9 @@ type FileProjection = {
   generatedFileName: string | null;
   mimeType: string;
   size: number;
+  uploaderLabel: string;
   uploadedAt: Date;
+  logicalDate: string;
 };
 
 type TreeNode = {
@@ -70,7 +73,11 @@ export class DocumentManagementService {
   ) {}
 
   async exact(id: string, actor: SessionActor): Promise<FileProjection> {
-    return projection(await this.resolveExact(id, actor));
+    const [version, timezone] = await Promise.all([
+      this.resolveExact(id, actor),
+      this.documents.timezone(),
+    ]);
+    return projection(version, timezone);
   }
 
   async search(input: SearchInput, actor: SessionActor) {
@@ -79,17 +86,20 @@ export class DocumentManagementService {
         'Search requires a query or bounded parent/code filter.',
       );
     }
-    const filtered = this.filter(
-      await this.documents.search(undefined, actor),
-      input,
-    );
+    const [authorized, timezone] = await Promise.all([
+      this.documents.search(undefined, actor),
+      this.documents.timezone(),
+    ]);
+    const filtered = this.filter(authorized, input);
     const mode = input.mode ?? 'latest';
-    const versions = mode === 'latest' ? latestVersions(filtered) : filtered;
+    const versions = orderVersions(
+      mode === 'latest' ? latestVersions(filtered) : filtered,
+    );
     const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
     const start = input.cursor ? decodeCursor(input.cursor) : 0;
     const page = versions.slice(start, start + limit);
     return {
-      items: page.map(projection),
+      items: page.map((value) => projection(value, timezone)),
       nextCursor:
         start + limit < versions.length
           ? encodeCursor(start + limit)
@@ -117,15 +127,18 @@ export class DocumentManagementService {
   }
 
   async preview(id: string, actor: SessionActor) {
-    const file = await this.open(id, actor);
-    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+    const version = await this.resolveExact(id, actor);
+    if (
+      !version.mimeType.startsWith('image/') &&
+      version.mimeType !== 'application/pdf'
+    ) {
       throw unavailable();
     }
-    return file;
+    return this.open(version);
   }
 
   async download(id: string, actor: SessionActor) {
-    return this.open(id, actor);
+    return this.open(await this.resolveExact(id, actor));
   }
 
   private filter(
@@ -149,16 +162,11 @@ export class DocumentManagementService {
     );
   }
 
-  private async open(
-    id: string,
-    actor: SessionActor,
-  ): Promise<{
+  private async open(version: ExactDocumentVersion): Promise<{
     body: Readable;
     type: string;
     name: string;
   }> {
-    // The exact resolver always precedes storage access.
-    const version = await this.resolveExact(id, actor);
     try {
       return {
         body: await this.storage.openReadStream(version.storageKey),
@@ -239,21 +247,30 @@ function treeNodes(
       label: value.generatedFileName ?? value.uploadedFileName ?? value.id,
       parentNodeId: dateId,
       hasChildren: false,
-      file: projection(value),
+      file: projection(value, timezone),
     });
   }
-  return [...nodes.values()]
-    .sort(treeOrder)
-    .map(({ sortAt: _sortAt, codeSortOrder: _codeSortOrder, ...node }) => node);
+  return [...nodes.values()].sort(treeOrder).map((node) => {
+    delete node.sortAt;
+    delete node.codeSortOrder;
+    return node;
+  });
 }
 
-function projection(value: ExactDocumentVersion): FileProjection {
+function projection(
+  value: ExactDocumentVersion,
+  timezone: string,
+): FileProjection {
   return {
     versionId: value.id,
     owner: { kind: value.owner, id: value.parentId },
     sourceParent:
       value.sourceKind && value.sourceId
-        ? { kind: value.sourceKind, id: value.sourceId }
+        ? {
+            kind: value.sourceKind,
+            id: value.sourceId,
+            label: value.sourceLabel ?? value.sourceId,
+          }
         : null,
     workRequestId: value.workRequestId,
     documentId: value.documentId,
@@ -265,7 +282,9 @@ function projection(value: ExactDocumentVersion): FileProjection {
     generatedFileName: value.generatedFileName,
     mimeType: value.mimeType,
     size: Number(value.fileSizeBytes),
+    uploaderLabel: value.uploadedByLabel ?? value.uploadedByActorId,
     uploadedAt: value.uploadedAt,
+    logicalDate: dateLabel(value.uploadedAt, timezone),
   };
 }
 function hasBound(input: SearchInput): boolean {
@@ -298,7 +317,12 @@ function latestVersions(
       latest.set(version.documentId, version);
     }
   }
-  return [...latest.values()].sort(
+  return [...latest.values()];
+}
+function orderVersions(
+  versions: ExactDocumentVersion[],
+): ExactDocumentVersion[] {
+  return [...versions].sort(
     (left, right) =>
       right.uploadedAt.getTime() - left.uploadedAt.getTime() ||
       right.id.localeCompare(left.id),

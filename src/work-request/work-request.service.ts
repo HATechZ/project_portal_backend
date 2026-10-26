@@ -40,6 +40,7 @@ import { WorkRequestClientSubmissionProvider } from './providers/work-request-cl
 import { WorkRequestRouteActionsProvider } from './providers/work-request-route-actions.provider';
 import { WorkRequestRouteClientProvider } from './providers/work-request-route-client.provider';
 import { WorkRequestCommunicationProvider } from './providers/work-request-communication.provider';
+import { ObjectScopeProvider } from '../common/security/object-scope.provider';
 
 export type WorkRequestUploadedFile = {
   originalname: string;
@@ -69,6 +70,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     receipts?: DocumentUploadRequestRepository,
     private readonly communications?: WorkRequestCommunicationProvider,
     outbox?: OutboxService,
+    objectScope?: ObjectScopeProvider,
   ) {
     super(
       repository,
@@ -82,6 +84,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
       storage,
       receipts,
       outbox,
+      objectScope,
     );
   }
 

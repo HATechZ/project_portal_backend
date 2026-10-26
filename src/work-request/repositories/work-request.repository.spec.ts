@@ -1,6 +1,38 @@
 import { RequestContext } from '../../common/context/request-context';
 import { WorkRequestRepository } from './work-request.repository';
 
+type WorkRequestCreateArgs = {
+  data: {
+    bidId?: string;
+    directProjectId?: string;
+    bidBusinessCycleId?: string | null;
+  };
+};
+
+type WorkRequestEventCreateArgs = {
+  data: {
+    correlationId: string;
+    id: string;
+    idempotencyKey: string;
+  };
+};
+
+interface TypedMock<T> {
+  mock: {
+    calls: [T][];
+  };
+}
+
+function firstCallArgument<T>(mock: TypedMock<T>): T {
+  const [argument] = mock.mock.calls[0] ?? [];
+
+  if (argument === undefined) {
+    throw new Error('Expected mock to have been called.');
+  }
+
+  return argument;
+}
+
 const bidId = '11111111-1111-4111-8111-111111111111';
 const projectId = '22222222-2222-4222-8222-222222222222';
 
@@ -43,36 +75,273 @@ describe('WorkRequestRepository parent XOR', () => {
   });
 
   it('enrols a new Bid Work Request in the current cycle without changing its Bid parent', async () => {
-    const create = jest.fn().mockResolvedValue({});
+    const create = jest
+      .fn<(argument: WorkRequestCreateArgs) => Promise<unknown>>()
+      .mockResolvedValue({});
     const repository = new WorkRequestRepository({
-      execute: (work: (db: unknown) => Promise<unknown>) => work({
-        bid: { findFirst: jest.fn().mockResolvedValue({ statusEvents: [{ toStatus: { code: 'BIDDING' } }], businessCycles: [{ id: 'cycle-a' }] }) },
-        workRequestV1: { create, findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'wr-a' }) },
-        workRequestV1Event: { create: jest.fn() },
-        workRequestV1Document: { createMany: jest.fn() }, workRequestV1DocumentVersion: { createMany: jest.fn() },
-      }),
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          bid: {
+            findFirst: jest.fn().mockResolvedValue({
+              statusEvents: [{ toStatus: { code: 'BIDDING' } }],
+              businessCycles: [{ id: 'cycle-a' }],
+            }),
+          },
+          workRequestV1: {
+            create,
+            findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'wr-a' }),
+          },
+          workRequestV1Event: { create: jest.fn() },
+          workRequestV1Document: { createMany: jest.fn() },
+          workRequestV1DocumentVersion: { createMany: jest.fn() },
+        }),
     } as never);
-    await RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () => repository.create({ id: 'wr-a', bidId, title: 'Request', priority: 'NORMAL' as never, actorId: 'actor-a', files: [] }));
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ bidId, directProjectId: undefined, bidBusinessCycleId: 'cycle-a' }) }));
+    await RequestContext.run(
+      { requestId: 'request-a', tenantId: 'tenant-a' },
+      () =>
+        repository.create({
+          id: 'wr-a',
+          bidId,
+          title: 'Request',
+          priority: 'NORMAL' as never,
+          actorId: 'actor-a',
+          files: [],
+        }),
+    );
+    expect(firstCallArgument(create).data).toMatchObject({
+      bidId,
+      directProjectId: undefined,
+      bidBusinessCycleId: 'cycle-a',
+    });
   });
 
   it('leaves Bid cycle membership null for a Project Work Request', async () => {
-    const create = jest.fn().mockResolvedValue({});
+    const create = jest
+      .fn<(argument: WorkRequestCreateArgs) => Promise<unknown>>()
+      .mockResolvedValue({});
     const repository = new WorkRequestRepository({
-      execute: (work: (db: unknown) => Promise<unknown>) => work({
-        workRequestV1: { create, findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'wr-a' }) },
-        workRequestV1Event: { create: jest.fn() },
-        workRequestV1Document: { createMany: jest.fn() }, workRequestV1DocumentVersion: { createMany: jest.fn() },
-      }),
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1: {
+            create,
+            findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'wr-a' }),
+          },
+          workRequestV1Event: { create: jest.fn() },
+          workRequestV1Document: { createMany: jest.fn() },
+          workRequestV1DocumentVersion: { createMany: jest.fn() },
+        }),
     } as never);
-    await RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () => repository.create({ id: 'wr-a', projectId, title: 'Request', priority: 'NORMAL' as never, actorId: 'actor-a', files: [] }));
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ bidId: undefined, directProjectId: projectId, bidBusinessCycleId: null }) }));
+    await RequestContext.run(
+      { requestId: 'request-a', tenantId: 'tenant-a' },
+      () =>
+        repository.create({
+          id: 'wr-a',
+          projectId,
+          title: 'Request',
+          priority: 'NORMAL' as never,
+          actorId: 'actor-a',
+          files: [],
+        }),
+    );
+    expect(firstCallArgument(create).data).toMatchObject({
+      bidId: undefined,
+      directProjectId: projectId,
+      bidBusinessCycleId: null,
+    });
+  });
+
+  it.each([
+    ['Bid', bidId, undefined, 'A'],
+    ['Direct Project', undefined, projectId, '01'],
+  ])(
+    'persists %s initial document-version revision semantics',
+    async (_, bid, project, revisionCode) => {
+      const createMany = jest.fn();
+      const documentCreateMany = jest.fn();
+      const repository = new WorkRequestRepository({
+        execute: (work: (db: unknown) => Promise<unknown>) =>
+          work({
+            bid: {
+              findFirst: jest.fn().mockResolvedValue({
+                statusEvents: [{ toStatus: { code: 'BIDDING' } }],
+                businessCycles: [{ id: 'cycle-a' }],
+              }),
+            },
+            workRequestV1: {
+              create: jest.fn(),
+              findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'wr-a' }),
+            },
+            workRequestV1Event: { create: jest.fn() },
+            workRequestV1Document: { createMany: documentCreateMany },
+            workRequestV1DocumentVersion: { createMany },
+          }),
+      } as never);
+      await RequestContext.run(
+        { requestId: 'request-a', tenantId: 'tenant-a' },
+        () =>
+          repository.create({
+            id: 'wr-a',
+            bidId: bid,
+            projectId: project,
+            title: 'Request',
+            priority: 'NORMAL' as never,
+            actorId: 'actor-a',
+            creationEventId: 'event-a',
+            idempotencyKey: 'request-a',
+            revisionCode,
+            files: [
+              {
+                id: 'document-a',
+                versionId: 'version-a',
+                documentCodeId: 'code-a',
+                documentCodeSnapshot: 'CODE',
+                documentNameSnapshot: 'Document',
+                originalFileName: 'source.pdf',
+                description: 'Main plan',
+                shipmentNumber: 'S-001',
+                generatedFileName: `generated-${revisionCode}.pdf`,
+                storageKey: 'key-a',
+                mimeType: 'application/pdf',
+                fileSizeBytes: 1n,
+              },
+            ],
+          }),
+      );
+      expect(createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [
+            expect.objectContaining({
+              versionNumber: 1,
+              revisionCode,
+              generatedFileName: `generated-${revisionCode}.pdf`,
+            }),
+          ],
+        }),
+      );
+      expect(documentCreateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [
+            expect.objectContaining({
+              description: 'Main plan',
+              shipmentNumber: 'S-001',
+            }),
+          ],
+        }),
+      );
+    },
+  );
+
+  it('uses the create event identity and request idempotency key', async () => {
+    const eventCreate = jest
+      .fn<(argument: WorkRequestEventCreateArgs) => Promise<unknown>>()
+      .mockResolvedValue({});
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1: {
+            create: jest.fn(),
+            findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'wr-a' }),
+          },
+          workRequestV1Event: { create: eventCreate },
+          workRequestV1Document: { createMany: jest.fn() },
+          workRequestV1DocumentVersion: { createMany: jest.fn() },
+        }),
+    } as never);
+    await RequestContext.run(
+      { requestId: 'request-a', tenantId: 'tenant-a' },
+      () =>
+        repository.create({
+          id: 'wr-a',
+          projectId,
+          title: 'Request',
+          priority: 'NORMAL' as never,
+          actorId: 'actor-a',
+          creationEventId: 'event-a',
+          idempotencyKey: 'request-a',
+          revisionCode: '01',
+          files: [],
+        }),
+    );
+    expect(firstCallArgument(eventCreate).data).toMatchObject({
+      id: 'event-a',
+      idempotencyKey: 'request-a',
+      correlationId: 'request-a',
+    });
+  });
+
+  it('persists metadata for a later Work Request document upload', async () => {
+    const create = jest.fn();
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1: {
+            findFirst: jest.fn().mockResolvedValue({ id: 'wr-a' }),
+          },
+          workRequestV1Document: {
+            create,
+            findMany: jest.fn().mockResolvedValue([]),
+          },
+        }),
+    } as never);
+
+    await RequestContext.run(
+      { requestId: 'request-a', tenantId: 'tenant-a' },
+      () =>
+        repository.createStandaloneDocuments('wr-a', 'actor-a', [
+          {
+            documentId: 'document-a',
+            versionId: 'version-a',
+            documentCodeId: 'code-a',
+            documentCode: 'CODE',
+            documentName: 'Document',
+            originalFileName: 'source.pdf',
+            description: 'Later upload',
+            shipmentNumber: 'S-002',
+            uploadedFileName: 'source.pdf',
+            versionNumber: 1,
+            revisionCode: 'A',
+            generatedFileName: 'generated.pdf',
+            storageKey: 'key-a',
+            mimeType: 'application/pdf',
+            fileSizeBytes: 1n,
+            content: Buffer.from('x'),
+          },
+        ]),
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: 'Later upload',
+          shipmentNumber: 'S-002',
+        }) as unknown,
+      }),
+    );
   });
 
   it('rejects a Bid Work Request when no active cycle exists', async () => {
     const repository = new WorkRequestRepository({
-      execute: (work: (db: unknown) => Promise<unknown>) => work({ bid: { findFirst: jest.fn().mockResolvedValue({ statusEvents: [{ toStatus: { code: 'BIDDING' } }], businessCycles: [] }) } }),
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          bid: {
+            findFirst: jest.fn().mockResolvedValue({
+              statusEvents: [{ toStatus: { code: 'BIDDING' } }],
+              businessCycles: [],
+            }),
+          },
+        }),
     } as never);
-    await expect(RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () => repository.create({ id: 'wr-a', bidId, title: 'Request', priority: 'NORMAL' as never, actorId: 'actor-a', files: [] }))).rejects.toThrow('WR_BID_CYCLE');
+    await expect(
+      RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
+        repository.create({
+          id: 'wr-a',
+          bidId,
+          title: 'Request',
+          priority: 'NORMAL' as never,
+          actorId: 'actor-a',
+          files: [],
+        }),
+      ),
+    ).rejects.toThrow('WR_BID_CYCLE');
   });
 });

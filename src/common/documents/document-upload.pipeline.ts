@@ -19,6 +19,8 @@ export type NewDocumentDraft = {
   documentCode: string;
   documentName: string;
   originalFileName: string;
+  description: string | null;
+  shipmentNumber: string | null;
   uploadedFileName: string;
   versionNumber: 1;
   revisionCode: string;
@@ -35,6 +37,8 @@ export type NewDocumentVersionDraft = Omit<
   | 'documentCode'
   | 'documentName'
   | 'originalFileName'
+  | 'description'
+  | 'shipmentNumber'
   | 'versionNumber'
 >;
 
@@ -66,6 +70,8 @@ export class DocumentUploadPipeline {
   static prepare(input: {
     uploads: DocumentUpload[];
     documentCodeIds: string[];
+    descriptions?: string[];
+    shipmentNumbers?: string[];
     storagePrefix: string;
     revisionCode: string;
     codes: Map<string, { code: string; name: string }>;
@@ -81,6 +87,15 @@ export class DocumentUploadPipeline {
     )
       throw bad(
         'files and documentCodeIds must be equally sized non-empty arrays.',
+      );
+    if (
+      (input.descriptions !== undefined &&
+        input.descriptions.length !== input.uploads.length) ||
+      (input.shipmentNumbers !== undefined &&
+        input.shipmentNumbers.length !== input.uploads.length)
+    )
+      throw bad(
+        'files, descriptions, and shipmentNumbers must be equally sized when metadata is supplied.',
       );
     if (!input.uploads.length) return [];
     return input.uploads.map((upload, index) => {
@@ -100,6 +115,8 @@ export class DocumentUploadPipeline {
         documentCode: code.code,
         documentName: code.name,
         originalFileName: uploadedFileName,
+        description: normalizeMetadata(input.descriptions?.[index]),
+        shipmentNumber: normalizeMetadata(input.shipmentNumbers?.[index]),
         uploadedFileName,
         versionNumber: 1,
         revisionCode: input.revisionCode,
@@ -171,6 +188,10 @@ function safeName(value: string) {
   const name = basename(value).normalize('NFC').trim();
   if (!name || name.length > 260) throw bad('Uploaded filename is invalid.');
   return name;
+}
+function normalizeMetadata(value: string | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 function assertAllowed(name: string, mimetype: string) {
   if (!MIME[extname(name).toLowerCase()]?.includes(mimetype.toLowerCase()))

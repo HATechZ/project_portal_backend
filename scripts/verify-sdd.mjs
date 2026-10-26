@@ -24,7 +24,7 @@
 
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const SPECS = join(ROOT, 'specs');
@@ -111,14 +111,64 @@ function parseTasks(file) {
   return raw.filter((t) => t.leaf);
 }
 
+function splitArgs(command) {
+  const args = [];
+  let current = '';
+  let quote = null;
+
+  for (const char of command) {
+    if ((char === '"' || char === "'") && quote === null) {
+      quote = char;
+    } else if (char === quote) {
+      quote = null;
+    } else if (/\s/.test(char) && quote === null) {
+      if (current) {
+        args.push(current);
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (quote !== null || current) args.push(current);
+  return args;
+}
+
+function directRgCommands(cmd) {
+  const commands = cmd.split(' && ').map(splitArgs);
+  return commands.every(([executable]) => executable === 'rg') ? commands : null;
+}
+
 function run(cmd) {
+  const gate = 'Gate 5';
+  const commands = directRgCommands(cmd);
+
+  if (commands) {
+    let output = '';
+    for (const [executable, ...args] of commands) {
+      console.log(`[SDD] START ${gate} :: ${executable} ${args.join(' ')}`);
+      const result = spawnSync(executable, args, {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: process.env,
+        shell: false,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: TIMEOUT_MS,
+      });
+      const exitCode = result.status ?? (result.error ? '?' : 0);
+      console.log(`[SDD] END ${gate} :: exit=${exitCode}`);
+      output = [output, result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+      if (exitCode !== 0) {
+        const why = result.signal === 'SIGTERM' ? `timed out after ${TIMEOUT_MS / 1000}s` : `exit ${exitCode}`;
+        return { ok: false, output, why };
+      }
+    }
+    return { ok: true, output };
+  }
+
+  const bashShell = process.platform === 'win32' ? process.env.ComSpec : 'bash';
+  console.log(`[SDD] START ${gate} :: ${bashShell} ${cmd}`);
   try {
-    const bashShell =
-      process.platform === 'win32'
-        ? existsSync('C:\\Program Files\\Git\\bin\\bash.exe')
-          ? 'C:\\Program Files\\Git\\bin\\bash.exe'
-          : 'bash'
-        : 'bash';
     const stdout = execSync(cmd, {
       cwd: ROOT,
       shell: bashShell,
@@ -126,8 +176,10 @@ function run(cmd) {
       timeout: TIMEOUT_MS,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    console.log(`[SDD] END ${gate} :: exit=0`);
     return { ok: true, output: (stdout || '').trim() };
   } catch (err) {
+    console.log(`[SDD] END ${gate} :: exit=${err.status ?? '?'}`);
     const out = [err.stdout, err.stderr].filter(Boolean).join('\n').trim();
     const why = err.signal === 'SIGTERM' ? `timed out after ${TIMEOUT_MS / 1000}s` : `exit ${err.status ?? '?'}`;
     return { ok: false, output: out, why };
@@ -430,7 +482,10 @@ if (gate0.length) {
 let files = findTaskFiles(SPECS);
 if (OPT.module) {
   const needle = OPT.module.toLowerCase();
-  files = files.filter((f) => relative(SPECS, f).toLowerCase().includes(needle));
+  files = files.filter((f) => {
+    const moduleDirectory = relative(SPECS, f).split(sep)[0].toLowerCase();
+    return moduleDirectory === needle || moduleDirectory.startsWith(`${needle}-`);
+  });
 }
 
 if (files.length === 0) {

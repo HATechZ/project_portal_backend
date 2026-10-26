@@ -45,4 +45,39 @@ describe('toWorkRequestResponse shipment number', () => {
 
     expect(result.shipmentNumber).toBe('02');
   });
+
+  it('returns persisted document metadata and the latest version timestamp', () => {
+    const uploadedAt = new Date('2026-10-26T00:00:00.000Z');
+    const result = toWorkRequestResponse({
+      ...baseRecord,
+      bid: null,
+      directProject: {
+        clientId: 'client-id',
+        shipmentNumber: '02',
+        client: { companyId: 'company-id' },
+      },
+      documents: [
+        {
+          id: 'document-id',
+          documentCodeId: 'code-id',
+          documentCodeSnapshot: 'DOC',
+          originalFileName: 'plan.pdf',
+          description: 'Main plan',
+          shipmentNumber: 'S-001',
+          generatedFileName: 'generated.pdf',
+          mimeType: 'application/pdf',
+          fileSizeBytes: 1n,
+          versions: [{ uploadedAt }],
+        },
+      ],
+    } as never);
+
+    expect(result.documents[0]).toEqual(
+      expect.objectContaining({
+        description: 'Main plan',
+        shipmentNumber: 'S-001',
+        lastUpdatedAt: uploadedAt,
+      }),
+    );
+  });
 });

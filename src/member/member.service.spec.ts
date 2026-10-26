@@ -25,6 +25,7 @@ describe('MemberService', () => {
     const service = new MemberService(
       repository as never,
       {} as never,
+      {} as never,
       onboarding as never,
       {} as never,
       passwordHasher as never,
@@ -55,6 +56,7 @@ describe('MemberService', () => {
     const removal = { remove: jest.fn() };
     const service = new MemberService(
       repository as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

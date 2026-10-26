@@ -100,4 +100,29 @@ describe('CreateWorkRequestDto parent normalization', () => {
       ]),
     );
   });
+
+  it('accepts optional repeated document metadata with established maximum lengths', async () => {
+    const errors = await createErrors({
+      bidId,
+      title: 'Request',
+      priority: 'High',
+      descriptions: ['Description'],
+      shipmentNumbers: ['SHIP-00001'],
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects oversized per-document shipment numbers', async () => {
+    const errors = await createErrors({
+      bidId,
+      title: 'Request',
+      priority: 'High',
+      shipmentNumbers: ['12345678901'],
+    });
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ property: 'shipmentNumbers' }),
+      ]),
+    );
+  });
 });

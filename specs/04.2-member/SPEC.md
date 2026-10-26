@@ -42,6 +42,13 @@ User -> Member
 `PUT /member/:id/access-link` remains only the exceptional existing-User path. It is not the normal
 new-Member onboarding flow.
 
+`POST /member/from-existing-user` is the separate exceptional path for an existing active
+internal User with no Member. It derives the Member identity from that User and atomically links
+an existing eligible ActorProfile. It creates no User, credential, UserRole, or ActorProfile.
+Tenant administrator accounts are not assumed to be Members: Member-bound business operations,
+including Work Request creation, require explicit internal-person onboarding and their own
+responsibility checks.
+
 **Deferred:** invitation, set-password links, email verification, temporary passwords,
 reset-on-first-login, workflow/TMS classification, and unrelated schema/grant/RLS work.
 

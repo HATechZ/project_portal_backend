@@ -20,6 +20,8 @@ export class WorkRequestDocumentRepository extends BaseRepository {
           documentCodeSnapshot: true,
           documentNameSnapshot: true,
           originalFileName: true,
+          description: true,
+          shipmentNumber: true,
           generatedFileName: true,
           mimeType: true,
           fileSizeBytes: true,

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
-import { EVENTS_HANDLER_METADATA } from '@nestjs/cqrs/dist/decorators/constants';
 import { DomainEvent } from '../../contracts/events/domain-event';
+
+const EVENTS_HANDLER_METADATA = '__eventsHandler__';
 
 interface RegisteredEventHandler {
   handle(event: DomainEvent): Promise<void> | void;

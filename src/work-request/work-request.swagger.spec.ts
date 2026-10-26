@@ -18,7 +18,12 @@ describe('Work Request multipart OpenAPI contract', () => {
         projectId: expect.any(Object) as unknown,
       }),
     );
-    expect(schema.required).toEqual(['title', 'priority']);
+    expect(schema.required).toEqual([
+      'title',
+      'priority',
+      'originatingDivisionId',
+      'intermediateDivisionIds',
+    ]);
     expect(schema.required).not.toContain('bidId');
     expect(schema.required).not.toContain('projectId');
   });
@@ -37,6 +42,36 @@ describe('Work Request multipart OpenAPI contract', () => {
       expect.objectContaining({
         files: expect.any(Object) as unknown,
         documentCodeIds: expect.any(Object) as unknown,
+      }),
+    );
+  });
+
+  it('documents optional per-file metadata with repeated multipart fields', () => {
+    expect(schema.properties).toEqual(
+      expect.objectContaining({
+        descriptions: expect.objectContaining({ type: 'array' }) as unknown,
+        shipmentNumbers: expect.objectContaining({ type: 'array' }) as unknown,
+      }),
+    );
+  });
+
+  it('documents the route-required multipart fields and file cardinality', () => {
+    const files = schema.properties.files;
+    expect(schema.properties).toEqual(
+      expect.objectContaining({
+        originatingDivisionId: { type: 'string', format: 'uuid' },
+        intermediateDivisionIds: {
+          type: 'array',
+          minItems: 1,
+          items: { type: 'string', format: 'uuid' },
+        },
+      }),
+    );
+    expect(files).toEqual(
+      expect.objectContaining({
+        type: 'array',
+        maxItems: 20,
+        items: { type: 'string', format: 'binary' },
       }),
     );
   });

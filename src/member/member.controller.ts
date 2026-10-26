@@ -24,6 +24,7 @@ import { PermissionCode } from '../generated/prisma/client';
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import {
   CreateMemberDto,
+  CreateMemberFromExistingUserDto,
   MemberAccessLinkDto,
   MemberQueryDto,
   LedDivisionResponseDto,
@@ -44,6 +45,20 @@ export class MemberController {
   @ApiStandardCreatedResponse(MemberResponseDto, 'Member created')
   create(@Body() input: CreateMemberDto, @ActiveUser() user: SessionUser) {
     return this.memberService.create(input, user.id);
+  }
+
+  @Post('from-existing-user')
+  @FinalPermissions(
+    PermissionCode.CREATE_MEMBER,
+    PermissionCode.LINK_MEMBER_ACCESS,
+  )
+  @ResponseMessage('Member created from existing User successfully')
+  @ApiOperation({
+    summary: 'Create a Member context for an existing internal User',
+  })
+  @ApiStandardCreatedResponse(MemberResponseDto, 'Member created')
+  createFromExistingUser(@Body() input: CreateMemberFromExistingUserDto) {
+    return this.memberService.createFromExistingUser(input);
   }
 
   @Get()

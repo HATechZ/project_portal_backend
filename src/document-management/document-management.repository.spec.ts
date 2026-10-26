@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { RequestContext } from '../common/context/request-context';
+import { describe, expect, it, jest } from '@jest/globals';
 import type { SessionActor } from '../common/security/session.types';
 import { DocumentManagementRepository } from './document-management.repository';
 
@@ -14,7 +16,24 @@ const exactVersion = {
   uploadedAt: new Date('2026-01-02T03:04:05.000Z'),
   uploadedByActorId: 'actor-a',
   workRequestV1DocumentId: 'document-a',
-  document: { workRequestId: 'request-a' },
+  document: {
+    workRequestId: 'request-a',
+    documentCodeSnapshot: '001',
+    documentCodeId: 'code-a',
+    documentNameSnapshot: 'Project Information',
+    documentCode: { sortOrder: 1 },
+    workRequest: {
+      bidId: 'bid-a',
+      directProjectId: null,
+      bid: {
+        biddingNumber: 'B-001',
+        name: 'Alpha',
+        client: { name: 'Client A' },
+      },
+      directProject: null,
+    },
+  },
+  uploadedByActor: { label: 'Uploader A' },
 };
 
 type C1Query = {

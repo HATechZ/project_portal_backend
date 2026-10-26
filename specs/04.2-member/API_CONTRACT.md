@@ -38,6 +38,7 @@ not grant general Division administration or all-Division browsing.
 | Method | Path | DTO / result |
 |---|---|---|
 | POST | `/member` | `{ name, email, password, divisionId, designationId, phone? }`; derives Tenant/Company, validates actor-scoped Division and same-Tenant/Company Designation, and creates linked User and Member atomically; 201. `roleId`, `tenantId`, `companyId`, `userId`, `actorProfileId`, `passwordHash`, `confirmPassword`, `isActive`, and `teamId` are forbidden. It does not assign a UserRole, ActorProfile, or Team membership. |
+| POST | `/member/from-existing-user` | `{ userId, actorProfileId, divisionId, designationId, phone? }`; requires `CREATE_MEMBER` and `LINK_MEMBER_ACCESS`. Derives Member name/email from the active same-Tenant User, validates an active internal same-User ActorProfile with an active matching UserRole, active scoped Company/Division, and same-Company Designation. Atomically creates the missing Member and links the supplied existing ActorProfile; 201. It never creates a User, credential, UserRole, or ActorProfile. A replay returns the Member only when that same User/Profile relationship already exists. |
 | GET | `/member` | Scoped page, optional `divisionId` filter only after scoped validation; `name asc,id asc`; 200 items/meta. |
 | GET | `/member/:id` | 200 scoped Member or indistinguishable 404. |
 | PATCH | `/member/:id` | Partial `{ name?, email?, designationId?, divisionId?, isActive? }`, at least one; validate supplied same-Tenant/Company Designation; 200. No `userId`, arbitrary designation text, or security fields. |
@@ -53,3 +54,7 @@ It never returns plaintext password, password hash, session, token, or credentia
 covers malformed/unknown input; 404 conceals foreign IDs; 401/403 are auth failures; 409 covers
 unique/link/dependency/role and database races. Access-link success does not imply a role was
 assigned or an ActorProfile default changed.
+
+A tenant administrator account may legitimately exist without a Member-backed ActorProfile.
+Member-bound business operations, including Work Request creation, require explicit Member
+onboarding and their own responsibility checks.

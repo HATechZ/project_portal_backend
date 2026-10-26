@@ -31,10 +31,10 @@ import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { PermissionCode } from '../generated/prisma/client';
 import { WorkRequestService } from './work-request.service';
 import type { WorkRequestUploadedFile } from './work-request.service';
-import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
 import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
 import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
 import { ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { WorkRequestDocumentUploadMultipartDto } from './dtos/work-request-document-upload.dto';
 
 @ApiTags('work requests')
 @ApiSecurity('bearer')
@@ -65,7 +65,25 @@ export class WorkRequestDocumentController {
           type: 'array',
           items: { type: 'string', format: 'uuid' },
         },
-        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+        descriptions: {
+          type: 'array',
+          maxItems: 20,
+          description:
+            'Optional repeated text values positionally mapped to files. When supplied, provide one value for each file.',
+          items: { type: 'string', maxLength: 10000 },
+        },
+        shipmentNumbers: {
+          type: 'array',
+          maxItems: 20,
+          description:
+            'Optional repeated text values positionally mapped to files. When supplied, provide one value for each file.',
+          items: { type: 'string', maxLength: 10 },
+        },
+        files: {
+          type: 'array',
+          maxItems: 20,
+          items: { type: 'string', format: 'binary' },
+        },
       },
     },
   })
@@ -77,7 +95,7 @@ export class WorkRequestDocumentController {
   @ResponseMessage('Work Request documents created successfully')
   create(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: DocumentUploadMultipartDto,
+    @Body() body: WorkRequestDocumentUploadMultipartDto,
     @UploadedFiles() files: WorkRequestUploadedFile[] = [],
     @ActiveActor() actor: SessionActor,
   ) {
@@ -85,6 +103,8 @@ export class WorkRequestDocumentController {
       id,
       files,
       body.documentCodeIds,
+      body.descriptions,
+      body.shipmentNumbers,
       actor,
     );
   }
