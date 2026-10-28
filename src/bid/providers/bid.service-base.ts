@@ -61,6 +61,8 @@ export abstract class BidServiceBase {
     uploads: BidUploadedFile[],
     documentCodeIds: string[],
     actor: SessionActor,
+    descriptions?: string[],
+    shipmentNumbers?: string[],
   ): Promise<DocumentSummaryDto[]> {
     let context: Awaited<
       ReturnType<BidRepository['prepareStandaloneDocuments']>
@@ -88,6 +90,8 @@ export abstract class BidServiceBase {
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds,
+      descriptions,
+      shipmentNumbers,
       codes: context.codes,
       revisionCode: 'A',
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/bids/${bidId}/documents`,
@@ -282,6 +286,8 @@ export abstract class BidServiceBase {
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds: documents.map(({ documentCodeId }) => documentCodeId),
+      descriptions: documents.map(({ description }) => description ?? ''),
+      shipmentNumbers: documents.map(({ shipmentNumber }) => shipmentNumber ?? ''),
       codes: reference.documentCodes,
       allowEmpty: true,
       revisionCode: 'A',
@@ -305,6 +311,8 @@ export abstract class BidServiceBase {
       documentCodeSnapshot: file.documentCode,
       documentNameSnapshot: file.documentName,
       originalFileName: file.originalFileName,
+      description: file.description,
+      shipmentNumber: file.shipmentNumber,
       generatedFileName: file.generatedFileName,
       storageKey: file.storageKey,
       mimeType: file.mimeType,
@@ -507,6 +515,8 @@ function documentSummary(
     documentCodeSnapshot: string;
     documentNameSnapshot: string | null;
     originalFileName: string;
+    description: string | null;
+    shipmentNumber: string | null;
     versions: Array<{
       id: string;
       versionNumber: number;
@@ -530,6 +540,12 @@ function documentSummary(
       name: document.documentNameSnapshot ?? '',
     },
     originalFileName: document.originalFileName,
+    generatedFileName: version.generatedFileName,
+    description: document.description,
+    shipmentNumber: document.shipmentNumber,
+    mimeType: version.mimeType,
+    size: Number(version.fileSizeBytes),
+    lastUpdatedAt: version.uploadedAt,
     latestVersion: {
       versionId: version.id,
       versionNumber: version.versionNumber,
@@ -582,14 +598,20 @@ function response(bid: BidRecord): BidResponseDto {
     client: bid.client,
     status: bid.statusEvents[0]?.toStatus.code ?? 'BIDDING',
     fileCount: bid._count.documents,
-    documents: bid.documents.map((document) => ({
-      id: document.id,
-      documentCodeId: document.documentCodeId,
-      originalFileName: document.originalFileName,
-      generatedFileName: document.generatedFileName,
-      mimeType: document.mimeType,
-      size: Number(document.fileSizeBytes),
-    })),
+    documents: bid.documents.map((document) => {
+      const version = document.versions[0];
+      return {
+        id: document.id,
+        documentCodeId: document.documentCodeId,
+        originalFileName: document.originalFileName,
+        generatedFileName: version?.generatedFileName ?? document.generatedFileName,
+        description: document.description,
+        shipmentNumber: document.shipmentNumber,
+        mimeType: version?.mimeType ?? document.mimeType,
+        size: Number(version?.fileSizeBytes ?? document.fileSizeBytes),
+        lastUpdatedAt: version?.uploadedAt ?? document.createdAt,
+      };
+    }),
     createdAt: bid.createdAt,
     updatedAt: bid.updatedAt,
   };

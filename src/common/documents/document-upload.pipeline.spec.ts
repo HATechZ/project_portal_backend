@@ -86,6 +86,20 @@ describe('DocumentUploadPipeline', () => {
       }),
     ).toThrow('descriptions');
   });
+  it('rejects metadata beyond the shared per-item limits', () => {
+    expect(() =>
+      DocumentUploadPipeline.prepare({
+        ...input(),
+        descriptions: ['x'.repeat(10001)],
+      }),
+    ).toThrow('description');
+    expect(() =>
+      DocumentUploadPipeline.prepare({
+        ...input(),
+        shipmentNumbers: ['x'.repeat(11)],
+      }),
+    ).toThrow('shipment number');
+  });
   it('compensates stored files when persistence fails', async () => {
     const storage = {
       put: jest.fn(),

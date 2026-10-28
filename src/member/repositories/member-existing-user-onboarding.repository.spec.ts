@@ -46,7 +46,9 @@ function database(existingMember: typeof member | null = null) {
       findFirst: jest.fn().mockResolvedValue(existingMember),
       create: jest.fn().mockResolvedValue(member),
     },
-    division: { findFirst: jest.fn().mockResolvedValue({ id: input.divisionId }) },
+    division: {
+      findFirst: jest.fn().mockResolvedValue({ id: input.divisionId }),
+    },
     designation: {
       findFirst: jest.fn().mockResolvedValue({ id: input.designationId }),
     },

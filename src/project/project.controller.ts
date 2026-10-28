@@ -103,6 +103,16 @@ export class ProjectController {
           type: 'array',
           items: { type: 'string', format: 'uuid' },
         },
+        descriptions: {
+          type: 'array',
+          description: 'Optional repeated fields; descriptions[i] maps to files[i]. Blank values become null. Maximum 10,000 characters per item.',
+          items: { type: 'string', maxLength: 10000 },
+        },
+        shipmentNumbers: {
+          type: 'array',
+          description: 'Optional repeated fields; shipmentNumbers[i] maps to files[i]. Blank values become null. Maximum 10 characters per item.',
+          items: { type: 'string', maxLength: 10 },
+        },
         files: { type: 'array', items: { type: 'string', format: 'binary' } },
       },
     },
@@ -160,6 +170,8 @@ const response = await fetch('/api/v1/projects', {
       files,
       actor.id,
       body.documentCodeIds ?? [],
+      body.descriptions,
+      body.shipmentNumbers,
     );
   }
   @Post(':id/documents')
@@ -177,6 +189,8 @@ const response = await fetch('/api/v1/projects', {
           type: 'array',
           items: { type: 'string', format: 'uuid' },
         },
+        descriptions: { type: 'array', items: { type: 'string', maxLength: 10000 }, description: 'Optional repeated fields positionally mapped to files.' },
+        shipmentNumbers: { type: 'array', items: { type: 'string', maxLength: 10 }, description: 'Optional repeated fields positionally mapped to files.' },
         files: { type: 'array', items: { type: 'string', format: 'binary' } },
       },
     },
@@ -198,6 +212,8 @@ const response = await fetch('/api/v1/projects', {
       files,
       body.documentCodeIds,
       actor,
+      body.descriptions,
+      body.shipmentNumbers,
     );
   }
   @Post(':id/documents/:documentId/versions')

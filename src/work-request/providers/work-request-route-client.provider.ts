@@ -4,6 +4,7 @@ import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { RequestContext } from '../../common/context/request-context';
 import type { SessionActor } from '../../common/security/session.types';
+import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
 import { WorkRequestRouteClientRepository } from '../repositories/work-request-route-client.repository';
 
@@ -66,7 +67,9 @@ export class WorkRequestRouteClientProvider {
   private async requiredGateway(id: string, actor: SessionActor, permission: PermissionCode) {
     const context: any = await this.repository.context(id);
     if (!context) throw notFound();
-    if (!actor.member?.isActive || !['company', 'division'].includes(actor.role.customScope ?? '') || context.responsibleOriginatingLead.memberId !== actor.member.id || !has(actor, permission)) throw forbidden();
+    if (!has(actor, permission)) throw forbidden();
+    if (hasTenantWideInternalAuthority(actor)) return context;
+    if (!actor.member?.isActive || !['company', 'division'].includes(actor.role.customScope ?? '') || context.responsibleOriginatingLead.memberId !== actor.member.id) throw forbidden();
     return context;
   }
 }

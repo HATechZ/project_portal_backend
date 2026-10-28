@@ -141,6 +141,18 @@ export class CreateBidMultipartDto {
   @Transform(multipartArray)
   @IsUUID(undefined, { each: true })
   documentCodeIds?: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, maxLength: 10000 })
+  @IsOptional()
+  @Transform(multipartArray)
+  @IsString({ each: true })
+  @MaxLength(10000, { each: true })
+  descriptions?: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, maxLength: 10 })
+  @IsOptional()
+  @Transform(multipartArray)
+  @IsString({ each: true })
+  @MaxLength(10, { each: true })
+  shipmentNumbers?: string[];
 }
 
 export class DocumentUploadMetadataDto {
@@ -157,6 +169,16 @@ export class BidDocumentInputDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   documentCodeId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  shipmentNumber?: string;
 }
 
 export class UpdateBidDto {
@@ -208,6 +230,9 @@ export class BidDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
   @ApiProperty() originalFileName!: string;
   @ApiProperty() generatedFileName!: string;
+  @ApiPropertyOptional({ nullable: true }) description!: string | null;
+  @ApiPropertyOptional({ nullable: true }) shipmentNumber!: string | null;
   @ApiProperty() mimeType!: string;
   @ApiProperty() size!: number;
+  @ApiProperty({ format: 'date-time' }) lastUpdatedAt!: Date;
 }

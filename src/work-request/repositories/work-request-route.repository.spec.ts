@@ -3,6 +3,80 @@ import { WorkRequestRepository } from './work-request.repository';
 
 describe('WorkRequestRepository Phase 3 route guards', () => {
   const context = <T>(work: () => Promise<T>) => RequestContext.run({ requestId: 'route-test', tenantId: 'tenant-a' }, work);
+
+  it('persists the complete initial route atomically, retaining repeated intermediate occurrences', async () => {
+    const routeCreate = jest.fn();
+    const versionCreate = jest.fn();
+    const stepsCreateMany = jest.fn();
+    const cycleCreate = jest.fn();
+    const projectionCreate = jest.fn();
+    const routeEventCreate = jest.fn();
+    const db = {
+      workRequestV1: {
+        create: jest.fn(),
+        findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'request-a' }),
+      },
+      workRequestV1Event: { create: jest.fn() },
+      divisionLead: { findFirst: jest.fn().mockResolvedValue({ id: 'lead-a' }) },
+      division: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 'origin-a' }, { id: 'division-b' }, { id: 'division-c' }]),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ cutoverAt: new Date() }]),
+      workRequestRoute: { create: routeCreate },
+      workRequestRouteVersion: { create: versionCreate },
+      workRequestRouteStep: { createMany: stepsCreateMany },
+      workRequestDivisionCycle: { create: cycleCreate },
+      workRequestRouteProjection: { create: projectionCreate },
+      workRequestRouteEvent: { create: routeEventCreate },
+    };
+    const repository = new WorkRequestRepository({ execute: (work: (executor: unknown) => Promise<unknown>) => work(db) } as never);
+
+    await context(() =>
+      repository.create({
+        id: 'request-a',
+        projectId: 'project-a',
+        title: 'Route request',
+        priority: 'High',
+        actorId: 'actor-a',
+        actorMemberId: 'member-a',
+        creationEventId: 'event-a',
+        idempotencyKey: 'route-test',
+        revisionCode: '01',
+        originatingDivisionId: 'origin-a',
+        intermediateDivisionIds: ['division-b', 'division-b', 'division-c'],
+        files: [],
+      }),
+    );
+
+    expect(routeCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          workRequestId: 'request-a',
+          originatingDivisionId: 'origin-a',
+          responsibleOriginatingDivisionLeadId: 'lead-a',
+        }),
+      }),
+    );
+    expect(versionCreate).toHaveBeenCalledTimes(1);
+    expect(stepsCreateMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ ordinal: 1, kind: 'ORIGIN_START', divisionId: 'origin-a' }),
+        expect.objectContaining({ ordinal: 2, kind: 'INTERMEDIATE', divisionId: 'division-b' }),
+        expect.objectContaining({ ordinal: 3, kind: 'INTERMEDIATE', divisionId: 'division-b' }),
+        expect.objectContaining({ ordinal: 4, kind: 'INTERMEDIATE', divisionId: 'division-c' }),
+        expect.objectContaining({ ordinal: 5, kind: 'ORIGIN_FINAL_REVIEW', divisionId: 'origin-a' }),
+        expect.objectContaining({ ordinal: 6, kind: 'CLIENT', divisionId: null }),
+      ]),
+    });
+    expect(cycleCreate).toHaveBeenCalledTimes(1);
+    expect(projectionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ routeStepId: expect.any(String) }) }),
+    );
+    expect(routeEventCreate).toHaveBeenCalledTimes(2);
+  });
+
   it('limits the main projection to the exact active responsible lead', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
     const repository = new WorkRequestRepository({ execute: (work: (db: unknown) => Promise<unknown>) => work({ workRequestRoute: { findFirst } }) } as never);

@@ -8,6 +8,7 @@ import { RequestContext } from '../../common/context/request-context';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import type { SessionActor } from '../../common/security/session.types';
+import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { OutboxService } from '../../infra/messaging/outbox.service';
 import { WorkRequestTransitioned } from '../../contracts/events/work-request-events';
@@ -280,6 +281,10 @@ function internal(
   responsibility: Level,
 ) {
   const parent = snapshot.bid ?? snapshot.directProject;
+  if (hasTenantWideInternalAuthority(actor)) {
+    if (!parent?.client.companyId || !has(actor, permission)) throw forbidden();
+    return;
+  }
   if (
     !actor.member?.isActive ||
     !actor.member.company.isActive ||

@@ -1,4 +1,4 @@
-import { PermissionCode } from '../../generated/prisma/client';
+import { ActorRoleCode, PermissionCode } from '../../generated/prisma/client';
 import { WorkRequestRouteActionsProvider } from './work-request-route-actions.provider';
 
 describe('WorkRequestRouteActionsProvider', () => {
@@ -22,5 +22,22 @@ describe('WorkRequestRouteActionsProvider', () => {
   it('returns no route action for an unrelated same-tenant actor', async () => {
     const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(false), recipientActorIds: jest.fn() } as never);
     await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual([]);
+  });
+
+  it('exposes explicitly permitted internal route actions to tenant_super_admin without a Member', async () => {
+    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn(), recipientActorIds: jest.fn() } as never);
+    const admin = {
+      id: 'admin-a',
+      clientContact: null,
+      member: null,
+      role: {
+        customScope: null,
+        systemRole: { systemCode: ActorRoleCode.tenant_super_admin },
+        rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.ASSIGN_WORK_REQUEST_TEAM } }],
+      },
+    } as never;
+    await expect(provider.available('request-a', admin)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'DEFINE_TEAM_SEQUENCE' })]),
+    );
   });
 });

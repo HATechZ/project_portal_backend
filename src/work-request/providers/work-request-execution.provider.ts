@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PermissionCode } from '../../generated/prisma/client';
 import type { SessionActor } from '../../common/security/session.types';
+import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import {
   AppendWorkRequestMemberStepDto,
   DefineWorkRequestMemberSequenceDto,
@@ -13,7 +14,13 @@ export class WorkRequestExecutionProvider {
   constructor(private readonly execution: WorkRequestExecutionRepository) {}
 
   async internalCycle(id: string, cycleId: string, actor: SessionActor) {
-    const cycle = await this.execution.internalCycle(id, cycleId, memberId(actor));
+    const admin = hasTenantWideInternalAuthority(actor);
+    const cycle = await this.execution.internalCycle(
+      id,
+      cycleId,
+      memberId(actor, admin),
+      admin,
+    );
     return {
       ...cycle,
       availableActions: cycle.availableActions.filter((action) =>
@@ -22,23 +29,29 @@ export class WorkRequestExecutionProvider {
     };
   }
   defineTeamSequence(id: string, cycleId: string, input: DefineWorkRequestTeamSequenceDto, actor: SessionActor) {
-    return this.execution.defineTeamSequence(id, cycleId, input.teamIds, actor.id, memberId(actor));
+    const admin = hasTenantWideInternalAuthority(actor);
+    return this.execution.defineTeamSequence(id, cycleId, input.teamIds, actor.id, memberId(actor, admin), admin);
   }
   defineMemberSequence(id: string, teamStepId: string, input: DefineWorkRequestMemberSequenceDto, actor: SessionActor) {
-    return this.execution.defineMemberSequence(id, teamStepId, input.memberIds, actor.id, memberId(actor));
+    const admin = hasTenantWideInternalAuthority(actor);
+    return this.execution.defineMemberSequence(id, teamStepId, input.memberIds, actor.id, memberId(actor, admin), admin);
   }
   appendMemberStep(id: string, teamStepId: string, input: AppendWorkRequestMemberStepDto, actor: SessionActor) {
-    return this.execution.appendMemberStep(id, teamStepId, input.memberId, actor.id, memberId(actor));
+    const admin = hasTenantWideInternalAuthority(actor);
+    return this.execution.appendMemberStep(id, teamStepId, input.memberId, actor.id, memberId(actor, admin), admin);
   }
   submitMemberStep(id: string, memberStepId: string, actor: SessionActor) {
-    return this.execution.submitMemberStep(id, memberStepId, actor.id, memberId(actor));
+    const admin = hasTenantWideInternalAuthority(actor);
+    return this.execution.submitMemberStep(id, memberStepId, actor.id, memberId(actor, admin), admin);
   }
   completeTeamStep(id: string, teamStepId: string, actor: SessionActor) {
-    return this.execution.completeTeamStep(id, teamStepId, actor.id, memberId(actor));
+    const admin = hasTenantWideInternalAuthority(actor);
+    return this.execution.completeTeamStep(id, teamStepId, actor.id, memberId(actor, admin), admin);
   }
 }
 
-function memberId(actor: SessionActor) {
+function memberId(actor: SessionActor, admin: boolean) {
+  if (admin) return null;
   if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
   return actor.member.id;
 }

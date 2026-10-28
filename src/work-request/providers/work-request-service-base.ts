@@ -6,6 +6,7 @@ import { AppException } from '../../common/exceptions/app-exception';
 import { PaginationQueryDto } from '../../common/pagination/dtos/pagination-query.dto';
 import { paginate } from '../../common/pagination/paginate';
 import type { SessionActor } from '../../common/security/session.types';
+import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import {
   FILE_STORAGE,
   type FileStorage,
@@ -321,13 +322,23 @@ export abstract class WorkRequestServiceBase {
     actor: SessionActor,
   ) {
     const codeIds = input.documentCodeIds ?? [];
-    const actorMemberId = actor.member?.id;
-    if (!actorMemberId) throw bad('An active Member context is required.');
+    const admin = hasTenantWideInternalAuthority(actor);
+    const actorMemberId = actor.member?.id ?? null;
+    if (!actorMemberId && !admin)
+      throw bad('An active Member context is required.');
     const originatingDivisionId = input.originatingDivisionId;
     const intermediateDivisionIds = input.intermediateDivisionIds;
     if (!originatingDivisionId || !intermediateDivisionIds?.length)
       throw bad(
         'An originating Division and at least one intermediate Division are required.',
+      );
+    if (!admin && input.responsibleOriginatingDivisionLeadId)
+      throw bad(
+        'Responsible Originating Division Lead is derived from the active Member context.',
+      );
+    if (!actorMemberId && !input.responsibleOriginatingDivisionLeadId)
+      throw bad(
+        'A Responsible Originating Division Lead is required for administrative Work Request creation.',
       );
     let reference: Awaited<ReturnType<WorkRequestRepository['prepareCreate']>>;
     try {
@@ -422,6 +433,8 @@ export abstract class WorkRequestServiceBase {
           notes: input.notes,
           actorId: actor.id,
           actorMemberId,
+          responsibleOriginatingDivisionLeadId:
+            input.responsibleOriginatingDivisionLeadId,
           creationEventId,
           idempotencyKey: requestId,
           revisionCode,
@@ -617,8 +630,11 @@ function documentSummary(
       name: document.documentNameSnapshot!,
     },
     originalFileName: document.originalFileName,
+    generatedFileName: version.generatedFileName!,
     description: document.description,
     shipmentNumber: document.shipmentNumber,
+    mimeType: version.mimeType,
+    size: Number(version.fileSizeBytes),
     lastUpdatedAt: version.uploadedAt,
     latestVersion: {
       versionId: version.id,

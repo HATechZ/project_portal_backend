@@ -24,7 +24,7 @@ export class WorkRequestRevisionRepository extends BaseRepository {
     super(uow);
   }
 
-  request(workRequestId: string, actorId: string, memberId: string, input: RevisionRequest) {
+  request(workRequestId: string, actorId: string, memberId: string | null, input: RevisionRequest, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const route = await db.workRequestRoute.findFirst({
@@ -37,7 +37,7 @@ export class WorkRequestRevisionRepository extends BaseRepository {
         : null;
       if (existing) return { revision: existing, event: null };
       if (route.projection.openRevisionId) throw conflict('The route is already paused by a revision.');
-      const requester = await requesterContext(db, tenantId, route.id, route.projection, actorId, memberId, input.classification);
+      const requester = await requesterContext(db, tenantId, route.id, route.projection, actorId, memberId, input.classification, isAdmin);
       const source = await sourceContext(db, tenantId, route.id, input, requester);
       const aggregate = await db.workRequestRouteRevision.aggregate({ where: { tenantId, routeId: route.id }, _max: { roundNumber: true } });
       const revisionId = randomUUID();
@@ -63,14 +63,14 @@ export class WorkRequestRevisionRepository extends BaseRepository {
     }, { isolationLevel: 'Serializable' });
   }
 
-  resubmit(workRequestId: string, revisionId: string, actorId: string, memberId: string, scope: CustomRoleScope | null) {
+  resubmit(workRequestId: string, revisionId: string, actorId: string, memberId: string | null, scope: CustomRoleScope | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const revision = await db.workRequestRouteRevision.findFirst({
         where: { id: revisionId, tenantId, route: { is: { workRequestId } } },
         include: { sourceActor: { select: { memberId: true } }, route: { include: { projection: true } } },
       });
-      if (!revision || revision.sourceActorId !== actorId || revision.sourceActor.memberId !== memberId || !scopeAllows(scope, revision.classification)) throw forbidden();
+      if (!revision || (!isAdmin && (revision.sourceActorId !== actorId || revision.sourceActor.memberId !== memberId || !scopeAllows(scope, revision.classification)))) throw forbidden();
       if (revision.submittedAt || revision.resumedAt || revision.route.projection?.openRevisionId !== revision.id) throw conflict('The revision is not open for this source.');
       const now = new Date();
       const updated = await db.workRequestRouteRevision.updateMany({ where: { id: revision.id, tenantId, submittedAt: null, resumedAt: null }, data: { submittedAt: now, resumedAt: now } });
@@ -84,9 +84,10 @@ export class WorkRequestRevisionRepository extends BaseRepository {
   }
 }
 
-async function requesterContext(db: any, tenantId: string, routeId: string, projection: any, actorId: string, memberId: string, classification: Classification) {
+async function requesterContext(db: any, tenantId: string, routeId: string, projection: any, actorId: string, memberId: string | null, classification: Classification, isAdmin: boolean) {
   if (!projection.routeStepId) throw conflict('The route has no active execution context.');
   const base = { routeStepId: projection.routeStepId, divisionCycleId: projection.divisionCycleId, teamStepId: projection.teamStepId, memberStepId: projection.memberStepId, requesterMemberId: memberId };
+  if (isAdmin) return base;
   if (classification === Classification.INTERNAL_MEMBER) {
     const step = projection.memberStepId && await db.workRequestMemberStep.findFirst({ where: { id: projection.memberStepId, tenantId, routeId, memberId, submittedAt: null, activatedAt: { not: null } } });
     if (!step) throw forbidden();

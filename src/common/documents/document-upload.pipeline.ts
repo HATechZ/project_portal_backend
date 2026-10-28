@@ -115,8 +115,8 @@ export class DocumentUploadPipeline {
         documentCode: code.code,
         documentName: code.name,
         originalFileName: uploadedFileName,
-        description: normalizeMetadata(input.descriptions?.[index]),
-        shipmentNumber: normalizeMetadata(input.shipmentNumbers?.[index]),
+        description: normalizeDescription(input.descriptions?.[index]),
+        shipmentNumber: normalizeShipmentNumber(input.shipmentNumbers?.[index]),
         uploadedFileName,
         versionNumber: 1,
         revisionCode: input.revisionCode,
@@ -189,8 +189,16 @@ function safeName(value: string) {
   if (!name || name.length > 260) throw bad('Uploaded filename is invalid.');
   return name;
 }
-function normalizeMetadata(value: string | undefined) {
+function normalizeDescription(value: string | undefined) {
   const normalized = value?.trim();
+  if (normalized && normalized.length > 10000)
+    throw bad('Document description exceeds 10,000 characters.');
+  return normalized ? normalized : null;
+}
+function normalizeShipmentNumber(value: string | undefined) {
+  const normalized = value?.trim();
+  if (normalized && normalized.length > 10)
+    throw bad('Document shipment number exceeds 10 characters.');
   return normalized ? normalized : null;
 }
 function assertAllowed(name: string, mimetype: string) {

@@ -54,6 +54,7 @@ export function toDivisionLeadDetail(
   record: DivisionLeadRecord,
 ): DivisionLeadDetailDto {
   return {
+    id: record.id,
     member: record.member,
     assignedAt: record.assignedAt,
     assignedByUserId: record.assignedByUserId,

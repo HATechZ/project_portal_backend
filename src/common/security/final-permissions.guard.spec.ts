@@ -3,8 +3,23 @@ import { FinalPermissionsGuard } from './final-permissions.guard';
 
 const contextFor = (
   codes: PermissionCode[],
-  customScope: 'client' | 'client_contact' | null = null,
-  compatibleScopes: ('client' | 'client_contact')[] = [],
+  customScope:
+    | 'client'
+    | 'client_contact'
+    | 'company'
+    | 'division'
+    | 'team'
+    | 'member'
+    | null = null,
+  compatibleScopes: (
+    | 'client'
+    | 'client_contact'
+    | 'company'
+    | 'division'
+    | 'team'
+    | 'member'
+  )[] = [],
+  revoked = false,
 ) =>
   ({
     getHandler: () => ({}),
@@ -17,7 +32,7 @@ const contextFor = (
             isActive: true,
             customScope,
             rolePermissions: codes.map((code) => ({
-              revokedAt: null,
+              revokedAt: revoked ? new Date() : null,
               permission: {
                 code,
                 scopeCompatibilities: compatibleScopes.map((scope) => ({
@@ -116,6 +131,31 @@ describe('FinalPermissionsGuard', () => {
     await expect(
       new FinalPermissionsGuard(reflector as never).canActivate(
         context as never,
+      ),
+    ).rejects.toThrow('Missing required explicit permission');
+  });
+
+  it('allows an active division-role CREATE_BID grant only when scope-compatible', async () => {
+    const guard = new FinalPermissionsGuard({
+      getAllAndOverride: jest.fn().mockReturnValue([PermissionCode.CREATE_BID]),
+    } as never);
+
+    await expect(
+      guard.canActivate(
+        contextFor([PermissionCode.CREATE_BID], 'division', ['division']),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(contextFor([], 'division', ['division'])),
+    ).rejects.toThrow('Missing required explicit permission');
+    await expect(
+      guard.canActivate(
+        contextFor([PermissionCode.CREATE_BID], 'division', ['company']),
+      ),
+    ).rejects.toThrow('Missing required explicit permission');
+    await expect(
+      guard.canActivate(
+        contextFor([PermissionCode.CREATE_BID], 'division', ['division'], true),
       ),
     ).rejects.toThrow('Missing required explicit permission');
   });

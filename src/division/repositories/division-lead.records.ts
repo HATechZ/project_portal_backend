@@ -36,6 +36,7 @@ export interface DivisionLeadAssignmentRecord {
 
 /** An active Lead row. Revoked rows are never projected into this shape. */
 export interface DivisionLeadRecord {
+  id: string;
   member: DivisionLeadMemberSummary;
   assignedAt: Date;
   assignedByUserId: string;

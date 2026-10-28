@@ -35,6 +35,21 @@ describe('WorkRequestExecutionRepository Phase 4 execution guards', () => {
     expect(count).not.toHaveBeenCalled();
   });
 
+  it('allows a tenant-wide internal administrator to define Team work without a Division Lead link', async () => {
+    const createMany = jest.fn();
+    const db = {
+      workRequestDivisionCycle: { findFirst: jest.fn().mockResolvedValue({ id: 'cycle-a', routeId: 'route-a', routeStep: { divisionId: 'division-a' }, route: { projection: { divisionCycleId: 'cycle-a' } } }) },
+      workRequestTeamStep: { count: jest.fn().mockResolvedValue(0), createMany },
+      team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-a' }]) },
+      workRequestRouteProjection: { update: jest.fn() },
+      workRequestRouteEvent: { create: jest.fn() },
+    };
+    const subject = repository(db);
+    jest.spyOn(subject, 'internalCycle').mockResolvedValue({} as never);
+    await context(() => subject.defineTeamSequence('request-a', 'cycle-a', ['team-a'], 'admin-a', null, true));
+    expect(createMany).toHaveBeenCalled();
+  });
+
   it('serializes Member submission and activates only the immediate next Member', async () => {
     const memberUpdate = jest.fn();
     const projectionUpdate = jest.fn();

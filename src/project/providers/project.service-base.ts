@@ -69,6 +69,8 @@ export abstract class ProjectServiceBase {
     uploads: ProjectUploadedFile[],
     documentCodeIds: string[],
     actor: SessionActor,
+    descriptions?: string[],
+    shipmentNumbers?: string[],
   ): Promise<DocumentSummaryDto[]> {
     let context: Awaited<
       ReturnType<ProjectRepository['prepareStandaloneDocuments']>
@@ -96,6 +98,8 @@ export abstract class ProjectServiceBase {
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds,
+      descriptions,
+      shipmentNumbers,
       codes: context.codes,
       revisionCode: '01',
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/projects/${projectId}/documents`,
@@ -287,6 +291,8 @@ export abstract class ProjectServiceBase {
     uploads: ProjectUploadedFile[],
     actorId: string,
     documentCodeIds: string[] = [],
+    descriptions?: string[],
+    shipmentNumbers?: string[],
   ): Promise<ProjectResponseDto> {
     const shipmentNumber = normalizeShipment(input.shipmentNumber);
     const documents = documentCodeIds.map((documentCodeId, fileIndex) => ({
@@ -310,6 +316,8 @@ export abstract class ProjectServiceBase {
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds,
+      descriptions,
+      shipmentNumbers,
       codes: reference.documentCodes,
       allowEmpty: true,
       revisionCode: '01',
@@ -333,6 +341,8 @@ export abstract class ProjectServiceBase {
       documentCodeSnapshot: file.documentCode,
       documentNameSnapshot: file.documentName,
       originalFileName: file.originalFileName,
+      description: file.description,
+      shipmentNumber: file.shipmentNumber,
       generatedFileName: file.generatedFileName,
       storageKey: file.storageKey,
       mimeType: file.mimeType,
@@ -498,6 +508,8 @@ function documentSummary(
     documentCodeSnapshot: string | null;
     documentNameSnapshot: string | null;
     originalFileName: string;
+    description: string | null;
+    shipmentNumber: string | null;
     versions: Array<{
       id: string;
       versionNumber: number;
@@ -521,6 +533,12 @@ function documentSummary(
       name: document.documentNameSnapshot!,
     },
     originalFileName: document.originalFileName,
+    generatedFileName: version.generatedFileName ?? '',
+    description: document.description,
+    shipmentNumber: document.shipmentNumber,
+    mimeType: version.mimeType,
+    size: Number(version.fileSizeBytes),
+    lastUpdatedAt: version.uploadedAt,
     latestVersion: {
       versionId: version.id,
       versionNumber: version.versionNumber,
@@ -570,14 +588,20 @@ function response(value: ProjectRecord): ProjectResponseDto {
     shipmentNumber: value.shipmentNumber,
     status: value.statusEvents[0]?.toStatus.code ?? 'ACTIVE',
     fileCount: value._count.documents,
-    documents: value.documents.map((document) => ({
-      id: document.id,
-      documentCodeId: document.documentCodeId!,
-      originalFileName: document.originalFileName,
-      generatedFileName: document.generatedFileName,
-      mimeType: document.mimeType,
-      size: Number(document.fileSizeBytes),
-    })),
+    documents: value.documents.map((document) => {
+      const version = document.versions[0];
+      return {
+        id: document.id,
+        documentCodeId: document.documentCodeId!,
+        originalFileName: document.originalFileName,
+        generatedFileName: version?.generatedFileName ?? document.generatedFileName,
+        description: document.description,
+        shipmentNumber: document.shipmentNumber,
+        mimeType: version?.mimeType ?? document.mimeType,
+        size: Number(version?.fileSizeBytes ?? document.fileSizeBytes),
+        lastUpdatedAt: version?.uploadedAt ?? document.createdAt,
+      };
+    }),
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   };

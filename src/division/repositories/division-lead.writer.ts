@@ -45,7 +45,13 @@ export function findActiveLeadRow(
   companyId: string,
 ): Promise<ActiveLeadRow | null> {
   return db.divisionLead.findFirst({
-    where: { tenantId, divisionId, companyId, revokedAt: null },
+    where: {
+      tenantId,
+      divisionId,
+      companyId,
+      revokedAt: null,
+      member: { is: { isActive: true } },
+    },
     select: {
       id: true,
       assignedAt: true,
@@ -57,6 +63,7 @@ export function findActiveLeadRow(
 
 export function toLeadRecord(row: ActiveLeadRow): DivisionLeadRecord {
   return {
+    id: row.id,
     member: row.member,
     assignedAt: row.assignedAt,
     assignedByUserId: row.assignedByUserId,

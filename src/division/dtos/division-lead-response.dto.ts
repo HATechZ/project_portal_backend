@@ -69,6 +69,9 @@ export class DivisionLeadResponseDto {
 
 /** The current active Lead of a Division. */
 export class DivisionLeadDetailDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
   @ApiProperty({ type: DivisionLeadMemberSummaryDto })
   member!: DivisionLeadMemberSummaryDto;
 

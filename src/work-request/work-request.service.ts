@@ -27,6 +27,7 @@ import {
 } from './dtos/work-request.dto';
 import { WorkRequestInfoProvider } from './providers/work-request-info.provider';
 import type { SessionActor } from '../common/security/session.types';
+import { hasTenantWideInternalAuthority } from '../common/security/tenant-internal-operations';
 import { WorkRequestWorkflowProvider } from './providers/work-request-workflow.provider';
 import { DocumentUploadRequestRepository } from '../common/documents/document-upload-request.repository';
 import {
@@ -210,16 +211,31 @@ export class WorkRequestService extends WorkRequestServiceBase {
     );
   }
   route(id: string, actor: SessionActor) {
-    if (this.communications) return this.communications.mainHistory(id, actor);
+    if (this.communications)
+      return this.communications.routeProjection(id, actor);
     if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
     return this.repository.routeProjection(id, actor.member.id);
   }
   forwardRoute(id: string, stepId: string, actor: SessionActor) {
-    if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
-    return this.repository.forwardRoute(id, stepId, actor.id, actor.member.id);
+    const admin = hasTenantWideInternalAuthority(actor);
+    if (!actor.member?.id && !admin) throw new Error('WR_ROUTE_MEMBER');
+    return this.repository.forwardRoute(
+      id,
+      stepId,
+      actor.id,
+      actor.member?.id ?? null,
+      admin,
+    );
   }
   amendRoute(id: string, input: AmendWorkRequestRouteDto, actor: SessionActor) {
-    if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
-    return this.repository.amendRoute(id, input, actor.id, actor.member.id);
+    const admin = hasTenantWideInternalAuthority(actor);
+    if (!actor.member?.id && !admin) throw new Error('WR_ROUTE_MEMBER');
+    return this.repository.amendRoute(
+      id,
+      input,
+      actor.id,
+      actor.member?.id ?? null,
+      admin,
+    );
   }
 }

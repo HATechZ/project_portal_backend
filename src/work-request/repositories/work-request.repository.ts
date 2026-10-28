@@ -161,14 +161,21 @@ export class WorkRequestRepository extends BaseRepository {
       });
       if (input.originatingDivisionId && input.intermediateDivisionIds) {
         const lead = await db.divisionLead.findFirst({
-          where: {
-            tenantId,
-            divisionId: input.originatingDivisionId,
-            memberId: input.actorMemberId,
-            revokedAt: null,
-          },
-          select: { id: true },
-        });
+  where: {
+    tenantId,
+    divisionId: input.originatingDivisionId,
+    ...(input.responsibleOriginatingDivisionLeadId
+      ? { id: input.responsibleOriginatingDivisionLeadId }
+      : { memberId: input.actorMemberId! }),
+    revokedAt: null,
+    member: {
+      is: {
+        isActive: true,
+      },
+    },
+  },
+  select: { id: true },
+});
         if (!lead) throw new Error('WR_ROUTE_ORIGIN_LEAD');
         const divisionIds = [
           ...new Set([
@@ -343,14 +350,16 @@ export class WorkRequestRepository extends BaseRepository {
       });
     });
   }
-  routeProjection(workRequestId: string, memberId: string) {
+  routeProjection(workRequestId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const route = await db.workRequestRoute.findFirst({
         where: {
           tenantId,
           workRequestId,
-          responsibleOriginatingLead: { is: { memberId, revokedAt: null } },
+          ...(isAdmin
+            ? {}
+            : { responsibleOriginatingLead: { is: { memberId: memberId!, revokedAt: null } } }),
         },
         include: {
           projection: true,
@@ -367,7 +376,8 @@ export class WorkRequestRepository extends BaseRepository {
     workRequestId: string,
     stepId: string,
     actorId: string,
-    memberId: string,
+    memberId: string | null,
+    isAdmin = false,
   ) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
@@ -386,12 +396,12 @@ export class WorkRequestRepository extends BaseRepository {
         });
         if (!current || current.completedAt)
           throw new Error('WR_ROUTE_POSITION');
-        if (current.divisionId) {
+        if (current.divisionId && !isAdmin) {
           const lead = await db.divisionLead.findFirst({
             where: {
               tenantId,
               divisionId: current.divisionId,
-              memberId,
+              memberId: memberId!,
               revokedAt: null,
             },
             select: { id: true },
@@ -470,7 +480,7 @@ export class WorkRequestRepository extends BaseRepository {
               performedByActorId: actorId,
             },
           });
-        return this.routeProjection(workRequestId, memberId);
+        return this.routeProjection(workRequestId, memberId, isAdmin);
       },
       { isolationLevel: 'Serializable' },
     );
@@ -479,7 +489,8 @@ export class WorkRequestRepository extends BaseRepository {
     workRequestId: string,
     input: { baseRouteVersionId: string; intermediateDivisionIds: string[] },
     actorId: string,
-    memberId: string,
+    memberId: string | null,
+    isAdmin = false,
   ) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(
@@ -488,7 +499,9 @@ export class WorkRequestRepository extends BaseRepository {
           where: {
             tenantId,
             workRequestId,
-            responsibleOriginatingLead: { is: { memberId, revokedAt: null } },
+            ...(isAdmin
+              ? {}
+              : { responsibleOriginatingLead: { is: { memberId: memberId!, revokedAt: null } } }),
           },
           include: {
             projection: true,
@@ -876,7 +889,8 @@ type WorkRequestCreateInput = {
   priority: WorkRequestV1PriorityCode;
   notes?: string;
   actorId: string;
-  actorMemberId: string;
+  actorMemberId: string | null;
+  responsibleOriginatingDivisionLeadId?: string;
   creationEventId: string;
   idempotencyKey: string;
   revisionCode: string;

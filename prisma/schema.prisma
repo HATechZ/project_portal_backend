@@ -1647,6 +1647,8 @@ model BidDocument {
   documentCodeSnapshot String   @map("document_code_snapshot") @db.VarChar(20)
   documentNameSnapshot String?  @map("document_name_snapshot") @db.VarChar(180)
   originalFileName     String   @map("original_file_name") @db.VarChar(260)
+  description          String?  @map("description") @db.Text
+  shipmentNumber       String?  @map("shipment_number") @db.VarChar(10)
   generatedFileName    String   @map("generated_file_name") @db.VarChar(260)
   storageKey           String   @map("storage_key") @db.Text
   mimeType             String   @map("mime_type") @db.VarChar(120)
@@ -1806,6 +1808,8 @@ model DirectProjectDocument {
   documentCodeSnapshot String?  @map("document_code_snapshot") @db.VarChar(20)
   documentNameSnapshot String?  @map("document_name_snapshot") @db.VarChar(180)
   originalFileName     String   @map("original_file_name") @db.VarChar(260)
+  description          String?  @map("description") @db.Text
+  shipmentNumber       String?  @map("shipment_number") @db.VarChar(10)
   generatedFileName    String?  @map("generated_file_name") @db.VarChar(260)
   storageKey           String   @map("storage_key") @db.Text
   mimeType             String   @map("mime_type") @db.VarChar(120)
@@ -2388,6 +2392,7 @@ model Document {
   fileGroupId        String    @map("file_group_id") @db.Uuid
   title              String    @map("title") @db.VarChar(260)
   description        String?   @map("description") @db.Text
+  shipmentNumber     String?   @map("shipment_number") @db.VarChar(10)
   createdByActorId   String?   @map("created_by_actor_id") @db.Uuid
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)

@@ -95,6 +95,14 @@ export class CreateWorkRequestDto extends WorkRequestDocumentMetadataDto {
   @IsOptional()
   @IsUUID()
   originatingDivisionId?: string;
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Required only when a tenant_super_admin without a Member context creates a route-based Work Request; binds an active Lead of originatingDivisionId.',
+  })
+  @IsOptional()
+  @IsUUID()
+  responsibleOriginatingDivisionLeadId?: string;
   @ApiProperty({ type: String, format: 'uuid', isArray: true, minItems: 1 })
   @Transform(array)
   @IsOptional()

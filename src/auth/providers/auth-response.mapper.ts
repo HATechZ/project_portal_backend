@@ -1,20 +1,28 @@
 import { AuthUserResponseDto } from '../dtos';
-import { SessionUser } from '../../common/security/session.types';
+import { SessionActor, SessionUser } from '../../common/security/session.types';
 
-export function toAuthUserResponse(user: SessionUser): AuthUserResponseDto {
-  const roles = user.userRolesByUserId.map(
-    ({ role }) => role.systemRole?.systemCode ?? role.customCode!,
-  );
-  const roleScopes = user.userRolesByUserId.flatMap(({ role }) =>
-    role.customScope ? [role.customScope] : [],
-  );
-  const permissions = user.userRolesByUserId.flatMap(({ role }) =>
-    role.isActive
-      ? role.rolePermissions
-          .filter(({ revokedAt }) => revokedAt === null)
-          .map(({ permission }) => permission.code)
-      : [],
-  );
+export function toAuthUserResponse(
+  user: SessionUser,
+  actor: SessionActor,
+): AuthUserResponseDto {
+  return toActiveActorResponse(user, actor);
+}
+
+function toActiveActorResponse(
+  user: SessionUser,
+  actor: SessionActor,
+): AuthUserResponseDto {
+  const role = actor.role;
+  const permissions = role.rolePermissions
+    .filter(({ revokedAt }) => revokedAt === null)
+    .filter(
+      ({ permission }) =>
+        role.customScope === null ||
+        permission.scopeCompatibilities.some(
+          ({ scope }) => scope === role.customScope,
+        ),
+    )
+    .map(({ permission }) => permission.code);
 
   return {
     id: user.id,
@@ -23,8 +31,8 @@ export function toAuthUserResponse(user: SessionUser): AuthUserResponseDto {
     country: user.country,
     phone: user.phone,
     avatarUrl: user.avatarUrl,
-    roles: [...new Set(roles)].sort(),
-    roleScopes: [...new Set(roleScopes)].sort(),
+    roles: [role.systemRole?.systemCode ?? role.customCode!],
+    roleScopes: role.customScope ? [role.customScope] : [],
     permissions: [...new Set(permissions)].sort(),
   };
 }

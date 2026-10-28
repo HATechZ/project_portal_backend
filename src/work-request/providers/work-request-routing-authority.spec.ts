@@ -10,6 +10,7 @@ describe('hasTenantSuperAdminRoutingAuthority', () => {
   const actor = (systemCode: ActorRoleCode) =>
     ({
       role: {
+        customScope: null,
         systemRole: { systemCode },
         rolePermissions: [
           {
@@ -41,13 +42,13 @@ describe('hasTenantSuperAdminRoutingAuthority', () => {
     Level.APPROVAL,
     Level.FINAL_REVIEW,
     Level.EXTERNAL_REVIEW,
-  ])('does not extend routing authority to %s responsibility', (level) => {
+  ])('extends internal authority to %s responsibility', (level) => {
     expect(
       hasTenantSuperAdminRoutingAuthority(
         actor(ActorRoleCode.tenant_super_admin),
         level,
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('rejects a non-system routing role', () => {

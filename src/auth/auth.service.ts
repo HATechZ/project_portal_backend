@@ -13,7 +13,7 @@ import {
   LoginTenantResolverRepository,
   RefreshTenantResolverRepository,
 } from './repositories';
-import { SessionUser } from '../common/security/session.types';
+import { SessionActor, SessionUser } from '../common/security/session.types';
 import { RequestContext } from '../common/context/request-context';
 import { TenantActivationService } from '../common/tenant/tenant-activation.service';
 import { AppErrorCode } from '../common/exceptions/app-error-code';
@@ -80,7 +80,18 @@ export class AuthService {
       request,
       credentials.passwordHash!,
     );
-    return { user: toAuthUserResponse(issued.user), tokens: issued.tokens };
+    const actor = await this.tokenProvider.findActiveActor(issued.user.id);
+    if (!actor)
+      throw new AppException({
+        code: AppErrorCode.ActorProfileRequired,
+        status: 403,
+        message:
+          'Your account is not fully configured for portal access. Contact your administrator.',
+      });
+    return {
+      user: toAuthUserResponse(issued.user, actor),
+      tokens: issued.tokens,
+    };
   }
 
   async refresh(
@@ -125,8 +136,8 @@ export class AuthService {
     return this.passwordResetProvider.reset(token, newPassword);
   }
 
-  currentUser(user: SessionUser): AuthUserResponseDto {
-    return toAuthUserResponse(user);
+  currentUser(user: SessionUser, actor: SessionActor): AuthUserResponseDto {
+    return toAuthUserResponse(user, actor);
   }
 }
 

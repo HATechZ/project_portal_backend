@@ -1,4 +1,5 @@
 import {
+  ActorRoleCode,
   WorkflowActionCode,
   WorkRequestV1StateCode as State,
 } from '../../generated/prisma/client';
@@ -48,6 +49,24 @@ describe('WorkRequestWorkflowProvider', () => {
         isActive: true,
         company: { isActive: true },
         divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
+      },
+    }) as never;
+  const admin = (permission: WorkflowActionCode) =>
+    ({
+      id: 'admin-actor',
+      clientContact: null,
+      member: null,
+      role: {
+        customScope: null,
+        systemRole: { systemCode: ActorRoleCode.tenant_super_admin },
+        rolePermissions: [
+          {
+            revokedAt: null,
+            permission: {
+              code: getFinalPermissionForWorkRequestAction(permission),
+            },
+          },
+        ],
       },
     }) as never;
   const subject = (
@@ -189,6 +208,25 @@ describe('WorkRequestWorkflowProvider', () => {
       ),
     ).rejects.toThrow();
     expect(repository.append).not.toHaveBeenCalled();
+  });
+
+  it('allows tenant_super_admin to perform a valid internal transition without the current assignment', async () => {
+    const { provider, repository } = subject(
+      State.CHECKING_REVIEW,
+      WorkflowActionCode.WR_CHECKING_APPROVE,
+    );
+    await RequestContext.run({ requestId: 'admin-request', tenantId: 'tenant-a' }, () =>
+      provider.action(
+        'request-a',
+        'action-a',
+        undefined,
+        'administrative approval',
+        admin(WorkflowActionCode.WR_CHECKING_APPROVE),
+      ),
+    );
+    expect(repository.append).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: 'admin-actor' }),
+    );
   });
 
   it.each([

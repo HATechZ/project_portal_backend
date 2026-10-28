@@ -5,10 +5,14 @@ import { RequestContext } from '../../common/context/request-context';
 import type { SessionActor } from '../../common/security/session.types';
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
 import { WorkRequestCommunicationRepository } from '../repositories/work-request-communication.repository';
+import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
 
 @Injectable()
 export class WorkRequestCommunicationProvider {
-  constructor(private readonly communications: WorkRequestCommunicationRepository) {}
+  constructor(
+    private readonly communications: WorkRequestCommunicationRepository,
+    private readonly reads: WorkRequestReadRepository,
+  ) {}
   async recipients(id: string, actor: SessionActor) {
     const targets = await this.communications.recipientActorIds(id, actor.id, memberId(actor));
     if (targets === null) throw notFound();
@@ -38,6 +42,19 @@ export class WorkRequestCommunicationProvider {
   }
   async mainHistory(id: string, actor: SessionActor) {
     await this.assertRelated(id, actor);
+    const history = await this.communications.history(id, actor.id, false);
+    if (!history) throw notFound();
+    return history;
+  }
+  /**
+   * The route projection is a Work Request read, not a private conversation
+   * view. Its visibility therefore follows the shared Work Request predicate
+   * (including company scope) while main/internal history remain participant
+   * only.
+   */
+  async routeProjection(id: string, actor: SessionActor) {
+    const workRequest = await this.reads.find(id, actor);
+    if (!workRequest) throw notFound('Work Request was not found.');
     const history = await this.communications.history(id, actor.id, false);
     if (!history) throw notFound();
     return history;

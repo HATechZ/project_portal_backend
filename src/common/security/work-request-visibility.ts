@@ -3,6 +3,7 @@ import {
   WorkRequestV1AssignmentLevelCode as Level,
 } from '../../generated/prisma/client';
 import type { SessionActor } from './session.types';
+import { hasTenantWideInternalAuthority } from './tenant-internal-operations';
 
 type Assignment = {
   level: Level;
@@ -99,7 +100,7 @@ export function canAccessWorkRequest(
 export function hasCompanyWorkRequestScope(actor: SessionActor): boolean {
   return (
     actor.role.customScope === 'company' ||
-    actor.role.systemRole?.systemCode === 'tenant_super_admin'
+    hasTenantWideInternalAuthority(actor)
   );
 }
 

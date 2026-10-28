@@ -1,5 +1,8 @@
 import { RequestContext } from '../../common/context/request-context';
-import { WorkRequestV1PriorityCode } from '../../generated/prisma/client';
+import {
+  ActorRoleCode,
+  WorkRequestV1PriorityCode,
+} from '../../generated/prisma/client';
 import { WorkRequestService } from '../work-request.service';
 
 type ParentKind = 'bid' | 'project';
@@ -113,10 +116,65 @@ describe('Work Request parent lifecycle eligibility', () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 
+  it('allows tenant_super_admin to create a route with an explicitly selected originating Lead', async () => {
+    const { service, create } = subject('bid', 'BIDDING');
+    const admin = {
+      id: 'admin-a',
+      member: null,
+      clientContact: null,
+      role: {
+        customScope: null,
+        systemRole: { systemCode: ActorRoleCode.tenant_super_admin },
+      },
+    } as never;
+    await expect(
+      RequestContext.run({ requestId: 'request-admin', tenantId }, () =>
+        service.create(
+          {
+            bidId: 'bid-a',
+            title: 'Request',
+            priority: WorkRequestV1PriorityCode.High,
+            originatingDivisionId: 'division-a',
+            responsibleOriginatingDivisionLeadId: 'origin-lead-a',
+            intermediateDivisionIds: ['division-b'],
+          },
+          [],
+          admin,
+        ),
+      ),
+    ).resolves.toEqual(expect.objectContaining({ id: 'work-request-a' }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorMemberId: null,
+        responsibleOriginatingDivisionLeadId: 'origin-lead-a',
+      }),
+    );
+  });
+
   it('rejects a non-ACTIVE direct Project parent', async () => {
     const { operation, create } = createFor('project', 'COMPLETED');
     await expect(operation).rejects.toThrow(
       'Parent is not eligible for a Work Request.',
+    );
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('does not create a Work Request when either required route input is absent', async () => {
+    const { service, create } = subject('bid', 'BIDDING');
+    const actor = { id: 'actor-a', member: { id: 'member-a' } } as never;
+    const input = {
+      bidId: 'bid-a',
+      title: 'Request',
+      priority: WorkRequestV1PriorityCode.High,
+    };
+
+    await expect(
+      RequestContext.run(
+        { requestId: 'request-a', tenantId },
+        () => service.create(input, [], actor),
+      ),
+    ).rejects.toThrow(
+      'An originating Division and at least one intermediate Division are required.',
     );
     expect(create).not.toHaveBeenCalled();
   });

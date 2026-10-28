@@ -23,15 +23,20 @@ describe('CreateMemberFromExistingUserDto', () => {
     ).resolves.toBeInstanceOf(CreateMemberFromExistingUserDto);
   });
 
-  it.each(['password', 'email', 'name', 'tenantId', 'companyId', 'memberId', 'roleId'])(
-    'rejects forbidden %s input',
-    async (forbidden) => {
-      await expect(
-        pipe.transform(
-          { ...input, [forbidden]: '00000000-0000-4000-8000-000000000005' },
-          { type: 'body', metatype: CreateMemberFromExistingUserDto },
-        ),
-      ).rejects.toThrow();
-    },
-  );
+  it.each([
+    'password',
+    'email',
+    'name',
+    'tenantId',
+    'companyId',
+    'memberId',
+    'roleId',
+  ])('rejects forbidden %s input', async (forbidden) => {
+    await expect(
+      pipe.transform(
+        { ...input, [forbidden]: '00000000-0000-4000-8000-000000000005' },
+        { type: 'body', metatype: CreateMemberFromExistingUserDto },
+      ),
+    ).rejects.toThrow();
+  });
 });

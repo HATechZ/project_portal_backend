@@ -12,7 +12,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
     super(uow);
   }
 
-  internalCycle(workRequestId: string, cycleId: string, memberId: string) {
+  internalCycle(workRequestId: string, cycleId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const cycle = await db.workRequestDivisionCycle.findFirst({
@@ -26,25 +26,35 @@ export class WorkRequestExecutionRepository extends BaseRepository {
         },
       });
       if (!cycle) throw notFound();
-      const isDivisionLead = cycle.routeStep.divisionId
-        ? !!(await db.divisionLead.findFirst({ where: { tenantId, divisionId: cycle.routeStep.divisionId, memberId, revokedAt: null }, select: { id: true } }))
-        : false;
-      const related = isDivisionLead || cycle.teamSteps.some((teamStep) =>
+      const isDivisionLead =
+        isAdmin ||
+        (!!cycle.routeStep.divisionId &&
+          !!memberId &&
+          !!(await db.divisionLead.findFirst({
+            where: {
+              tenantId,
+              divisionId: cycle.routeStep.divisionId,
+              memberId,
+              revokedAt: null,
+            },
+            select: { id: true },
+          })));
+      const related = isAdmin || isDivisionLead || cycle.teamSteps.some((teamStep) =>
         teamStep.team.leadMemberId === memberId || teamStep.memberSteps.some((memberStep) => memberStep.memberId === memberId),
       );
       if (!related) throw forbidden();
       return {
         ...cycle,
-        availableActions: executionActions(cycle, memberId, isDivisionLead),
+        availableActions: executionActions(cycle, memberId, isDivisionLead, isAdmin),
       };
     });
   }
 
-  defineTeamSequence(workRequestId: string, cycleId: string, teamIds: string[], actorId: string, memberId: string) {
+  defineTeamSequence(workRequestId: string, cycleId: string, teamIds: string[], actorId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const cycle = await activeCycle(db, tenantId, workRequestId, cycleId);
-      await requireDivisionLead(db, tenantId, cycle.routeStep.divisionId, memberId);
+      if (!isAdmin) await requireDivisionLead(db, tenantId, cycle.routeStep.divisionId, memberId!);
       if (await db.workRequestTeamStep.count({ where: { tenantId, divisionCycleId: cycle.id } })) throw conflict('The Team sequence is frozen.');
       const distinctIds = [...new Set(teamIds)];
       const teams = await db.team.findMany({ where: { tenantId, id: { in: distinctIds }, divisionId: cycle.routeStep.divisionId!, isActive: true }, select: { id: true } });
@@ -54,15 +64,15 @@ export class WorkRequestExecutionRepository extends BaseRepository {
       await db.workRequestTeamStep.createMany({ data: teamIds.map((teamId, index) => ({ id: ids[index], tenantId, routeId: cycle.routeId, divisionCycleId: cycle.id, ordinal: index + 1, teamId, activatedAt: index === 0 ? now : null })) });
       await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: cycle.routeId, tenantId } }, data: { divisionCycleId: cycle.id, teamStepId: ids[0], memberStepId: null, updatedAt: now } });
       await event(db, tenantId, cycle.routeId, actorId, 'TEAM_SEQUENCE_DEFINED', { divisionCycleId: cycle.id, teamStepId: ids[0] });
-      return this.internalCycle(workRequestId, cycle.id, memberId);
+      return this.internalCycle(workRequestId, cycle.id, memberId, isAdmin);
     }, { isolationLevel: 'Serializable' });
   }
 
-  defineMemberSequence(workRequestId: string, teamStepId: string, memberIds: string[], actorId: string, memberId: string) {
+  defineMemberSequence(workRequestId: string, teamStepId: string, memberIds: string[], actorId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const teamStep = await activeTeamStep(db, tenantId, workRequestId, teamStepId);
-      if (teamStep.team.leadMemberId !== memberId) throw forbidden();
+      if (!isAdmin && teamStep.team.leadMemberId !== memberId) throw forbidden();
       if (await db.workRequestMemberStep.count({ where: { tenantId, teamStepId } })) throw conflict('The Member sequence has already been defined.');
       await requireTeamMembers(db, tenantId, teamStep.teamId, memberIds);
       const ids = memberIds.map(() => randomUUID());
@@ -70,30 +80,30 @@ export class WorkRequestExecutionRepository extends BaseRepository {
       await db.workRequestMemberStep.createMany({ data: memberIds.map((targetMemberId, index) => ({ id: ids[index], tenantId, routeId: teamStep.routeId, teamStepId, ordinal: index + 1, memberId: targetMemberId, activatedAt: index === 0 ? now : null })) });
       await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: teamStep.routeId, tenantId } }, data: { divisionCycleId: teamStep.divisionCycleId, teamStepId, memberStepId: ids[0], updatedAt: now } });
       await event(db, tenantId, teamStep.routeId, actorId, 'MEMBER_SEQUENCE_DEFINED', { divisionCycleId: teamStep.divisionCycleId, teamStepId, memberStepId: ids[0] });
-      return this.internalCycle(workRequestId, teamStep.divisionCycleId, memberId);
+      return this.internalCycle(workRequestId, teamStep.divisionCycleId, memberId, isAdmin);
     }, { isolationLevel: 'Serializable' });
   }
 
-  appendMemberStep(workRequestId: string, teamStepId: string, targetMemberId: string, actorId: string, memberId: string) {
+  appendMemberStep(workRequestId: string, teamStepId: string, targetMemberId: string, actorId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const teamStep = await activeTeamStep(db, tenantId, workRequestId, teamStepId);
-      if (teamStep.team.leadMemberId !== memberId) throw forbidden();
+      if (!isAdmin && teamStep.team.leadMemberId !== memberId) throw forbidden();
       await requireTeamMembers(db, tenantId, teamStep.teamId, [targetMemberId]);
       const last = await db.workRequestMemberStep.findFirst({ where: { tenantId, teamStepId }, orderBy: { ordinal: 'desc' }, select: { ordinal: true } });
       if (!last) throw conflict('Define the Member sequence before appending.');
       const id = randomUUID();
       await db.workRequestMemberStep.create({ data: { id, tenantId, routeId: teamStep.routeId, teamStepId, ordinal: last.ordinal + 1, memberId: targetMemberId } });
       await event(db, tenantId, teamStep.routeId, actorId, 'MEMBER_STEP_APPENDED', { divisionCycleId: teamStep.divisionCycleId, teamStepId, memberStepId: id });
-      return this.internalCycle(workRequestId, teamStep.divisionCycleId, memberId);
+      return this.internalCycle(workRequestId, teamStep.divisionCycleId, memberId, isAdmin);
     }, { isolationLevel: 'Serializable' });
   }
 
-  submitMemberStep(workRequestId: string, memberStepId: string, actorId: string, memberId: string) {
+  submitMemberStep(workRequestId: string, memberStepId: string, actorId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const step = await db.workRequestMemberStep.findFirst({ where: { id: memberStepId, tenantId, route: { is: { workRequestId } } }, include: { teamStep: { include: { divisionCycle: true } } } });
-      if (!step || step.memberId !== memberId || step.submittedAt || !step.activatedAt || step.teamStep.completedAt || step.teamStep.divisionCycle.completedAt) throw conflict('Only the active Member step may be submitted.');
+      if (!step || (!isAdmin && step.memberId !== memberId) || step.submittedAt || !step.activatedAt || step.teamStep.completedAt || step.teamStep.divisionCycle.completedAt) throw conflict('Only the active Member step may be submitted.');
       const projection = await db.workRequestRouteProjection.findFirst({ where: { tenantId, routeId: step.routeId }, select: { memberStepId: true } });
       if (projection?.memberStepId !== step.id) throw conflict('Only the active Member step may be submitted.');
       const now = new Date();
@@ -102,15 +112,15 @@ export class WorkRequestExecutionRepository extends BaseRepository {
       if (next) await db.workRequestMemberStep.update({ where: { id: next.id }, data: { activatedAt: now } });
       await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: step.routeId, tenantId } }, data: { memberStepId: next?.id ?? null, updatedAt: now } });
       await event(db, tenantId, step.routeId, actorId, 'MEMBER_STEP_SUBMITTED', { divisionCycleId: step.teamStep.divisionCycleId, teamStepId: step.teamStepId, memberStepId: step.id });
-      return this.internalCycle(workRequestId, step.teamStep.divisionCycleId, memberId);
+      return this.internalCycle(workRequestId, step.teamStep.divisionCycleId, memberId, isAdmin);
     }, { isolationLevel: 'Serializable' });
   }
 
-  completeTeamStep(workRequestId: string, teamStepId: string, actorId: string, memberId: string) {
+  completeTeamStep(workRequestId: string, teamStepId: string, actorId: string, memberId: string | null, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const teamStep = await activeTeamStep(db, tenantId, workRequestId, teamStepId);
-      if (teamStep.team.leadMemberId !== memberId) throw forbidden();
+      if (!isAdmin && teamStep.team.leadMemberId !== memberId) throw forbidden();
       const pending = await db.workRequestMemberStep.count({ where: { tenantId, teamStepId, submittedAt: null } });
       if (pending) throw conflict('Every Member step must be submitted before Team completion.');
       const now = new Date();
@@ -120,7 +130,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
       else await db.workRequestDivisionCycle.update({ where: { id: teamStep.divisionCycleId }, data: { completedAt: now } });
       await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: teamStep.routeId, tenantId } }, data: { teamStepId: next?.id ?? null, memberStepId: null, updatedAt: now } });
       await event(db, tenantId, teamStep.routeId, actorId, next ? 'TEAM_STEP_COMPLETED' : 'DIVISION_CYCLE_COMPLETED', { divisionCycleId: teamStep.divisionCycleId, teamStepId: teamStep.id });
-      return this.internalCycle(workRequestId, teamStep.divisionCycleId, memberId);
+      return this.internalCycle(workRequestId, teamStep.divisionCycleId, memberId, isAdmin);
     }, { isolationLevel: 'Serializable' });
   }
 }
@@ -146,14 +156,14 @@ async function requireTeamMembers(db: any, tenantId: string, teamId: string, mem
 async function event(db: any, tenantId: string, routeId: string, performedByActorId: string, action: string, refs: Record<string, string>) {
   await db.workRequestRouteEvent.create({ data: { id: randomUUID(), tenantId, routeId, performedByActorId, action, ...refs } });
 }
-function executionActions(cycle: any, memberId: string, isDivisionLead: boolean) {
+function executionActions(cycle: any, memberId: string | null, isDivisionLead: boolean, isAdmin: boolean) {
   const activeTeam = cycle.teamSteps.find((step: any) => step.activatedAt && !step.completedAt);
   const activeMember = activeTeam?.memberSteps.find((step: any) => step.activatedAt && !step.submittedAt);
   return [
-    ...(isDivisionLead && !cycle.completedAt && !cycle.teamSteps.length ? ['DEFINE_TEAM_SEQUENCE'] : []),
-    ...(activeTeam?.team.leadMemberId === memberId && !activeTeam.memberSteps.length ? ['DEFINE_MEMBER_SEQUENCE'] : []),
-    ...(activeTeam?.team.leadMemberId === memberId && activeTeam.memberSteps.length ? ['APPEND_MEMBER_STEP', ...(activeTeam.memberSteps.every((step: any) => step.submittedAt) ? ['COMPLETE_TEAM_STEP'] : [])] : []),
-    ...(activeMember?.memberId === memberId ? ['SUBMIT_MEMBER_STEP'] : []),
+    ...((isAdmin || isDivisionLead) && !cycle.completedAt && !cycle.teamSteps.length ? ['DEFINE_TEAM_SEQUENCE'] : []),
+    ...((isAdmin || activeTeam?.team.leadMemberId === memberId) && !activeTeam?.memberSteps.length ? ['DEFINE_MEMBER_SEQUENCE'] : []),
+    ...((isAdmin || activeTeam?.team.leadMemberId === memberId) && activeTeam?.memberSteps.length ? ['APPEND_MEMBER_STEP', ...(activeTeam.memberSteps.every((step: any) => step.submittedAt) ? ['COMPLETE_TEAM_STEP'] : [])] : []),
+    ...(isAdmin || activeMember?.memberId === memberId ? ['SUBMIT_MEMBER_STEP'] : []),
   ];
 }
 function bad(message: string) { return new AppException({ code: AppErrorCode.BadRequest, status: HttpStatus.BAD_REQUEST, message }); }

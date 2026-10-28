@@ -1,5 +1,5 @@
 import { RequestContext } from '../../common/context/request-context';
-import { PermissionCode, WorkRequestRouteReconsiderationDecisionCode as Decision, WorkRequestRouteStepKind as StepKind } from '../../generated/prisma/client';
+import { ActorRoleCode, PermissionCode, WorkRequestRouteReconsiderationDecisionCode as Decision, WorkRequestRouteStepKind as StepKind } from '../../generated/prisma/client';
 import { WorkRequestRouteClientProvider } from './work-request-route-client.provider';
 
 describe('WorkRequestRouteClientProvider Phase 7 gateway', () => {
@@ -45,7 +45,10 @@ describe('WorkRequestRouteClientProvider Phase 7 gateway', () => {
   it('allows only the linked Client contact to decide an active client-tail package', async () => {
     const repository = { context: jest.fn().mockResolvedValue(route(StepKind.CLIENT)), decide: jest.fn().mockResolvedValue({ decision: { id: 'decision-a', decision: 'REQUEST_REVISION', decidedAt: new Date() }, state: 'CLIENT_REVISION_REQUESTED' }) };
     const provider = new WorkRequestRouteClientProvider(repository as never);
-    await expect(context(() => provider.decide('request-a', 'submission-a', { decision: 'REQUEST_REVISION', note: 'correct package' }, actor()))).rejects.toMatchObject({ status: 403 });
+    const admin = actor() as any;
+    admin.member = null;
+    admin.role = { customScope: null, systemRole: { systemCode: ActorRoleCode.tenant_super_admin }, rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.REQUEST_REVISION } }] };
+    await expect(context(() => provider.decide('request-a', 'submission-a', { decision: 'REQUEST_REVISION', note: 'correct package' }, admin))).rejects.toMatchObject({ status: 403 });
     await expect(context(() => provider.decide('request-a', 'submission-a', { decision: 'REQUEST_REVISION', note: 'correct package' }, actor('', true)))).resolves.toMatchObject({ decision: 'REQUEST_REVISION' });
   });
 

@@ -35,12 +35,25 @@ const bidSelect = {
     orderBy: { createdAt: 'asc' },
     select: {
       id: true,
+      createdAt: true,
       documentCodeId: true,
       originalFileName: true,
       generatedFileName: true,
+      description: true,
+      shipmentNumber: true,
       storageKey: true,
       mimeType: true,
       fileSizeBytes: true,
+      versions: {
+        take: 1,
+        orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
+        select: {
+          generatedFileName: true,
+          mimeType: true,
+          fileSizeBytes: true,
+          uploadedAt: true,
+        },
+      },
     },
   },
   _count: { select: { documents: true } },
@@ -56,6 +69,8 @@ export interface BidFileInput {
   documentNameSnapshot: string;
   originalFileName: string;
   generatedFileName: string;
+  description: string | null;
+  shipmentNumber: string | null;
   storageKey: string;
   mimeType: string;
   fileSizeBytes: bigint;
@@ -176,6 +191,8 @@ export class BidRepository extends BaseRepository {
                 documentNameSnapshot,
                 originalFileName,
                 generatedFileName,
+                description,
+                shipmentNumber,
                 storageKey,
                 mimeType,
                 fileSizeBytes,
@@ -186,6 +203,8 @@ export class BidRepository extends BaseRepository {
                 documentNameSnapshot,
                 originalFileName,
                 generatedFileName,
+                description,
+                shipmentNumber,
                 storageKey,
                 mimeType,
                 fileSizeBytes,
@@ -335,6 +354,8 @@ export class BidRepository extends BaseRepository {
             documentNameSnapshot: file.documentName,
             originalFileName: file.originalFileName,
             generatedFileName: file.generatedFileName,
+            description: file.description,
+            shipmentNumber: file.shipmentNumber,
             storageKey: file.storageKey,
             mimeType: file.mimeType,
             fileSizeBytes: file.fileSizeBytes,
@@ -706,6 +727,8 @@ const documentSummarySelect = {
   documentCodeSnapshot: true,
   documentNameSnapshot: true,
   originalFileName: true,
+  description: true,
+  shipmentNumber: true,
   versions: {
     take: 1,
     orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],

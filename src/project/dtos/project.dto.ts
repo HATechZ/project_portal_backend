@@ -66,6 +66,18 @@ export class CreateProjectMultipartDto {
   @Transform(multipartArray)
   @IsUUID(undefined, { each: true })
   documentCodeIds?: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, maxLength: 10000 })
+  @IsOptional()
+  @Transform(multipartArray)
+  @IsString({ each: true })
+  @MaxLength(10000, { each: true })
+  descriptions?: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, maxLength: 10 })
+  @IsOptional()
+  @Transform(multipartArray)
+  @IsString({ each: true })
+  @MaxLength(10, { each: true })
+  shipmentNumbers?: string[];
 }
 export class ProjectDocumentInputDto {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) fileIndex!: number;
@@ -110,6 +122,9 @@ export class ProjectDocumentResponseDto {
   @ApiProperty({ format: 'uuid' }) documentCodeId!: string;
   @ApiProperty() originalFileName!: string;
   @ApiPropertyOptional({ nullable: true }) generatedFileName!: string | null;
+  @ApiPropertyOptional({ nullable: true }) description!: string | null;
+  @ApiPropertyOptional({ nullable: true }) shipmentNumber!: string | null;
   @ApiProperty() mimeType!: string;
   @ApiProperty() size!: number;
+  @ApiProperty({ format: 'date-time' }) lastUpdatedAt!: Date;
 }

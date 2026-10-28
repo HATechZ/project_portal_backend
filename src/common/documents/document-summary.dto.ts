@@ -8,8 +8,11 @@ export class DocumentSummaryDto {
   };
   @ApiProperty() documentCode!: { id: string; code: string; name: string };
   @ApiProperty() originalFileName!: string;
+  @ApiProperty() generatedFileName!: string;
   @ApiPropertyOptional({ nullable: true }) description?: string | null;
   @ApiPropertyOptional({ nullable: true }) shipmentNumber?: string | null;
+  @ApiProperty() mimeType!: string;
+  @ApiProperty() size!: number;
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   lastUpdatedAt?: Date | null;
   @ApiProperty() latestVersion!: {

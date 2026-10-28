@@ -20,6 +20,7 @@ import {
   workRequestTransitionRequestMetadata,
 } from './work-request-transition.definitions';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
+import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 
 @Injectable()
 export class WorkRequestWorkflowProvider {
@@ -117,6 +118,12 @@ export class WorkRequestWorkflowProvider {
   ) {
     const permission = getFinalPermissionForWorkRequestAction(action);
     if (!hasCompatiblePermission(actor, permission)) throw forbidden();
+    if (hasTenantWideInternalAuthority(actor)) {
+      if (!snapshot.parent?.companyId) throw forbidden();
+      if (!snapshot.active[responsibility])
+        throw conflict('Work Request has no active required assignment.');
+      return;
+    }
     const member = actor.member;
     if (
       !snapshot.parent?.companyId ||

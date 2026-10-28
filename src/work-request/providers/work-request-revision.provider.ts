@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomRoleScope, WorkRequestRouteRevisionClassification as Classification } from '../../generated/prisma/client';
 import type { SessionActor } from '../../common/security/session.types';
+import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { RequestContext } from '../../common/context/request-context';
@@ -24,9 +25,16 @@ export class WorkRequestRevisionProvider {
 
   request(id: string, input: RequestWorkRequestRouteRevisionDto, actor: SessionActor) {
     return this.uow.execute(async () => {
-      if (!scopeAllows(actor.role.customScope, input.classification)) throw forbidden();
+      const admin = hasTenantWideInternalAuthority(actor);
+      if (!admin && !scopeAllows(actor.role.customScope, input.classification)) throw forbidden();
       const meta = workRequestTransitionRequestMetadata();
-      const result = await this.revisions.request(id, actor.id, memberId(actor), { ...input, ...meta });
+      const result = await this.revisions.request(
+        id,
+        actor.id,
+        memberId(actor, admin),
+        { ...input, ...meta },
+        admin,
+      );
       if (result.event)
         await this.publish(id, actor.id, result.event, meta.correlationId);
       return result.revision;
@@ -34,7 +42,15 @@ export class WorkRequestRevisionProvider {
   }
   resubmit(id: string, revisionId: string, _input: ResubmitWorkRequestRouteRevisionDto, actor: SessionActor) {
     return this.uow.execute(async () => {
-      const result = await this.revisions.resubmit(id, revisionId, actor.id, memberId(actor), actor.role.customScope);
+      const admin = hasTenantWideInternalAuthority(actor);
+      const result = await this.revisions.resubmit(
+        id,
+        revisionId,
+        actor.id,
+        memberId(actor, admin),
+        actor.role.customScope,
+        admin,
+      );
       await this.publish(id, actor.id, result.event, workRequestTransitionRequestMetadata().correlationId);
       return result.revision;
     }, { isolationLevel: 'Serializable' });
@@ -47,7 +63,8 @@ export class WorkRequestRevisionProvider {
   }
 }
 
-function memberId(actor: SessionActor) {
+function memberId(actor: SessionActor, admin: boolean) {
+  if (admin) return null;
   if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
   return actor.member.id;
 }

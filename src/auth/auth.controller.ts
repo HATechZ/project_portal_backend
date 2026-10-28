@@ -17,6 +17,7 @@ import {
 import type { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ActiveUser } from '../common/security/active-user.decorator';
+import { ActiveActor } from '../common/security/active-actor.decorator';
 import {
   AuthUserResponseDto,
   ForgotPasswordDto,
@@ -31,7 +32,10 @@ import {
   AuthenticationGuard,
   type AuthenticationRequest,
 } from '../common/security/authentication.guard';
-import type { SessionUser } from '../common/security/session.types';
+import type {
+  SessionActor,
+  SessionUser,
+} from '../common/security/session.types';
 import { AuthService } from './auth.service';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import {
@@ -123,7 +127,7 @@ export class AuthController {
   @ApiStandardOkResponse(AuthUserResponseDto, 'Authenticated user returned')
   @ResponseMessage('Authenticated user returned')
   @ApiStandardUnauthorizedResponse()
-  me(@ActiveUser() user: SessionUser) {
-    return this.authService.currentUser(user);
+  me(@ActiveUser() user: SessionUser, @ActiveActor() actor: SessionActor) {
+    return this.authService.currentUser(user, actor);
   }
 }
