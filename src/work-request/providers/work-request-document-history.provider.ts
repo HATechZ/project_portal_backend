@@ -2,6 +2,10 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { WorkRequestDocumentRepository } from '../repositories/work-request-document.repository';
+import {
+  documentDownloadUrl,
+  documentPreviewUrl,
+} from '../../common/documents/document-access';
 
 @Injectable()
 export class WorkRequestDocumentHistoryProvider {
@@ -29,6 +33,11 @@ export class WorkRequestDocumentHistoryProvider {
               document.originalFileName,
             generatedFileName: document.versions[0].generatedFileName ?? '',
             mimeType: document.versions[0].mimeType,
+            previewUrl: documentPreviewUrl(
+              document.versions[0].id,
+              document.versions[0].mimeType,
+            ),
+            downloadUrl: documentDownloadUrl(document.versions[0].id),
             size: Number(document.versions[0].fileSizeBytes),
             uploadedBy: document.versions[0].uploadedByActor,
             uploadedAt: document.versions[0].uploadedAt,
@@ -49,9 +58,12 @@ export class WorkRequestDocumentHistoryProvider {
       versionId: version.id,
       versionNumber: version.versionNumber,
       revisionCode: version.revisionCode,
+      originalFileName: version.document.originalFileName,
       uploadedFileName: version.uploadedFileName ?? '',
       generatedFileName: version.generatedFileName,
       mimeType: version.mimeType,
+      previewUrl: documentPreviewUrl(version.id, version.mimeType),
+      downloadUrl: documentDownloadUrl(version.id),
       size: Number(version.fileSizeBytes),
       uploadedAt: version.uploadedAt,
       uploadedBy: {
@@ -68,9 +80,12 @@ export class WorkRequestDocumentHistoryProvider {
       versionId: version.id,
       versionNumber: version.versionNumber,
       revisionCode: version.revisionCode,
+      originalFileName: version.document.originalFileName,
       uploadedFileName: version.uploadedFileName ?? '',
       generatedFileName: version.generatedFileName ?? '',
       mimeType: version.mimeType,
+      previewUrl: documentPreviewUrl(version.id, version.mimeType),
+      downloadUrl: documentDownloadUrl(version.id),
       size: Number(version.fileSizeBytes),
       uploadedAt: version.uploadedAt,
     }));
@@ -92,9 +107,12 @@ export class WorkRequestDocumentHistoryProvider {
       versionId: version.id,
       versionNumber: version.versionNumber,
       revisionCode: version.revisionCode,
+      originalFileName: version.document.originalFileName,
       uploadedFileName: version.uploadedFileName ?? '',
       generatedFileName: version.generatedFileName ?? '',
       mimeType: version.mimeType,
+      previewUrl: documentPreviewUrl(version.id, version.mimeType),
+      downloadUrl: documentDownloadUrl(version.id),
       size: Number(version.fileSizeBytes),
       uploadedAt: version.uploadedAt,
       uploadedBy: null,

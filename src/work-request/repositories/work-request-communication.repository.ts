@@ -15,8 +15,15 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
     return this.transaction((db) => db.workRequestRoute.findFirst({
       where: { tenantId, workRequestId },
       include: {
-        responsibleOriginatingLead: { select: { memberId: true } },
-        steps: { select: { id: true, divisionId: true, ordinal: true } },
+        responsibleOriginatingLead: {
+          select: {
+            memberId: true,
+            revokedAt: true,
+            member: { select: { isActive: true } },
+            division: { select: { isActive: true } },
+          },
+        },
+        steps: { select: { id: true, divisionId: true, ordinal: true, kind: true } },
         projection: true,
         divisionCycles: { include: { routeStep: { select: { divisionId: true } }, teamSteps: { include: { team: { select: { leadMemberId: true } }, memberSteps: { select: { memberId: true, activatedAt: true, submittedAt: true } } } } } },
       },

@@ -1,4 +1,12 @@
+import { isAbsolute, resolve } from 'node:path';
 import { EnvironmentVariables } from './env';
+
+const applicationRoot = resolve(__dirname, '../..');
+
+export function resolveFileStorageRoot(value?: string): string {
+  if (!value) return resolve(applicationRoot, 'uploads');
+  return isAbsolute(value) ? value : resolve(applicationRoot, value);
+}
 
 export function normalizeApiPrefix(value?: string): string {
   const prefix = (value ?? 'api').trim().replace(/^\/+|\/+$/g, '');
@@ -15,6 +23,7 @@ export interface AppConfiguration {
     corsOrigins: string[];
   };
   database: { url: string; privilegedUrl: string };
+  storage: { root: string };
   redis: {
     cache: { url: string; keyPrefix: string };
     queue: { url: string };
@@ -68,6 +77,9 @@ export default function configuration(): AppConfiguration {
     database: {
       url: process.env.DATABASE_URL ?? '',
       privilegedUrl: process.env.DATABASE_URL_PRIVILEGED ?? '',
+    },
+    storage: {
+      root: resolveFileStorageRoot(process.env.FILE_STORAGE_ROOT),
     },
     redis: {
       cache: {

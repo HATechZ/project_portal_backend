@@ -9,7 +9,7 @@ export class AssignUserRoleDto {
   @ApiPropertyOptional({
     format: 'uuid',
     description:
-      'Required only when assigning a TEAM-scoped custom role; forbidden for every other role.',
+      'Not supported. Organizational responsibility is derived from the active ActorProfile and current Team membership, never stored on a role grant.',
   })
   @IsOptional()
   @IsUUID()

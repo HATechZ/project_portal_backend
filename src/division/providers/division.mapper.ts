@@ -32,6 +32,9 @@ export function toDivisionResponse(
     divisionType: division.divisionType
       ? toDivisionTypeResponse(division.divisionType)
       : null,
+    documentGroups: (division.documentGroups ?? []).map(
+      (group) => group.documentGroup,
+    ),
     isActive: division.isActive,
     createdAt: division.createdAt,
     updatedAt: division.updatedAt,

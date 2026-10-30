@@ -89,6 +89,8 @@ export class WorkRequestAssignmentProvider {
     return this.uow.execute(
       async () => {
         const metadata = workRequestTransitionRequestMetadata();
+        if (!(await this.reads.find(workRequestId, actor)))
+          throw notFound('Work Request was not found.');
         if (
           metadata.idempotencyKey &&
           (await this.repository.findByIdempotencyKey(metadata.idempotencyKey))

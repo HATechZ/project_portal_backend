@@ -9,6 +9,7 @@ export interface EnvironmentVariables {
   CORS_ORIGINS: string;
   DATABASE_URL: string;
   DATABASE_URL_PRIVILEGED: string;
+  FILE_STORAGE_ROOT?: string;
   CACHE_REDIS_URL: string;
   QUEUE_REDIS_URL: string;
   REDIS_KEY_PREFIX: string;
@@ -48,6 +49,7 @@ export const env = {
   corsOrigins: 'CORS_ORIGINS',
   databaseUrl: 'DATABASE_URL',
   databaseUrlPrivileged: 'DATABASE_URL_PRIVILEGED',
+  fileStorageRoot: 'FILE_STORAGE_ROOT',
   cacheRedisUrl: 'CACHE_REDIS_URL',
   queueRedisUrl: 'QUEUE_REDIS_URL',
   redisKeyPrefix: 'REDIS_KEY_PREFIX',

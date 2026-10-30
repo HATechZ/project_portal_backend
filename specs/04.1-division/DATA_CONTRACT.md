@@ -6,6 +6,7 @@
 |---|---|
 | `divisions` / `Division` | `tenantId`, UUID `id`, `companyId`, `name varchar(180)`, `abbr varchar(30)`, nullable `divisionTypeId`, retained `isActive`, `createdAt`, `updatedAt`; unique `(id,tenantId)`, `(id,tenantId,companyId)`, `(tenantId,companyId,abbr)`, and proposed normalized unique `(tenantId,companyId,lower(btrim(name)))`; index `(companyId,name)`. |
 | `division_types` / `DivisionType` | Global reference: UUID `id`, globally unique `name`, nullable `description`. This module consumes but does not create/manage values. |
+| `division_document_groups` / `DivisionDocumentGroup` | Tenant-scoped configured non-`GENERAL` upload groups with composite key `(tenantId, divisionId, documentGroup)`, tenant-qualified Division FK, RLS, and app_user `SELECT/INSERT/DELETE` only. |
 
 The repository's authoritative DBML file is absent from this working tree. These exact names and
 relations are therefore read from the current Prisma schema; an implementer must recheck the
@@ -34,7 +35,9 @@ is a nullable existing global reference only when explicitly supported by the DT
 specification preserves the current nullable field; it does not require callers to supply it.
 
 No write accepts or changes `id`, `tenantId`, `companyId`, `isActive`, timestamps, or any
-relation. Use app_user through the fail-closed UnitOfWork and existing RLS; do not use app_relay.
+relation except the explicit `documentGroups` configuration. It is a complete replacement list
+of valid non-`GENERAL` enum values; `GENERAL` is global and cannot have a mapping row. Use
+app_user through the fail-closed UnitOfWork and existing RLS; do not use app_relay.
 Existing constraints map through the shared Prisma exception filter.
 
 Division name uniqueness is tenant/company-local. Create and update trim `name`, compare

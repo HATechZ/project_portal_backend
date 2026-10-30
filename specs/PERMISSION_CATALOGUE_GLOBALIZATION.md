@@ -1,6 +1,6 @@
 # Permission Catalogue Globalization — Final Freeze
 
-**Status:** AUTHORITATIVE owner decision, 2026-10-06. Design only. It supersedes conflicting permission, scope, fixed-role, category, seed, route, DTO, and authorization statements elsewhere in `specs/`. It authorizes no source, schema, seed, migration, service, Docker, or database change.
+**Status:** AUTHORITATIVE owner decision, finalized 2026-10-30. It supersedes conflicting permission, scope, fixed-role, category, seed, route, DTO, and authorization statements elsewhere in `specs/`. The pending compatibility migration is prepared but must not be applied by this task.
 
 ## Governing model
 
@@ -18,7 +18,18 @@ neither grant authority nor constrain a role to one category.
 
 `DELETE_*` is hard deletion only. `REMOVE_*`, `DEACTIVATE_*`, `REVOKE_*`, `RETIRE_*`, `ARCHIVE_*`, `CANCEL_*`, and `REJECT_*` retain their business meanings. No blanket prohibition on Division-compatible delete permissions exists.
 
-## Authoritative master mapping matrix
+## Historical transformation mapping (scope columns superseded)
+
+The C/D/T/M and external-scope columns in the following legacy transformation table are
+historical evidence only and must not be used for role assignment, catalogue filtering,
+migration work, or runtime authorization.
+
+The authoritative final internal compatibility matrix is the one-permission rows in
+`prisma/migrations/20261030000000_align_internal_permission_scope_compatibility/migration.sql`.
+It governs `company`, `division`, `team`, and `member`; external `client` and
+`client_contact` compatibility remains separately governed by external resource checks.
+`Permission.category` is module/work-area metadata only. Compatibility never substitutes for
+same-tenant isolation, a resource relationship, exact responsibility, or workflow state.
 
 `Y` = compatible; `—` = not compatible. An omitted Client/Client Contact value is `—`. All rows
 require same-tenant isolation. Scope compatibility does not impose matching-object ownership;

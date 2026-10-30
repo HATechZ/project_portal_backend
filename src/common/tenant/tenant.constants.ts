@@ -10,6 +10,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'PasswordResetToken',
   'Company',
   'Division',
+  'DivisionDocumentGroup',
   'DivisionLead',
   'Designation',
   'Member',

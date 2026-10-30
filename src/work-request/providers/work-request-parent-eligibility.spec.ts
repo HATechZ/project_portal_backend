@@ -39,37 +39,45 @@ describe('Work Request parent lifecycle eligibility', () => {
           teamId: null,
           state,
         },
-        bidNaming: null,
-        codes: new Map<string, string>(),
+        bidNaming: {},
+        codes: new Map([
+          ['code-a', { code: '000', name: 'Info' }],
+        ]),
       }),
       findCreateReplay: jest.fn().mockResolvedValue(null),
       create,
+    };
+    const storage = {
+      put: jest.fn().mockResolvedValue(undefined),
+      remove: jest.fn().mockResolvedValue(undefined),
+    };
+    const storageProvider = {
+      putAll: jest.fn().mockResolvedValue([]),
+      compensate: jest.fn().mockResolvedValue(undefined),
     };
     const service = new WorkRequestService(
       repository as never,
       {} as never,
       {} as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      {
-        putAll: jest.fn().mockResolvedValue([]),
-        compensate: jest.fn(),
-      },
+      storageProvider as never,
       {} as never,
       {} as never,
-      {} as never,
+      { generatedFileName: jest.fn().mockReturnValue('generated.pdf') } as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
       {},
+      {},
+      storage,
       undefined,
       undefined,
-      undefined,
-      undefined,
+      { enqueueAll: jest.fn() },
       { assertCanAccess: jest.fn() },
     );
-    return { service, create };
+    return { service, create, storage, storageProvider };
   }
 
   function createFor(kind: ParentKind, state: string) {
@@ -151,6 +159,42 @@ describe('Work Request parent lifecycle eligibility', () => {
     );
   });
 
+  it('allows an active business Member to bind the exact originating Lead without administrator identity', async () => {
+    const { service, create } = subject('bid', 'BIDDING');
+    const businessCreator = {
+      id: 'business-actor-a',
+      member: {
+        id: 'business-member-a',
+        isActive: true,
+        company: { isActive: true },
+      },
+      clientContact: null,
+      role: { customScope: 'company', systemRole: null },
+    } as never;
+    await expect(
+      RequestContext.run({ requestId: 'request-business', tenantId }, () =>
+        service.create(
+          {
+            bidId: 'bid-a',
+            title: 'Request',
+            priority: WorkRequestV1PriorityCode.High,
+            originatingDivisionId: 'division-a',
+            responsibleOriginatingDivisionLeadId: 'origin-lead-a',
+            intermediateDivisionIds: ['division-b'],
+          },
+          [],
+          businessCreator,
+        ),
+      ),
+    ).resolves.toEqual(expect.objectContaining({ id: 'work-request-a' }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorMemberId: 'business-member-a',
+        responsibleOriginatingDivisionLeadId: 'origin-lead-a',
+      }),
+    );
+  });
+
   it('rejects a non-ACTIVE direct Project parent', async () => {
     const { operation, create } = createFor('project', 'COMPLETED');
     await expect(operation).rejects.toThrow(
@@ -177,5 +221,65 @@ describe('Work Request parent lifecycle eligibility', () => {
       'An originating Division and at least one intermediate Division are required.',
     );
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('does not persist metadata when binary storage fails', async () => {
+    const { service, create, storage } = subject('bid', 'BIDDING');
+    storage.put.mockRejectedValueOnce(new Error('disk unavailable'));
+    await expect(
+      RequestContext.run({ requestId: 'storage-failure', tenantId }, () =>
+        service.create(
+          {
+            bidId: 'bid-a',
+            title: 'Request',
+            priority: WorkRequestV1PriorityCode.High,
+            originatingDivisionId: 'division-a',
+            intermediateDivisionIds: ['division-b'],
+            documentCodeIds: ['code-a'],
+          },
+          [
+            {
+              originalname: 'source.pdf',
+              mimetype: 'application/pdf',
+              size: 3,
+              buffer: Buffer.from('pdf'),
+            },
+          ],
+          { id: 'actor-a', member: { id: 'member-a' } } as never,
+        ),
+      ),
+    ).rejects.toThrow('disk unavailable');
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('compensates a written binary when the Work Request transaction fails', async () => {
+    const { service, create, storage } = subject('bid', 'BIDDING');
+    create.mockRejectedValueOnce(new Error('database unavailable'));
+    await expect(
+      RequestContext.run({ requestId: 'database-failure', tenantId }, () =>
+        service.create(
+          {
+            bidId: 'bid-a',
+            title: 'Request',
+            priority: WorkRequestV1PriorityCode.High,
+            originatingDivisionId: 'division-a',
+            intermediateDivisionIds: ['division-b'],
+            documentCodeIds: ['code-a'],
+          },
+          [
+            {
+              originalname: 'source.pdf',
+              mimetype: 'application/pdf',
+              size: 3,
+              buffer: Buffer.from('pdf'),
+            },
+          ],
+          { id: 'actor-a', member: { id: 'member-a' } } as never,
+        ),
+      ),
+    ).rejects.toThrow('database unavailable');
+    expect(storage.remove).toHaveBeenCalledWith(
+      expect.stringMatching(/^tenants\/tenant-a\/work-requests\//),
+    );
   });
 });

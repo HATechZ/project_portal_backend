@@ -22,6 +22,8 @@ export class DocumentSummaryDto {
     uploadedFileName: string;
     generatedFileName: string;
     mimeType: string;
+    previewUrl?: string | null;
+    downloadUrl?: string;
     size: number;
     uploadedBy: { id: string; label: string };
     uploadedAt: Date;
@@ -33,9 +35,12 @@ export class DocumentVersionResponseDto {
   @ApiProperty({ format: 'uuid' }) versionId!: string;
   @ApiProperty() versionNumber!: number;
   @ApiProperty() revisionCode!: string;
+  @ApiPropertyOptional() originalFileName?: string;
   @ApiProperty() uploadedFileName!: string;
   @ApiProperty() generatedFileName!: string;
   @ApiProperty() mimeType!: string;
+  @ApiPropertyOptional({ nullable: true }) previewUrl?: string | null;
+  @ApiPropertyOptional() downloadUrl?: string;
   @ApiProperty() size!: number;
   @ApiProperty() uploadedBy!: { id: string; label: string };
   @ApiProperty() uploadedAt!: Date;

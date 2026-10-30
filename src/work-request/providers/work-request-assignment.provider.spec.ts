@@ -71,14 +71,15 @@ describe('WorkRequestAssignmentProvider', () => {
       }),
     };
     const outbox = { enqueue: jest.fn() };
+    const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
     const provider = new WorkRequestAssignmentProvider(
       repository as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      { find: jest.fn() } as never,
+      reads as never,
       { history: jest.fn() },
       outbox,
     );
-    return { provider, repository, outbox };
+    return { provider, repository, outbox, reads };
   };
   const assign = (
     provider: WorkRequestAssignmentProvider,
@@ -303,6 +304,20 @@ describe('WorkRequestAssignmentProvider', () => {
         actor(WorkflowActionCode.WR_ASSIGN_DIVISION, null, false),
       ),
     ).rejects.toThrow('Work Request was not found');
+    expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it('denies a caller who has the assignment permission but cannot see the Work Request', async () => {
+    const { provider, repository, reads } = subject();
+    reads.find.mockResolvedValueOnce(null);
+    await expect(
+      provider.division(
+        'request-a',
+        { divisionId: 'target-a' },
+        actor(WorkflowActionCode.WR_ASSIGN_DIVISION),
+      ),
+    ).rejects.toThrow('Work Request was not found');
+    expect(repository.prepare).not.toHaveBeenCalled();
     expect(repository.write).not.toHaveBeenCalled();
   });
 

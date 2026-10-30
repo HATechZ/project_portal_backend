@@ -257,7 +257,9 @@ export class ProjectRepository extends BaseRepository {
           id: { in: documentCodeIds },
           tenantId,
           isActive: true,
-          documentGroup: DocumentGroupCode.MARKETING,
+          documentGroup: {
+            in: [DocumentGroupCode.GENERAL, DocumentGroupCode.MARKETING],
+          },
         },
         select: { id: true, code: true, name: true },
       });
@@ -478,7 +480,9 @@ export class ProjectRepository extends BaseRepository {
           id: input.documentCodeId,
           tenantId,
           isActive: true,
-          documentGroup: DocumentGroupCode.MARKETING,
+          documentGroup: {
+            in: [DocumentGroupCode.GENERAL, DocumentGroupCode.MARKETING],
+          },
         },
         select: { id: true, code: true, name: true },
       });
@@ -568,7 +572,9 @@ export class ProjectRepository extends BaseRepository {
         id: { in: input.documentCodeIds },
         tenantId,
         isActive: true,
-        documentGroup: DocumentGroupCode.MARKETING,
+        documentGroup: {
+          in: [DocumentGroupCode.GENERAL, DocumentGroupCode.MARKETING],
+        },
       },
       select: { id: true, code: true, name: true },
     });

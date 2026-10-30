@@ -51,7 +51,7 @@ export class WorkRequestDocumentRepository extends BaseRepository {
     return this.transaction(async (db) => {
       const document = await db.workRequestV1Document.findFirst({
         where: { id: documentId, workRequestId, tenantId },
-        select: { id: true },
+        select: { id: true, originalFileName: true },
       });
       if (!document) return null;
       return db.workRequestV1DocumentVersion.findMany({
@@ -67,9 +67,31 @@ export class WorkRequestDocumentRepository extends BaseRepository {
           fileSizeBytes: true,
           uploadedAt: true,
           uploadedByActor: { select: { id: true, label: true } },
+          document: { select: { originalFileName: true } },
         },
       });
     });
+  }
+
+  downloadVersions(workRequestId: string, versionIds?: string[]) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestV1DocumentVersion.findMany({
+        where: {
+          tenantId,
+          ...(versionIds ? { id: { in: versionIds } } : {}),
+          document: { workRequestId },
+        },
+        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          storageKey: true,
+          originalFileName: true,
+          uploadedFileName: true,
+          generatedFileName: true,
+        },
+      }),
+    );
   }
 
   /** Exact versions published in submitted client packages; never working history. */
@@ -94,7 +116,7 @@ export class WorkRequestDocumentRepository extends BaseRepository {
               mimeType: true,
               fileSizeBytes: true,
               uploadedAt: true,
-              document: { select: { id: true } },
+              document: { select: { id: true, originalFileName: true } },
             },
           },
         },
@@ -127,6 +149,7 @@ export class WorkRequestDocumentRepository extends BaseRepository {
               mimeType: true,
               fileSizeBytes: true,
               uploadedAt: true,
+              document: { select: { originalFileName: true } },
             },
           },
         },

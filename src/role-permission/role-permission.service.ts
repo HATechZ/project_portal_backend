@@ -12,6 +12,7 @@ import {
   RolePermissionMutationProvider,
   RolePermissionQueryProvider,
 } from './providers';
+import { PermissionCategory } from '../generated/prisma/client';
 
 @Injectable()
 export class RolePermissionService {
@@ -32,8 +33,9 @@ export class RolePermissionService {
   findPermissions(
     customRole?: boolean,
     scope?: string,
+    module?: PermissionCategory,
   ): Promise<PermissionResponseDto[]> {
-    return this.queryProvider.findPermissions(customRole, scope);
+    return this.queryProvider.findPermissions(customRole, scope, module);
   }
   findPermission(id: string): Promise<PermissionResponseDto> {
     return this.queryProvider.findPermission(id);

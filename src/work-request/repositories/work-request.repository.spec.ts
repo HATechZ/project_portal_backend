@@ -45,7 +45,7 @@ describe('WorkRequestRepository parent XOR', () => {
   ])('rejects %s before querying persistence', async (_, bid, project) => {
     const operation = RequestContext.run(
       { requestId: 'request-a', tenantId: 'tenant-a' },
-      () => repository.prepareCreate(bid, project, []),
+      () => repository.prepareCreate(bid, project, [], 'division-a'),
     );
 
     await expect(operation).rejects.toThrow('WR_PARENT_XOR');
@@ -63,7 +63,7 @@ describe('WorkRequestRepository parent XOR', () => {
 
     const operation = RequestContext.run(
       { requestId: 'request-a', tenantId: 'tenant-a' },
-      () => repository.prepareCreate(undefined, projectId, []),
+      () => repository.prepareCreate(undefined, projectId, [], 'division-a'),
     );
 
     await expect(operation).rejects.toThrow('WR_PARENT');
@@ -343,5 +343,101 @@ describe('WorkRequestRepository parent XOR', () => {
         }),
       ),
     ).rejects.toThrow('WR_BID_CYCLE');
+  });
+});
+
+describe('WorkRequestRepository document-code applicability', () => {
+  const documentCode = {
+    id: 'code-a',
+    code: 'ENG-01',
+    name: 'Engineering drawing',
+    documentGroup: 'ENGINEERING',
+  };
+
+  function repositoryForDocumentCodes(groups: { documentGroup: string }[]) {
+    const groupsLookup = jest.fn().mockResolvedValue(groups);
+    const codeLookup = jest.fn().mockResolvedValue([documentCode]);
+    return new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'work-request-a',
+              bid: {
+                clientId: 'client-a',
+                client: { companyId: 'company-a' },
+                biddingNumber: 'BID-1',
+                projectCode: 'PROJECT',
+                cargoCodeSnapshot: 'CARGO',
+                vesselCodeSnapshot: 'VESSEL',
+                shipmentNumber: '01',
+              },
+              directProject: null,
+              route: {
+                originatingDivisionId: 'origin-a',
+                projection: { routeStep: { divisionId: 'execution-a' } },
+              },
+              assignments: [],
+            }),
+          },
+          divisionDocumentGroup: { findMany: groupsLookup },
+          documentCodeOption: { findMany: codeLookup },
+        }),
+    } as never);
+  }
+
+  it('uses the current execution Division mapping, not an actor identity, for selector groups', async () => {
+    const repository = repositoryForDocumentCodes([
+      { documentGroup: 'ENGINEERING' },
+      { documentGroup: 'PROJECT_MANAGEMENT_OPERATION' },
+    ]);
+    const result = await RequestContext.run(
+      { requestId: 'request-a', tenantId: 'tenant-a' },
+      () => repository.availableDocumentCodes('work-request-a'),
+    );
+    expect(result?.divisionId).toBe('execution-a');
+    expect(result?.codes).toEqual([documentCode]);
+  });
+
+  it('always includes GENERAL and rejects an active code outside the current Division groups', async () => {
+    const codeLookup = jest.fn().mockResolvedValue([]);
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'work-request-a',
+              bid: {
+                clientId: 'client-a',
+                client: { companyId: 'company-a' },
+                biddingNumber: 'BID-1',
+                projectCode: 'PROJECT',
+                cargoCodeSnapshot: 'CARGO',
+                vesselCodeSnapshot: 'VESSEL',
+                shipmentNumber: '01',
+              },
+              directProject: null,
+              route: {
+                projection: { routeStep: { divisionId: 'engineering-a' } },
+              },
+              assignments: [],
+            }),
+          },
+          divisionDocumentGroup: {
+            findMany: jest
+              .fn()
+              .mockResolvedValue([{ documentGroup: 'ENGINEERING' }]),
+          },
+          documentCodeOption: { findMany: codeLookup },
+        }),
+    } as never);
+    await expect(
+      RequestContext.run({ requestId: 'request-a', tenantId: 'tenant-a' }, () =>
+        repository.prepareStandaloneDocuments('work-request-a', [
+          'marketing-code',
+        ]),
+      ),
+    ).rejects.toThrow('WR_DOCUMENT_CODE');
+    expect(codeLookup).toHaveBeenCalledTimes(1);
   });
 });

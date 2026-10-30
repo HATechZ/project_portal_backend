@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import {
+  DocumentGroupCode,
   Prisma,
   WorkRequestRouteStepKind,
   WorkRequestV1PriorityCode,
@@ -22,14 +23,30 @@ export class WorkRequestRepository extends BaseRepository {
     bidId: string | undefined,
     projectId: string | undefined,
     codeIds: string[],
+    originatingDivisionId: string,
   ) {
     const tenantId = RequestContext.requireTenantId();
     if ((bidId ? 1 : 0) + (projectId ? 1 : 0) !== 1)
       throw new Error('WR_PARENT_XOR');
     return this.transaction(async (db) => {
+      const configuredGroups = codeIds.length
+        ? await db.divisionDocumentGroup.findMany({
+            where: { tenantId, divisionId: originatingDivisionId },
+            select: { documentGroup: true },
+          })
+        : [];
+      const allowedGroups = [
+        DocumentGroupCode.GENERAL,
+        ...configuredGroups.map((row) => row.documentGroup),
+      ];
       const rows = codeIds.length
         ? await db.documentCodeOption.findMany({
-            where: { id: { in: codeIds }, tenantId, isActive: true },
+            where: {
+              id: { in: codeIds },
+              tenantId,
+              isActive: true,
+              documentGroup: { in: allowedGroups },
+            },
             select: { id: true, code: true, name: true },
           })
         : [];
@@ -161,21 +178,21 @@ export class WorkRequestRepository extends BaseRepository {
       });
       if (input.originatingDivisionId && input.intermediateDivisionIds) {
         const lead = await db.divisionLead.findFirst({
-  where: {
-    tenantId,
-    divisionId: input.originatingDivisionId,
-    ...(input.responsibleOriginatingDivisionLeadId
-      ? { id: input.responsibleOriginatingDivisionLeadId }
-      : { memberId: input.actorMemberId! }),
-    revokedAt: null,
-    member: {
-      is: {
-        isActive: true,
-      },
-    },
-  },
-  select: { id: true },
-});
+          where: {
+            tenantId,
+            divisionId: input.originatingDivisionId,
+            ...(input.responsibleOriginatingDivisionLeadId
+              ? { id: input.responsibleOriginatingDivisionLeadId }
+              : { memberId: input.actorMemberId! }),
+            revokedAt: null,
+            member: {
+              is: {
+                isActive: true,
+              },
+            },
+          },
+          select: { id: true },
+        });
         if (!lead) throw new Error('WR_ROUTE_ORIGIN_LEAD');
         const divisionIds = [
           ...new Set([
@@ -350,7 +367,11 @@ export class WorkRequestRepository extends BaseRepository {
       });
     });
   }
-  routeProjection(workRequestId: string, memberId: string | null, isAdmin = false) {
+  routeProjection(
+    workRequestId: string,
+    memberId: string | null,
+    isAdmin = false,
+  ) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const route = await db.workRequestRoute.findFirst({
@@ -359,7 +380,11 @@ export class WorkRequestRepository extends BaseRepository {
           workRequestId,
           ...(isAdmin
             ? {}
-            : { responsibleOriginatingLead: { is: { memberId: memberId!, revokedAt: null } } }),
+            : {
+                responsibleOriginatingLead: {
+                  is: { memberId: memberId!, revokedAt: null },
+                },
+              }),
         },
         include: {
           projection: true,
@@ -501,7 +526,11 @@ export class WorkRequestRepository extends BaseRepository {
             workRequestId,
             ...(isAdmin
               ? {}
-              : { responsibleOriginatingLead: { is: { memberId: memberId!, revokedAt: null } } }),
+              : {
+                  responsibleOriginatingLead: {
+                    is: { memberId: memberId!, revokedAt: null },
+                  },
+                }),
           },
           include: {
             projection: true,
@@ -620,9 +649,35 @@ export class WorkRequestRepository extends BaseRepository {
               shipmentNumber: true,
             },
           },
+          route: {
+            select: {
+              originatingDivisionId: true,
+              projection: {
+                select: { routeStep: { select: { divisionId: true } } },
+              },
+            },
+          },
+          assignments: {
+            where: {
+              level: 'DIVISION',
+              unassignedAt: null,
+              replacedAt: null,
+            },
+            select: { divisionId: true },
+          },
         },
       });
       if (!request) return null;
+      const divisionId = this.currentDocumentDivisionId(request);
+      if (!divisionId) throw new Error('WR_DOCUMENT_CONTEXT');
+      const configuredGroups = await db.divisionDocumentGroup.findMany({
+        where: { tenantId, divisionId },
+        select: { documentGroup: true },
+      });
+      const allowedGroups = [
+        DocumentGroupCode.GENERAL,
+        ...configuredGroups.map((row) => row.documentGroup),
+      ];
       const parent = request.bid ?? request.directProject;
       if (
         !parent ||
@@ -633,7 +688,12 @@ export class WorkRequestRepository extends BaseRepository {
       )
         throw new Error('WR_NAMING_CONTEXT');
       const codes = await db.documentCodeOption.findMany({
-        where: { id: { in: documentCodeIds }, tenantId, isActive: true },
+        where: {
+          id: { in: documentCodeIds },
+          tenantId,
+          isActive: true,
+          documentGroup: { in: allowedGroups },
+        },
         select: { id: true, code: true, name: true },
       });
       if (codes.length !== new Set(documentCodeIds).size)
@@ -665,6 +725,88 @@ export class WorkRequestRepository extends BaseRepository {
         ),
       };
     });
+  }
+  async availableDocumentCodes(workRequestId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const request = await db.workRequestV1.findFirst({
+        where: { id: workRequestId, tenantId },
+        select: {
+          id: true,
+          bid: {
+            select: { clientId: true, client: { select: { companyId: true } } },
+          },
+          directProject: {
+            select: { clientId: true, client: { select: { companyId: true } } },
+          },
+          route: {
+            select: {
+              originatingDivisionId: true,
+              projection: {
+                select: { routeStep: { select: { divisionId: true } } },
+              },
+            },
+          },
+          assignments: {
+            where: { level: 'DIVISION', unassignedAt: null, replacedAt: null },
+            select: { divisionId: true },
+          },
+        },
+      });
+      if (!request) return null;
+      const divisionId = this.currentDocumentDivisionId(request);
+      if (!divisionId) throw new Error('WR_DOCUMENT_CONTEXT');
+      const groups = await db.divisionDocumentGroup.findMany({
+        where: { tenantId, divisionId },
+        select: { documentGroup: true },
+      });
+      const parent = request.bid ?? request.directProject;
+      if (!parent) throw new Error('WR_PARENT');
+      return {
+        parent: {
+          clientId: parent.clientId,
+          companyId: parent.client.companyId,
+        },
+        divisionId,
+        codes: await db.documentCodeOption.findMany({
+          where: {
+            tenantId,
+            isActive: true,
+            documentGroup: {
+              in: [
+                DocumentGroupCode.GENERAL,
+                ...groups.map((group) => group.documentGroup),
+              ],
+            },
+          },
+          select: { id: true, code: true, name: true, documentGroup: true },
+          orderBy: [
+            { documentGroup: 'asc' },
+            { sortOrder: 'asc' },
+            { code: 'asc' },
+          ],
+        }),
+      };
+    });
+  }
+
+  private currentDocumentDivisionId(request: {
+    route: {
+      originatingDivisionId: string;
+      projection: { routeStep: { divisionId: string | null } | null } | null;
+    } | null;
+    assignments: { divisionId: string | null }[];
+  }): string | null {
+    const routeDivisionId = request.route?.projection?.routeStep?.divisionId;
+    // A route request must have an active Division-bearing route step. Falling
+    // back to origin would select stale codes during client/revision branches.
+    if (request.route) return routeDivisionId ?? null;
+    const divisionIds = new Set(
+      request.assignments.flatMap((assignment) =>
+        assignment.divisionId ? [assignment.divisionId] : [],
+      ),
+    );
+    return divisionIds.size === 1 ? [...divisionIds][0] : null;
   }
   createStandaloneDocuments(
     workRequestId: string,

@@ -87,11 +87,29 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
     ]);
   });
 
+  it('filters a selected module only after applying scope compatibility', async () => {
+    const result = await provider.findPermissions(true, 'company', 'DOCUMENTS');
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        code: 'VIEW_DOCUMENT',
+        module: 'DOCUMENTS',
+      }),
+    ]);
+  });
+
+  it('omits a module that has no permissions for the selected scope', async () => {
+    await expect(
+      provider.findPermissions(true, 'team', 'ORGANIZATION'),
+    ).resolves.toEqual([]);
+  });
+
   it('returns only the public compatibleScopes field for permission responses', async () => {
     const [result] = await provider.findPermissions(false);
 
     expect(result).toMatchObject({
       compatibleScopes: ['company'],
+      module: 'ORGANIZATION',
     });
     expect(result).not.toHaveProperty('scopeCompatibilities');
   });

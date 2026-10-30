@@ -592,6 +592,7 @@ model Tenant {
   portalConfigs                             PortalConfig[]
   optionValues                              OptionValue[]
   documentCodes                             DocumentCodeOption[]
+  divisionDocumentGroups                    DivisionDocumentGroup[]
   designations                              Designation[]
   sourceChannels                            SourceChannel[]
   projects                                  Project[]
@@ -1024,6 +1025,7 @@ model Division {
   workRequestV1Assignments         WorkRequestV1Assignment[] @relation("WorkRequestV1AssignmentsDivisionIdDivisions")
   workRequestRouteOrigins          WorkRequestRoute[]        @relation("WorkRequestRoutesOriginatingDivisionIdDivisions")
   workRequestRouteSteps            WorkRequestRouteStep[]    @relation("WorkRequestRouteStepsDivisionIdDivisions")
+  documentGroups                   DivisionDocumentGroup[]    @relation("DivisionDocumentGroupsDivision")
 
   @@unique([id, tenantId])
   @@unique([id, tenantId, companyId])
@@ -1031,6 +1033,23 @@ model Division {
   @@index([companyId, name])
   @@index([tenantId])
   @@map("divisions")
+}
+
+/// Explicit, tenant-scoped document-group applicability for a Division.
+/// GENERAL is globally available for eligible internal uploads and therefore
+/// is intentionally not represented by a row in this mapping.
+model DivisionDocumentGroup {
+  tenantId      String            @map("tenant_id") @db.Uuid
+  divisionId    String            @map("division_id") @db.Uuid
+  documentGroup DocumentGroupCode @map("document_group")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  division Division @relation("DivisionDocumentGroupsDivision", fields: [divisionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([tenantId, divisionId, documentGroup])
+  @@index([tenantId, documentGroup])
+  @@map("division_document_groups")
 }
 
 // The normalized designation-name uniqueness is an expression index maintained

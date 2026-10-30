@@ -108,10 +108,13 @@ const ORIGINATING_LEAD_SCOPES = [
   CustomRoleScope.company,
   CustomRoleScope.division,
 ] as const;
-const TEAM_LEAD_SCOPES = [
-  CustomRoleScope.company,
+const DIVISION_EXECUTION_SCOPES = [CustomRoleScope.division] as const;
+const TEAM_EXECUTION_SCOPES = [CustomRoleScope.team] as const;
+const MEMBER_EXECUTION_SCOPES = [CustomRoleScope.member] as const;
+const INTERNAL_REVISION_SCOPES = [
   CustomRoleScope.division,
   CustomRoleScope.team,
+  CustomRoleScope.member,
 ] as const;
 const EXTERNAL_CLIENT_SCOPES = [
   CustomRoleScope.client,
@@ -141,52 +144,52 @@ export const WORK_REQUEST_ROUTE_COMMAND_POLICY = {
   },
   [WORK_REQUEST_ROUTE_COMMAND.DEFINE_TEAM_SEQUENCE]: {
     permission: PermissionCode.ASSIGN_WORK_REQUEST_TEAM,
-    compatibleScopes: ORIGINATING_LEAD_SCOPES,
+    compatibleScopes: DIVISION_EXECUTION_SCOPES,
     responsibility: 'ACTIVE_DIVISION_LEAD',
   },
   [WORK_REQUEST_ROUTE_COMMAND.DEFINE_MEMBER_SEQUENCE]: {
     permission: PermissionCode.ASSIGN_WORK_REQUEST_MEMBER,
-    compatibleScopes: TEAM_LEAD_SCOPES,
+    compatibleScopes: TEAM_EXECUTION_SCOPES,
     responsibility: 'ACTIVE_TEAM_LEAD',
   },
   [WORK_REQUEST_ROUTE_COMMAND.APPEND_MEMBER_STEP]: {
     permission: PermissionCode.ASSIGN_WORK_REQUEST_MEMBER,
-    compatibleScopes: TEAM_LEAD_SCOPES,
+    compatibleScopes: TEAM_EXECUTION_SCOPES,
     responsibility: 'ACTIVE_TEAM_LEAD',
   },
   [WORK_REQUEST_ROUTE_COMMAND.SUBMIT_MEMBER_STEP]: {
     permission: PermissionCode.SUBMIT_WORK_REQUEST,
-    compatibleScopes: INTERNAL_READ_SCOPES,
+    compatibleScopes: MEMBER_EXECUTION_SCOPES,
     responsibility: 'ACTIVE_MEMBER_STEP',
   },
   [WORK_REQUEST_ROUTE_COMMAND.COMPLETE_TEAM_STEP]: {
     permission: PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
-    compatibleScopes: TEAM_LEAD_SCOPES,
+    compatibleScopes: TEAM_EXECUTION_SCOPES,
     responsibility: 'ACTIVE_TEAM_LEAD',
   },
   [WORK_REQUEST_ROUTE_COMMAND.FORWARD_ROUTE]: {
     permission: PermissionCode.ROUTE_FOR_REVIEW,
-    compatibleScopes: ORIGINATING_LEAD_SCOPES,
+    compatibleScopes: DIVISION_EXECUTION_SCOPES,
     responsibility: 'ACTIVE_DIVISION_LEAD',
   },
   [WORK_REQUEST_ROUTE_COMMAND.REQUEST_INTERNAL_MEMBER_REVISION]: {
     permission: PermissionCode.REQUEST_WORK_REQUEST_REVISION,
-    compatibleScopes: INTERNAL_READ_SCOPES,
+    compatibleScopes: INTERNAL_REVISION_SCOPES,
     responsibility: 'REVISION_MEMBER_REQUESTER',
   },
   [WORK_REQUEST_ROUTE_COMMAND.REQUEST_INTERNAL_TEAM_REVISION]: {
     permission: PermissionCode.REQUEST_WORK_REQUEST_REVISION,
-    compatibleScopes: TEAM_LEAD_SCOPES,
+    compatibleScopes: INTERNAL_REVISION_SCOPES,
     responsibility: 'REVISION_TEAM_REQUESTER',
   },
   [WORK_REQUEST_ROUTE_COMMAND.REQUEST_CROSS_DIVISION_FORMAL_REVISION]: {
     permission: PermissionCode.REQUEST_WORK_REQUEST_REVISION,
-    compatibleScopes: ORIGINATING_LEAD_SCOPES,
+    compatibleScopes: DIVISION_EXECUTION_SCOPES,
     responsibility: 'REVISION_DIVISION_REQUESTER',
   },
   [WORK_REQUEST_ROUTE_COMMAND.RESUBMIT_REVISION]: {
     permission: PermissionCode.SUBMIT_WORK_REQUEST,
-    compatibleScopes: INTERNAL_READ_SCOPES,
+    compatibleScopes: INTERNAL_REVISION_SCOPES,
     responsibility: 'REVISION_PROBLEM_SOURCE',
   },
   [WORK_REQUEST_ROUTE_COMMAND.LIST_COMMUNICATION_RECIPIENTS]: {

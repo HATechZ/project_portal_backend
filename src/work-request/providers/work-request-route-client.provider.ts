@@ -69,7 +69,7 @@ export class WorkRequestRouteClientProvider {
     if (!context) throw notFound();
     if (!has(actor, permission)) throw forbidden();
     if (hasTenantWideInternalAuthority(actor)) return context;
-    if (!actor.member?.isActive || !['company', 'division'].includes(actor.role.customScope ?? '') || context.responsibleOriginatingLead.memberId !== actor.member.id) throw forbidden();
+    if (!actor.member?.isActive || actor.role.customScope !== 'division' || context.responsibleOriginatingLead.memberId !== actor.member.id) throw forbidden();
     return context;
   }
 }

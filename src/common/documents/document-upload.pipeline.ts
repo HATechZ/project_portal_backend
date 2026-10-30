@@ -134,14 +134,19 @@ export class DocumentUploadPipeline {
     drafts: Array<Pick<NewDocumentDraft, 'storageKey' | 'content'>>,
   ): Promise<string[]> {
     const stored: string[] = [];
-    for (const draft of drafts) {
-      await storage.put({
-        storageKey: draft.storageKey,
-        content: draft.content,
-      });
-      stored.push(draft.storageKey);
+    try {
+      for (const draft of drafts) {
+        await storage.put({
+          storageKey: draft.storageKey,
+          content: draft.content,
+        });
+        stored.push(draft.storageKey);
+      }
+      return stored;
+    } catch (error) {
+      await Promise.allSettled(stored.map((storageKey) => storage.remove(storageKey)));
+      throw error;
     }
-    return stored;
   }
 
   static async compensate(

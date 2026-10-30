@@ -83,7 +83,7 @@ export class DivisionRepository extends BaseRepository {
   create(
     companyId: string,
     input: Required<Pick<DivisionMutationInput, 'name' | 'abbr'>> &
-      Pick<DivisionMutationInput, 'divisionTypeId'>,
+      Pick<DivisionMutationInput, 'divisionTypeId' | 'documentGroups'>,
   ): Promise<DivisionRecord> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
@@ -97,6 +97,14 @@ export class DivisionRepository extends BaseRepository {
           ...(input.divisionTypeId !== undefined
             ? { divisionTypeId: input.divisionTypeId }
             : {}),
+          documentGroups: input.documentGroups
+            ? {
+                create: input.documentGroups.map((documentGroup) => ({
+                  tenantId,
+                  documentGroup,
+                })),
+              }
+            : undefined,
         },
         select: divisionSelect,
       }),
@@ -117,6 +125,17 @@ export class DivisionRepository extends BaseRepository {
           ...(input.abbr !== undefined ? { abbr: input.abbr.trim() } : {}),
           ...(input.divisionTypeId !== undefined
             ? { divisionTypeId: input.divisionTypeId }
+            : {}),
+          ...(input.documentGroups !== undefined
+            ? {
+                documentGroups: {
+                  deleteMany: {},
+                  create: input.documentGroups.map((documentGroup) => ({
+                    tenantId,
+                    documentGroup,
+                  })),
+                },
+              }
             : {}),
           updatedAt: new Date(),
         },

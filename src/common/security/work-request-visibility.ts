@@ -21,6 +21,7 @@ export function workRequestVisibilityWhere(
   const member = actor.member;
   if (!member?.isActive || !member.company.isActive) return never();
   const responsibility = activeAssignmentMember(member.id);
+  const originatingResponsibility = activeOriginatingResponsibility(member.id);
 
   switch (actor.role.customScope) {
     case 'division': {
@@ -31,24 +32,34 @@ export function workRequestVisibilityWhere(
         ? {
             OR: [
               responsibility,
+              originatingResponsibility,
               activeAssignment(Level.DIVISION, {
                 divisionId: { in: divisionIds },
               }),
+              activeRouteDivisionCycle(divisionIds),
             ],
           }
-        : responsibility;
+        : { OR: [responsibility, originatingResponsibility] };
     }
     case 'team':
       return {
         OR: [
           responsibility,
+          originatingResponsibility,
           activeAssignment(Level.TEAM, {
             team: { is: { isActive: true, leadMemberId: member.id } },
           }),
+          activeRouteTeamStep(member.id),
         ],
       };
     case 'member':
-      return responsibility;
+      return {
+        OR: [
+          responsibility,
+          originatingResponsibility,
+          activeRouteMemberStep(member.id),
+        ],
+      };
     default:
       return never();
   }
@@ -142,6 +153,90 @@ function activeAssignmentMember(
         memberId,
         unassignedAt: null,
         replacedAt: null,
+      },
+    },
+  };
+}
+
+/** Route reads require a current, explicit responsibility â€” never Tenant alone. */
+function activeOriginatingResponsibility(
+  memberId: string,
+): Prisma.WorkRequestV1WhereInput {
+  return {
+    route: {
+      is: {
+        responsibleOriginatingLead: {
+          is: {
+            memberId,
+            revokedAt: null,
+            member: { is: { isActive: true } },
+            division: { is: { isActive: true } },
+          },
+        },
+      },
+    },
+  };
+}
+
+function activeRouteDivisionCycle(
+  divisionIds: string[],
+): Prisma.WorkRequestV1WhereInput {
+  return {
+    route: {
+      is: {
+        divisionCycles: {
+          some: {
+            completedAt: null,
+            routeStep: {
+              is: {
+                divisionId: { in: divisionIds },
+                division: { is: { isActive: true } },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function activeRouteTeamStep(memberId: string): Prisma.WorkRequestV1WhereInput {
+  return {
+    route: {
+      is: {
+        teamSteps: {
+          some: {
+            activatedAt: { not: null },
+            completedAt: null,
+            divisionCycle: { is: { completedAt: null } },
+            team: { is: { isActive: true, leadMemberId: memberId } },
+          },
+        },
+      },
+    },
+  };
+}
+
+function activeRouteMemberStep(
+  memberId: string,
+): Prisma.WorkRequestV1WhereInput {
+  return {
+    route: {
+      is: {
+        memberSteps: {
+          some: {
+            memberId,
+            activatedAt: { not: null },
+            submittedAt: null,
+            teamStep: {
+              is: {
+                activatedAt: { not: null },
+                completedAt: null,
+                divisionCycle: { is: { completedAt: null } },
+              },
+            },
+          },
+        },
       },
     },
   };

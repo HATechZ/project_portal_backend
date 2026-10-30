@@ -110,6 +110,22 @@ describe('DocumentUploadPipeline', () => {
     expect(storage.remove).toHaveBeenCalledWith('one');
     expect(cleanup).toHaveBeenCalledWith('one', expect.any(Error));
   });
+  it('removes already-written binaries when a later storage write fails before metadata persistence', async () => {
+    const storage = {
+      put: jest
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('disk unavailable')),
+      remove: jest.fn().mockResolvedValue(undefined),
+    };
+    await expect(
+      DocumentUploadPipeline.putAll(storage, [
+        { storageKey: 'first', content: Buffer.from('first') },
+        { storageKey: 'second', content: Buffer.from('second') },
+      ]),
+    ).rejects.toThrow('disk unavailable');
+    expect(storage.remove).toHaveBeenCalledWith('first');
+  });
   it('prepares a new immutable version without changing logical-document metadata', () => {
     const version = DocumentUploadPipeline.prepareVersion({
       upload: upload('SKM-CRA-CA2-01-100-A Stowage Plan.pdf'),

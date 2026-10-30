@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DocumentGroupCode } from '../../generated/prisma/client';
 
 export class DivisionTypeResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -26,6 +27,9 @@ export class DivisionResponseDto {
 
   @ApiPropertyOptional({ type: () => DivisionTypeResponseDto, nullable: true })
   divisionType!: DivisionTypeResponseDto | null;
+
+  @ApiProperty({ enum: DocumentGroupCode, isArray: true })
+  documentGroups!: DocumentGroupCode[];
 
   @ApiProperty({ example: true })
   isActive!: boolean;

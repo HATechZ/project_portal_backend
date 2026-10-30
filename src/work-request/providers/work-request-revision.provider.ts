@@ -71,10 +71,10 @@ function memberId(actor: SessionActor, admin: boolean) {
 function scopeAllows(scope: CustomRoleScope | null, classification: Classification) {
   if (scope === null) return false;
   if (classification === Classification.CROSS_DIVISION_FORMAL)
-    return scope === CustomRoleScope.company || scope === CustomRoleScope.division;
+    return scope === CustomRoleScope.division;
   if (classification === Classification.INTERNAL_TEAM)
-    return scope === CustomRoleScope.company || scope === CustomRoleScope.division || scope === CustomRoleScope.team;
-  return scope === CustomRoleScope.company || scope === CustomRoleScope.division || scope === CustomRoleScope.team || scope === CustomRoleScope.member;
+    return scope === CustomRoleScope.division || scope === CustomRoleScope.team;
+  return scope === CustomRoleScope.division || scope === CustomRoleScope.team || scope === CustomRoleScope.member;
 }
 function forbidden() {
   return new AppException({ code: AppErrorCode.Forbidden, status: 403, message: "You don't have permission to perform this action." });

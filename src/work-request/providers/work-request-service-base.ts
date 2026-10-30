@@ -48,6 +48,7 @@ import {
   DocumentUploadOwnerCode,
 } from '../../generated/prisma/client';
 import { assertWorkRequestExternalClientAccess } from './work-request-external-client-access';
+import type { AvailableDocumentCodeDto } from '../dtos/available-document-code.dto';
 
 export abstract class WorkRequestServiceBase {
   protected constructor(
@@ -84,7 +85,7 @@ export abstract class WorkRequestServiceBase {
       throw mapReferenceError(error);
     }
     if (!context) throw notFound();
-    assertWorkRequestExternalClientAccess(actor, context.parent);
+    await this.assertDocumentUploadAccess(id, actor, context.parent);
     const requestId = RequestContext.requestId()!;
     const replay =
       this.receipts &&
@@ -181,6 +182,43 @@ export abstract class WorkRequestServiceBase {
       );
       throw error;
     }
+  }
+
+  async availableDocumentCodes(
+    id: string,
+    actor: SessionActor,
+  ): Promise<AvailableDocumentCodeDto[]> {
+    let context: Awaited<
+      ReturnType<WorkRequestRepository['availableDocumentCodes']>
+    >;
+    try {
+      context = await this.repository.availableDocumentCodes(id);
+    } catch (error) {
+      throw mapReferenceError(error);
+    }
+    if (!context) throw notFound();
+    await this.assertDocumentUploadAccess(id, actor, context.parent);
+    return context.codes;
+  }
+
+  private async assertDocumentUploadAccess(
+    workRequestId: string,
+    actor: SessionActor,
+    parent: { clientId: string } | null | undefined,
+  ): Promise<void> {
+    if (isExternalClientActor(actor)) {
+      assertWorkRequestExternalClientAccess(actor, parent);
+      if (
+        !actor.clientContact ||
+        !(await this.reads.findForClient(
+          workRequestId,
+          actor.clientContact.clientId,
+        ))
+      )
+        throw notFound();
+      return;
+    }
+    if (!(await this.reads.find(workRequestId, actor))) throw notFound();
   }
   async appendDocumentVersion(
     id: string,
@@ -332,13 +370,9 @@ export abstract class WorkRequestServiceBase {
       throw bad(
         'An originating Division and at least one intermediate Division are required.',
       );
-    if (!admin && input.responsibleOriginatingDivisionLeadId)
-      throw bad(
-        'Responsible Originating Division Lead is derived from the active Member context.',
-      );
     if (!actorMemberId && !input.responsibleOriginatingDivisionLeadId)
       throw bad(
-        'A Responsible Originating Division Lead is required for administrative Work Request creation.',
+        'A Responsible Originating Division Lead is required when the creator has no Member context.',
       );
     let reference: Awaited<ReturnType<WorkRequestRepository['prepareCreate']>>;
     try {
@@ -346,6 +380,7 @@ export abstract class WorkRequestServiceBase {
         input.bidId,
         input.projectId,
         codeIds,
+        originatingDivisionId,
       );
     } catch (error) {
       throw mapReferenceError(error);
@@ -712,6 +747,12 @@ function mapReferenceError(error: unknown): Error {
   if (error.message === 'WR_BID_CYCLE')
     return conflict('Bid has no active business cycle.');
   if (error.message === 'WR_DOCUMENT_CODE')
-    return notFound('A Document Code was not found or inactive.');
+    return bad(
+      'A Document Code was not found, inactive, or is not allowed for the current Division.',
+    );
+  if (error.message === 'WR_DOCUMENT_CONTEXT')
+    return conflict(
+      'Document uploads require one unambiguous current execution Division.',
+    );
   return error;
 }

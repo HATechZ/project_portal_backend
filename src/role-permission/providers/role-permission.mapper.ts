@@ -34,6 +34,7 @@ export function toPermissionResponse(permission: {
     displayName: permission.displayName,
     description: permission.description,
     category: permission.category,
+    module: permission.category,
     actionType: permission.actionType,
     resource: permission.resource,
     compatibleScopes: permission.scopeCompatibilities.map(({ scope }) => scope),

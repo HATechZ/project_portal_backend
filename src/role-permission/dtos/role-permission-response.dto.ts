@@ -12,6 +12,12 @@ export class PermissionResponseDto {
   @ApiProperty() displayName!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty({ enum: PermissionCategory }) category!: PermissionCategory;
+  @ApiProperty({
+    enum: PermissionCategory,
+    description:
+      'Permission work area. This is catalogue metadata only and never grants authorization.',
+  })
+  module!: PermissionCategory;
   @ApiProperty({ enum: PermissionActionType })
   actionType!: PermissionActionType;
   @ApiProperty() resource!: string;

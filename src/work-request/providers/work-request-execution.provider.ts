@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 import { PermissionCode } from '../../generated/prisma/client';
 import type { SessionActor } from '../../common/security/session.types';
 import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
@@ -29,22 +31,27 @@ export class WorkRequestExecutionProvider {
     };
   }
   defineTeamSequence(id: string, cycleId: string, input: DefineWorkRequestTeamSequenceDto, actor: SessionActor) {
+    assertScope(actor, 'division');
     const admin = hasTenantWideInternalAuthority(actor);
     return this.execution.defineTeamSequence(id, cycleId, input.teamIds, actor.id, memberId(actor, admin), admin);
   }
   defineMemberSequence(id: string, teamStepId: string, input: DefineWorkRequestMemberSequenceDto, actor: SessionActor) {
+    assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
     return this.execution.defineMemberSequence(id, teamStepId, input.memberIds, actor.id, memberId(actor, admin), admin);
   }
   appendMemberStep(id: string, teamStepId: string, input: AppendWorkRequestMemberStepDto, actor: SessionActor) {
+    assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
     return this.execution.appendMemberStep(id, teamStepId, input.memberId, actor.id, memberId(actor, admin), admin);
   }
   submitMemberStep(id: string, memberStepId: string, actor: SessionActor) {
+    assertScope(actor, 'member');
     const admin = hasTenantWideInternalAuthority(actor);
     return this.execution.submitMemberStep(id, memberStepId, actor.id, memberId(actor, admin), admin);
   }
   completeTeamStep(id: string, teamStepId: string, actor: SessionActor) {
+    assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
     return this.execution.completeTeamStep(id, teamStepId, actor.id, memberId(actor, admin), admin);
   }
@@ -52,8 +59,16 @@ export class WorkRequestExecutionProvider {
 
 function memberId(actor: SessionActor, admin: boolean) {
   if (admin) return null;
-  if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
+  if (!actor.member?.id) throw forbidden();
   return actor.member.id;
+}
+
+function assertScope(
+  actor: SessionActor,
+  scope: 'division' | 'team' | 'member',
+): void {
+  if (!hasTenantWideInternalAuthority(actor) && actor.role.customScope !== scope)
+    throw forbidden();
 }
 
 const EXECUTION_PERMISSION: Record<string, PermissionCode> = {
@@ -74,4 +89,12 @@ function hasPermission(actor: SessionActor, required: PermissionCode | undefined
           ({ scope }) => scope === actor.role.customScope,
         )),
   );
+}
+
+function forbidden(): AppException {
+  return new AppException({
+    code: AppErrorCode.Forbidden,
+    status: 403,
+    message: "You don't have permission to perform this action.",
+  });
 }

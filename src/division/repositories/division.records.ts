@@ -12,6 +12,7 @@ export const divisionSelect = {
   abbr: true,
   divisionTypeId: true,
   divisionType: { select: divisionTypeSelect },
+  documentGroups: { select: { documentGroup: true } },
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -44,4 +45,5 @@ export interface DivisionMutationInput {
   name?: string;
   abbr?: string;
   divisionTypeId?: string;
+  documentGroups?: import('../../generated/prisma/client').DocumentGroupCode[];
 }

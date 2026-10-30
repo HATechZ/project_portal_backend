@@ -72,11 +72,9 @@ repeated grant does not unexpectedly replace a valid default. Revoked roles make
 ineligible. Division's `Assign Division Lead` API reuses this same UserRole/ActorProfile
 orchestration and then validates the eligible Member; it is not a new identity model.
 
-A TEAM-scoped tenant custom-role assignment additionally requires `teamId`. The Team must be
-active and tenant-local, and the target User's active Member must have an active exact
-TeamMember row. `teamId` is forbidden for every COMPANY/DIVISION custom role and every fixed
-system role. The session resolves that binding from its exact active UserRole grant; it never
-derives a Team from an arbitrary membership.
+Role grants do not carry a `teamId` binding. A Team-scoped role is still a single-scope,
+explicit-permission role; its execution relationship is derived at request time from the active
+ActorProfile and the current Team/Work Request assignment. Supplying `teamId` is rejected.
 
 `GET /actor-profiles` returns only profiles owned by the authenticated User. Activation succeeds
 only when the profile is active, belongs to that User and Tenant, and its matching UserRole grant
@@ -144,7 +142,7 @@ Swagger summaries are deliberately short and use these endpoint purposes:
 | `GET /role/:id` | Get role details | Returns one safe role detail. |
 | `POST /role` | Create a custom role | Atomically creates a custom role and initial compatible grants. |
 | `PUT /role/:id/permission` | Update permissions for a role | Retains full replacement semantics and may replace a custom role scope when all submitted permissions are eligible. |
-| `GET /permission` | List available permissions | `customRole=true&scope=company|division|team|member|client|client_contact` lists only assignable permissions eligible for that exact scope; otherwise lists the existing selector catalog. |
+| `GET /permission` | List available permissions | For the internal role editor, `customRole=true&scope=company|division|team|member` lists only eligible internal permissions for that exact scope. Each item includes its persisted `module`/work-area category and `compatibleScopes`; optional `module=<PermissionCategory>` filters within the selected scope. Existing external `client` and `client_contact` selector behavior remains separate. Otherwise lists the existing selector catalog. |
 | `GET /permission/:id` | Get permission details | Returns one catalog definition. |
 | `GET /user/:userId/role` | List roles assigned to a user | Retains existing active/history behavior. |
 | `GET /user/:userId/role-options` | List roles available for assignment | Is the target-aware dropdown source. |
@@ -183,6 +181,10 @@ The backend filters and validates every requested permission through the authori
 `company`, `division`, and `team`; `ADD_TEAM` is eligible only for `company` and `division`.
 Every other action, including system-only `ADD_COMPANY`, is ineligible. `GET /permission` with
 `customRole=true` requires one exact supported `scope` and returns only that scope's eligible
+permissions. `module` is the persisted PermissionCategory/work-area projection (for example
+`BIDS`, `WORK_REQUESTS`, or `DOCUMENTS`), not an authorization grant: the available-module
+list is the distinct `module` values in the scope-filtered response, and
+`customRole=true&scope=<scope>&module=<module>` returns only that module's compatible
 permissions. Frontend filtering is UX only. Eligibility expands only when the owning protected
 operation supports generic permission plus object-scope authorization; there is no wildcard.
 

@@ -11,6 +11,10 @@ import {
   DocumentManagementRepository,
   type ExactDocumentVersion,
 } from './document-management.repository';
+import {
+  documentDownloadUrl,
+  documentPreviewUrl,
+} from '../common/documents/document-access';
 
 export type SearchInput = {
   q?: string;
@@ -47,6 +51,8 @@ type FileProjection = {
   uploadedFileName: string | null;
   generatedFileName: string | null;
   mimeType: string;
+  previewUrl: string | null;
+  downloadUrl: string;
   size: number;
   uploaderLabel: string;
   uploadedAt: Date;
@@ -281,6 +287,8 @@ function projection(
     uploadedFileName: value.uploadedFileName,
     generatedFileName: value.generatedFileName,
     mimeType: value.mimeType,
+    previewUrl: documentPreviewUrl(value.id, value.mimeType),
+    downloadUrl: documentDownloadUrl(value.id),
     size: Number(value.fileSizeBytes),
     uploaderLabel: value.uploadedByLabel ?? value.uploadedByActorId,
     uploadedAt: value.uploadedAt,

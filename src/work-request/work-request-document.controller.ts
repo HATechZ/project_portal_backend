@@ -9,7 +9,9 @@ import {
   UploadedFiles,
   UploadedFile,
   UseInterceptors,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import {
@@ -33,8 +35,10 @@ import { WorkRequestService } from './work-request.service';
 import type { WorkRequestUploadedFile } from './work-request.service';
 import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
 import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
-import { ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiProduces } from '@nestjs/swagger';
 import { WorkRequestDocumentUploadMultipartDto } from './dtos/work-request-document-upload.dto';
+import { WorkRequestDocumentDownloadDto } from './dtos/work-request-document-download.dto';
+import { AvailableDocumentCodeDto } from './dtos/available-document-code.dto';
 
 @ApiTags('work requests')
 @ApiSecurity('bearer')
@@ -50,6 +54,23 @@ import { WorkRequestDocumentUploadMultipartDto } from './dtos/work-request-docum
 @ApiStandardNotFoundResponse('Work Request document was not found')
 export class WorkRequestDocumentController {
   constructor(private readonly service: WorkRequestService) {}
+  @Get('available-document-codes')
+  @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
+  @ApiOperation({
+    summary:
+      'Get active Document Codes applicable to the current Work Request execution Division',
+  })
+  @ApiStandardArrayResponse(
+    AvailableDocumentCodeDto,
+    'Applicable Document Codes returned',
+  )
+  @ResponseMessage('Applicable Document Codes returned successfully')
+  availableDocumentCodes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.availableDocumentCodes(id, actor);
+  }
   @Post()
   @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)
   @UseInterceptors(
@@ -107,6 +128,26 @@ export class WorkRequestDocumentController {
       body.shipmentNumbers,
       actor,
     );
+  }
+  @Post('download')
+  @FinalPermissions(PermissionCode.VIEW_DOCUMENT)
+  @ApiOperation({
+    summary: 'Download selected or all Work Request documents as ZIP',
+  })
+  @ApiProduces('application/zip')
+  async download(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: WorkRequestDocumentDownloadDto,
+    @Res() response: Response,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    const file = await this.service.downloadDocuments(
+      id,
+      body.documentVersionIds,
+      actor,
+    );
+    response.type('application/zip').attachment(file.name);
+    file.body.pipe(response);
   }
   @Post(':documentId/versions')
   @FinalPermissions(PermissionCode.UPLOAD_DOCUMENT)

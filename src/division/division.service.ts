@@ -22,6 +22,7 @@ import {
   DivisionRepository,
   ScopedCompanyRecord,
 } from './repositories';
+import { DocumentGroupCode } from '../generated/prisma/client';
 
 @Injectable()
 export class DivisionService {
@@ -50,6 +51,7 @@ export class DivisionService {
   }
 
   async create(input: CreateDivisionDto): Promise<DivisionResponseDto> {
+    this.assertDocumentGroups(input.documentGroups);
     const company = await this.requireScopedCompany();
     await this.assertUniqueName(input.name, company.id);
     await this.assertDivisionType(input.divisionTypeId);
@@ -61,6 +63,7 @@ export class DivisionService {
     input: UpdateDivisionDto,
   ): Promise<DivisionResponseDto> {
     this.assertUpdateHasFields(input);
+    this.assertDocumentGroups(input.documentGroups);
     const company = await this.requireScopedCompany();
     await this.requireDivision(id, company.id);
     if (input.name !== undefined) {
@@ -185,12 +188,25 @@ export class DivisionService {
     if (
       input.name === undefined &&
       input.abbr === undefined &&
-      input.divisionTypeId === undefined
+      input.divisionTypeId === undefined &&
+      input.documentGroups === undefined
     ) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
         message:
           'Some information is invalid. Correct the highlighted fields and try again.',
+      });
+    }
+  }
+
+  private assertDocumentGroups(groups: DocumentGroupCode[] | undefined): void {
+    if (!groups) return;
+    if (groups.includes(DocumentGroupCode.GENERAL)) {
+      throw new AppException({
+        code: AppErrorCode.BadRequest,
+        status: HttpStatus.BAD_REQUEST,
+        message:
+          'GENERAL is globally available and cannot be configured per Division.',
       });
     }
   }

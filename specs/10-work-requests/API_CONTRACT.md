@@ -28,12 +28,23 @@
 | POST | `/api/v1/work-requests/:id/client-submissions/:submissionId/decision` | Authorized ClientContact accepts, rejects, or requests revision. |
 | POST | `/api/v1/work-requests/:id/reconsideration` | Exact Responsible Originating Division Lead's single reconsideration request. |
 | POST | `/api/v1/work-requests/:id/reconsideration/decision` | Authorized ClientContact accepts or denies that request. |
+| GET | `/api/v1/work-requests/:id/documents/available-document-codes` | Active, upload-applicable Document Codes for the current execution Division; requires `UPLOAD_DOCUMENT`, scoped resource access, and does not require `VIEW_DOCUMENT_CODES`. |
 
-Create body: `{ bidId XOR projectId, title, priority, notes?, originatingDivisionId, intermediateDivisionIds: UUID[1..], files?, documentCodeIds? }`. `originatingDivisionId` must be active. Normal creators must lead it; the server binds their exact active DivisionLead responsibility. A `tenant_super_admin` without a Member context must additionally supply `responsibleOriginatingDivisionLeadId`, an active Lead of that originating Division, so the route never guesses a responsible Lead. This field is rejected for ordinary creators. Clients cannot send any other responsibility ID, derived tail, route version/step/cycle IDs, Team/Member sequences, state, actor, tenant, storage/version/revision fields, formal revision round, or reconsideration state. `intermediateDivisionIds` preserves order and permits duplicate IDs.
+Create body: `{ bidId XOR projectId, title, priority, notes?, originatingDivisionId, responsibleOriginatingDivisionLeadId?, intermediateDivisionIds: UUID[1..], files?, documentCodeIds? }`. The creator requires explicit compatible `CREATE_WORK_REQUEST`, an active internal ActorProfile, and same-Company access to the selected parent; a prior Work Request relationship is never required. `originatingDivisionId` must be active. When `responsibleOriginatingDivisionLeadId` is omitted, the creator must be that active Lead; an authorized business creator who is not the originating Lead supplies the exact active Lead of that originating Division. The server validates that relationship and never derives it from a role name. A creator without a Member context must supply it. Clients cannot send any other responsibility ID, derived tail, route version/step/cycle IDs, Team/Member sequences, state, actor, tenant, storage/version/revision fields, formal revision round, or reconsideration state. `intermediateDivisionIds` preserves order and permits duplicate IDs.
 
 Sequence bodies contain only ordered target UUIDs and optional note. Amendment contains a base route version plus a complete replacement of **remaining future intermediate occurrences**; the service derives immutable tail steps and rejects completed/current modifications. Revision contains classification, exact valid source target, reason/note, and no caller-controlled requester/resume/formal-round field. Initial communication contains `recipientActorIds: UUID[1..]`, nonblank message, and exact owned document-version IDs; reply contains message/attachment IDs only.
 
 Responses are safe projections: IDs, occurrence/cycle/sequence positions, derived progress, permitted actions, safe person labels, exact immutable document-version IDs, timestamps, and immutable event references. They never expose tenant internals, storage keys, authorization internals, or private conversations of another pair. Standard errors: 400 malformed/server-owned fields; 403 permission/scope/exact-responsibility failure; 404 inaccessible resource/target; 409 stale route version, invalid current position, frozen Team sequence, duplicate/idempotent command, concurrent append, invalid revision resume, or exhausted reconsideration. Each route reuses a semantically correct existing generic permission where possible; only a catalogue audit may authorize the smallest required new generic permission, never by a speculative route-specific name.
+
+## Document Code applicability
+
+Document Code administration is distinct from upload use. Bid and Project uploads accept only
+active tenant `GENERAL` or `MARKETING` codes. A Work Request selector/upload resolves the active
+route projection's Division-bearing route step (including a revision branch); historical V1 uses
+its one active Division assignment. It returns/accepts active same-tenant `GENERAL` codes plus
+that Division's explicitly configured non-GENERAL groups. No current Division, or multiple
+historical active Division assignments, is a 409 rather than a guessed fallback. `ETC` and
+`CUSTOM` are never global but may be returned for a Work Request only if explicitly configured.
 
 ## HISTORICAL / PRE-ROUTE API
 
@@ -57,6 +68,7 @@ All routes inherit Module 00 response envelopes (`success`, `message`, `data`, m
 | GET | `/:id/events` | Paginated audit/event history |
 | GET | `/:id/documents` | Scoped Work Request document list |
 | GET | `/:id/documents/:documentId/versions` | Scoped immutable document-version history, oldest to newest |
+| POST | `/:id/documents/download` | Download selected or all owned document versions as one authenticated ZIP |
 | GET | `/:id/available-actions` | Backend-derived allowed actions |
 | POST | `/:id/client-submissions` | Compose and submit immutable package from FINAL_RELEASE |
 | GET | `/:id/client-submissions` | Permitted submission history/package metadata |
@@ -112,7 +124,9 @@ Every route returns 400 for invalid/forbidden fields, 401 for invalid session, 4
 
 External create is permitted only to a ClientContact with an explicitly granted compatible `REQUEST_INFO` role and the exact linked Client/Work Request relationship; no tenant-only access is valid.
 
-`GET /:id/documents` returns safe metadata for documents owned by the scoped Work Request. `GET /:id/documents/:documentId/versions` returns immutable V1 version rows in deterministic oldest-to-newest order (`uploadedAt ASC`, then `id ASC`). Neither route exposes binary content, tenant IDs, or internal storage keys. A document ID belonging to another request is not found.
+`GET /:id/documents` returns safe metadata for documents owned by the scoped Work Request. `GET /:id/documents/:documentId/versions` returns immutable V1 version rows in deterministic oldest-to-newest order (`uploadedAt ASC`, then `id ASC`). Every returned version exposes `documentId`, `versionId`, `mimeType`, `originalFileName` (on the logical document), `downloadUrl`, and a nullable `previewUrl`. These are authenticated relative endpoints: `GET /api/v1/document-versions/:versionId/download` streams the exact visible version as an attachment, while `GET /api/v1/document-versions/:versionId/preview` streams only PDF/image versions inline. Neither route exposes binary content, tenant IDs, or internal storage keys. A document ID belonging to another request is not found.
+
+`POST /:id/documents/download` accepts `{ documentVersionIds?: UUID[] }`; omitted or `[]` means every version owned by the visible Work Request, otherwise every requested ID must belong to that exact Work Request. It returns one `application/zip` attachment, never a partial archive. It requires `VIEW_DOCUMENT`, an active compatible ActorProfile, same-tenant scoped Work Request visibility, and successful storage reads. Duplicate logical filenames are disambiguated within the archive.
 
 `GET /:id/available-actions` returns the backend’s safe action descriptors (stable identity, label, optional input requirement/target kind) after evaluating latest derived state, permission, active ActorProfile/role grant, object scope, active assignment, parent relationship, and organization hierarchy. It exposes no client-side authorization matrix and does not authorize callers by role name alone. A false/empty result is correct when any one predicate fails.
 

@@ -22,6 +22,8 @@ The role labels are grant policy, not direct checks: current tenant-super-admin/
 
 Name is trimmed/nonblank; clientId, polId, podId, cargoId, and vesselId are UUIDs; Shipment Number uses approved two-digit normalization. POL/POD/Cargo/Vessel must be active, same-tenant approved master records. The backend derives `projectCode` from Project Name + POL + POD and rejects any client `projectCode`. Optional binary parts use `files[]`; `files[i]` maps to `documentCodeIds[i]`. Both are optional when no files are sent; supplied files and IDs must have matching counts, and repeated Document Code IDs are valid.
 
+Each supplied Document Code must be active, tenant-owned, and in `GENERAL` or `MARKETING`.
+
 Reject tenant/company/actor/id/timestamps, type/workspace, bidInfo/bidding, frontend `projectCode`, sourceChannel/clientEmail/status/Work Request/URL/storage/generated-name/revision fields and every undeclared input. Document Code is per-file classification, not a Project create field.
 
 Create trims/case-folds the name, validates scoped active Client/POL/POD/Cargo/Vessel records, derives/snapshots `projectCode` and naming inputs, creates Project plus ACTIVE event, and claims the tenant-wide name in the same transaction. A Bid or Project claim race returns 409. Storage failure is compensated and durable cleanup failure never returns success.
@@ -30,7 +32,7 @@ Create trims/case-folds the name, validates scoped active Client/POL/POD/Cargo/V
 
 ## PATCH `/api/v1/projects/:id/documents/:documentId/document-code`
 
-Accepts `{ "documentCodeId": "uuid" }`. The target must be an active tenant Marketing Document Code. It changes only current classification metadata, records a classification audit event and transactional Project update outbox event, and never re-uploads, changes `originalFileName`, `storageKey`, bytes, revision, or an already-created version's generated filename. Multiple files may use the same Document Code.
+Accepts `{ "documentCodeId": "uuid" }`. The target must be an active tenant `GENERAL` or `MARKETING` Document Code. It changes only current classification metadata, records a classification audit event and transactional Project update outbox event, and never re-uploads, changes `originalFileName`, `storageKey`, bytes, revision, or an already-created version's generated filename. Multiple files may use the same Document Code.
 
 ## C3 conversion compatibility
 

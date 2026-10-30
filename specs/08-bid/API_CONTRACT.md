@@ -23,6 +23,8 @@ All named business fields are required; IDs are UUID; text trims and is nonblank
 
 Optional binary parts use `files[]` and are subject to platform count/size/MIME-extension policy. `files[i]` maps to `documentCodeIds[i]`; counts must match whenever files are present.
 
+Each supplied Document Code must be active, tenant-owned, and in `GENERAL` or `MARKETING`.
+
 Reject `type`, workspace, `sourceChannelId`, `clientEmail`, `projectCode`, status, actor/tenant/company/timestamps, URLs, storage keys, generated filenames, revisions, labels, Work Request fields, a Bid-level document code, and every undeclared input.
 
 Create trims/case-folds the name, validates Client and option IDs in tenant scope, derives/snapshots naming values and `projectCode`, creates the Bid and `BIDDING` event, then claims the tenant-wide name in the same database transaction. A unique-claim race returns 409; generated filename is not identity. Storage is compensated on database failure; failed cleanup is queued durably and never returns success.

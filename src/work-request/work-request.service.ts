@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   FILE_STORAGE,
   type FileStorage,
@@ -42,6 +42,9 @@ import { WorkRequestRouteActionsProvider } from './providers/work-request-route-
 import { WorkRequestRouteClientProvider } from './providers/work-request-route-client.provider';
 import { WorkRequestCommunicationProvider } from './providers/work-request-communication.provider';
 import { ObjectScopeProvider } from '../common/security/object-scope.provider';
+import { WorkRequestDocumentDownloadProvider } from './providers/work-request-document-download.provider';
+import { AppErrorCode } from '../common/exceptions/app-error-code';
+import { AppException } from '../common/exceptions/app-exception';
 
 export type WorkRequestUploadedFile = {
   originalname: string;
@@ -67,6 +70,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     private readonly clientLifecycle: WorkRequestClientSubmissionProvider,
     private readonly routeActions: WorkRequestRouteActionsProvider,
     private readonly routeClient: WorkRequestRouteClientProvider,
+    private readonly documentDownloads: WorkRequestDocumentDownloadProvider,
     @Inject(FILE_STORAGE) storage: FileStorage,
     receipts?: DocumentUploadRequestRepository,
     private readonly communications?: WorkRequestCommunicationProvider,
@@ -92,6 +96,14 @@ export class WorkRequestService extends WorkRequestServiceBase {
   override async availableActions(id: string, actor: SessionActor) {
     const routeActions = await this.routeActions.available(id, actor);
     return routeActions ?? super.availableActions(id, actor);
+  }
+
+  downloadDocuments(
+    id: string,
+    versionIds: string[] | undefined,
+    actor: SessionActor,
+  ) {
+    return this.documentDownloads.download(id, versionIds, actor);
   }
 
   assignDivision(id: string, input: AssignDivisionDto, actor: SessionActor) {
@@ -213,29 +225,77 @@ export class WorkRequestService extends WorkRequestServiceBase {
   route(id: string, actor: SessionActor) {
     if (this.communications)
       return this.communications.routeProjection(id, actor);
-    if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
+    if (!actor.member?.id) throw routeForbidden();
     return this.repository.routeProjection(id, actor.member.id);
   }
-  forwardRoute(id: string, stepId: string, actor: SessionActor) {
+  async forwardRoute(id: string, stepId: string, actor: SessionActor) {
     const admin = hasTenantWideInternalAuthority(actor);
-    if (!actor.member?.id && !admin) throw new Error('WR_ROUTE_MEMBER');
-    return this.repository.forwardRoute(
-      id,
-      stepId,
-      actor.id,
-      actor.member?.id ?? null,
-      admin,
-    );
+    if (!actor.member?.id && !admin) throw routeForbidden();
+    if (!admin && actor.role.customScope !== 'division') throw routeForbidden();
+    try {
+      return await this.repository.forwardRoute(
+        id,
+        stepId,
+        actor.id,
+        actor.member?.id ?? null,
+        admin,
+      );
+    } catch (error) {
+      throw mapRouteError(error);
+    }
   }
-  amendRoute(id: string, input: AmendWorkRequestRouteDto, actor: SessionActor) {
+  async amendRoute(id: string, input: AmendWorkRequestRouteDto, actor: SessionActor) {
     const admin = hasTenantWideInternalAuthority(actor);
-    if (!actor.member?.id && !admin) throw new Error('WR_ROUTE_MEMBER');
-    return this.repository.amendRoute(
-      id,
-      input,
-      actor.id,
-      actor.member?.id ?? null,
-      admin,
-    );
+    if (!actor.member?.id && !admin) throw routeForbidden();
+    if (
+      !admin &&
+      actor.role.customScope !== 'company' &&
+      actor.role.customScope !== 'division'
+    )
+      throw routeForbidden();
+    try {
+      return await this.repository.amendRoute(
+        id,
+        input,
+        actor.id,
+        actor.member?.id ?? null,
+        admin,
+      );
+    } catch (error) {
+      throw mapRouteError(error);
+    }
   }
+}
+
+function routeForbidden(): AppException {
+  return new AppException({
+    code: AppErrorCode.Forbidden,
+    status: HttpStatus.FORBIDDEN,
+    message: 'An active related Member profile is required for this route action.',
+  });
+}
+
+function mapRouteError(error: unknown): AppException {
+  if (error instanceof AppException) return error;
+  const code = error instanceof Error ? error.message : '';
+  if (code === 'WR_ROUTE_DIVISION_LEAD') return routeForbidden();
+  const message = (
+    {
+      WR_ROUTE_POSITION: 'Work Request route position is no longer active.',
+      WR_DIVISION_CYCLE_INCOMPLETE:
+        'The current Division cycle must finish before forwarding the route.',
+      WR_ROUTE_COMPLETE: 'Work Request route has no next step.',
+      WR_ROUTE_CLIENT_GATEWAY:
+        'The Client step can only be entered by submitting the final package.',
+      WR_ROUTE_STALE:
+        'Work Request route amendment is based on a stale route version.',
+      WR_ROUTE_DIVISION:
+        'A route amendment references an inactive or unavailable Division.',
+    } satisfies Record<string, string>
+  )[code] ?? 'Work Request route action could not be completed.';
+  return new AppException({
+    code: AppErrorCode.Conflict,
+    status: HttpStatus.CONFLICT,
+    message,
+  });
 }

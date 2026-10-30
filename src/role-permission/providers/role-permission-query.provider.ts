@@ -14,6 +14,7 @@ import {
   toUserRoleAssignmentResponse,
 } from './role-permission.mapper';
 import { isCustomRoleScope } from './custom-role-policy';
+import { PermissionCategory } from '../../generated/prisma/client';
 
 @Injectable()
 export class RolePermissionQueryProvider {
@@ -68,6 +69,7 @@ export class RolePermissionQueryProvider {
   async findPermissions(
     customRole?: boolean,
     scope?: string,
+    module?: PermissionCategory,
   ): Promise<PermissionResponseDto[]> {
     const permissions = await this.repository.findVisiblePermissions();
     if (!customRole) return permissions.map(toPermissionResponse);
@@ -78,6 +80,7 @@ export class RolePermissionQueryProvider {
           ({ scope: compatible }) => compatible === scope,
         ),
       )
+      .filter((permission) => !module || permission.category === module)
       .map(toPermissionResponse);
   }
 

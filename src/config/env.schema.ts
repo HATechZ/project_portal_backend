@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { isAbsolute } from 'node:path';
 import { EnvironmentVariables, NODE_ENV_VALUES } from './env';
 
 export const environmentSchema = Joi.object<EnvironmentVariables>({
@@ -14,6 +15,21 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
   DATABASE_URL_PRIVILEGED: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
+  FILE_STORAGE_ROOT: Joi.string()
+    .trim()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string()
+        .custom((value, helpers) =>
+          isAbsolute(value) ? value : helpers.error('any.invalid'),
+        )
+        .required()
+        .messages({
+          'any.invalid':
+            'FILE_STORAGE_ROOT must be an absolute path in production.',
+        }),
+      otherwise: Joi.optional(),
+    }),
   CACHE_REDIS_URL: Joi.string()
     .uri({ scheme: ['redis', 'rediss'] })
     .default('redis://127.0.0.1:6379'),

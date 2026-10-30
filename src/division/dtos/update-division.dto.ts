@@ -1,12 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayNotContains,
+  ArrayUnique,
+  IsArray,
+  IsEnum,
   IsString,
   IsUUID,
   MaxLength,
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { DocumentGroupCode } from '../../generated/prisma/client';
 
 export class UpdateDivisionDto {
   // DivisionService enforces at least one defined update field.
@@ -37,4 +42,17 @@ export class UpdateDivisionDto {
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsUUID()
   divisionTypeId?: string;
+
+  @ApiPropertyOptional({
+    enum: DocumentGroupCode,
+    isArray: true,
+    description:
+      "Complete replacement of this Division's non-GENERAL upload groups. GENERAL is implicit.",
+  })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsArray()
+  @ArrayUnique()
+  @ArrayNotContains([DocumentGroupCode.GENERAL])
+  @IsEnum(DocumentGroupCode, { each: true })
+  documentGroups?: DocumentGroupCode[];
 }

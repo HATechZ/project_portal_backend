@@ -12,6 +12,7 @@ describe('WorkRequestDocumentHistoryProvider', () => {
     fileSizeBytes: 1n,
     uploadedAt: new Date('2026-01-01'),
     uploadedByActor: { id: 'actor', label: 'Uploader' },
+    document: { originalFileName: 'plan.pdf' },
   };
   it('returns only the requested Work Request documents and supports an empty list', async () => {
     const repository = { documents: jest.fn().mockResolvedValue([]) };
@@ -41,7 +42,13 @@ describe('WorkRequestDocumentHistoryProvider', () => {
     expect(result.map((item) => item.versionNumber)).toEqual([1, 2]);
     expect(result[0].uploadedFileName).toBe('plan.pdf');
     expect(result[0]).toEqual(
-      expect.objectContaining({ mimeType: 'application/pdf', size: 1 }),
+      expect.objectContaining({
+        mimeType: 'application/pdf',
+        size: 1,
+        originalFileName: 'plan.pdf',
+        previewUrl: '/api/v1/document-versions/v1/preview',
+        downloadUrl: '/api/v1/document-versions/v1/download',
+      }),
     );
     expect(result[0]).not.toHaveProperty('checksum');
   });

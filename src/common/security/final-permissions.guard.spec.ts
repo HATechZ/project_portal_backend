@@ -159,4 +159,25 @@ describe('FinalPermissionsGuard', () => {
       ),
     ).rejects.toThrow('Missing required explicit permission');
   });
+
+  it.each([
+    PermissionCode.VIEW_BID,
+    PermissionCode.CREATE_BID,
+    PermissionCode.VIEW_PROJECT,
+    PermissionCode.CREATE_PROJECT,
+    PermissionCode.VIEW_WORK_REQUEST,
+    PermissionCode.CREATE_WORK_REQUEST,
+    PermissionCode.ASSIGN_WORK_REQUEST_DIVISION,
+    PermissionCode.VIEW_DOCUMENT,
+  ])('allows explicit compatible company-scope %s without a role-name bypass', async (permission) => {
+    const guard = new FinalPermissionsGuard({
+      getAllAndOverride: jest.fn().mockReturnValue([permission]),
+    } as never);
+    await expect(
+      guard.canActivate(contextFor([permission], 'company', ['company'])),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(contextFor([], 'company', ['company'])),
+    ).rejects.toThrow('Missing required explicit permission');
+  });
 });

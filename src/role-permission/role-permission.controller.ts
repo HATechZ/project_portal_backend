@@ -102,13 +102,14 @@ export class RolePermissionController {
   @ApiOperation({
     summary: 'List available permissions',
     description:
-      'Use customRole=true with a system-defined scope to receive only permissions compatible with that exact scope. Without customRole=true, the final permission catalogue is returned.',
+      'Use customRole=true with a system-defined scope to receive only permissions compatible with that exact scope. Each permission exposes module (the persisted work-area category) and compatibleScopes. Optionally supply module to select one work area. Without customRole=true, the final permission catalogue is returned.',
   })
   @ApiStandardArrayResponse(PermissionResponseDto)
   findPermissions(@Query() query: PermissionQueryDto) {
     return this.service.findPermissions(
       query.customRole === 'true',
       query.scope,
+      query.module,
     );
   }
 
