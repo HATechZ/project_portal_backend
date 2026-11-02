@@ -38,7 +38,7 @@ import { DocumentVersionResponseDto } from '../common/documents/document-summary
 import { ApiBody, ApiConsumes, ApiProduces } from '@nestjs/swagger';
 import { WorkRequestDocumentUploadMultipartDto } from './dtos/work-request-document-upload.dto';
 import { WorkRequestDocumentDownloadDto } from './dtos/work-request-document-download.dto';
-import { AvailableDocumentCodeDto } from './dtos/available-document-code.dto';
+import { AvailableDocumentCodeDto } from '../common/documents/available-document-code.dto';
 
 @ApiTags('work requests')
 @ApiSecurity('bearer')

@@ -32,6 +32,7 @@ import type { DocumentSummaryDto } from '../../common/documents/document-summary
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
 import type { SessionActor } from '../../common/security/session.types';
 import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
+import type { AvailableDocumentCodeDto } from '../../common/documents/available-document-code.dto';
 import {
   DocumentUploadOperationCode,
   DocumentUploadOwnerCode,
@@ -55,6 +56,18 @@ export abstract class BidServiceBase {
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
+
+  availableCreationDocumentCodes(): Promise<AvailableDocumentCodeDto[]> {
+    return this.bids.availableDocumentCodes();
+  }
+
+  async availableDocumentCodes(
+    bidId: string,
+    actor: SessionActor,
+  ): Promise<AvailableDocumentCodeDto[]> {
+    if (!(await this.bids.find(bidId, actor))) throw notFound();
+    return this.bids.availableDocumentCodes();
+  }
 
   async createStandaloneDocuments(
     bidId: string,

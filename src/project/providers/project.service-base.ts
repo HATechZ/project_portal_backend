@@ -39,6 +39,7 @@ import type { DocumentSummaryDto } from '../../common/documents/document-summary
 import type { DocumentVersionResponseDto } from '../../common/documents/document-summary.dto';
 import type { SessionActor } from '../../common/security/session.types';
 import { DocumentUploadRequestRepository } from '../../common/documents/document-upload-request.repository';
+import type { AvailableDocumentCodeDto } from '../../common/documents/available-document-code.dto';
 import { normalizeDirectProjectName } from '../../common/projects/direct-project-creation';
 import {
   DocumentUploadOperationCode,
@@ -63,6 +64,18 @@ export abstract class ProjectServiceBase {
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
   ) {}
+
+  availableCreationDocumentCodes(): Promise<AvailableDocumentCodeDto[]> {
+    return this.projects.availableDocumentCodes();
+  }
+
+  async availableDocumentCodes(
+    projectId: string,
+    actor: SessionActor,
+  ): Promise<AvailableDocumentCodeDto[]> {
+    if (!(await this.projects.find(projectId, actor))) throw notFound();
+    return this.projects.availableDocumentCodes();
+  }
 
   async createStandaloneDocuments(
     projectId: string,

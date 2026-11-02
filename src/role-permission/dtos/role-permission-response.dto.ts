@@ -23,6 +23,13 @@ export class PermissionResponseDto {
   @ApiProperty() resource!: string;
   @ApiProperty({ enum: CustomRoleScope, isArray: true })
   compatibleScopes!: CustomRoleScope[];
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    isArray: true,
+    description: 'Direct catalogue prerequisite Permission IDs.',
+  })
+  requiredPermissionIds!: string[];
 }
 
 export class RoleResponseDto {

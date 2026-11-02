@@ -32,6 +32,7 @@ import { PaginationQueryDto } from '../common/pagination/dtos/pagination-query.d
 import { ApiPaginatedResponse } from '../common/swagger/api-paginated-response.decorator';
 import {
   ApiStandardBadRequestResponse,
+  ApiStandardArrayResponse,
   ApiStandardConflictResponse,
   ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
@@ -40,6 +41,7 @@ import {
   ApiStandardUnauthorizedResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { PermissionCode } from '../generated/prisma/client';
+import { AvailableDocumentCodeDto } from '../common/documents/available-document-code.dto';
 import {
   CreateWorkRequestDto,
   AmendWorkRequestRouteDto,
@@ -67,6 +69,14 @@ import { workRequestCreateMultipartBody } from './work-request.swagger';
 @ApiStandardConflictResponse('Work Request request conflicts with current data')
 export class WorkRequestController {
   constructor(private readonly service: WorkRequestService) {}
+  @Get('creation/available-document-codes')
+  @FinalPermissions(PermissionCode.CREATE_WORK_REQUEST)
+  @ApiOperation({ summary: 'Get applicable Document Codes for Work Request creation' })
+  @ApiStandardArrayResponse(AvailableDocumentCodeDto, 'Applicable Document Codes returned')
+  @ResponseMessage('Applicable Document Codes returned successfully')
+  creationDocumentCodes(@Query('originatingDivisionId', ParseUUIDPipe) originatingDivisionId: string) {
+    return this.service.availableCreationDocumentCodes(originatingDivisionId);
+  }
   @Post()
   @FinalPermissions(PermissionCode.CREATE_WORK_REQUEST)
   @UseInterceptors(

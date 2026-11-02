@@ -27,6 +27,7 @@ export function toPermissionResponse(permission: {
   scopeCompatibilities: {
     scope: RoleResponseDto['permissions'][number]['compatibleScopes'][number];
   }[];
+  requiredPermissionDependencies?: { requiredPermissionId: string }[];
 }): RoleResponseDto['permissions'][number] {
   return {
     id: permission.id,
@@ -38,6 +39,9 @@ export function toPermissionResponse(permission: {
     actionType: permission.actionType,
     resource: permission.resource,
     compatibleScopes: permission.scopeCompatibilities.map(({ scope }) => scope),
+    requiredPermissionIds: (permission.requiredPermissionDependencies ?? []).map(
+      ({ requiredPermissionId }) => requiredPermissionId,
+    ),
   };
 }
 

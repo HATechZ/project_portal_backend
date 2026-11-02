@@ -48,7 +48,7 @@ import {
   DocumentUploadOwnerCode,
 } from '../../generated/prisma/client';
 import { assertWorkRequestExternalClientAccess } from './work-request-external-client-access';
-import type { AvailableDocumentCodeDto } from '../dtos/available-document-code.dto';
+import type { AvailableDocumentCodeDto } from '../../common/documents/available-document-code.dto';
 
 export abstract class WorkRequestServiceBase {
   protected constructor(
@@ -199,6 +199,16 @@ export abstract class WorkRequestServiceBase {
     if (!context) throw notFound();
     await this.assertDocumentUploadAccess(id, actor, context.parent);
     return context.codes;
+  }
+
+  async availableCreationDocumentCodes(
+    originatingDivisionId: string,
+  ): Promise<AvailableDocumentCodeDto[]> {
+    const codes = await this.repository.availableCreationDocumentCodes(
+      originatingDivisionId,
+    );
+    if (!codes) throw notFound('Originating Division was not found or is inactive.');
+    return codes;
   }
 
   private async assertDocumentUploadAccess(

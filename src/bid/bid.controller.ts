@@ -47,6 +47,7 @@ import { PermissionCode } from '../generated/prisma/client';
 import { DocumentUploadMultipartDto } from '../common/documents/document-upload.dto';
 import { DocumentSummaryDto } from '../common/documents/document-summary.dto';
 import { DocumentVersionResponseDto } from '../common/documents/document-summary.dto';
+import { AvailableDocumentCodeDto } from '../common/documents/available-document-code.dto';
 import { BidService, type BidUploadedFile } from './bid.service';
 import { CreateBidMultipartPipe } from './dtos/multipart-bid.pipe';
 import {
@@ -73,6 +74,15 @@ import {
 @ApiStandardConflictResponse('Bid request conflicts with current data')
 export class BidController {
   constructor(private readonly service: BidService) {}
+
+  @Get('creation/available-document-codes')
+  @FinalPermissions(PermissionCode.CREATE_BID)
+  @ApiOperation({ summary: 'Get applicable Document Codes for Bid creation' })
+  @ApiStandardArrayResponse(AvailableDocumentCodeDto, 'Applicable Document Codes returned')
+  @ResponseMessage('Applicable Document Codes returned successfully')
+  creationDocumentCodes() {
+    return this.service.availableCreationDocumentCodes();
+  }
 
   @Post()
   @FinalPermissions(PermissionCode.CREATE_BID)
@@ -236,6 +246,18 @@ const response = await fetch('/api/v1/bids', {
       body.descriptions,
       body.shipmentNumbers,
     );
+  }
+
+  @Get(':id/documents/available-document-codes')
+  @FinalPermissions(PermissionCode.UPDATE_BID)
+  @ApiOperation({ summary: 'Get applicable Document Codes for Bid document upload' })
+  @ApiStandardArrayResponse(AvailableDocumentCodeDto, 'Applicable Document Codes returned')
+  @ResponseMessage('Applicable Document Codes returned successfully')
+  availableDocumentCodes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.availableDocumentCodes(id, actor);
   }
 
   @Post(':id/documents/:documentId/versions')

@@ -16,6 +16,7 @@ const permission = (
   actionType: 'VIEW',
   resource: 'Member',
   scopeCompatibilities: scopes.map((scope) => ({ scope })),
+  requiredPermissionDependencies: [],
 });
 
 const scopeCases: {
@@ -112,6 +113,17 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
       module: 'ORGANIZATION',
     });
     expect(result).not.toHaveProperty('scopeCompatibilities');
+    expect(result).toHaveProperty('requiredPermissionIds', []);
+  });
+
+  it('returns authoritative direct dependency IDs from the scope and module catalogues', async () => {
+    catalogue[1].requiredPermissionDependencies = [
+      { requiredPermissionId: '1' },
+    ];
+    const scoped = await provider.findPermissions(true, 'company');
+    const module = await provider.findPermissions(true, 'company', 'MEMBERS');
+    expect(scoped.find(({ id }) => id === '2')?.requiredPermissionIds).toEqual(['1']);
+    expect(module[0].requiredPermissionIds).toEqual(['1']);
   });
 
   it('normalizes a permission detail response', async () => {

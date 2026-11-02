@@ -78,6 +78,20 @@ export class RolePermissionRepository extends BaseRepository {
     );
   }
 
+  findPermissionDependencyGraph() {
+    return this.transaction((db) =>
+      db.permission.findMany({
+        select: {
+          id: true,
+          scopeCompatibilities: { select: { scope: true } },
+          requiredPermissionDependencies: {
+            select: { requiredPermissionId: true },
+          },
+        },
+      }),
+    );
+  }
+
   findPermission(id: string): Promise<PermissionRecord | null> {
     return this.transaction((db) =>
       db.permission.findUnique({

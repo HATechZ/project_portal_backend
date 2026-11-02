@@ -757,8 +757,10 @@ model Permission {
   resource    String               @map("resource") @db.VarChar(120)
   createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
 
-  scopeCompatibilities PermissionScopeCompatibility[]
-  rolePermissions      RolePermission[]
+  scopeCompatibilities          PermissionScopeCompatibility[]
+  rolePermissions               RolePermission[]
+  requiredPermissionDependencies PermissionDependency[] @relation("PermissionDependencyPermission")
+  requiredByPermissionDependencies PermissionDependency[] @relation("PermissionDependencyRequiredPermission")
 
   @@map("permissions")
 }
@@ -771,6 +773,18 @@ model PermissionScopeCompatibility {
 
   @@id([permissionId, scope])
   @@map("permission_scope_compatibilities")
+}
+
+model PermissionDependency {
+  permissionId         String @map("permission_id") @db.Uuid
+  requiredPermissionId String @map("required_permission_id") @db.Uuid
+
+  permission         Permission @relation("PermissionDependencyPermission", fields: [permissionId], references: [id], onDelete: Restrict)
+  requiredPermission Permission @relation("PermissionDependencyRequiredPermission", fields: [requiredPermissionId], references: [id], onDelete: Restrict)
+
+  @@id([permissionId, requiredPermissionId])
+  @@index([requiredPermissionId])
+  @@map("permission_dependencies")
 }
 
 model RolePermission {

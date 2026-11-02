@@ -142,7 +142,7 @@ Swagger summaries are deliberately short and use these endpoint purposes:
 | `GET /role/:id` | Get role details | Returns one safe role detail. |
 | `POST /role` | Create a custom role | Atomically creates a custom role and initial compatible grants. |
 | `PUT /role/:id/permission` | Update permissions for a role | Retains full replacement semantics and may replace a custom role scope when all submitted permissions are eligible. |
-| `GET /permission` | List available permissions | For the internal role editor, `customRole=true&scope=company|division|team|member` lists only eligible internal permissions for that exact scope. Each item includes its persisted `module`/work-area category and `compatibleScopes`; optional `module=<PermissionCategory>` filters within the selected scope. Existing external `client` and `client_contact` selector behavior remains separate. Otherwise lists the existing selector catalog. |
+| `GET /permission` | List available permissions | For the internal role editor, `customRole=true&scope=company|division|team|member` lists only eligible internal permissions for that exact scope. Each item includes its persisted `module`/work-area category, `compatibleScopes`, and authoritative direct `requiredPermissionIds`; optional `module=<PermissionCategory>` filters within the selected scope. Existing external `client` and `client_contact` selector behavior remains separate. Otherwise lists the existing selector catalog. |
 | `GET /permission/:id` | Get permission details | Returns one catalog definition. |
 | `GET /user/:userId/role` | List roles assigned to a user | Retains existing active/history behavior. |
 | `GET /user/:userId/role-options` | List roles available for assignment | Is the target-aware dropdown source. |

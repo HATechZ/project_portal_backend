@@ -9,6 +9,8 @@ Inherits Module 00 envelopes/errors/request ID and Module 03 authenticated Tenan
 | GET | `/api/v1/projects/:id` | Tenant/object-scoped detail | tenant_super_admin, CCR, division_head, division_lead grants |
 | PATCH | `/api/v1/projects/:id` | Approved mutable Project fields only | tenant_super_admin or CCR grant |
 | PATCH | `/api/v1/projects/:id/documents/:documentId/document-code` | Reclassify one persisted Project file, 200 | `UPDATE_PROJECT` grant |
+| GET | `/api/v1/projects/creation/available-document-codes` | Active `GENERAL` + `MARKETING` creation selector | `CREATE_PROJECT`; no document-code catalogue permission |
+| GET | `/api/v1/projects/:id/documents/available-document-codes` | Active `GENERAL` + `MARKETING` upload selector | `UPDATE_PROJECT` plus scoped Project access; no document-code catalogue permission |
 
 The role labels are grant policy, not direct checks: current tenant-super-admin/`ccr_coordinator` identities and the action-grant/object-scope pipeline decide access. Division Head and Division Lead receive no create/update grant. No `/workspaces`, `/bid-projects`, shared creation, delete, archive, source channel, Bid conversion/outcome, client-decision, or download API is approved in V1.
 

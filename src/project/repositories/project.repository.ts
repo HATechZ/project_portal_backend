@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context';
 import {
+  applicableDocumentCodeWhere,
+  bidProjectDocumentGroups,
+} from '../../common/documents/document-code-applicability';
+import {
   DocumentGroupCode,
   OptionTypeCode,
   Prisma,
@@ -255,11 +259,11 @@ export class ProjectRepository extends BaseRepository {
       const codes = await db.documentCodeOption.findMany({
         where: {
           id: { in: documentCodeIds },
-          tenantId,
-          isActive: true,
-          documentGroup: {
-            in: [DocumentGroupCode.GENERAL, DocumentGroupCode.MARKETING],
-          },
+          ...applicableDocumentCodeWhere(
+            tenantId,
+            bidProjectDocumentGroups(),
+            documentCodeIds,
+          ),
         },
         select: { id: true, code: true, name: true },
       });
@@ -272,6 +276,21 @@ export class ProjectRepository extends BaseRepository {
         ),
       };
     });
+  }
+
+  availableDocumentCodes() {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.documentCodeOption.findMany({
+        where: applicableDocumentCodeWhere(tenantId, bidProjectDocumentGroups()),
+        select: { id: true, code: true, name: true, documentGroup: true },
+        orderBy: [
+          { documentGroup: 'asc' },
+          { sortOrder: 'asc' },
+          { code: 'asc' },
+        ],
+      }),
+    );
   }
   createStandaloneDocuments(
     projectId: string,

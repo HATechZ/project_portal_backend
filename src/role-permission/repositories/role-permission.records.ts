@@ -9,6 +9,7 @@ export const permissionSelect = {
   actionType: true,
   resource: true,
   scopeCompatibilities: { select: { scope: true } },
+  requiredPermissionDependencies: { select: { requiredPermissionId: true } },
 } satisfies Prisma.PermissionSelect;
 
 export const roleSelect = (tenantId: string) =>

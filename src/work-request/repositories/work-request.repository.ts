@@ -8,6 +8,10 @@ import {
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
+import {
+  applicableDocumentCodeWhere,
+  workRequestDocumentGroups,
+} from '../../common/documents/document-code-applicability';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { workRequestSelect } from './work-request.records';
@@ -35,18 +39,12 @@ export class WorkRequestRepository extends BaseRepository {
             select: { documentGroup: true },
           })
         : [];
-      const allowedGroups = [
-        DocumentGroupCode.GENERAL,
-        ...configuredGroups.map((row) => row.documentGroup),
-      ];
+      const allowedGroups = workRequestDocumentGroups(
+        configuredGroups.map((row) => row.documentGroup),
+      );
       const rows = codeIds.length
         ? await db.documentCodeOption.findMany({
-            where: {
-              id: { in: codeIds },
-              tenantId,
-              isActive: true,
-              documentGroup: { in: allowedGroups },
-            },
+            where: applicableDocumentCodeWhere(tenantId, allowedGroups, codeIds),
             select: { id: true, code: true, name: true },
           })
         : [];
@@ -103,6 +101,28 @@ export class WorkRequestRepository extends BaseRepository {
           rows.map((row) => [row.id, { code: row.code, name: row.name }]),
         ),
       };
+    });
+  }
+  async availableCreationDocumentCodes(originatingDivisionId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const division = await db.division.findFirst({
+        where: { id: originatingDivisionId, tenantId, isActive: true },
+        select: { id: true },
+      });
+      if (!division) return null;
+      const groups = await db.divisionDocumentGroup.findMany({
+        where: { tenantId, divisionId: division.id },
+        select: { documentGroup: true },
+      });
+      return db.documentCodeOption.findMany({
+        where: applicableDocumentCodeWhere(
+          tenantId,
+          workRequestDocumentGroups(groups.map((group) => group.documentGroup)),
+        ),
+        select: { id: true, code: true, name: true, documentGroup: true },
+        orderBy: [{ documentGroup: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
+      });
     });
   }
   findCreateReplay(idempotencyKey: string, actorId: string) {
@@ -674,10 +694,9 @@ export class WorkRequestRepository extends BaseRepository {
         where: { tenantId, divisionId },
         select: { documentGroup: true },
       });
-      const allowedGroups = [
-        DocumentGroupCode.GENERAL,
-        ...configuredGroups.map((row) => row.documentGroup),
-      ];
+      const allowedGroups = workRequestDocumentGroups(
+        configuredGroups.map((row) => row.documentGroup),
+      );
       const parent = request.bid ?? request.directProject;
       if (
         !parent ||
@@ -688,12 +707,7 @@ export class WorkRequestRepository extends BaseRepository {
       )
         throw new Error('WR_NAMING_CONTEXT');
       const codes = await db.documentCodeOption.findMany({
-        where: {
-          id: { in: documentCodeIds },
-          tenantId,
-          isActive: true,
-          documentGroup: { in: allowedGroups },
-        },
+        where: applicableDocumentCodeWhere(tenantId, allowedGroups, documentCodeIds),
         select: { id: true, code: true, name: true },
       });
       if (codes.length !== new Set(documentCodeIds).size)
@@ -769,16 +783,10 @@ export class WorkRequestRepository extends BaseRepository {
         },
         divisionId,
         codes: await db.documentCodeOption.findMany({
-          where: {
+          where: applicableDocumentCodeWhere(
             tenantId,
-            isActive: true,
-            documentGroup: {
-              in: [
-                DocumentGroupCode.GENERAL,
-                ...groups.map((group) => group.documentGroup),
-              ],
-            },
-          },
+            workRequestDocumentGroups(groups.map((group) => group.documentGroup)),
+          ),
           select: { id: true, code: true, name: true, documentGroup: true },
           orderBy: [
             { documentGroup: 'asc' },

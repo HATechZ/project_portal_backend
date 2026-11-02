@@ -168,8 +168,7 @@ export class RolePermissionMutationProvider {
       });
     }
     this.assertUniquePermissionIds(permissionIds);
-    const permissions =
-      await this.repository.findPermissionsByIds(permissionIds);
+    const permissions = await this.repository.findPermissionsByIds(permissionIds);
     if (
       permissions.length !== permissionIds.length ||
       permissions.some(
@@ -186,6 +185,56 @@ export class RolePermissionMutationProvider {
           'The selected permission is not available for this custom role scope.',
       });
     }
+    await this.assertDependencies(scope, permissionIds);
+  }
+
+  private async assertDependencies(
+    scope: CustomRoleScope,
+    permissionIds: string[],
+  ): Promise<void> {
+    const catalogue = await this.repository.findPermissionDependencyGraph();
+    const byId = new Map(catalogue.map((permission) => [permission.id, permission]));
+    const selected = new Set(permissionIds);
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+
+    const visit = (id: string): void => {
+      if (visiting.has(id))
+        throw new AppException({
+          code: AppErrorCode.BadRequest,
+          status: HttpStatus.BAD_REQUEST,
+          message: 'The permission catalogue contains a circular dependency.',
+        });
+      if (visited.has(id)) return;
+      const permission = byId.get(id);
+      if (!permission)
+        throw new AppException({
+          code: AppErrorCode.BadRequest,
+          status: HttpStatus.BAD_REQUEST,
+          message: 'The permission catalogue contains an unknown dependency.',
+        });
+      visiting.add(id);
+      for (const { requiredPermissionId } of permission.requiredPermissionDependencies) {
+        const required = byId.get(requiredPermissionId);
+        if (!required || !selected.has(requiredPermissionId))
+          throw new AppException({
+            code: AppErrorCode.BadRequest,
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Select every permission required by the selected permission.',
+          });
+        if (!required.scopeCompatibilities.some(({ scope: compatible }) => compatible === scope))
+          throw new AppException({
+            code: AppErrorCode.BadRequest,
+            status: HttpStatus.BAD_REQUEST,
+            message: 'The permission catalogue has a dependency incompatible with this role scope.',
+          });
+        visit(requiredPermissionId);
+      }
+      visiting.delete(id);
+      visited.add(id);
+    };
+
+    for (const id of selected) visit(id);
   }
 
   private assertUniquePermissionIds(permissionIds: string[]): void {
