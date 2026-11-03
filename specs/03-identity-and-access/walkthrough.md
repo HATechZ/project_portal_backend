@@ -83,3 +83,26 @@ Cross-Tenant User/role/session targets remained inaccessible; foreign profile ac
 403. Logout revoked only the caller session and invalidated its access/refresh credentials.
 These results cover the authenticated Tenant UX change; the earlier broader module completion
 blockers and successful profile-write verification remain separate and unticked.
+
+## 2026-11-03: scope/grant immediate-constraint regression
+
+Investigation used a read-only live catalog transaction and an isolated disposable PostgreSQL 18 reproduction with the generated Prisma client and real tenant Prisma extension. No live data, FK, trigger, permission code or catalogue compatibility row was changed.
+
+Captured database failure from the old scope-first sequence:
+
+- Prisma code: P2003; modelName: RolePermission.
+- PostgreSQL SQLSTATE: 23503; adapter kind: ForeignKeyConstraintViolation.
+- Constraint trigger: role_permissions_role_tenant_match, table: public.role_permissions, function: public.assert_role_permission_tenant_match().
+- Trigger checks: public.roles plus public.permission_scope_compatibilities. This is not an incoming FK referencing a grant ID. The trigger's RAISE omits the CONSTRAINT diagnostic field; its identity was resolved from the live trigger/function definition and original message.
+- Original PostgreSQL message: Role permission must target a compatible active custom role or tenant_super_admin without client-only delivery decisions.
+- Attempted operation: UPDATE role_permissions SET revoked_at = ..., tenant_id = ... after changing roles.custom_scope to company. The tenant extension adds tenant_id even for a revokedAt-only update, so the immediate UPDATE OF tenant_id trigger runs and rejects the division-only permission being revoked against the already changed company scope.
+
+Live FK inspection found no table referencing role_permissions.id. permission_dependencies references permissions.id; UserRole and ActorProfile reference roles.id. No dependent grant-reference records require deletion or recreation.
+
+Corrected ordering: timestamp-revoke deselected grants under the original scope, update role scope, then add/reactivate only newly selected grants. Matching active grants keep their IDs and timestamps. The enclosing serializable transaction covers validation, binding checks and all writes.
+
+Focused role tests: 10 suites / 71 tests PASS, including incompatible first save, corrected division-to-company save, unchanged compatible grant preservation, and repeated Save without repeated grant writes. Build and focused ESLint PASS. Disposable real-database integration verification is recorded by the guarded regression script.
+
+Real database regression: PASS (exit 0), scripts/verify-role-scope-reconciliation.cjs. Run after yarn build with ROLE_SCOPE_TEST_DATABASE_URL explicitly pointing at an EMPTY localhost database named role_scope_reconciliation_test. The script rejects other hosts/database names/nonempty fixtures and does not load application .env or fall back to live connection URLs. It uses a focused disposable fixture with the relevant unchanged trigger functions extracted from repository migrations, then invokes the actual compiled provider, repository, UnitOfWork and tenant extension.
+
+Verified: old ordering produces actual Prisma P2003 and raw PostgreSQL 23503 (table/constraint diagnostic fields null; where identifies assert_role_permission_tenant_match at RAISE); failed transaction rolls back. Current provider returns first validation 400 with the incompatible permission, corrected company Save succeeds, compatible grant ID/timestamps stay identical, incompatible grant is timestamp-revoked, UserRole/ActorProfile snapshots stay identical, and repeated Save leaves an identical database snapshot. Independent focused verification: 17 role-scope-update tests PASS. No migration is required.

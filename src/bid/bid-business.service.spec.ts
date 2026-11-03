@@ -1,5 +1,6 @@
 import { RequestContext } from '../common/context/request-context';
 import { PermissionCode } from '../generated/prisma/client';
+import { BidAvailableActionCode } from './dtos/bid-business.dto';
 import { BidBusinessService } from './bid-business.service';
 
 const actor = (permissions: PermissionCode[] = Object.values(PermissionCode)) => ({
@@ -21,6 +22,7 @@ describe('BidBusinessService command replay', () => {
       replayReview: jest.fn().mockResolvedValue(replay.review ?? null),
       replayRestore: jest.fn().mockResolvedValue(replay.restore ?? null),
       convert: jest.fn(), archive: jest.fn(), requestReview: jest.fn(), restore: jest.fn(),
+      actionState: jest.fn().mockResolvedValue({ workflowState: 'BIDDING', hasArchivedReviewRequest: false }),
     };
     const readiness = { evaluate: jest.fn().mockResolvedValue({ ready: true, cycleId: 'cycle-a' }) };
     const outbox = { enqueue: jest.fn() };
@@ -60,5 +62,56 @@ describe('BidBusinessService command replay', () => {
     const s = subject();
     await expect(run(() => s.service.win({ bidId: 'bid-a' }, actor([])))).rejects.toMatchObject({ status: 403 });
     expect(s.transactions.execute).not.toHaveBeenCalled();
+  });
+
+  it('returns only state-qualified actions and accepts tenant_super_admin scope', async () => {
+    const s = subject();
+    const tenantSuperAdmin = actor([
+      PermissionCode.VIEW_BID,
+      PermissionCode.DECIDE_BID_OUTCOME,
+      PermissionCode.ARCHIVE_BID,
+    ]);
+    tenantSuperAdmin.role.customScope = null;
+
+    await expect(
+      run(() => s.service.availableActions('bid-a', tenantSuperAdmin)),
+    ).resolves.toEqual({
+      bidId: 'bid-a',
+      workflowState: 'BIDDING',
+      availableActions: [
+        { code: BidAvailableActionCode.DECIDE_BID_WON, label: 'Record won outcome' },
+        { code: BidAvailableActionCode.DECIDE_BID_REJECTED, label: 'Record rejected outcome' },
+      ],
+    });
+  });
+
+  it('does not offer outcomes when the Bid is not ready', async () => {
+    const s = subject();
+    s.readiness.evaluate.mockResolvedValue({ ready: false, cycleId: 'cycle-a' });
+
+    await expect(
+      run(() => s.service.availableActions('bid-a', actor([PermissionCode.VIEW_BID]))),
+    ).resolves.toMatchObject({ availableActions: [] });
+  });
+
+  it('exposes editing to a compatible scoped actor with UPDATE_BID without granting an outcome action', async () => {
+    const s = subject();
+    const coordinator = actor([
+      PermissionCode.VIEW_BID,
+      PermissionCode.UPDATE_BID,
+    ]);
+    coordinator.role.customScope = 'company';
+    for (const grant of coordinator.role.rolePermissions)
+      grant.permission.scopeCompatibilities = [{ scope: 'company' }];
+
+    await expect(
+      run(() => s.service.availableActions('bid-a', coordinator)),
+    ).resolves.toEqual({
+      bidId: 'bid-a',
+      workflowState: 'BIDDING',
+      availableActions: [
+        { code: BidAvailableActionCode.UPDATE_BID, label: 'Edit Bid' },
+      ],
+    });
   });
 });

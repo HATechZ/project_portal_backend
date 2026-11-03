@@ -17,6 +17,8 @@ const role = (overrides: Record<string, unknown> = {}) => ({
 
 describe('RolePermissionMutationProvider custom-role eligibility', () => {
   const repository = {
+    withRoleMutation: jest.fn((work: () => Promise<unknown>) => work()),
+    findAffectedScopeBindings: jest.fn().mockResolvedValue([]),
     findPermissionsByIds: jest.fn().mockResolvedValue([]),
     findPermissionDependencyGraph: jest.fn().mockResolvedValue([]),
     findRole: jest.fn().mockResolvedValue(role()),
@@ -39,7 +41,11 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
       { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }] },
     ]);
     repository.findPermissionDependencyGraph.mockResolvedValue([
-      { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [] },
+      {
+        id: memberPermission,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [],
+      },
     ]);
     await expect(
       provider.createCustomRole({
@@ -59,12 +65,38 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
       { id: dependency, scopeCompatibilities: [{ scope: 'team' }] },
     ]);
     repository.findPermissionDependencyGraph.mockResolvedValue([
-      { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [{ requiredPermissionId: teamPermission }] },
-      { id: teamPermission, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [{ requiredPermissionId: dependency }] },
-      { id: dependency, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [] },
+      {
+        id: memberPermission,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [
+          { requiredPermissionId: teamPermission },
+        ],
+      },
+      {
+        id: teamPermission,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [{ requiredPermissionId: dependency }],
+      },
+      {
+        id: dependency,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [],
+      },
     ]);
-    await expect(provider.createCustomRole({ name: 'Reviewer', scope: 'team', permissionIds: [memberPermission] })).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
-    await expect(provider.createCustomRole({ name: 'Reviewer', scope: 'team', permissionIds: [memberPermission, teamPermission, dependency] })).resolves.toMatchObject({ id: role().id });
+    await expect(
+      provider.createCustomRole({
+        name: 'Reviewer',
+        scope: 'team',
+        permissionIds: [memberPermission],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
+    await expect(
+      provider.createCustomRole({
+        name: 'Reviewer',
+        scope: 'team',
+        permissionIds: [memberPermission, teamPermission, dependency],
+      }),
+    ).resolves.toMatchObject({ id: role().id });
   });
 
   it('rejects incompatible and circular catalogue dependencies', async () => {
@@ -73,19 +105,53 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
       { id: teamPermission, scopeCompatibilities: [{ scope: 'company' }] },
     ]);
     repository.findPermissionDependencyGraph.mockResolvedValue([
-      { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [{ requiredPermissionId: teamPermission }] },
-      { id: teamPermission, scopeCompatibilities: [{ scope: 'company' }], requiredPermissionDependencies: [] },
+      {
+        id: memberPermission,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [
+          { requiredPermissionId: teamPermission },
+        ],
+      },
+      {
+        id: teamPermission,
+        scopeCompatibilities: [{ scope: 'company' }],
+        requiredPermissionDependencies: [],
+      },
     ]);
-    await expect(provider.createCustomRole({ name: 'Reviewer', scope: 'team', permissionIds: [memberPermission, teamPermission] })).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
+    await expect(
+      provider.createCustomRole({
+        name: 'Reviewer',
+        scope: 'team',
+        permissionIds: [memberPermission, teamPermission],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
     repository.findPermissionsByIds.mockResolvedValue([
       { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }] },
       { id: teamPermission, scopeCompatibilities: [{ scope: 'team' }] },
     ]);
     repository.findPermissionDependencyGraph.mockResolvedValue([
-      { id: memberPermission, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [{ requiredPermissionId: teamPermission }] },
-      { id: teamPermission, scopeCompatibilities: [{ scope: 'team' }], requiredPermissionDependencies: [{ requiredPermissionId: memberPermission }] },
+      {
+        id: memberPermission,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [
+          { requiredPermissionId: teamPermission },
+        ],
+      },
+      {
+        id: teamPermission,
+        scopeCompatibilities: [{ scope: 'team' }],
+        requiredPermissionDependencies: [
+          { requiredPermissionId: memberPermission },
+        ],
+      },
     ]);
-    await expect(provider.createCustomRole({ name: 'Reviewer', scope: 'team', permissionIds: [memberPermission, teamPermission] })).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
+    await expect(
+      provider.createCustomRole({
+        name: 'Reviewer',
+        scope: 'team',
+        permissionIds: [memberPermission, teamPermission],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
   });
 
   it('rejects a create with a scope-ineligible permission', async () => {
@@ -122,6 +188,45 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
       }),
     ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
     expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
+  });
+
+  it('updates a role only when its submitted dependency set is complete', async () => {
+    repository.findPermissionsByIds.mockResolvedValue([
+      { id: memberPermission, scopeCompatibilities: [{ scope: 'company' }] },
+      { id: teamPermission, scopeCompatibilities: [{ scope: 'company' }] },
+    ]);
+    repository.findPermissionDependencyGraph.mockResolvedValue([
+      {
+        id: memberPermission,
+        scopeCompatibilities: [{ scope: 'company' }],
+        requiredPermissionDependencies: [
+          { requiredPermissionId: teamPermission },
+        ],
+      },
+      {
+        id: teamPermission,
+        scopeCompatibilities: [{ scope: 'company' }],
+        requiredPermissionDependencies: [],
+      },
+    ]);
+
+    await expect(
+      provider.setRolePermissions(role().id, {
+        permissionIds: [memberPermission],
+      }),
+    ).rejects.toMatchObject({ code: AppErrorCode.BadRequest });
+    expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
+
+    await expect(
+      provider.setRolePermissions(role().id, {
+        permissionIds: [memberPermission, teamPermission],
+      }),
+    ).resolves.toMatchObject({ id: role().id });
+    expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
+      role().id,
+      [memberPermission, teamPermission],
+      undefined,
+    );
   });
 
   it('prevents changing a protected starter role scope while retaining compatible grants', async () => {

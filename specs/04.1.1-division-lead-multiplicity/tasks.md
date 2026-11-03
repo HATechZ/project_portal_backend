@@ -54,3 +54,6 @@ and land Phase 3 before Phase 2 is exposed through a route (see `plan.md` §0).
         VERIFY: test -f specs/04.1.1-division-lead-multiplicity/walkthrough.md && node scripts/verify-division-lead-evidence.cjs
   - [x] Run final boundary, lint, build, and spec checks; depend on the walkthrough, confirm no cross-feature import from `src/division`, and update INDEX only after independent verification. Complete when all commands pass.
         VERIFY: test $(grep -rlE "from '\.\.?/(\.\./)?(auth|user|company|member|team)/" src/division --include=*.ts | wc -l) -eq 0 && corepack yarn lint && corepack yarn build && corepack yarn verify:spec && node scripts/verify-division-lead-evidence.cjs
+
+- [x] Enforce active same-Tenant/Company/exact-Division Members for new Division Lead assignments and reject invalid candidates before writes.
+      VERIFY: yarn test --runInBand --testPathPatterns=division-lead.repository

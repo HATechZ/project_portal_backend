@@ -25,9 +25,11 @@ export class WorkRequestRouteActionsProvider {
     const cycle = route.divisionCycles.find((item: any) => item.id === route.projection?.divisionCycleId);
     const current = route.steps.find((item: any) => item.id === route.projection?.routeStepId);
     const isDivisionScoped = actor.role.customScope === 'division';
+    const isOriginatingLeadScoped =
+      actor.role.customScope === 'company' || isDivisionScoped;
     const responsibleOriginLead =
       admin ||
-      (isDivisionScoped &&
+      (isOriginatingLeadScoped &&
         route.responsibleOriginatingLead.memberId === memberId &&
         route.responsibleOriginatingLead.revokedAt === null &&
         route.responsibleOriginatingLead.member.isActive &&
@@ -41,11 +43,12 @@ export class WorkRequestRouteActionsProvider {
     const divisionLead =
       admin ||
       (current?.kind === StepKind.ORIGIN_START
-        ? responsibleOriginLead
+        ? responsibleOriginLead && isDivisionScoped
         : activeDivisionLead);
     const team = cycle?.teamSteps.find((item: any) => item.id === route.projection?.teamStepId && item.activatedAt && !item.completedAt);
     const member = team?.memberSteps.find((item: any) => item.id === route.projection?.memberStepId && item.activatedAt && !item.submittedAt);
     if (divisionLead && !cycle.completedAt && !cycle.teamSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_TEAM)) actions.push(action('DEFINE_TEAM_SEQUENCE', 'Define Team sequence', 'division-cycle'));
+    if (responsibleOriginLead && hasPermission(actor, PermissionCode.UPDATE_WORK_REQUEST)) actions.push(action('AMEND_ROUTE', 'Amend route', 'route'));
     if ((admin || (actor.role.customScope === 'team' && team?.team.leadMemberId === memberId)) && !team?.memberSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)) actions.push(action('DEFINE_MEMBER_SEQUENCE', 'Define Member sequence', 'team-step'));
     if ((admin || (actor.role.customScope === 'team' && team?.team.leadMemberId === memberId)) && team?.memberSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)) actions.push(action('APPEND_MEMBER_STEP', 'Append Member step', 'team-step'));
     if ((admin || (actor.role.customScope === 'member' && member?.memberId === memberId)) && member && hasPermission(actor, PermissionCode.SUBMIT_WORK_REQUEST)) actions.push(action('SUBMIT_MEMBER_STEP', 'Submit Member step', 'member-step'));

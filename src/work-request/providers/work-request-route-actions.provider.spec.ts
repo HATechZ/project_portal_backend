@@ -28,6 +28,20 @@ describe('WorkRequestRouteActionsProvider', () => {
     await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ code: 'DEFINE_TEAM_SEQUENCE' })]));
   });
 
+  it('exposes route amendment to a company-scoped originating Lead with UPDATE_WORK_REQUEST', async () => {
+    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.UPDATE_WORK_REQUEST], 'lead-a', 'company'),
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'AMEND_ROUTE', targetKind: 'route' }),
+      ]),
+    );
+  });
+
   it('returns no route action for an unrelated same-tenant actor', async () => {
     const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(false), recipientActorIds: jest.fn() } as never);
     await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual([]);

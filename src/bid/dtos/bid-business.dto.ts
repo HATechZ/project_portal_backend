@@ -52,6 +52,28 @@ export class BidBusinessReadinessResponseDto {
   @ApiProperty({ type: String, isArray: true }) blocking!: string[];
 }
 
+export enum BidAvailableActionCode {
+  UPDATE_BID = 'UPDATE_BID',
+  DECIDE_BID_WON = 'DECIDE_BID_WON',
+  DECIDE_BID_REJECTED = 'DECIDE_BID_REJECTED',
+  REQUEST_ARCHIVED_BID_REVIEW = 'REQUEST_ARCHIVED_BID_REVIEW',
+  RESTORE_BID = 'RESTORE_BID',
+}
+
+export class BidAvailableActionDto {
+  @ApiProperty({ enum: BidAvailableActionCode })
+  code!: BidAvailableActionCode;
+  @ApiProperty()
+  label!: string;
+}
+
+export class BidAvailableActionsResponseDto {
+  @ApiProperty({ format: 'uuid' }) bidId!: string;
+  @ApiProperty() workflowState!: string;
+  @ApiProperty({ type: () => BidAvailableActionDto, isArray: true })
+  availableActions!: BidAvailableActionDto[];
+}
+
 export class BidBusinessCommandResponseDto {
   @ApiProperty({ format: 'uuid' }) bidId!: string;
   @ApiProperty({ format: 'uuid', nullable: true }) cycleId!: string | null;

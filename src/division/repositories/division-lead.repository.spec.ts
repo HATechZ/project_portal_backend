@@ -5,17 +5,16 @@ import { DivisionLeadRepository } from './division-lead.repository';
 const TENANT = 'tenant-1';
 const COMPANY = 'company-1';
 
-/**
- * A Member whose OWN Division is `division-home` — deliberately not the
- * Division it is being made Lead of. Under the pre-04.1.1 rule this Member
- * could not lead anything but `division-home`.
- */
+/** Active Member in the target Division. */
 const MEMBER = {
   id: 'member-1',
   name: 'Lead User',
   email: 'lead@example.com',
   userId: 'user-1',
-  divisionId: 'division-home',
+  divisionId: 'division-a',
+  tenantId: TENANT,
+  companyId: COMPANY,
+  isActive: true,
 };
 
 interface DbOverrides {
@@ -37,7 +36,20 @@ function makeDb({
         .mockResolvedValue({ id: 'division-a', name: 'Alpha', abbr: 'ALP' }),
     },
     member: {
-      findFirst: jest.fn().mockResolvedValue(member),
+      findFirst: jest
+        .fn()
+        .mockImplementation(({ where }: { where: Partial<typeof MEMBER> }) => {
+          const candidate = member as typeof MEMBER | null;
+          return Promise.resolve(
+            candidate &&
+              Object.entries(where).every(
+                ([key, value]) =>
+                  candidate[key as keyof typeof MEMBER] === value,
+              )
+              ? candidate
+              : null,
+          );
+        }),
       update: jest.fn().mockResolvedValue({}),
     },
     divisionLead: {
@@ -107,7 +119,7 @@ const assignInput = {
 };
 
 describe('DivisionLeadRepository', () => {
-  it('assigns a Member as Lead of a Division it does not belong to', async () => {
+  it('assigns an active Member from the exact Division', async () => {
     const db = makeDb();
     const result = await inTenant(() => repositoryOver(db).assign(assignInput));
 
@@ -115,17 +127,17 @@ describe('DivisionLeadRepository', () => {
     expect(result.revokedIncumbent).toBeNull();
     expect(db.divisionLead.create).toHaveBeenCalledTimes(1);
 
-    // The written row points at the target Division, not the Member's own.
+    // The written row and Member belong to the same target Division.
     const written = firstArg<{
       data: { divisionId: string; memberId: string; tenantId: string };
     }>(db.divisionLead.create);
     expect(written.data.divisionId).toBe('division-a');
-    expect(written.data.divisionId).not.toBe(MEMBER.divisionId);
+    expect(written.data.divisionId).toBe(MEMBER.divisionId);
     expect(written.data.memberId).toBe(MEMBER.id);
     expect(written.data.tenantId).toBe(TENANT);
   });
 
-  it('never filters the Member by the target Division', async () => {
+  it('requires matching Tenant, Company and exact Division', async () => {
     const db = makeDb();
     await inTenant(() => repositoryOver(db).assign(assignInput));
 
@@ -133,25 +145,22 @@ describe('DivisionLeadRepository', () => {
       db.member.findFirst,
     );
     expect(where).toMatchObject({ tenantId: TENANT, companyId: COMPANY });
-    expect(where.divisionId).toBeUndefined();
+    expect(where.divisionId).toBe('division-a');
   });
 
-  it('lets one Member hold active Lead rows for two Divisions', async () => {
-    const first = makeDb();
-    await inTenant(() => repositoryOver(first).assign(assignInput));
-
-    // Second Division: no active pair, no incumbent — nothing is revoked.
-    const second = makeDb();
-    const result = await inTenant(() =>
-      repositoryOver(second).assign({
-        ...assignInput,
-        divisionId: 'division-b',
-      }),
-    );
-
-    expect(result.revokedIncumbent).toBeNull();
-    expect(second.divisionLead.update).not.toHaveBeenCalled();
-    expect(second.divisionLead.create).toHaveBeenCalledTimes(1);
+  it('rejects cross-Division, foreign-Tenant and inactive candidates before writing', async () => {
+    for (const member of [
+      { ...MEMBER, divisionId: 'division-b' },
+      { ...MEMBER, tenantId: 'tenant-b' },
+      { ...MEMBER, isActive: false },
+    ]) {
+      const db = makeDb({ member });
+      await expect(
+        inTenant(() => repositoryOver(db).assign(assignInput)),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(db.divisionLead.create).not.toHaveBeenCalled();
+      expect(db.divisionLead.update).not.toHaveBeenCalled();
+    }
   });
 
   it('revokes the incumbent in the same transaction as the insert', async () => {

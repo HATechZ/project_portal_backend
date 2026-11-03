@@ -54,3 +54,7 @@ isolation, scoped tenant_super_admin/division_head/division_lead/team_lead creat
 cross-scope actors. Runtime verification uses app_user/RLS with temporary fixtures and cleanup,
 records every endpoint/error/envelope/request ID in `walkthrough.md`, and does not add DB grants.
 Publish no organization workflow event for this CRUD/link scope.
+
+## Assignment selector correction
+
+Reuse existing Member/Team/Division query conventions through a focused MemberEligibilityRepository for target resolution and exact-Division candidate selection. Add a focused eligibility controller/service before the generic Member ID route and explicit DTOs for context and safe membership metadata. Keep directory semantics intact and enforce resource scope by permission-compatible scope and actual leadership relationships. Verify candidate exclusion/inclusion, metadata, target manipulation, and Tenant isolation with focused tests.

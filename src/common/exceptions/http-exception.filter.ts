@@ -11,6 +11,7 @@ import { RequestContext } from '../context/request-context';
 import { AppErrorCode } from './app-error-code';
 import { AppException } from './app-exception';
 import { mapPrismaException } from './prisma-exception.map';
+import { Prisma } from '../../generated/prisma/client';
 
 interface ErrorBody {
   code: string;
@@ -31,6 +32,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const error = this.toErrorBody(exception, status);
+
+    if (thrown instanceof Prisma.PrismaClientKnownRequestError) {
+      this.logger.warn(
+        `${request.method} ${request.originalUrl} Prisma ${thrown.code} ` +
+          `requestId=${RequestContext.requestId() ?? 'unknown'} meta=${JSON.stringify(thrown.meta)}`,
+      );
+    }
 
     if (status >= 500) {
       this.logger.error(

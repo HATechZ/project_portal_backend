@@ -239,3 +239,7 @@ precise over-grant this module removes.
 `member-scope.provider.ts:59-66` additionally resolves a Team-Lead fallback through
 `findLedTeamDivisionId`. That path is unrelated to Division leadership and is left unchanged;
 it must keep working alongside the new lead set.
+
+## Same-Division assignment validation override
+
+The assign transaction filters Member by id, tenantId, companyId, divisionId equal to the target, and isActive=true before any DivisionLead write. Foreign/inactive/cross-Division Members return the existing indistinguishable 404. Existing composite FKs and historical rows remain unchanged; no migration is required.

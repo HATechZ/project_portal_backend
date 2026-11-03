@@ -1,3 +1,4 @@
+import { findAffectedScopeBindings } from './role-scope-bindings';
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, CustomRoleScope } from '../../generated/prisma/client';
@@ -24,6 +25,19 @@ export type {
 export class RolePermissionRepository extends BaseRepository {
   constructor(unitOfWork: UnitOfWorkService) {
     super(unitOfWork);
+  }
+
+  withRoleMutation<T>(work: () => Promise<T>): Promise<T> {
+    return this.transaction(() => work(), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  }
+
+  async findAffectedScopeBindings(roleId: string, scope: CustomRoleScope) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      return findAffectedScopeBindings(db, tenantId, roleId, scope);
+    });
   }
 
   findRoles(): Promise<RoleRecord[]> {
@@ -113,24 +127,49 @@ export class RolePermissionRepository extends BaseRepository {
           where: { id: { in: permissionIds } },
           select: { id: true },
         });
-        await transaction.rolePermission.updateMany({
+
+        const grants = await transaction.rolePermission.findMany({
           where: { tenantId, roleId },
-          data: { revokedAt: new Date() },
+          orderBy: { grantedAt: 'asc' },
+          select: { id: true, permissionId: true, revokedAt: true },
         });
+        const requestedIds = new Set(permissions.map(({ id }) => id));
+        const activeGrants = grants.filter(
+          ({ revokedAt }) => revokedAt === null,
+        );
+        const activePermissionIds = new Set(
+          activeGrants.map(({ permissionId }) => permissionId),
+        );
+        const grantsToRevoke = activeGrants
+          .filter(({ permissionId }) => !requestedIds.has(permissionId))
+          .map(({ id }) => id);
+
+        if (grantsToRevoke.length > 0) {
+          await transaction.rolePermission.updateMany({
+            where: { id: { in: grantsToRevoke } },
+            data: { revokedAt: new Date() },
+          });
+        }
+
+        // Revoke removed grants while the role still has their original scope.
+        // The tenant extension writes tenantId on updates, firing the immediate
+        // role_permissions_role_tenant_match trigger even for revokedAt changes.
         if (customScope) {
           await transaction.role.updateMany({
             where: { id: roleId, tenantId, isSystemRole: false },
             data: { customScope },
           });
         }
+
         for (const permission of permissions) {
-          const existing = await transaction.rolePermission.findFirst({
-            where: { tenantId, roleId, permissionId: permission.id },
-            select: { id: true },
-          });
-          if (existing) {
+          if (activePermissionIds.has(permission.id)) continue;
+          const revokedGrant = grants.find(
+            ({ permissionId, revokedAt }) =>
+              permissionId === permission.id && revokedAt !== null,
+          );
+          if (revokedGrant) {
             await transaction.rolePermission.update({
-              where: { id: existing.id },
+              where: { id: revokedGrant.id },
               data: { revokedAt: null },
             });
             continue;

@@ -7,6 +7,7 @@ Inherits Module 00 envelopes/errors/request ID and Module 03 authenticated Tenan
 | POST | `/api/v1/bids` | Create, 201 | `ADD_BID` grant; tenant_super_admin or CCR policy |
 | GET | `/api/v1/bids` | Tenant-scoped list | `VIEW_BID` grant; tenant_super_admin, CCR, division_head, division_lead policy |
 | GET | `/api/v1/bids/:id` | Tenant/object-scoped detail | `VIEW_BID` grant; tenant_super_admin, CCR, division_head, division_lead policy |
+| GET | `/api/v1/bids/:id/available-actions` | Current actor's state- and resource-qualified Bid Detail actions | `VIEW_BID` plus the exact action grant, compatible scope, scoped Bid visibility, and lifecycle prerequisites |
 | PATCH | `/api/v1/bids/:id` | Approved mutable Bid fields only | `UPDATE_BID` grant; tenant_super_admin or CCR policy |
 | GET | `/api/v1/bids/creation/available-document-codes` | Active `GENERAL` + `MARKETING` creation selector | `CREATE_BID`; no document-code catalogue permission |
 | GET | `/api/v1/bids/:id/documents/available-document-codes` | Active `GENERAL` + `MARKETING` upload selector | `UPDATE_BID` plus scoped Bid access; no document-code catalogue permission |

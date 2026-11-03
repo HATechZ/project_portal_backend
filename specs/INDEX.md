@@ -10,11 +10,11 @@
 | [01.1](01.1-schema-integrity/) Schema Integrity & Tenant Isolation | reshapes 52 | 4 | 44/45 | `[WIP]` | Applied + catalog-verified; UoW fail-closed test suite deleted, needs new proof |
 | [02](02-infrastructure/) Infrastructure | — | 4 | 15/15 | `[WIP]` | Retro-spec; only walkthrough remains |
 | [02.1](02.1-messaging/) Messaging & Domain Events | 2 applied | 4 | 34/35 | `[WIP]` | RabbitMQ complete; repository-wide lint baseline blocks Gate 5 |
-| [03](03-identity-and-access/) Identity & Access | 7 | 4 | 37/54 | `[WIP]` | Starter authorization gate approved; runtime remains unimplemented |
+| [03](03-identity-and-access/) Identity & Access | 7 | 4 | 40/57 | `[WIP]` | Starter authorization gate approved; runtime remains unimplemented |
 | [04](04-organization/) Organization | 2 of 7 | 4 | 30/39 | `[WIP]` | Default Client provisioning migration prepared; deploy pending |
 | [04.1](04.1-division/) Division | 1 (+DivisionType) | 4 | 11/12 | `[WIP]` | Normalized Tenant/Company name uniqueness and blocking preflight pending |
-| [04.1.1](04.1.1-division-lead-multiplicity/) Division Lead Multiplicity | 1 applied | 5 | 17/17 | `[DONE]` | Verified 2026-09-15; walkthrough PASS (28 curls, 0 blockers, cleanup PASS) |
-| [04.2](04.2-member/) Member | 1 | 4 | 7/13 | `[WIP]` | Staff onboarding gated on authorization hardening |
+| [04.1.1](04.1.1-division-lead-multiplicity/) Division Lead Multiplicity | 1 applied | 4 | 18/18 | `[WIP]` | Same-Division assignment override tested; prior HTTP walkthrough is historical |
+| [04.2](04.2-member/) Member | 1 | 4 | 8/14 | `[WIP]` | Staff onboarding gated on authorization hardening |
 | [04.3](04.3-team/) Team | 2 | 4 | 9/12 | `[WIP]` | Designation display mapping and Gate 5 walkthrough pending |
 | [04.4](04.4-designation/) Designation | 1 proposed | 3 | 0/5 | `[SPEC APPROVED]` | Internal Member master data; implementation not started |
 | [05](05-clients/) Clients | 2 | 3 | 0/22 | `[SPEC APPROVED]` | Ready for implementation |
@@ -64,13 +64,13 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-10-06 | Codex | 03,05 | 1 | Client scopes and resource-boundary rule frozen; specs only |
-| 2026-10-06 | Codex | 03,04–10 | 1 | Final atomic permission/scope freeze; specs only |
-| 2026-10-15 | Codex + db-architect | 04 | 1-4 | Default Client signup migration prepared; deployment pending |
-| 2026-10-22 | Codex + db-architect | 10 | 4 | Phase 2 remains blocked: disposable PostgreSQL cannot initialize in sandbox; remote C3 reconciliation remains UNKNOWN |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Validation DB declared available but `DATABASE_URL_VALIDATION` was not injected; no DB connection attempted |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Local PostgreSQL 18 is reachable but lacks a non-interactive admin credential; no DB changed |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Docker validation DB healthy; clean chain blocks pre-C3 on tenant_super_admin bootstrap assertion |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Phase 2 complete: disposable chain/C3/RLS/cutover and self-review PASS |
 | 2026-10-23 | Codex + db-architect | 02.1 | 1-4 | RabbitMQ complete; pre-existing lint baseline blocks Gate 5 |
 | 2026-10-23 | Codex | 10.2 | 1-3 | Reconciled read/tree contracts and executable queue against frozen upstream |
+| 2026-11-03 | Codex + verifier | 03 | 4 | Scope catalogue exposed; 54 focused tests and build PASS; UI cause unverified |
+| 2026-11-03 | Codex + verifier | 03 | 4 | Atomic scope edits: 70 role tests/build PASS; auth suite has dependency load failure |
+| 2026-11-03 | Codex + db-architect | 03 | 4 | Scope constraint ordering fixed; 71 tests/build and real PG regression PASS |
+| 2026-11-03 | Codex + verifier | 04.1.1,04.2,04.3 | 4 | Exact-Division candidates/lead guard; 62 tests, lint and build PASS |

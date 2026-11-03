@@ -168,3 +168,11 @@ Member onboarding; later assignments retain it and preserve the existing eligibl
 
 `members` and `client_contacts` that actor profiles point at (04, 05) · which workflow action
 each role may fire — module 09 owns `workflow_action_role_permissions`.
+
+### Role scope catalogue follow-up
+
+The system scope catalogue is exposed independently of tenant role instances through GET /role/scope. It includes company, division, team, member, client and client_contact; selecting a scope does not imply that every permission supports it. Persisted permission compatibility remains authoritative. Existing company DTO/mapping support is retained; no compatibility rows or grants are added.
+
+### Safe role scope changes
+
+Custom-role scope changes retain compatible active permission grants unless a complete replacement set is explicitly submitted. Every effective permission must match persisted scope compatibility and dependency requirements. Scope changes validate existing active assignment/profile evidence and reject stale or incompatible bindings with structured details before persistence. Validation and scope/grant synchronization execute in one Tenant transaction; no role recreation or new binding model is introduced.

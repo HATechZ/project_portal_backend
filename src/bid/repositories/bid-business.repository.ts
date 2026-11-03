@@ -55,6 +55,25 @@ export class BidBusinessRepository extends BaseRepository {
     };
   }
 
+  async actionState(bidId: string) {
+    const bid = await this.db.bid.findFirst({
+      where: { id: bidId, tenantId: this.tenantId() },
+      select: {
+        statusEvents: {
+          take: 1,
+          orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+          select: { toStatus: { select: { code: true } } },
+        },
+        archivedReviewRequests: { select: { id: true }, take: 1 },
+      },
+    });
+    if (!bid) throw new Error('BID_NOT_FOUND');
+    return {
+      workflowState: bid.statusEvents[0]?.toStatus.code ?? 'UNKNOWN',
+      hasArchivedReviewRequest: bid.archivedReviewRequests.length > 0,
+    };
+  }
+
   async archive(input: { bidId: string; actorId: string; note?: string; idempotencyKey?: string; readiness: BidBusinessReadiness }) {
     const tenantId = this.tenantId();
     const cycleId = input.readiness.cycleId!;

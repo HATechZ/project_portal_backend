@@ -96,3 +96,7 @@ membership history does not itself block a move. Constraints and shared Prisma m
 race backstop. Member creation never writes `team_members`; Team assignment stays a separate
 Team operation. Runtime walkthrough on 2026-09-09 is blocked because app_user lacks Member write
 privilege on `members`; no structural, privilege, or RLS change was applied by Codex.
+
+## Assignment candidate queries
+
+Resolve context through tenant-qualified active Team/Division and Company relations, then query Member with tenantId, companyId, exact divisionId and isActive=true. TeamMember metadata requires leftAt=null and an active tenant/company/division-qualified Team. Team.leadMemberId supplies independent lead status/Team names. No schema or persisted binding changes.

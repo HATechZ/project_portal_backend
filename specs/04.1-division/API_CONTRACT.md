@@ -38,3 +38,7 @@ approved provisioning flow, must reuse normal Member onboarding:
 `User -> Member -> UserRole -> Member-backed ActorProfile`. The Member must already be linked
 to same-Tenant User access for this assignment-only route; missing User access returns 409 using
 the repository's current conflict convention.
+
+## Assignment candidate boundary override
+
+PUT /division/:id/lead accepts only an active Member of the exact target Division in the same Tenant/Company. This overrides prior same-Company cross-Division assignment semantics. Use GET /member/eligible?divisionId=<uuid> for candidates and current Team membership/lead metadata; generic Member directory results are not an assignment eligibility assertion.

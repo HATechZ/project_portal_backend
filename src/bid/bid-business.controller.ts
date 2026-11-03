@@ -11,7 +11,7 @@ import type { SessionActor } from '../common/security/session.types';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { PermissionCode } from '../generated/prisma/client';
 import { BidBusinessService } from './bid-business.service';
-import { BidArchivedReviewRequestDto, BidBusinessCommandResponseDto, BidBusinessHistoryResponseDto, BidBusinessReadinessResponseDto, BidBusinessOutcomeInput, DecideBidBusinessOutcomeDto, RestoreBidDto } from './dtos/bid-business.dto';
+import { BidArchivedReviewRequestDto, BidAvailableActionsResponseDto, BidBusinessCommandResponseDto, BidBusinessHistoryResponseDto, BidBusinessReadinessResponseDto, BidBusinessOutcomeInput, DecideBidBusinessOutcomeDto, RestoreBidDto } from './dtos/bid-business.dto';
 
 /** HTTP-only C3 boundary; all lifecycle decisions remain in BidBusinessService. */
 @ApiTags('bids')
@@ -28,6 +28,15 @@ export class BidBusinessController {
   @ApiStandardOkResponse(BidBusinessReadinessResponseDto)
   readiness(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
     return this.service.readiness(id, actor);
+  }
+
+  @Get(':id/available-actions')
+  @FinalPermissions(PermissionCode.VIEW_BID)
+  @ApiOperation({ summary: 'Get available Bid Detail actions for the current user' })
+  @ResponseMessage('Bid available actions returned successfully')
+  @ApiStandardOkResponse(BidAvailableActionsResponseDto)
+  availableActions(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.availableActions(id, actor);
   }
 
   @Post(':id/business-outcome')

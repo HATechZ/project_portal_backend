@@ -12,6 +12,10 @@ import { BidBusinessReadinessProvider } from './providers/bid-business-readiness
 import { BidBusinessTransactionProvider } from './providers/bid-business-transaction.provider';
 import { BidBusinessRepository } from './repositories/bid-business.repository';
 import { BidRepository } from './repositories/bid.repository';
+import {
+  BidAvailableActionCode,
+  type BidAvailableActionsResponseDto,
+} from './dtos/bid-business.dto';
 
 type Command = { bidId: string; note?: string; idempotencyKey?: string };
 
@@ -42,6 +46,59 @@ export class BidBusinessService {
     allow(actor, PermissionCode.VIEW_BID);
     await this.assertAccessible(bidId, actor);
     return this.uow.execute(() => this.repository.history(bidId));
+  }
+
+  async availableActions(
+    bidId: string,
+    actor: SessionActor,
+  ): Promise<BidAvailableActionsResponseDto> {
+    allow(actor, PermissionCode.VIEW_BID);
+    await this.assertAccessible(bidId, actor);
+    const state = await this.uow.execute(() => this.repository.actionState(bidId));
+    const availableActions: BidAvailableActionsResponseDto['availableActions'] = [];
+
+    if (hasPermission(actor, PermissionCode.UPDATE_BID)) {
+      availableActions.push({
+        code: BidAvailableActionCode.UPDATE_BID,
+        label: 'Edit Bid',
+      });
+    }
+
+    if (state.workflowState === 'BIDDING') {
+      const readiness = await this.evaluateReadiness(bidId);
+      if (readiness.ready && hasPermission(actor, PermissionCode.DECIDE_BID_OUTCOME)) {
+        availableActions.push({
+          code: BidAvailableActionCode.DECIDE_BID_WON,
+          label: 'Record won outcome',
+        });
+        if (hasPermission(actor, PermissionCode.ARCHIVE_BID)) {
+          availableActions.push({
+            code: BidAvailableActionCode.DECIDE_BID_REJECTED,
+            label: 'Record rejected outcome',
+          });
+        }
+      }
+    }
+
+    if (state.workflowState === 'ARCHIVED') {
+      if (hasPermission(actor, PermissionCode.REQUEST_ARCHIVED_BID_REVIEW)) {
+        availableActions.push({
+          code: BidAvailableActionCode.REQUEST_ARCHIVED_BID_REVIEW,
+          label: 'Request archived Bid review',
+        });
+      }
+      if (
+        state.hasArchivedReviewRequest &&
+        hasPermission(actor, PermissionCode.RESTORE_BID)
+      ) {
+        availableActions.push({
+          code: BidAvailableActionCode.RESTORE_BID,
+          label: 'Restore Bid',
+        });
+      }
+    }
+
+    return { bidId, workflowState: state.workflowState, availableActions };
   }
 
   async win(command: Command, actor: SessionActor) {
@@ -122,9 +179,20 @@ function outcomeResponse(bidId: string, result: { outcomeId: string; cycleId: st
 }
 
 function allow(actor: SessionActor, permission: PermissionCode) {
-  const grant = actor.role.rolePermissions.find(({ revokedAt, permission: value }) => revokedAt === null && value.code === permission);
-  if (!grant || !grant.permission.scopeCompatibilities.some(({ scope }) => scope === actor.role.customScope))
+  if (!hasPermission(actor, permission))
     throw new AppException({ code: AppErrorCode.Forbidden, status: HttpStatus.FORBIDDEN, message: "You don't have permission to perform this action." });
+}
+
+function hasPermission(actor: SessionActor, permission: PermissionCode): boolean {
+  return actor.role.rolePermissions.some(
+    ({ revokedAt, permission: grant }) =>
+      revokedAt === null &&
+      grant.code === permission &&
+      (actor.role.customScope === null ||
+        grant.scopeCompatibilities.some(
+          ({ scope }) => scope === actor.role.customScope,
+        )),
+  );
 }
 
 async function assertStatus(uow: UnitOfWorkService, bidId: string, expected: 'BIDDING' | 'ARCHIVED') {

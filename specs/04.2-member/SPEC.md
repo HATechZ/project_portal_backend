@@ -145,3 +145,7 @@ Team membership/leadership is only `04.3-team`; Member creation never persists T
 and no `Member.teamId`, membership module, or persisted Team member-ID array is permitted. No
 schema, migration, RLS, grant, seed, or database change is authorized for this onboarding change.
 TMS/workflow classification is deferred.
+
+## 2026-11-03 assignment candidate boundary
+
+GET /member/eligible requires exactly one Division or Team context. Resolve a Team's Division server-side and list only active same-Tenant, same-Company Members of the exact target Division. Existing same-Division Team membership never excludes a candidate. Return active membership and independent Team-lead metadata using TeamMember and Team.leadMemberId. Explicit VIEW_MEMBERS and actual Company/led-Division/exact-led-Team scope are required; role names do not authorize. No Member.teamId or migration is introduced.

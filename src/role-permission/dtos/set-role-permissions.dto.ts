@@ -1,10 +1,10 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
   IsArray,
   IsEnum,
-  IsOptional,
   IsUUID,
+  ValidateIf,
 } from 'class-validator';
 import {
   CUSTOM_ROLE_SCOPES,
@@ -12,18 +12,26 @@ import {
 } from '../providers/custom-role-policy';
 
 export class SetRolePermissionsDto {
-  @ApiProperty({ format: 'uuid', isArray: true })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    isArray: true,
+    description: 'Omit to preserve current grants when changing scope.',
+  })
+  @ValidateIf(
+    (input: SetRolePermissionsDto) =>
+      input.permissionIds !== undefined || input.scope === undefined,
+  )
   @IsArray()
   @ArrayUnique()
   @IsUUID('4', { each: true })
-  permissionIds!: string[];
+  permissionIds?: string[];
 
   @ApiPropertyOptional({
     enum: CUSTOM_ROLE_SCOPES,
     description:
       'Optional replacement scope for a custom role. System-role scope cannot be changed.',
   })
-  @IsOptional()
+  @ValidateIf((input: SetRolePermissionsDto) => input.scope !== undefined)
   @IsEnum(CUSTOM_ROLE_SCOPES)
   scope?: CustomRoleScope;
 }

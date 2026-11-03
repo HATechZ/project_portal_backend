@@ -150,7 +150,10 @@ Swagger summaries are deliberately short and use these endpoint purposes:
 | `DELETE /user/:userId/role/:roleId` | Remove a role from a user | Retains timestamp revocation/final-admin protections. |
 
 Role list/detail retain all existing role and permission information and additionally expose
-`isSystemRole`, a stable backend `code` projection, and nullable `scope` for custom roles.
+`isSystemRole`, a stable backend `code` projection, nullable `scope` for custom roles, and
+deduplicated `modules` from the role's active permission grants. Every returned permission includes
+its `module` work-area and direct `requiredPermissionIds`, so the role editor can render
+`scope > module > permission` without treating category as authorization.
 System code is the existing fixed actor code; custom code is backend-generated and tenant-safe.
 
 ### `POST /api/v1/role` — Create custom role
@@ -226,3 +229,20 @@ same-Tenant Staff UserRole and Member-backed ActorProfile without accepting role
 | Bad credentials, inactive account, expired/revoked session | 401 | `UNAUTHORIZED` |
 | Missing role, unowned/unavailable ActorProfile | 403 | `FORBIDDEN` |
 | Invalid, expired, or used reset token | 400 | `BAD_REQUEST` |
+
+### Dynamic role scope catalogue
+
+GET /role/scope (VIEW_ROLES) returns the standard envelope with data.scopes containing company, division, team, member, client, client_contact. This system catalogue is independent of existing tenant roles. Permission compatibleScopes remains the persisted authority for individual permission eligibility; catalogue membership grants no access. Create Role and Manage Role Permissions share this catalogue.
+
+
+### Safe custom-role scope editing
+
+PUT /role/:id/permission (UPDATE_ROLE) accepts scope with optional permissionIds. If permissionIds is omitted, the current active grants are retained and revalidated against the requested scope. An explicit permissionIds array remains a full replacement (including an explicit empty array). Omitted scope retains the existing scope. Empty request bodies remain invalid.
+
+Validation failures use HTTP 400 and the normal error envelope. error.details includes canSave: false, incompatiblePermissions: [{ id, code, name }], unknownPermissionIds when applicable, and affectedBindings: [{ id, userId, type, reason }]. The existing save operation is the minimal validation path; no separate impact endpoint is introduced. An explicit valid replacement may remove incompatible permissions. Scope/grant validation, assignment inspection and persistence share one serializable Tenant transaction; successful responses retain the RoleResponseDto shape.
+
+Active UserRole legacy Team bindings, missing active profiles, invalid/inactive Member or ClientContact targets, and internal/external target mismatches block a scope change. Supported internal role-only profiles and valid Member-backed assignments are preserved. No binding is silently rewritten. Protected starter definitions and bootstrap-managed system roles retain their existing restrictions.
+
+### Scope reconciliation ordering regression
+
+The existing update contract is unchanged. Removing the incompatible permissions returned by an earlier validation error now succeeds: revoke deselected grants while the original scope still applies, change scope, then add/reactivate newly selected compatible grants. Unchanged grants remain untouched; repeating the same Save retains the same grants and revocation timestamps. All steps remain atomic.

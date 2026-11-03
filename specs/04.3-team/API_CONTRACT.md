@@ -59,3 +59,7 @@ and arbitrary member ID arrays. There is no activate/deactivate endpoint.
 
 For Member summaries, `designation` is only the flat related `Designation.name` compatibility
 display from 04.4; do not expose a nested Designation object or infer authority from it.
+
+## Assignment candidate selector
+
+Use GET /member/eligible?teamId=<uuid> for both Team Lead and Team Member candidate dropdowns. The backend resolves the Team's Division and returns only its active same-Tenant Members with current active Team memberships and independently led Team names. Existing membership in another Team of that Division does not exclude a candidate. Existing Team Lead creation/update and Team Member add validation continue rejecting inactive or cross-Division IDs.

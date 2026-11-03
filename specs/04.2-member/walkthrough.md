@@ -20,3 +20,7 @@ owner-side app_user Member write privilege prerequisite.
 | Scoped Company read | PASS: `GET /api/v1/company` returned one same-Tenant Company |
 | Division fixture cleanup | PASS: final `GET /api/v1/division` returned zero items |
 | Member create | BLOCKED: `POST /api/v1/member` returned 500 due to app_user lacking `members` write privilege |
+
+## 2026-11-03 focused assignment eligibility verification
+
+Automated verification (not a live HTTP walkthrough): 14 Division/Team/Member suites, 62 tests PASS. Independent verifier: 3 suites / 21 tests PASS for member-eligibility, division-lead.repository and team.service. Build and focused ESLint PASS. New GET /member/eligible requires exactly one Division/Team context, resolves Team Division from persisted data, returns active exact-Division same-Tenant candidates, preserves candidates with another same-Division Team membership, and includes active Team membership plus independent lead metadata. Tests cover target/resource-scope denial, inactive and foreign candidates, direct cross-Division lead/member writes, and Tenant predicates. No migration or live-data mutation was performed.

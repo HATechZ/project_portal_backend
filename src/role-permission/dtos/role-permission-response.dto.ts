@@ -44,6 +44,8 @@ export class RoleResponseDto {
   })
   scope!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ enum: PermissionCategory, isArray: true })
+  modules!: PermissionCategory[];
   @ApiProperty({ type: () => PermissionResponseDto, isArray: true })
   permissions!: PermissionResponseDto[];
 }

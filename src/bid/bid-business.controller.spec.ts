@@ -4,7 +4,7 @@ import { BidBusinessOutcomeInput } from './dtos/bid-business.dto';
 describe('BidBusinessController C3 contract wiring', () => {
   const actor = { id: 'actor-a' } as never;
   const service = {
-    readiness: jest.fn(), history: jest.fn(), win: jest.fn(), reject: jest.fn(), requestArchivedReview: jest.fn(), restore: jest.fn(),
+    readiness: jest.fn(), availableActions: jest.fn(), history: jest.fn(), win: jest.fn(), reject: jest.fn(), requestArchivedReview: jest.fn(), restore: jest.fn(),
   };
   const controller = new BidBusinessController(service as never);
 
@@ -15,6 +15,14 @@ describe('BidBusinessController C3 contract wiring', () => {
     controller.history('11111111-1111-4111-8111-111111111111', actor);
     expect(service.readiness).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111', actor);
     expect(service.history).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111', actor);
+  });
+
+  it('delegates available-action evaluation to the service', () => {
+    controller.availableActions('11111111-1111-4111-8111-111111111111', actor);
+    expect(service.availableActions).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      actor,
+    );
   });
 
   it('routes WON and REJECTED to their authoritative C3-B commands', () => {

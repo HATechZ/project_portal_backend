@@ -318,3 +318,11 @@ MANUAL CHECK
 Command: node scripts/dbml-to-prisma.cjs && corepack yarn prisma:migrate --name add-division-head-team-lead-roles && corepack yarn prisma:generate
 Expected: Prisma enum includes division_head/team_lead, a migration adds the enum values, seed data can reference both roles, and generated ActorRoleCode exposes ActorRoleCode.division_head and ActorRoleCode.team_lead.
 ```
+
+### Scope edit persistence boundary
+
+Reuse Role.customScope, timestamp-revoked RolePermission grants, active UserRole (including legacy teamId) and existing ActorProfile Member/ClientContact targets. Internal scopes preserve valid Member-backed or supported role-only profiles; external scopes require an active same-Tenant, same-User ClientContact with active Client. Invalid targets/bindings block scope transitions without rewriting historical assignments. Reads, compatibility/dependency validation and scope/grant updates join one serializable Tenant unit of work. No schema/migration changes are needed.
+
+### Immediate grant-constraint ordering
+
+Scope/grant replacement revokes deselected grants under the original role scope before updating Role.customScope, then restores/inserts only newly selected grants under the new scope. The tenant Prisma extension writes tenantId on grant updates, which invokes the immediate role_permissions_role_tenant_match constraint trigger even when the requested update only changes revokedAt. Updating the role scope first causes revocation of an old-scope-only grant to raise PostgreSQL 23503 / Prisma P2003. The transaction retains unchanged grants and their IDs/timestamps, performs no grant deletion, and leaves catalogue PermissionDependency rows unchanged.

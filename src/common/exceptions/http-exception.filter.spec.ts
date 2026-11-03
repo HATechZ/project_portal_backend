@@ -6,6 +6,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { AppErrorCode } from './app-error-code';
 import { AppException } from './app-exception';
 import { HttpExceptionFilter } from './http-exception.filter';
@@ -100,5 +101,27 @@ describe('HttpExceptionFilter', () => {
       }),
     );
     log.mockRestore();
+  });
+
+  it('logs Prisma constraint metadata without exposing it in the response', () => {
+    const { host, json } = captureResponse();
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const error = new Prisma.PrismaClientKnownRequestError('constraint trigger', {
+      code: 'P2003',
+      clientVersion: 'test',
+      meta: { constraint: 'role_permissions_role_tenant_match' },
+    });
+
+    new HttpExceptionFilter().catch(error, host);
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('role_permissions_role_tenant_match'),
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({ code: AppErrorCode.DatabaseConstraint }),
+      }),
+    );
+    warn.mockRestore();
   });
 });

@@ -183,4 +183,90 @@ describe('BidRepository lifecycle foundation', () => {
       },
     });
   });
+
+  it('returns only active GENERAL and MARKETING codes from the current tenant for Bid creation', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'code-a',
+        code: 'MKT-001',
+        name: 'Marketing brief',
+        documentGroup: 'MARKETING',
+      },
+    ]);
+    const repository = new BidRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({ documentCodeOption: { findMany } }),
+    } as never);
+
+    await expect(
+      RequestContext.run({ requestId: 'request-a', tenantId }, () =>
+        repository.availableDocumentCodes(),
+      ),
+    ).resolves.toEqual([
+      {
+        id: 'code-a',
+        code: 'MKT-001',
+        name: 'Marketing brief',
+        documentGroup: 'MARKETING',
+      },
+    ]);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId,
+          isActive: true,
+          documentGroup: { in: ['GENERAL', 'MARKETING'] },
+        },
+      }),
+    );
+  });
+
+  it('accepts a selected tenant-owned Bid document code when preparing an attachment', async () => {
+    const documentCodeFindMany = jest.fn().mockResolvedValue([
+      { id: 'code-a', code: 'GEN-001', name: 'General attachment' },
+    ]);
+    const repository = new BidRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          client: { findFirst: jest.fn().mockResolvedValue({ id: 'client-a' }) },
+          optionValue: {
+            findMany: jest.fn().mockResolvedValue([
+              { id: 'pol-a', name: 'Port A', code: null, optionType: { code: 'POL' } },
+              { id: 'pod-a', name: 'Port B', code: null, optionType: { code: 'POD' } },
+              { id: 'cargo-a', name: 'Cargo', code: 'CG', optionType: { code: 'CARGO_CODE' } },
+              { id: 'vessel-a', name: 'Vessel', code: 'VS', optionType: { code: 'VESSEL_CODE' } },
+            ]),
+          },
+          documentCodeOption: { findMany: documentCodeFindMany },
+        }),
+    } as never);
+
+    const references = await RequestContext.run(
+      { requestId: 'request-a', tenantId },
+      () =>
+        repository.prepareCreate({
+          clientId: 'client-a',
+          polId: 'pol-a',
+          podId: 'pod-a',
+          cargoId: 'cargo-a',
+          vesselId: 'vessel-a',
+          documentCodeIds: ['code-a'],
+        }),
+    );
+
+    expect(references.documentCodes.get('code-a')).toEqual({
+      code: 'GEN-001',
+      name: 'General attachment',
+    });
+    expect(documentCodeFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId,
+          isActive: true,
+          documentGroup: { in: ['GENERAL', 'MARKETING'] },
+          id: { in: ['code-a'] },
+        }),
+      }),
+    );
+  });
 });

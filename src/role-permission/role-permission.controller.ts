@@ -34,6 +34,7 @@ import {
   CreateCustomRoleDto,
 } from './dtos';
 import { RolePermissionService } from './role-permission.service';
+import { RoleScopeCatalogueResponseDto } from './dtos/role-scope-catalogue-response.dto';
 
 @ApiTags('role & permission')
 @ApiSecurity('bearer')
@@ -68,6 +69,19 @@ export class RolePermissionController {
     return this.service.createCustomRole(input);
   }
 
+  @Get('role/scope')
+  @FinalPermissions(PermissionCode.VIEW_ROLES)
+  @ResponseMessage('Role scopes returned successfully')
+  @ApiOperation({
+    summary: 'List supported role scopes',
+    description:
+      'System scope catalogue for Create Role and Manage Role Permissions, independent of existing roles. Use permission compatibleScopes to determine which permissions support each scope.',
+  })
+  @ApiStandardOkResponse(RoleScopeCatalogueResponseDto)
+  findRoleScopes() {
+    return this.service.findRoleScopes();
+  }
+
   @Get('role/:id')
   @FinalPermissions(PermissionCode.VIEW_ROLES)
   @ResponseMessage('Role returned successfully')
@@ -85,7 +99,7 @@ export class RolePermissionController {
   @ApiOperation({
     summary: 'Update permissions for a role',
     description:
-      'This operation performs full replacement of explicit permission IDs for a tenant custom role. A custom role scope may be changed only when every replacement permission is compatible with the requested scope. System roles are bootstrap-managed.',
+      'Updates a tenant custom role scope and optionally replaces its permissions atomically. Omit permissionIds to retain and revalidate current grants. Incompatible permissions or existing assignment bindings return validation details. System roles are bootstrap-managed.',
   })
   @ApiStandardOkResponse(RoleResponseDto, 'Role permissions replaced')
   @ApiStandardNotFoundResponse('Role was not found')

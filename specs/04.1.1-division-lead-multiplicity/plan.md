@@ -83,3 +83,7 @@ Runtime walkthrough uses real app_user/RLS, records envelopes and request IDs, e
 Tenant directions, creates only isolated fixtures, and cleans them after every outcome —
 including the `division_leads` rows, which cannot be deleted through the API by design and
 must be cleaned directly by the owner's fixture teardown.
+
+## Same-Division eligibility correction
+
+Tighten the existing assign-transaction Member query to the target Division. Replace former cross-Division acceptance tests with exact-Division success and cross-Division/foreign-Tenant/inactive rejection tests before writes. Preserve incumbent revocation and idempotency.

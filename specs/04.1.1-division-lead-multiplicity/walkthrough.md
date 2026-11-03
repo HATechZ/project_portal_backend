@@ -63,3 +63,7 @@ UPDATE, which affects module `04`'s rename/retype verification, not this module.
 - `scripts/identity-http-host.cjs` spawned `curl.exe` unconditionally, so no walkthrough in
   this repository could run outside Windows. It now selects `curl.exe` only on `win32`.
 - The fixture `INSERT INTO members` omitted the NOT NULL `role_title` column.
+
+## 2026-11-03 same-Division assignment override
+
+Prior cross-Division walkthrough results are historical and do not define new assignment eligibility. Focused automated tests now require exact-Division active Members and reject cross-Division, foreign-Tenant and inactive candidates before writes, retaining incumbent-revocation/idempotency tests. Independent verifier passed the focused suites; all 62 Division/Team/Member tests and build passed. No live HTTP replay or data backfill was performed for this correction.

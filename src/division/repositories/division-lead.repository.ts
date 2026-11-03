@@ -43,19 +43,18 @@ export class DivisionLeadRepository extends BaseRepository {
         });
         if (!division) throw leadNotFound('Division was not found');
 
-        // 04.1.1 DR-04: same Tenant and Company is the whole requirement. The
-        // Member's own Division is deliberately not compared — that single
-        // column is what limited a Member to leading one Division.
         const member = await db.member.findFirst({
           where: {
             id: input.memberId,
+            divisionId: input.divisionId,
             tenantId,
             companyId: input.companyId,
             isActive: true,
           },
           select: { id: true, name: true, email: true, userId: true },
         });
-        if (!member) throw leadNotFound('Member was not found in this Company');
+        if (!member)
+          throw leadNotFound('Active Member was not found in this Division');
         const written = await writeAssignment(db, {
           tenantId,
           companyId: input.companyId,

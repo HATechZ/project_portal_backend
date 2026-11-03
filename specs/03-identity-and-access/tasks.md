@@ -154,3 +154,12 @@ Completion status and counts are maintained in `specs/INDEX.md`.
         VERIFY: grep -q "protected starter-role decision" specs/ROLE_ARCHITECTURE_FREEZE.md && grep -q "protected starter-role bundles" specs/PERMISSION_CATALOGUE_GLOBALIZATION.md
   - [ ] Make normal Member onboarding atomically ensure same-Tenant Staff UserRole and Member-backed ActorProfile through the shared orchestration, with no request security fields and no Team/workflow assignment.
         VERIFY: grep -q "ensureUserRoleAndRoleOnlyProfile" specs/03-identity-and-access/DATA_CONTRACT.md && grep -q "Staff UserRole" specs/04.2-member/DATA_CONTRACT.md
+
+- [x] Expose the complete system role-scope catalogue independently of existing tenant roles; retain persisted per-permission compatibility and validate company/division/team/member create/update behavior.
+      VERIFY: yarn test --runInBand --testPathPatterns=role-scope-catalogue
+
+- [x] Support atomic existing custom-role scope edits, retained/replaced compatible grants, structured incompatible-permission and binding errors, and Tenant isolation without new schema.
+      VERIFY: yarn test --runInBand --testPathPatterns=role-scope-update
+
+- [x] Revoke deselected grants before changing scope so the immediate grant compatibility constraint passes; preserve unchanged IDs and verify the incompatible-first-save/corrected-save/repeated-save regression.
+      VERIFY: yarn test --runInBand --testPathPatterns=role-scope-update

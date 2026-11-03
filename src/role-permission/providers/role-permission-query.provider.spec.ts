@@ -122,7 +122,9 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
     ];
     const scoped = await provider.findPermissions(true, 'company');
     const module = await provider.findPermissions(true, 'company', 'MEMBERS');
-    expect(scoped.find(({ id }) => id === '2')?.requiredPermissionIds).toEqual(['1']);
+    expect(scoped.find(({ id }) => id === '2')?.requiredPermissionIds).toEqual([
+      '1',
+    ]);
     expect(module[0].requiredPermissionIds).toEqual(['1']);
   });
 
@@ -156,5 +158,28 @@ describe('RolePermissionQueryProvider custom-role permission selector', () => {
       }),
     ]);
     expect(response.permissions[0]).not.toHaveProperty('scopeCompatibilities');
+    expect(response.modules).toEqual(['MEMBERS']);
   });
 });
+
+it.each(['company', 'division', 'team', 'member'] as const)(
+  'preserves persisted %s compatibility without adding it to incompatible permissions',
+  async (scope) => {
+    const compatible = permission('supported', 'VIEW_MEMBERS', [scope]);
+    const incompatible = permission('unsupported', 'CREATE_COMPANY', [
+      'client',
+    ]);
+    const provider = new RolePermissionQueryProvider(
+      {
+        findVisiblePermissions: jest
+          .fn()
+          .mockResolvedValue([compatible, incompatible]),
+      } as never,
+      {} as never,
+    );
+    const catalogue = await provider.findPermissions(false);
+    expect(catalogue[0].compatibleScopes).toEqual([scope]);
+    expect(catalogue[1].compatibleScopes).toEqual(['client']);
+    expect(await provider.findPermissions(true, scope)).toEqual([catalogue[0]]);
+  },
+);

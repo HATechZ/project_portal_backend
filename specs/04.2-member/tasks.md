@@ -45,3 +45,6 @@ requires isolated-fixture cleanup and recorded evidence; static assertions never
         VERIFY: grep -q "Onboarding phase gate" specs/04.2-member/DATA_CONTRACT.md && grep -q "Phase B" specs/04.2-member/plan.md
   - [ ] Replace the superseded no-role onboarding behavior with atomic protected Staff resolution, idempotent Staff UserRole, and reusable Member-backed ActorProfile through shared access orchestration; retain the clean DTO and prohibit automatic Supervisor/Manager, Team, leadership, and workflow assignment.
         VERIFY: grep -q "Staff-onboarding reconciliation" specs/04.2-member/DATA_CONTRACT.md && grep -q "ensureUserRoleAndRoleOnlyProfile" specs/04.2-member/DATA_CONTRACT.md
+
+- [x] Expose exact-Division active assignment candidates with current Team membership/lead metadata, target-derived Team context, and Tenant/resource-scope validation without membership exclusion.
+      VERIFY: yarn test --runInBand --testPathPatterns=member-eligibility

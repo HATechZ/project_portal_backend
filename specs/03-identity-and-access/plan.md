@@ -173,3 +173,11 @@ the actual controllers, guards, validation and bootstrap. This host proves ident
 not SMTP delivery or infrastructure rate limiting. Both clean only their own temporary data.
 Evidence is written only after every required assertion and cleanup succeeds; static evidence
 checks compare production-source fingerprints. Independent verification is required before ticking.
+
+### Safe role scope editing
+
+Retain the existing PUT permission replacement route and response. Allow omitted permissionIds only when a scope is provided, resolving the effective set from active grants. Wrap role reads, catalogue validation, assignment impact checks and existing grant synchronization in one serializable repository unit of work. Return structured validation details through AppException. Preserve existing system/starter protections and feature-owned object authorization.
+
+### Immediate constraint reconciliation
+
+Use grant revocation before scope mutation because tenant-scoped updates include tenant_id and invoke the immediate grant-compatibility trigger. Preserve matching active rows, then set the new scope and add/reactivate only newly selected permissions. Confirm real PostgreSQL/Prisma behavior in a disposable database without changing live data or schema constraints.

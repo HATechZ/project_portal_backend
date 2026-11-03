@@ -10,6 +10,11 @@ export function toRoleResponse(role: RoleRecord): RoleResponseDto {
     isSystemRole: role.isSystemRole,
     scope: role.customScope,
     createdAt: role.createdAt,
+    modules: [
+      ...new Set(
+        role.rolePermissions.map(({ permission }) => permission.category),
+      ),
+    ].sort(),
     permissions: role.rolePermissions.map(({ permission }) =>
       toPermissionResponse(permission),
     ),

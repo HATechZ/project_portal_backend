@@ -58,3 +58,9 @@ assigned or an ActorProfile default changed.
 A tenant administrator account may legitimately exist without a Member-backed ActorProfile.
 Member-bound business operations, including Work Request creation, require explicit Member
 onboarding and their own responsibility checks.
+
+## Assignment eligibility selector
+
+GET /api/v1/member/eligible?divisionId=<uuid> selects Division Lead candidates; GET /api/v1/member/eligible?teamId=<uuid> selects Team Lead/Team Member candidates using the Team's persisted Division. Exactly one context is required. VIEW_MEMBERS plus Company, actively led Division, or exact led Team resource scope is enforced; member/external scopes cannot browse a Division through this selector. Missing/foreign/inactive targets return 404. No context or both contexts return 400.
+
+The standard envelope data array contains memberId, name, email, isTeamLead, activeTeamMemberships [{teamId,name,teamRole,isTeamLead}], and ledTeams [{teamId,name}]. Membership is leftAt=null on active same-Tenant/Company/Division Teams; lead metadata also covers led Teams without a TeamMember row. No membership exclusion is applied. Existing GET /member remains the general paginated directory.

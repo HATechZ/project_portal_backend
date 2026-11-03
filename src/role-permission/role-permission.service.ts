@@ -13,6 +13,7 @@ import {
   RolePermissionQueryProvider,
 } from './providers';
 import { PermissionCategory } from '../generated/prisma/client';
+import { CUSTOM_ROLE_SCOPES } from './providers/custom-role-policy';
 
 @Injectable()
 export class RolePermissionService {
@@ -20,6 +21,10 @@ export class RolePermissionService {
     private readonly mutationProvider: RolePermissionMutationProvider,
     private readonly queryProvider: RolePermissionQueryProvider,
   ) {}
+
+  findRoleScopes() {
+    return { scopes: [...CUSTOM_ROLE_SCOPES] };
+  }
 
   findRoles(): Promise<RoleResponseDto[]> {
     return this.queryProvider.findRoles();

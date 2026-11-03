@@ -115,3 +115,7 @@ lead sets. No new ActorRoleCode value. No seed data. This specification authoriz
 migration, RLS-policy, or grant change by itself — see `DATA_CONTRACT.md`
 § Proposed schema change, which requires explicit owner approval before any task here is
 implemented.
+
+## 2026-11-03 owner-approved assignment eligibility override
+
+New Division Lead assignments require an active Member whose home divisionId equals the exact target Division, in addition to same Tenant/Company. This supersedes prior DR-04 and acceptance statements allowing any same-Company Member to lead a different Division. Historical DivisionLead rows and timestamp revocation remain unchanged; no schema or data backfill is authorized. Team Lead and Team Member assignment retain their existing active same-Division checks.

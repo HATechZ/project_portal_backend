@@ -63,8 +63,8 @@ export class DivisionLeadController {
   @ApiOperation({
     summary: 'Assign Division Lead',
     description:
-      'Assign an eligible same-Company Member as Division Lead. The Member need ' +
-      'not belong to this Division. Revokes the incumbent Lead, and is a no-op ' +
+      'Assign an active Member belonging to this exact Division as Division Lead. ' +
+      'Revokes the incumbent Lead, and is a no-op ' +
       'when the Member already leads it. tenant super admin or Division Head.',
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })

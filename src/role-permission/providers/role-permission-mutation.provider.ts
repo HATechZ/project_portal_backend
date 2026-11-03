@@ -36,41 +36,62 @@ export class RolePermissionMutationProvider {
     id: string,
     input: SetRolePermissionsDto,
   ): Promise<RoleResponseDto> {
-    this.assertUniquePermissionIds(input.permissionIds);
-    const role = await this.requireRole(id);
-    const protectedStarter = starterRole(role.customCode ?? '');
-    if (
-      protectedStarter &&
-      input.scope &&
-      input.scope !== protectedStarter.scope
-    )
+    return this.repository.withRoleMutation(async () => {
+      const role = await this.requireRole(id);
+      const permissionIds =
+        input.permissionIds ??
+        role.rolePermissions.map(({ permission }) => permission.id);
+      this.assertUniquePermissionIds(permissionIds);
+      const protectedStarter = starterRole(role.customCode ?? '');
+      if (
+        protectedStarter &&
+        input.scope &&
+        input.scope !== protectedStarter.scope
+      )
+        throw new AppException({
+          code: AppErrorCode.Conflict,
+          status: HttpStatus.CONFLICT,
+          message: 'The protected starter role scope cannot be changed.',
+        });
+      if (!role.isSystemRole) {
+        const scope = input.scope ?? (role.customScope as CustomRoleScope);
+        await this.assertValidCustomPermissions(scope, permissionIds);
+        if (scope !== role.customScope) {
+          const affectedBindings =
+            await this.repository.findAffectedScopeBindings(id, scope);
+          if (affectedBindings.length)
+            throw new AppException({
+              code: AppErrorCode.BadRequest,
+              status: HttpStatus.BAD_REQUEST,
+              message:
+                'Existing role assignments are incompatible with the requested scope.',
+              details: {
+                canSave: false,
+                incompatiblePermissions: [],
+                affectedBindings,
+              },
+            });
+        }
+        return toRoleResponse(
+          await this.repository.replaceRolePermissions(
+            id,
+            permissionIds,
+            input.scope,
+          ),
+        );
+      }
+      if (input.scope)
+        throw new AppException({
+          code: AppErrorCode.BadRequest,
+          status: HttpStatus.BAD_REQUEST,
+          message: 'System roles do not have a configurable custom role scope.',
+        });
       throw new AppException({
-        code: AppErrorCode.Conflict,
-        status: HttpStatus.CONFLICT,
-        message: 'The protected starter role scope cannot be changed.',
+        code: AppErrorCode.Forbidden,
+        status: HttpStatus.FORBIDDEN,
+        message:
+          'System role permissions are bootstrap-managed and cannot be changed through this API.',
       });
-    if (!role.isSystemRole) {
-      const scope = input.scope ?? (role.customScope as CustomRoleScope);
-      await this.assertValidCustomPermissions(scope, input.permissionIds);
-      return toRoleResponse(
-        await this.repository.replaceRolePermissions(
-          id,
-          input.permissionIds,
-          input.scope,
-        ),
-      );
-    }
-    if (input.scope)
-      throw new AppException({
-        code: AppErrorCode.BadRequest,
-        status: HttpStatus.BAD_REQUEST,
-        message: 'System roles do not have a configurable custom role scope.',
-      });
-    throw new AppException({
-      code: AppErrorCode.Forbidden,
-      status: HttpStatus.FORBIDDEN,
-      message:
-        'System role permissions are bootstrap-managed and cannot be changed through this API.',
     });
   }
 
@@ -168,21 +189,31 @@ export class RolePermissionMutationProvider {
       });
     }
     this.assertUniquePermissionIds(permissionIds);
-    const permissions = await this.repository.findPermissionsByIds(permissionIds);
-    if (
-      permissions.length !== permissionIds.length ||
-      permissions.some(
+    const permissions =
+      await this.repository.findPermissionsByIds(permissionIds);
+    const incompatiblePermissions = permissions
+      .filter(
         ({ scopeCompatibilities }) =>
           !scopeCompatibilities.some(
             ({ scope: compatible }) => compatible === scope,
           ),
       )
-    ) {
+      .map(({ id, code, displayName }) => ({ id, code, name: displayName }));
+    const unknownPermissionIds = permissionIds.filter(
+      (id) => !permissions.some((permission) => permission.id === id),
+    );
+    if (incompatiblePermissions.length || unknownPermissionIds.length) {
       throw new AppException({
         code: AppErrorCode.BadRequest,
         status: HttpStatus.BAD_REQUEST,
         message:
-          'The selected permission is not available for this custom role scope.',
+          'Some selected permissions are incompatible with the requested role scope or no longer exist.',
+        details: {
+          canSave: false,
+          incompatiblePermissions,
+          unknownPermissionIds,
+          affectedBindings: [],
+        },
       });
     }
     await this.assertDependencies(scope, permissionIds);
@@ -193,7 +224,9 @@ export class RolePermissionMutationProvider {
     permissionIds: string[],
   ): Promise<void> {
     const catalogue = await this.repository.findPermissionDependencyGraph();
-    const byId = new Map(catalogue.map((permission) => [permission.id, permission]));
+    const byId = new Map(
+      catalogue.map((permission) => [permission.id, permission]),
+    );
     const selected = new Set(permissionIds);
     const visiting = new Set<string>();
     const visited = new Set<string>();
@@ -214,19 +247,27 @@ export class RolePermissionMutationProvider {
           message: 'The permission catalogue contains an unknown dependency.',
         });
       visiting.add(id);
-      for (const { requiredPermissionId } of permission.requiredPermissionDependencies) {
+      for (const {
+        requiredPermissionId,
+      } of permission.requiredPermissionDependencies) {
         const required = byId.get(requiredPermissionId);
         if (!required || !selected.has(requiredPermissionId))
           throw new AppException({
             code: AppErrorCode.BadRequest,
             status: HttpStatus.BAD_REQUEST,
-            message: 'Select every permission required by the selected permission.',
+            message:
+              'Select every permission required by the selected permission.',
           });
-        if (!required.scopeCompatibilities.some(({ scope: compatible }) => compatible === scope))
+        if (
+          !required.scopeCompatibilities.some(
+            ({ scope: compatible }) => compatible === scope,
+          )
+        )
           throw new AppException({
             code: AppErrorCode.BadRequest,
             status: HttpStatus.BAD_REQUEST,
-            message: 'The permission catalogue has a dependency incompatible with this role scope.',
+            message:
+              'The permission catalogue has a dependency incompatible with this role scope.',
           });
         visit(requiredPermissionId);
       }

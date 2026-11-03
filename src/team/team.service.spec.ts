@@ -78,4 +78,32 @@ describe('Team services', () => {
       membership.addMember(team.id, { memberId: 'member-1' }),
     ).rejects.toMatchObject({ status: 409 });
   });
+  it('rejects a cross-Division Team member submitted directly', async () => {
+    const repo = repository();
+    repo.findMember.mockResolvedValueOnce({
+      id: 'member-b',
+      companyId: company.id,
+      divisionId: 'division-b',
+      isActive: true,
+    });
+    const service = new TeamMembershipService(
+      new TeamService(repo as never),
+      repo as never,
+    );
+    await expect(
+      service.addMember(team.id, { memberId: 'member-b' }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(repo.addMember).not.toHaveBeenCalled();
+  });
+
+  it('does not exclude a valid candidate due to another Team in the same Division', async () => {
+    const repo = repository();
+    const service = new TeamMembershipService(
+      new TeamService(repo as never),
+      repo as never,
+    );
+    await service.addMember(team.id, { memberId: 'member-1' });
+    expect(repo.findActiveMembership).toHaveBeenCalledWith(team.id, 'member-1');
+    expect(repo.addMember).toHaveBeenCalledWith(team.id, 'member-1', undefined);
+  });
 });
