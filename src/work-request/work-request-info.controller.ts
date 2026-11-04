@@ -29,6 +29,7 @@ import {
   CreateWorkRequestInfoRequestDto,
   RespondWorkRequestInfoRequestDto,
   WorkRequestInfoRequestDto,
+  WorkRequestInfoRecipientDto,
   WorkRequestInfoResponseDto,
 } from './dtos/work-request.dto';
 import { WorkRequestService } from './work-request.service';
@@ -52,6 +53,27 @@ import { WorkRequestService } from './work-request.service';
 )
 export class WorkRequestInfoController {
   constructor(private readonly service: WorkRequestService) {}
+
+  @Get('recipients')
+  @FinalPermissions(PermissionCode.REQUEST_INFO)
+  @ApiOperation({ summary: 'Get eligible Request Information recipients' })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
+  @ApiStandardArrayResponse(WorkRequestInfoRecipientDto)
+  @ResponseMessage('Information request recipients returned successfully')
+  recipients(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.infoRecipients(id, actor);
+  }
+
+  @Get('recipients/status')
+  @FinalPermissions(PermissionCode.REQUEST_INFO)
+  @ApiOperation({ summary: 'Get Client recipient availability counts' })
+  @ResponseMessage('Information recipient status returned successfully')
+  recipientStatus(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+    return this.service.infoRecipientStatus(id, actor);
+  }
 
   @Post()
   @FinalPermissions(PermissionCode.REQUEST_INFO)

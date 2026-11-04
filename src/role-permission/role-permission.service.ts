@@ -82,4 +82,17 @@ export class RolePermissionService {
       performedByUserId,
     );
   }
+  reassignUserRole(
+    userId: string,
+    currentRoleId: string,
+    newRoleId: string,
+    assignedByUserId: string,
+  ): Promise<UserRoleAssignmentResponseDto> {
+    return this.mutationProvider.reassignUserRole(
+      userId,
+      currentRoleId,
+      newRoleId,
+      assignedByUserId,
+    );
+  }
 }

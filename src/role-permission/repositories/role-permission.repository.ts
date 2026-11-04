@@ -5,6 +5,7 @@ import { Prisma, CustomRoleScope } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import { reconcileActingProfileSelection } from '../../common/security/actor-access-orchestration';
 
 import {
   permissionSelect,
@@ -235,6 +236,7 @@ export class RolePermissionRepository extends BaseRepository {
 
   revokeAssignment(
     id: string,
+    userId: string,
     roleId: string,
     preserveLastAssignment: boolean,
   ): Promise<boolean> {
@@ -257,6 +259,7 @@ export class RolePermissionRepository extends BaseRepository {
           where: { id, tenantId },
           data: { revokedAt: new Date() },
         });
+        await reconcileActingProfileSelection(transaction, { tenantId, userId });
         return true;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

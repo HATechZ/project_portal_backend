@@ -6,6 +6,8 @@ import {
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { BaseRepository } from '../../infra/prisma/base.repository';
+import { workRequestVisibilityWhere } from '../../common/security/work-request-visibility';
+import type { SessionActor } from '../../common/security/session.types';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import {
   type WorkRequestInfoSnapshot,
@@ -28,6 +30,14 @@ export class WorkRequestInfoRepository extends BaseRepository {
         select: { id: true },
       }),
     );
+  }
+
+  isVisible(workRequestId: string, actor: SessionActor) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => !!(await db.workRequestV1.findFirst({
+      where: { id: workRequestId, tenantId, ...workRequestVisibilityWhere(actor) },
+      select: { id: true },
+    })));
   }
 
   async prepare(
@@ -56,6 +66,143 @@ export class WorkRequestInfoRepository extends BaseRepository {
         : null;
       const parent = request.bid ?? request.directProject;
       return { request, target, parent, info };
+    });
+  }
+
+  eligibleRecipients(workRequestId: string, requesterActorId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const request = await db.workRequestV1.findFirst({
+        where: { id: workRequestId, tenantId },
+        select: {
+          bid: { select: { clientId: true, client: { select: { companyId: true } } } },
+          directProject: {
+            select: { clientId: true, client: { select: { companyId: true } } },
+          },
+          assignments: {
+            where: {
+              unassignedAt: null,
+              replacedAt: null,
+              level: 'DIVISION',
+            },
+            select: { divisionId: true },
+          },
+        },
+      });
+      if (!request) return null;
+      const parent = request.bid ?? request.directProject;
+      if (!parent?.client.companyId) return null;
+      const divisionIds = request.assignments.flatMap((item) =>
+        item.divisionId ? [item.divisionId] : [],
+      );
+      const route = await this.routeDivisions(db, workRequestId);
+      if (route) {
+        const requester = await db.actorProfile.findFirst({
+          where: { id: requesterActorId, tenantId, isActive: true },
+          select: { memberId: true },
+        });
+        if (requester?.memberId === route.responsibleMemberId && route.responsibleActive)
+          divisionIds.push(...route.divisionIds);
+      }
+      return db.actorProfile.findMany({
+        where: {
+          tenantId,
+          id: { not: requesterActorId },
+          isActive: true,
+          isDefault: true,
+          user: { is: { isActive: true } },
+          OR: [
+            {
+              clientContact: {
+                is: {
+                  clientId: parent.clientId,
+                  isActive: true,
+                  client: { is: { isActive: true } },
+                },
+              },
+            },
+            {
+              member: {
+                is: {
+                  companyId: parent.client.companyId,
+                  isActive: true,
+                  divisionLeadsByMemberId: {
+                    some: {
+                      divisionId: { in: divisionIds },
+                      revokedAt: null,
+                      division: { is: { isActive: true } },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          label: true,
+          memberId: true,
+          clientContactId: true,
+          userId: true,
+          role: { select: { isActive: true, customScope: true,
+            userRolesByRoleId: { where: { revokedAt: null, tenantId }, select: { userId: true } },
+            rolePermissions: { where: { revokedAt: null, permission: { code: 'RESPOND_TO_INFO_REQUEST' } }, select: { permission: { select: { scopeCompatibilities: { select: { scope: true } } } } } },
+          } },
+          member: { select: { name: true, divisionLeadsByMemberId: {
+            where: { divisionId: { in: divisionIds }, revokedAt: null },
+            select: { division: { select: { id: true, name: true } } },
+          } } },
+          clientContact: { select: { name: true, client: { select: { id: true, name: true } } } },
+        },
+        orderBy: [{ label: 'asc' }, { id: 'asc' }],
+      });
+    });
+  }
+
+  async isActiveRouteLead(workRequestId: string, memberId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const route = await this.routeDivisions(db, workRequestId);
+      if (!route) return false;
+      return !!(await db.divisionLead.findFirst({ where: {
+        tenantId, memberId, divisionId: { in: route.divisionIds }, revokedAt: null,
+        division: { is: { isActive: true } }, member: { is: { isActive: true } },
+      }, select: { id: true } }));
+    });
+  }
+
+  private async routeDivisions(db: import('../../infra/prisma/prisma-executor.type').PrismaExecutor, workRequestId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    const route = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, select: {
+      originatingDivisionId: true,
+      responsibleOriginatingLead: { select: { memberId: true, revokedAt: true, member: { select: { isActive: true } }, division: { select: { isActive: true } } } },
+      projection: { select: { routeVersionId: true, routeStepId: true } },
+      steps: { select: { id: true, routeVersionId: true, divisionId: true, activatedAt: true } },
+    } });
+    if (!route) return null;
+    const lead = route.responsibleOriginatingLead;
+    const divisionIds = new Set([route.originatingDivisionId]);
+    for (const step of route.steps) {
+      if (step.divisionId && (step.activatedAt || step.id === route.projection?.routeStepId || (route.projection?.routeVersionId && step.routeVersionId === route.projection.routeVersionId)))
+        divisionIds.add(step.divisionId);
+    }
+    return { divisionIds: [...divisionIds], responsibleMemberId: lead.memberId, responsibleActive: lead.revokedAt === null && lead.member.isActive && lead.division.isActive };
+  }
+
+  clientRecipientStatus(workRequestId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const request = await db.workRequestV1.findFirst({ where: { id: workRequestId, tenantId }, select: {
+        bid: { select: { clientId: true } }, directProject: { select: { clientId: true } },
+      } });
+      const clientId = request?.bid?.clientId ?? request?.directProject?.clientId;
+      if (!clientId) return null;
+      const contacts = await db.clientContact.findMany({ where: { tenantId, clientId, isActive: true, client: { is: { isActive: true } } }, select: {
+        id: true, name: true, client: { select: { id: true, name: true } },
+        actorProfilesByClientContactId: { where: { isActive: true, isDefault: true, user: { is: { isActive: true } } }, select: { id: true } },
+      } });
+      return { activeContacts: contacts.length, contactsWithActiveDefaultProfile: contacts.filter((contact) => contact.actorProfilesByClientContactId.length > 0).length,
+        unavailableContacts: contacts.filter((contact) => !contact.actorProfilesByClientContactId.length).map((contact) => ({ contactId: contact.id, displayName: contact.name, recipientType: 'EXTERNAL_CLIENT_CONTACT', contextType: 'CLIENT_CONTACT', context: contact.client, canReceive: false, canRespond: false, unavailableReason: 'Client contact unavailable — portal access/profile not configured' })) };
     });
   }
 
@@ -96,9 +243,10 @@ export class WorkRequestInfoRepository extends BaseRepository {
           })
         : null;
       if (existing) return { request: existing, duplicate: true };
-      const request = await db.workRequestV1InfoRequest.create({
+      const requestId = randomUUID();
+      await db.workRequestV1InfoRequest.create({
         data: {
-          id: randomUUID(),
+          id: requestId,
           tenantId,
           workRequestId: input.workRequestId,
           requestedByActorId: input.requestedByActorId,
@@ -108,17 +256,16 @@ export class WorkRequestInfoRepository extends BaseRepository {
           parentInfoRequestId: input.parentInfoRequestId,
           idempotencyKey: input.idempotencyKey,
           correlationId: input.correlationId,
-          attachments: {
-            create: (input.documentVersionIds ?? []).map(
-              (documentVersionId) => ({
-                id: randomUUID(),
-                tenantId,
-                documentVersionId,
-              }),
-            ),
-          },
         },
-        select: workRequestInfoHistorySelect,
+      });
+      if (input.documentVersionIds?.length)
+        await db.workRequestV1InfoRequestAttachment.createMany({
+          data: input.documentVersionIds.map((documentVersionId) => ({
+            id: randomUUID(), tenantId, infoRequestId: requestId, documentVersionId,
+          })),
+        });
+      const request = await db.workRequestV1InfoRequest.findFirstOrThrow({
+        where: { id: requestId, tenantId }, select: workRequestInfoHistorySelect,
       });
       return { request, duplicate: false };
     });
@@ -165,11 +312,10 @@ export class WorkRequestInfoRepository extends BaseRepository {
         data: { status: InfoRequestStatusCode.RESPONDED, closedAt: at },
       });
       if (closed.count !== 1) return { kind: 'closed' as const };
-      return {
-        kind: 'ok' as const,
-        response: await db.workRequestV1InfoResponse.create({
+      const responseId = randomUUID();
+      await db.workRequestV1InfoResponse.create({
           data: {
-            id: randomUUID(),
+            id: responseId,
             tenantId,
             infoRequestId,
             respondedByActorId: actorId,
@@ -177,14 +323,18 @@ export class WorkRequestInfoRepository extends BaseRepository {
             respondedAt: at,
             idempotencyKey,
             correlationId,
-            attachments: {
-              create: (documentVersionIds ?? []).map((documentVersionId) => ({
-                id: randomUUID(),
-                tenantId,
-                documentVersionId,
-              })),
-            },
           },
+        });
+      if (documentVersionIds?.length)
+        await db.workRequestV1InfoResponseAttachment.createMany({
+          data: documentVersionIds.map((documentVersionId) => ({
+            id: randomUUID(), tenantId, infoResponseId: responseId, documentVersionId,
+          })),
+        });
+      return {
+        kind: 'ok' as const,
+        response: await db.workRequestV1InfoResponse.findFirstOrThrow({
+          where: { id: responseId, tenantId },
           select: {
             id: true,
             respondedByActorId: true,

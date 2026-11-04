@@ -98,9 +98,10 @@ export class WorkRequestActionsProvider {
         label: 'Assign Member',
         targetKind: 'member',
       });
-    const canInfoScope = member
-      ? Object.values(active).includes(member.id)
-      : false;
+    const canInfoScope =
+      member !== undefined &&
+      member !== null &&
+      hasInfoResponsibility(member.id, record.assignments);
     for (const code of [
       WorkflowActionCode.WR_SUBMIT,
       WorkflowActionCode.WR_CHECKING_APPROVE,
@@ -144,4 +145,15 @@ export class WorkRequestActionsProvider {
       });
     return actions;
   }
+}
+
+function hasInfoResponsibility(memberId: string, assignments: WorkRequestRecord['assignments']) {
+  return assignments.some(
+    (assignment) =>
+      assignment.memberId === memberId ||
+      (assignment.level === WorkRequestV1AssignmentLevelCode.DIVISION &&
+        assignment.division?.divisionLeadsByDivisionId.some(
+          (lead) => lead.memberId === memberId,
+        )),
+  );
 }

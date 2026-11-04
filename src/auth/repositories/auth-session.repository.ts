@@ -4,6 +4,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { RequestContext } from '../../common/context/request-context';
+import { STAFF_STARTER_ROLE_CODE } from '../../common/security/starter-role-definition';
 import {
   SessionActor,
   SessionUser,
@@ -48,12 +49,24 @@ export class AuthSessionRepository extends BaseRepository {
   findActiveActor(userId: string): Promise<SessionActor | null> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
+      const eligibleWhere = {
+        tenantId,
+        userId,
+        isActive: true,
+        role: {
+          isActive: true,
+          userRolesByRoleId: {
+            some: { tenantId, userId, revokedAt: null },
+          },
+        },
+      };
       const actor = await db.actorProfile.findFirst({
         where: {
-          tenantId,
-          userId,
-          isActive: true,
+          ...eligibleWhere,
           role: {
+            isActive: true,
+            isSystemRole: false,
+            customCode: { not: STAFF_STARTER_ROLE_CODE },
             userRolesByRoleId: {
               some: { tenantId, userId, revokedAt: null },
             },
@@ -62,7 +75,12 @@ export class AuthSessionRepository extends BaseRepository {
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
         select: sessionActorSelect(tenantId, userId),
       });
-      return actor ? withBoundTeamId(actor) : null;
+      const fallback = actor ?? (await db.actorProfile.findFirst({
+        where: eligibleWhere,
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+        select: sessionActorSelect(tenantId, userId),
+      }));
+      return fallback ? withBoundTeamId(fallback) : null;
     });
   }
 

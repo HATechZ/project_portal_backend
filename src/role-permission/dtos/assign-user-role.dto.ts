@@ -15,3 +15,9 @@ export class AssignUserRoleDto {
   @IsUUID()
   teamId?: string;
 }
+
+export class ReassignUserRoleDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  newRoleId!: string;
+}

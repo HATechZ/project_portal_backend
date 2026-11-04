@@ -37,7 +37,49 @@ describe('WorkRequestRouteActionsProvider', () => {
       ),
     ).resolves.toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: 'AMEND_ROUTE', targetKind: 'route' }),
+        expect.objectContaining({ code: 'AMEND_ROUTE', label: 'Modify future route', targetKind: 'route' }),
+      ]),
+    );
+  });
+
+  it('does not dereference a missing Division cycle', async () => {
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue({ ...route, divisionCycles: [] }),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+    } as never);
+    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual([]);
+  });
+
+  it('exposes division assignment and Request Information to the responsible origin Lead only through permissions', async () => {
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+    } as never);
+
+    await expect(
+      provider.available(
+        'request-a',
+        actor(
+          [
+            PermissionCode.ASSIGN_WORK_REQUEST_DIVISION,
+            PermissionCode.REQUEST_INFO,
+          ],
+          'lead-a',
+          'company',
+        ),
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'WR_ASSIGN_DIVISION',
+          label: 'Assign Division',
+          targetKind: 'division',
+        }),
+        expect.objectContaining({
+          code: 'REQUEST_WORKFLOW_INFO',
+          label: 'Request Information',
+          targetKind: 'info-request',
+        }),
       ]),
     );
   });

@@ -26,6 +26,7 @@ function toActiveActorResponse(
 
   return {
     id: user.id,
+    activeActorProfileId: actor.id,
     fullName: user.fullName,
     email: user.email,
     country: user.country,

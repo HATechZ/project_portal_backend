@@ -75,6 +75,9 @@ export class WorkRequestAssignmentProvider {
           ? { id: assignment.member.id, label: assignment.member.name }
           : null,
         assignedBy: assignment.assignedByActor,
+        responsibleRecipients: assignment.unassignedAt || assignment.replacedAt ? [] :
+          (assignment.division?.divisionLeadsByDivisionId ?? []).flatMap(({ member }) =>
+            member.actorProfilesByMemberId.map((profile) => ({ actorId: profile.id, memberId: member.id, label: profile.label, displayName: member.name }))),
       }));
     });
   }
@@ -104,6 +107,13 @@ export class WorkRequestAssignmentProvider {
         if (!snapshot) throw notFound('Work Request was not found.');
         if (!snapshot.target)
           throw notFound('Assignment target was not found or is inactive.');
+        if (
+          level === WorkRequestV1AssignmentLevelCode.DIVISION &&
+          (snapshot.target.responsibleRecipients?.length ?? 0) === 0
+        )
+          throw conflict(
+            'The target Division has no active Division Lead acting profile.',
+          );
         if (snapshot.active[level] === targetId)
           throw conflict('Work Request is already assigned to this target.');
         const transition = assignmentTransitionFor(
@@ -149,6 +159,7 @@ export class WorkRequestAssignmentProvider {
           memberId: written.memberId,
           assignedAt: written.assignedAt,
           currentState: written.currentState,
+          responsibleRecipients: snapshot.target.responsibleRecipients ?? [],
         };
       },
       { isolationLevel: 'Serializable' },

@@ -158,6 +158,13 @@ export class WorkRequestService extends WorkRequestServiceBase {
   infoHistory(id: string, actor: SessionActor) {
     return this.info.history(id, actor);
   }
+  infoRecipients(id: string, actor: SessionActor) {
+    return this.info.eligibleRecipients(id, actor);
+  }
+
+  infoRecipientStatus(id: string, actor: SessionActor) {
+    return this.info.recipientStatus(id, actor);
+  }
   submitClientPackage(
     id: string,
     input: CreateWorkRequestClientSubmissionDto,

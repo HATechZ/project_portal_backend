@@ -53,6 +53,8 @@ export const STARTER_ROLES = [
 
 export type StarterRoleCode = (typeof STARTER_ROLES)[number]['code'];
 
+export const STAFF_STARTER_ROLE_CODE = STARTER_ROLES[0].code;
+
 export function starterRole(code: string) {
   return STARTER_ROLES.find((role) => role.code === code);
 }
@@ -61,4 +63,9 @@ export function isStarterRoleCode(
   code: string | null,
 ): code is StarterRoleCode {
   return STARTER_ROLES.some((role) => role.code === code);
+}
+
+/** The protected starter-role identity used for acting-context fallback only. */
+export function isStaffStarterRoleCode(code: string | null): boolean {
+  return code === STAFF_STARTER_ROLE_CODE;
 }

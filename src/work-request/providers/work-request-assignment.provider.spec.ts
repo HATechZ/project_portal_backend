@@ -21,6 +21,9 @@ describe('WorkRequestAssignmentProvider', () => {
       divisionId: 'division-a',
       teamId: 'team-a',
       permissionCodes: Object.values(PermissionCode),
+      responsibleRecipients: [
+        { actorId: 'lead-actor-a', memberId: 'lead-member-a', label: 'Lead' },
+      ],
     },
   });
   const actor = (
@@ -361,6 +364,7 @@ describe('WorkRequestAssignmentProvider', () => {
         note: 'Route to team',
         assignee: null,
         assignedBy: { id: 'actor-a', label: 'Coordinator' },
+        responsibleRecipients: [],
       },
     ]);
   });
@@ -539,5 +543,34 @@ describe('WorkRequestAssignmentProvider', () => {
       WorkflowActionCode.WR_ASSIGN_DIVISION,
     );
     expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects Division routing when no active Division Lead acting profile exists', async () => {
+    const prepared = snapshot(State.CREATED);
+    prepared.target.responsibleRecipients = [];
+    const { provider, repository } = subject(prepared);
+
+    await expect(
+      assign(provider, Level.DIVISION, WorkflowActionCode.WR_ASSIGN_DIVISION),
+    ).rejects.toThrow('no active Division Lead acting profile');
+    expect(repository.write).not.toHaveBeenCalled();
+  });
+
+  it('returns the resolved active Division Lead recipient with a Division assignment', async () => {
+    const { provider } = subject();
+
+    await expect(
+      assign(provider, Level.DIVISION, WorkflowActionCode.WR_ASSIGN_DIVISION),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        responsibleRecipients: [
+          {
+            actorId: 'lead-actor-a',
+            memberId: 'lead-member-a',
+            label: 'Lead',
+          },
+        ],
+      }),
+    );
   });
 });

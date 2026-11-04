@@ -168,12 +168,36 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         where: { id: targetId, tenantId, isActive: true },
         select: { companyId: true, id: true },
       });
+      const responsibleRecipients = division
+        ? await db.actorProfile.findMany({
+            where: {
+              tenantId,
+              isActive: true,
+              isDefault: true,
+              user: { is: { isActive: true } },
+              member: {
+                is: {
+                  isActive: true,
+                  divisionLeadsByMemberId: {
+                    some: { divisionId: division.id, revokedAt: null },
+                  },
+                },
+              },
+            },
+            select: { id: true, memberId: true, label: true },
+          })
+        : [];
       return division
         ? {
             companyId: division.companyId,
             divisionId: division.id,
             teamId: null,
             permissionCodes: [],
+            responsibleRecipients: responsibleRecipients.map((profile) => ({
+              actorId: profile.id,
+              memberId: profile.memberId!,
+              label: profile.label,
+            })),
           }
         : null;
     }
@@ -188,6 +212,7 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
             divisionId: team.divisionId,
             teamId: team.id,
             permissionCodes: [],
+            responsibleRecipients: [],
           }
         : null;
     }
@@ -251,6 +276,7 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
       divisionId: member.divisionId,
       teamId: active[WorkRequestV1AssignmentLevelCode.TEAM] ?? null,
       permissionCodes: [...permissionCodes],
+      responsibleRecipients: [],
     };
   }
 }

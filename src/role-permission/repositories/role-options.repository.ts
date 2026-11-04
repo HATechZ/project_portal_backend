@@ -30,6 +30,7 @@ export class RoleOptionsRepository extends BaseRepository {
         },
       });
       if (!user) return null;
+      if (user.membersByUserId.length === 0) return [];
       const assigned = await db.userRole.findMany({
         where: { tenantId, userId, revokedAt: null },
         select: { roleId: true },
@@ -37,15 +38,11 @@ export class RoleOptionsRepository extends BaseRepository {
       const assignedIds = assigned.map(({ roleId }) => roleId);
       return db.role.findMany({
         where: {
-          OR: [
-            { isSystemRole: true },
-            {
-              tenantId,
-              isSystemRole: false,
-              isActive: true,
-              rolePermissions: { some: { tenantId, revokedAt: null } },
-            },
-          ],
+          tenantId,
+          isSystemRole: false,
+          isActive: true,
+          customScope: { not: null },
+          rolePermissions: { some: { tenantId, revokedAt: null } },
           id: { notIn: assignedIds },
         },
         orderBy: { name: 'asc' },

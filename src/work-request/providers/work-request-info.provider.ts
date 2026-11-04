@@ -10,6 +10,7 @@ import { OutboxService } from '../../infra/messaging/outbox.service';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import type { SessionActor } from '../../common/security/session.types';
+import { hasCompanyWorkRequestScope } from '../../common/security/work-request-visibility';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import {
   CreateWorkRequestInfoRequestDto,
@@ -34,8 +35,6 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
-        if (await this.repository.isRouteWorkRequest?.(id))
-          throw conflict('Route Work Requests use private pair communication.');
         this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(id, input.targetActorId);
         if (!snapshot?.parent || !snapshot.target) throw notFound();
@@ -44,8 +43,10 @@ export class WorkRequestInfoProvider {
           throw conflict('Work Request has no current workflow state.');
         if (state === 'ACCEPTED' || state === 'REJECTED')
           throw conflict('Work Request is no longer active.');
-        this.assertParticipant(actor, snapshot, state);
-        this.assertTarget(snapshot.target, snapshot, state);
+        this.assertParticipant(actor, snapshot);
+        const recipients = await this.repository.eligibleRecipients(id, actor.id);
+        if (!recipients?.some((recipient) => recipient.id === input.targetActorId))
+          throw forbidden('The selected information recipient is not eligible.');
         if (input.parentInfoRequestId)
           await this.assertParent(id, input.parentInfoRequestId, actor.id);
         await this.assertAttachments(id, input.documentVersionIds);
@@ -97,8 +98,6 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
-        if (await this.repository.isRouteWorkRequest?.(id))
-          throw conflict('Route Work Requests use private pair communication.');
         this.assertPermission(actor, WorkflowActionCode.RESPOND_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(
           id,
@@ -114,7 +113,10 @@ export class WorkRequestInfoProvider {
         const state = snapshot.request.events[0]?.resultingState;
         if (!state || state === State.ACCEPTED || state === State.REJECTED)
           throw conflict('Work Request is no longer active.');
-        this.assertParticipant(actor, snapshot, state);
+        const routeRecipient = actor.member?.id
+          ? await this.repository.isActiveRouteLead(id, actor.member.id)
+          : false;
+        this.assertParticipant(actor, snapshot, routeRecipient);
         await this.assertAttachments(id, input.documentVersionIds);
         const metadata = workRequestTransitionRequestMetadata();
         const result = await this.repository.respond(
@@ -150,22 +152,73 @@ export class WorkRequestInfoProvider {
 
   async history(id: string, actor: SessionActor) {
     return this.uow.execute(async () => {
-      if (await this.repository.isRouteWorkRequest?.(id))
-        throw conflict('Route Work Requests use private pair communication.');
       const snapshot = await this.repository.prepare(id);
       if (!snapshot?.parent) throw notFound();
-      this.assertParticipant(
-        actor,
-        snapshot,
-        snapshot.request.events[0]?.resultingState ?? null,
+      const routeRecipient = actor.member?.id
+        ? await this.repository.isActiveRouteLead(id, actor.member.id)
+        : false;
+      const administrativeRead = await this.canReadAsAdministrator(id, actor, snapshot);
+      if (!administrativeRead) this.assertParticipant(actor, snapshot, routeRecipient);
+      const routeOnly = routeRecipient && actor.member && !isInternalResponsible(
+        actor.member.id, snapshot.request.assignments, snapshot.request.route,
       );
       return (
         await this.repository.history(
           id,
-          isExternal(actor) ? actor.id : undefined,
+          isExternal(actor) || routeOnly ? actor.id : undefined,
         )
       ).map(requestResponse);
     });
+  }
+
+  async eligibleRecipients(id: string, actor: SessionActor) {
+    return this.uow.execute(async () => {
+      this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+      const snapshot = await this.repository.prepare(id);
+      if (!snapshot?.parent) throw notFound();
+      const state = snapshot.request.events[0]?.resultingState;
+      if (!state || state === State.ACCEPTED || state === State.REJECTED)
+        throw conflict('Work Request is no longer active.');
+      const administrativeRead = await this.canReadAsAdministrator(id, actor, snapshot);
+      if (!administrativeRead) this.assertParticipant(actor, snapshot);
+      const recipients = await this.repository.eligibleRecipients(id, actor.id);
+      if (!recipients) throw notFound();
+      return recipients.map((recipient) => ({
+        actorId: recipient.id,
+        actorProfileId: recipient.id,
+        label: recipient.label,
+        displayName: recipient.member?.name ?? recipient.clientContact?.name ?? recipient.label,
+        recipientType: recipient.memberId ? 'INTERNAL_MEMBER' as const : 'EXTERNAL_CLIENT_CONTACT' as const,
+        contextType: recipient.memberId ? 'DIVISION_LEAD' as const : 'CLIENT_CONTACT' as const,
+        canReceive: true,
+        unavailableReason: null,
+        canRespond: !!recipient.role?.isActive && recipient.role.userRolesByRoleId.some((grant) => grant.userId === recipient.userId) && recipient.role.rolePermissions.some(({ permission }) => recipient.role.customScope === null || permission.scopeCompatibilities.some(({ scope }) => scope === recipient.role.customScope)),
+        context: recipient.memberId
+          ? { kind: 'DIVISION_LEAD' as const, ...recipient.member?.divisionLeadsByMemberId[0]?.division }
+          : { kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact?.client },
+        contexts: recipient.memberId
+          ? (recipient.member?.divisionLeadsByMemberId ?? []).map(({ division }) => ({ kind: 'DIVISION_LEAD' as const, ...division }))
+          : recipient.clientContact ? [{ kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact.client }] : [],
+        type: recipient.memberId
+          ? ('INTERNAL_MEMBER' as const)
+          : ('EXTERNAL_CLIENT_CONTACT' as const),
+      }));
+    });
+  }
+
+  async recipientStatus(id: string, actor: SessionActor) {
+    await this.eligibleRecipients(id, actor);
+    return this.uow.execute(async () => {
+      const status = await this.repository.clientRecipientStatus(id);
+      if (!status) throw notFound();
+      return status;
+    });
+  }
+
+  private async canReadAsAdministrator(id: string, actor: SessionActor, snapshot: any) {
+    if (!actor.isActive || !actor.role.isActive || !hasCompanyWorkRequestScope(actor)) return false;
+    if (actor.role.customScope === 'company' && (!actor.member?.isActive || !actor.member.company.isActive || actor.member.companyId !== snapshot.parent.client.companyId)) return false;
+    return this.repository.isVisible(id, actor);
   }
 
   private assertPermission(actor: SessionActor, action: WorkflowActionCode) {
@@ -214,12 +267,11 @@ export class WorkRequestInfoProvider {
   private assertParticipant(
     actor: SessionActor,
     snapshot: any,
-    state: State | null,
+    routeRecipient = false,
   ) {
     if (!actor.isActive) throw forbidden();
     if (isExternal(actor)) {
       if (
-        !externalState(state) ||
         !actor.clientContact?.isActive ||
         !actor.clientContact.client.isActive ||
         actor.clientContact.clientId !== snapshot.parent.clientId
@@ -232,35 +284,11 @@ export class WorkRequestInfoProvider {
       !member?.isActive ||
       !member.company.isActive ||
       member.companyId !== snapshot.parent.client.companyId ||
-      !snapshot.request.assignments.some(
-        (assignment: any) =>
-          internalLevel(assignment.level) && assignment.memberId === member.id,
-      )
-    )
-      throw forbidden();
-  }
-
-  private assertTarget(target: any, snapshot: any, state: State) {
-    if (!target.isActive) throw forbidden();
-    if (target.clientContact) {
-      if (
-        !externalState(state) ||
-        !target.clientContact.isActive ||
-        !target.clientContact.client.isActive ||
-        target.clientContact.clientId !== snapshot.parent.clientId
-      )
-        throw forbidden();
-      return;
-    }
-    if (
-      !target.member?.isActive ||
-      !target.member.company.isActive ||
-      target.member.companyId !== snapshot.parent.client.companyId ||
-      !snapshot.request.assignments.some(
-        (assignment: any) =>
-          internalLevel(assignment.level) &&
-          assignment.memberId === target.member.id,
-      )
+      !(routeRecipient || isInternalResponsible(
+        member.id,
+        snapshot.request.assignments,
+        snapshot.request.route,
+      ))
     )
       throw forbidden();
   }
@@ -307,17 +335,37 @@ function internalLevel(level: Level) {
     ] as Level[]
   ).includes(level);
 }
+function isInternalResponsible(
+  memberId: string,
+  assignments: any[],
+  route?: {
+    responsibleOriginatingLead?: {
+      memberId: string;
+      revokedAt: Date | null;
+      member: { isActive: boolean };
+      division: { isActive: boolean };
+    } | null;
+  } | null,
+) {
+  return (
+    assignments.some(
+      (assignment) =>
+        (internalLevel(assignment.level) && assignment.memberId === memberId) ||
+        (assignment.level === Level.DIVISION &&
+          assignment.division?.divisionLeadsByDivisionId.some(
+            (lead: { memberId: string }) => lead.memberId === memberId,
+          )),
+    ) ||
+    (route?.responsibleOriginatingLead?.memberId === memberId &&
+      route.responsibleOriginatingLead.revokedAt === null &&
+      route.responsibleOriginatingLead.member.isActive &&
+      route.responsibleOriginatingLead.division.isActive)
+  );
+}
 function isExternal(actor: SessionActor) {
   return (
     actor.role.customScope === 'client' ||
     actor.role.customScope === 'client_contact'
-  );
-}
-function externalState(state: State | null) {
-  return (
-    state === State.FINAL_RELEASE ||
-    state === State.CLIENT_REVIEW ||
-    state === State.CLIENT_REVISION_REQUESTED
   );
 }
 function participant(actor: any): {
@@ -367,11 +415,11 @@ function notFound(message = 'Work Request was not found.') {
     message,
   });
 }
-function forbidden() {
+function forbidden(message = "You don't have permission to perform this action.") {
   return new AppException({
     code: AppErrorCode.Forbidden,
     status: HttpStatus.FORBIDDEN,
-    message: "You don't have permission to perform this action.",
+    message,
   });
 }
 function conflict(message: string) {

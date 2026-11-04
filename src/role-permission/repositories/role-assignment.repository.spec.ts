@@ -11,7 +11,10 @@ describe('RoleAssignmentRepository', () => {
 
   function subject(overrides: Record<string, unknown> = {}) {
     const db = {
-      role: { findFirstOrThrow: jest.fn().mockResolvedValue(teamRole) },
+      role: {
+        findFirst: jest.fn().mockResolvedValue(teamRole),
+        findFirstOrThrow: jest.fn().mockResolvedValue(teamRole),
+      },
       member: { findFirst: jest.fn().mockResolvedValue({ id: 'member-id' }) },
       team: { findFirst: jest.fn().mockResolvedValue({ id: 'team-id' }) },
       teamMember: {
@@ -77,15 +80,49 @@ describe('RoleAssignmentRepository', () => {
     }
   });
 
-  it('links a later role assignment to an active Member when one exists', async () => {
+  it('rejects an inactive, foreign, or system role before creating a grant', async () => {
+    const db = {
+      role: { findFirst: jest.fn().mockResolvedValue(null) },
+      member: { findFirst: jest.fn() },
+    };
+    const repository = new RoleAssignmentRepository({
+      execute: async (work: (transaction: never) => Promise<unknown>) =>
+        work(db as never),
+    } as never);
+
+    await expect(assign(repository)).rejects.toMatchObject({ status: 400 });
+    expect(db.role.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-id',
+          isSystemRole: false,
+          isActive: true,
+        }),
+      }),
+    );
+    expect(db.member.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('requires an active same-Tenant Member linked to the target User', async () => {
+    const repository = subject({
+      member: { findFirst: jest.fn().mockResolvedValue(null) },
+    });
+
+    await expect(assign(repository)).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('links an assignment to the active Member rather than persisting Role on Member', async () => {
     const db = {
       $queryRaw: jest.fn().mockResolvedValue([{ id: 'user-id' }]),
       role: {
+        findFirst: jest.fn().mockResolvedValue({
+          customScope: 'division',
+          rolePermissions: [{ id: 'permission-id' }],
+        }),
         findFirstOrThrow: jest.fn().mockResolvedValue({
-          isSystemRole: true,
+          isSystemRole: false,
           name: 'Division Member',
-          customScope: null,
-          workflowActionRolePermissionsByRoleId: [],
+          customScope: 'division',
         }),
       },
       member: { findFirst: jest.fn().mockResolvedValue({ id: 'member-id' }) },
@@ -104,6 +141,7 @@ describe('RoleAssignmentRepository', () => {
           .mockResolvedValueOnce(null)
           .mockResolvedValueOnce(null),
         updateMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn((input: { data: { memberId?: string } }) => {
           expect(input.data.memberId).toBe('member-id');
           return Promise.resolve({ id: 'profile-id' });
@@ -122,5 +160,58 @@ describe('RoleAssignmentRepository', () => {
 
     expect(db.member.findFirst).toHaveBeenCalled();
     expect(db.actorProfile.create).toHaveBeenCalled();
+  });
+
+  it('atomically timestamps the prior custom grant before ensuring the replacement grant', async () => {
+    const db = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      role: {
+        findFirst: jest.fn().mockResolvedValue({
+          customScope: 'division',
+          rolePermissions: [{ id: 'permission-id' }],
+        }),
+        findFirstOrThrow: jest.fn().mockResolvedValue({ name: 'Replacement' }),
+      },
+      member: { findFirst: jest.fn().mockResolvedValue({ id: 'member-id' }) },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'user-id' }) },
+      userRole: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce({ id: 'old-assignment' })
+          .mockResolvedValueOnce(null),
+        update: jest.fn().mockResolvedValue({ id: 'old-assignment' }),
+        create: jest.fn().mockResolvedValue({ id: 'new-assignment' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'new-assignment' }),
+      },
+      actorProfile: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue({ id: 'profile-id' }),
+      },
+    };
+    const repository = new RoleAssignmentRepository({
+      execute: async (work: (transaction: never) => Promise<unknown>) =>
+        work(db as never),
+    } as never);
+
+    await RequestContext.run(
+      { requestId: 'request-id', tenantId: 'tenant-id' },
+      () => repository.reassign('user-id', 'old-role', 'new-role', 'admin-id'),
+    );
+
+    expect(db.userRole.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'old-assignment', tenantId: 'tenant-id' },
+        data: { revokedAt: expect.any(Date) },
+      }),
+    );
+    expect(db.userRole.create).toHaveBeenCalled();
+    expect(db.actorProfile.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { isDefault: false } }),
+    );
+    expect(db.actorProfile.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isDefault: true }) }),
+    );
   });
 });

@@ -205,6 +205,28 @@ describe('WorkRequestActionsProvider', () => {
     ).toEqual([]);
   });
 
+  it('exposes Request Information to the active Lead of the assigned Division', () => {
+    expect(
+      provider.available(
+        actor([WorkflowActionCode.REQUEST_WORKFLOW_INFO], 'lead-a'),
+        WorkRequestV1StateCode.DIVISION_ASSIGNED,
+        record(WorkRequestV1StateCode.DIVISION_ASSIGNED, [
+          {
+            level: 'DIVISION',
+            divisionId: 'division-a',
+            division: {
+              divisionLeadsByDivisionId: [{ memberId: 'lead-a' }],
+            },
+          },
+        ]),
+      ),
+    ).toContainEqual(
+      expect.objectContaining({
+        code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+      }),
+    );
+  });
+
   it.each([
     [
       WorkflowActionCode.WR_CHECKING_APPROVE,

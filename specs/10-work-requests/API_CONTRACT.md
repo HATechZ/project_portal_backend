@@ -1,6 +1,6 @@
 # API Contract: 10 — Route-Based Work Requests
 
-> **AUTHORITATIVE API:** This contract governs new route-based Work Requests. Routes in the retained pre-route section below are **HISTORICAL / PRE-ROUTE MODEL** compatibility endpoints only; they are not a target API for the route model. All routes inherit Module 00 envelope, error mapping, UUID validation, `x-request-id`, pagination, and guard conventions.
+> **AUTHORITATIVE API:** This contract governs new route-based Work Requests. The retained compatibility surface remains supported where explicitly stated; Request Information is supported for both route-based and compatibility Work Requests. All routes inherit Module 00 envelope, error mapping, UUID validation, `x-request-id`, pagination, and guard conventions.
 
 ## Route-based surface
 
@@ -24,6 +24,11 @@
 | POST | `/api/v1/work-requests/:id/conversations/:conversationId/messages` | Append a pair-conversation message. |
 | GET | `/api/v1/work-requests/:id/main-history` | Main route/handoff history only. |
 | GET | `/api/v1/work-requests/:id/internal-history` | Authorized internal execution/revision history. |
+| GET | `/api/v1/work-requests/:id/info-requests/recipients` | Backend-derived Request Information recipients. |
+| GET | `/api/v1/work-requests/:id/info-requests/recipients/status` | Active ClientContact and usable default-profile counts for recipient availability. |
+| POST | `/api/v1/work-requests/:id/info-requests` | Create a Request Information record with owned Work Request document-version attachments. |
+| POST | `/api/v1/work-requests/:id/info-requests/:infoRequestId/respond` | Addressed recipient response with owned document-version attachments. |
+| GET | `/api/v1/work-requests/:id/info-requests` | Visible Request Information history. |
 | POST | `/api/v1/work-requests/:id/client-submissions` | Originating final-review gateway submits immutable C1 package. |
 | POST | `/api/v1/work-requests/:id/client-submissions/:submissionId/decision` | Authorized ClientContact accepts, rejects, or requests revision. |
 | POST | `/api/v1/work-requests/:id/reconsideration` | Exact Responsible Originating Division Lead's single reconsideration request. |
@@ -47,7 +52,7 @@ that Division's explicitly configured non-GENERAL groups. No current Division, o
 historical active Division assignments, is a 409 rather than a guessed fallback. `ETC` and
 `CUSTOM` are never global but may be returned for a Work Request only if explicitly configured.
 
-## HISTORICAL / PRE-ROUTE API
+## Compatibility API
 
 All routes inherit Module 00 response envelopes (`success`, `message`, `data`, metadata/request ID), UUID validation, AppException mapping, pagination, Swagger decorators, and the AccessToken → TenantContext → Authentication → ObjectScope → Permissions guard chain. Controllers return plain data and do not query or construct envelopes.
 
@@ -63,6 +68,7 @@ All routes inherit Module 00 response envelopes (`success`, `message`, `data`, m
 | POST | `/:id/submit` | Submit work |
 | POST | `/:id/actions` | Configured review/workflow action |
 | POST | `/:id/info-requests` | Request clarification |
+| GET | `/:id/info-requests/recipients` | Backend-derived eligible clarification recipients |
 | POST | `/:id/info-requests/:infoRequestId/respond` | Respond to clarification |
 | GET | `/:id/assignments` | Assignment history/current responsibility |
 | POST | `/:id/assignments/reviewer` | Assign/reassign `CHECKING`, `APPROVAL`, or `FINAL_REVIEW` |
@@ -98,7 +104,7 @@ PATCH permits only explicitly approved mutable metadata (title and notes); it ne
 
 ## Workflow commands
 
-Division body is `{ divisionId, note? }`; Team is `{ teamId, note? }`; Member is `{ memberId, note? }`; reviewer is `{ memberId, level: CHECKING|APPROVAL|FINAL_REVIEW, note? }`. Generic responsibility assignment validates active same-company membership and required effective capabilities, not business title or organization leadership. Assignment responses return the new history row and derived request state/responsibility.
+Division body is `{ divisionId, note? }`; Team is `{ teamId, note? }`; Member is `{ memberId, note? }`; reviewer is `{ memberId, level: CHECKING|APPROVAL|FINAL_REVIEW, note? }`. A Division assignment requires `ASSIGN_WORK_REQUEST_DIVISION`, valid assignment state, an active same-Tenant/Company Division, and that Division's one active Lead with an active default ActorProfile. The write, event, and outbox record are atomic; a Lead-less Division returns 409 before any assignment is written. The response projects its resolved responsible recipient(s); the active Division Lead is a current Work Request participant without manufacturing a `MEMBER` assignment. Generic responsibility assignment validates active same-company membership and required effective capabilities, not business title or organization leadership.
 
 **Initial-routing tenant-super-admin exception:** a system-defined `tenant_super_admin` may
 perform only the Division, Team, and Member routing commands without an ActorProfile Member
@@ -119,9 +125,13 @@ Every route returns 400 for invalid/forbidden fields, 401 for invalid session, 4
 
 ## Document history reads
 
-## Phase C2 nested information requests
+## Request Information
 
-`POST /:id/info-requests` accepts optional `parentInfoRequestId`, target actor ID, nonblank message, and optional exact Work Request `documentVersionIds[]`. The response route accepts message and optional exact Work Request `documentVersionIds[]`, and closes only its addressed request. History returns a deterministic flat list with nullable parent ID; each request returns requester and target summaries (internal member or external ClientContact), message, status, state at request, immutable attachment-version IDs, timestamps, and nested response summaries. ClientContact callers see only requests where they participate.
+`GET /:id/info-requests/recipients` requires `REQUEST_INFO` and returns the only target ActorProfile IDs accepted by `POST /:id/info-requests`: active default profiles for linked active ClientContacts and active Leads of the currently assigned Division, excluding the caller. For the active responsible originating Lead it additionally includes active Leads of the originating Division, active/current or previously activated route occurrences and future occurrences on the current route version. Superseded unstarted occurrences are excluded. These relationships do not grant unrelated requesters cross-Division recipient access. The frontend must not invent recipient IDs. `POST /:id/info-requests` accepts optional `parentInfoRequestId`, target actor ID from that endpoint, nonblank message, and optional exact Work Request `documentVersionIds[]`. Files are uploaded through the existing authenticated Work Request document endpoint first; any number of the returned immutable version IDs may then be attached, only when they belong to this exact Tenant and Work Request. The response route accepts message and optional exact Work Request `documentVersionIds[]`, and closes only its addressed request. History returns a deterministic flat list with nullable parent ID; each request returns requester and target summaries (internal member or external ClientContact), message, status, state at request, immutable attachment-version IDs, timestamps, and nested response summaries. ClientContact callers see only requests where they participate.
+
+Recipient descriptors include display name, Client or Division Lead context, `canReceive`, and `canRespond`; response permission is not required for selection. The separate `recipients/status` endpoint requires the same permission and Work Request access and returns `activeContacts`, `contactsWithActiveDefaultProfile`, and unavailable contact descriptors explaining missing usable profiles; counts do not assert that portal access was explicitly enabled. Division assignment history includes current active `responsibleRecipients` only for active Division rows; historical rows do not claim current leadership as historical responsibility.
+
+Internal history and information-request read endpoints also permit an active, explicitly permitted actor with company or tenant-wide internal Work Request visibility, after a tenant-scoped resource visibility check. This read access does not grant authority to create or respond to information requests or perform workflow actions; those retain their relationship requirements.
 
 External create is permitted only to a ClientContact with an explicitly granted compatible `REQUEST_INFO` role and the exact linked Client/Work Request relationship; no tenant-only access is valid.
 

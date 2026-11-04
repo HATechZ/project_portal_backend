@@ -40,6 +40,26 @@ export const workRequestInfoSelect = {
       teamId: true,
       memberId: true,
       team: { select: { leadMemberId: true, isActive: true } },
+      division: {
+        select: {
+          divisionLeadsByDivisionId: {
+            where: { revokedAt: null },
+            select: { memberId: true },
+          },
+        },
+      },
+    },
+  },
+  route: {
+    select: {
+      responsibleOriginatingLead: {
+        select: {
+          memberId: true,
+          revokedAt: true,
+          member: { select: { isActive: true } },
+          division: { select: { isActive: true } },
+        },
+      },
     },
   },
 } satisfies Prisma.WorkRequestV1Select;

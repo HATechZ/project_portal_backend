@@ -38,6 +38,7 @@ Only module-specific behavior is stated here.
 | `GET` | `/api/v1/permission/:id` | 200 · 404 | `tenant_super_admin` |
 | `GET` | `/api/v1/user/:userId/role` | 200 | `tenant_super_admin` |
 | `POST` | `/api/v1/user/:userId/role` | 201 · 409 | `tenant_super_admin` |
+| `PATCH` | `/api/v1/user/:userId/role/:roleId` | 200 · 400 · 404 | `ASSIGN_ROLES` + `REVOKE_ROLES` |
 | `DELETE` | `/api/v1/user/:userId/role/:roleId` | 204 · 409 | `tenant_super_admin` |
 | `DELETE` | `/api/v1/auth/users/:userId/sessions` | 204 · 404 | same-Tenant `tenant_super_admin` |
 
@@ -67,19 +68,32 @@ Successful login stamps `lastLoginAt` and creates the hashed-refresh-token sessi
 Role assignment is idempotent: an already-active UserRole is returned with 201 and a reusable
 ActorProfile is ensured in the same transaction. When the User already has an active Member, the
 profile is Member-backed; otherwise it remains role-only and no Member or ClientContact is
-fabricated. The first eligible profile becomes default only if no eligible default exists. A
-repeated grant does not unexpectedly replace a valid default. Revoked roles make their profiles
-ineligible. Division's `Assign Division Lead` API reuses this same UserRole/ActorProfile
+fabricated. The first eligible profile becomes default only if no eligible default exists, except
+that protected Staff is an acting-context fallback: when an active non-Staff custom profile
+exists, it becomes the deterministic default and Staff is not selectable. A repeated grant does
+not unexpectedly replace an existing non-Staff default. Revoked roles make their profiles
+ineligible; revoking the final non-Staff custom role restores Staff as fallback. Division's `Assign Division Lead` API reuses this same UserRole/ActorProfile
 orchestration and then validates the eligible Member; it is not a new identity model.
 
 Role grants do not carry a `teamId` binding. A Team-scoped role is still a single-scope,
 explicit-permission role; its execution relationship is derived at request time from the active
 ActorProfile and the current Team/Work Request assignment. Supplying `teamId` is rejected.
 
-`GET /actor-profiles` returns only profiles owned by the authenticated User. Activation succeeds
+`GET /actor-profiles` returns only active, grant-eligible profiles owned by the authenticated User.
+When any non-Staff custom role is active, it excludes the protected Staff fallback profile; each
+returned profile includes `isCurrent` and `isFallback`, so no frontend role-name filtering is
+needed. Activation succeeds
 only when the profile is active, belongs to that User and Tenant, and its matching UserRole grant
 is active. Clearing the previous default and setting the selected profile occurs in one
 serializable transaction. An unavailable or unowned profile returns the same 403.
+
+`isActive` on an ActorProfile means lifecycle availability and may be true for several eligible
+profiles. `isCurrent` is the single acting-context field and mirrors the persisted `isDefault`
+selection; the partial unique index permits at most one current profile per User. Activating a
+profile clears the prior profile's `isDefault`/`isCurrent` state without deactivating its lifecycle
+record. Login and `GET /auth/me` include `activeActorProfileId`; their role, scope, and permission
+arrays are derived from that one profile only and are never unioned across UserRoles. Authentication
+also prefers an eligible non-Staff custom profile over a stale persisted Staff default.
 
 Member removal disables Member-backed profiles, revokes matching active UserRole grants and
 sessions, and deactivates the linked User only when no other active Member or ClientContact
@@ -147,6 +161,7 @@ Swagger summaries are deliberately short and use these endpoint purposes:
 | `GET /user/:userId/role` | List roles assigned to a user | Retains existing active/history behavior. |
 | `GET /user/:userId/role-options` | List roles available for assignment | Is the target-aware dropdown source. |
 | `POST /user/:userId/role` | Assign a role to a user | Revalidates eligibility server-side. |
+| `PATCH /user/:userId/role/:roleId` | Reassign a Member User custom role | Atomically revokes the prior custom grant and ensures the selected custom grant. |
 | `DELETE /user/:userId/role/:roleId` | Remove a role from a user | Retains timestamp revocation/final-admin protections. |
 
 Role list/detail retain all existing role and permission information and additionally expose
@@ -199,6 +214,26 @@ Server-side eligibility considers assigning actor, target active Member/ClientCo
 Tenant, role kind/scope, existing active assignments and all existing hierarchy rules. It excludes
 out-of-Tenant rows, already-active grants, unsupported target/scope pairs and system roles outside
 current hierarchy authority. The frontend does not own an eligibility matrix.
+
+### Member custom-role assignment lifecycle
+
+The Settings > Members flow uses the UserRole endpoints only after resolving the Member's
+`userId`; Role is never stored on Member. `GET /user/:userId/role-options` returns only active,
+same-Tenant, permissioned custom roles for an active User-linked Member. System roles, including
+`tenant_super_admin`, are excluded from this normal Member assignment surface. `POST
+/user/:userId/role` accepts `{ roleId }`; it requires an active same-Tenant Member with active
+Company and Division and creates or reuses the Member-backed ActorProfile. `DELETE
+/user/:userId/role/:roleId` timestamps the matching UserRole's `revokedAt` and preserves history.
+`PATCH /user/:userId/role/:roleId` accepts `{ newRoleId }`, requires both assignment permissions,
+and atomically revokes the old custom grant before ensuring the new custom grant and its
+Member-backed ActorProfile. Team bindings remain rejected: scope is evaluated from the active
+ActorProfile and current organization membership at authorization time.
+
+Normal assignment is additive. To explicitly replace an existing baseline or any other custom
+role, call `PATCH /user/:userId/role/:currentRoleId` with `{ newRoleId }`. The operation is
+structural: it replaces the supplied active custom Role ID and has no Staff name/code branch. Its
+post-revocation profile orchestration selects a non-Staff replacement as the default acting
+profile whenever one exists.
 
 ## 7. Errors
 

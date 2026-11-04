@@ -56,6 +56,14 @@ export const workRequestSelect = {
       teamId: true,
       memberId: true,
       team: { select: { leadMemberId: true, isActive: true } },
+      division: {
+        select: {
+          divisionLeadsByDivisionId: {
+            where: { revokedAt: null },
+            select: { memberId: true },
+          },
+        },
+      },
     },
   },
   infoRequests: {

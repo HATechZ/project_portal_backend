@@ -144,6 +144,7 @@ export class RolePermissionMutationProvider {
       });
     const revoked = await this.repository.revokeAssignment(
       assignment.id,
+      userId,
       roleId,
       role.systemRole?.systemCode === ActorRoleCode.tenant_super_admin,
     );
@@ -155,6 +156,22 @@ export class RolePermissionMutationProvider {
           'This role cannot be removed because the workspace must have at least one active Tenant Super Administrator.',
       });
     }
+  }
+
+  async reassignUserRole(
+    userId: string,
+    currentRoleId: string,
+    newRoleId: string,
+    assignedByUserId: string,
+  ): Promise<UserRoleAssignmentResponseDto> {
+    return toUserRoleAssignmentResponse(
+      await this.assignments.reassign(
+        userId,
+        currentRoleId,
+        newRoleId,
+        assignedByUserId,
+      ),
+    );
   }
 
   private async requireRole(id: string): Promise<RoleRecord> {

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   ParseBoolPipe,
   ParseUUIDPipe,
   Post,
@@ -33,12 +34,14 @@ import {
   ApiStandardCreatedResponse,
   ApiStandardForbiddenResponse,
   ApiStandardNotFoundResponse,
+  ApiStandardOkResponse,
   ApiStandardUnauthorizedResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { TenantContextGuard } from '../common/tenant/tenant-context.guard';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import {
   AssignUserRoleDto,
+  ReassignUserRoleDto,
   RoleOptionResponseDto,
   UserRoleAssignmentResponseDto,
 } from './dtos';
@@ -96,6 +99,28 @@ export class UserRoleController {
     @ActiveUser() activeUser: SessionUser,
   ) {
     return this.service.assignUserRole(userId, input, activeUser.id);
+  }
+
+  @Patch('user/:userId/role/:roleId')
+  @FinalPermissions(PermissionCode.ASSIGN_ROLES, PermissionCode.REVOKE_ROLES)
+  @ResponseMessage('Role reassigned successfully')
+  @ApiOperation({ summary: 'Reassign a custom role for a Member User' })
+  @ApiStandardOkResponse(UserRoleAssignmentResponseDto, 'Role reassigned')
+  @ApiStandardNotFoundResponse(
+    'User, prior role, or active assignment was not found',
+  )
+  reassignUserRole(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
+    @Body() input: ReassignUserRoleDto,
+    @ActiveUser() activeUser: SessionUser,
+  ) {
+    return this.service.reassignUserRole(
+      userId,
+      roleId,
+      input.newRoleId,
+      activeUser.id,
+    );
   }
 
   @Delete('user/:userId/role/:roleId')

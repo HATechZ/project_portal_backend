@@ -3,6 +3,7 @@ import { HttpStatus } from '@nestjs/common';
 import { AppErrorCode } from '../exceptions/app-error-code';
 import { AppException } from '../exceptions/app-exception';
 import { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
+import { isStaffStarterRoleCode } from './starter-role-definition';
 
 export interface EnsuredRoleProfile {
   assignmentId: string;
@@ -128,7 +129,66 @@ export async function ensureUserRoleAndRoleOnlyProfile(
       },
     });
   }
+  await reconcileActingProfileSelection(db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+  });
   return { assignmentId: assignment.id, actorProfileId };
+}
+
+/**
+ * Staff is the protected starter fallback: it acts only when no active
+ * non-Staff custom grant can supply an acting context.  The single default is
+ * retained as the persisted session-selection fact.
+ */
+export async function reconcileActingProfileSelection(
+  db: PrismaExecutor,
+  input: { tenantId: string; userId: string },
+): Promise<void> {
+  const profiles = await db.actorProfile.findMany({
+    where: {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      isActive: true,
+      role: {
+        isActive: true,
+        userRolesByRoleId: {
+          some: {
+            tenantId: input.tenantId,
+            userId: input.userId,
+            revokedAt: null,
+          },
+        },
+      },
+    },
+    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    select: {
+      id: true,
+      role: { select: { isSystemRole: true, customCode: true } },
+    },
+  });
+  const nonStaffCustomProfiles = profiles.filter(
+    (profile) =>
+      !profile.role.isSystemRole &&
+      !isStaffStarterRoleCode(profile.role.customCode),
+  );
+  const selected = (nonStaffCustomProfiles.length
+    ? nonStaffCustomProfiles
+    : profiles)[0];
+  if (!selected) return;
+  await db.actorProfile.updateMany({
+    where: {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      isDefault: true,
+      id: { not: selected.id },
+    },
+    data: { isDefault: false },
+  });
+  await db.actorProfile.update({
+    where: { id: selected.id, tenantId: input.tenantId },
+    data: { isDefault: true },
+  });
 }
 
 export async function linkMemberUserActorProfile(

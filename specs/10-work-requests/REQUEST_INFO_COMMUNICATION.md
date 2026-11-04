@@ -18,6 +18,15 @@ Same Tenant is insufficient. Sender and recipient must be active in the exact Wo
 
 No Member may directly communicate outside own Team; no Team Lead may directly communicate outside own Division; no Division Lead may directly communicate to another Division's Team Lead/Member; unrelated route Divisions are denied.
 
-## Historical C2 boundary
+## Request Information lifecycle
 
-`WorkRequestV1InfoRequest` / response / nested attachment records remain **HISTORICAL / C2 COMPATIBILITY DATA**. They retain their original open/respond lifecycle and are not converted. New route-based Work Requests do not expose competing C2 request/respond semantics.
+The private pair channel remains available for conversational coordination. It
+does not replace the approved Work Request Information Request lifecycle.
+Route-based requests use the existing `WorkRequestV1InfoRequest` / response /
+attachment records for explicit requests, responses, and history. The backend
+derives eligible recipients from the exact Work Request parent and active
+Division assignment and, for the active responsible originating Lead, current
+and previously activated route occurrences, and verifies the requester is the active responsible
+originating Lead or current assignment participant. These two features remain
+separate: pair communication never grants, blocks, or substitutes for Request
+Information authorization.

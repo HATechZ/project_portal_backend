@@ -18,9 +18,6 @@ export class WorkRequestRouteActionsProvider {
     if (!route) return null;
     const memberId = actor.member?.id;
     if (!admin && !(await this.communications.isRelatedActor(workRequestId, memberId!))) return [];
-    const recipients = memberId
-      ? await this.communications.recipientActorIds(workRequestId, actor.id, memberId)
-      : [];
     const actions: { code: string; label: string; targetKind: string }[] = [];
     const cycle = route.divisionCycles.find((item: any) => item.id === route.projection?.divisionCycleId);
     const current = route.steps.find((item: any) => item.id === route.projection?.routeStepId);
@@ -47,15 +44,31 @@ export class WorkRequestRouteActionsProvider {
         : activeDivisionLead);
     const team = cycle?.teamSteps.find((item: any) => item.id === route.projection?.teamStepId && item.activatedAt && !item.completedAt);
     const member = team?.memberSteps.find((item: any) => item.id === route.projection?.memberStepId && item.activatedAt && !item.submittedAt);
-    if (divisionLead && !cycle.completedAt && !cycle.teamSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_TEAM)) actions.push(action('DEFINE_TEAM_SEQUENCE', 'Define Team sequence', 'division-cycle'));
-    if (responsibleOriginLead && hasPermission(actor, PermissionCode.UPDATE_WORK_REQUEST)) actions.push(action('AMEND_ROUTE', 'Amend route', 'route'));
+    if (
+      responsibleOriginLead &&
+      current?.kind === StepKind.ORIGIN_START &&
+      hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_DIVISION)
+    )
+      actions.push(
+        action('WR_ASSIGN_DIVISION', 'Assign Division', 'division'),
+      );
+    if (divisionLead && cycle && !cycle.completedAt && !cycle.teamSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_TEAM)) actions.push(action('DEFINE_TEAM_SEQUENCE', 'Define Team sequence', 'division-cycle'));
+    if (responsibleOriginLead && hasPermission(actor, PermissionCode.UPDATE_WORK_REQUEST)) actions.push(action('AMEND_ROUTE', 'Modify future route', 'route'));
     if ((admin || (actor.role.customScope === 'team' && team?.team.leadMemberId === memberId)) && !team?.memberSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)) actions.push(action('DEFINE_MEMBER_SEQUENCE', 'Define Member sequence', 'team-step'));
     if ((admin || (actor.role.customScope === 'team' && team?.team.leadMemberId === memberId)) && team?.memberSteps.length && hasPermission(actor, PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)) actions.push(action('APPEND_MEMBER_STEP', 'Append Member step', 'team-step'));
     if ((admin || (actor.role.customScope === 'member' && member?.memberId === memberId)) && member && hasPermission(actor, PermissionCode.SUBMIT_WORK_REQUEST)) actions.push(action('SUBMIT_MEMBER_STEP', 'Submit Member step', 'member-step'));
     if ((admin || (actor.role.customScope === 'team' && team?.team.leadMemberId === memberId)) && team?.memberSteps.length && team.memberSteps.every((item: any) => item.submittedAt) && hasPermission(actor, PermissionCode.APPROVE_WORK_REQUEST_REVIEW)) actions.push(action('COMPLETE_TEAM_STEP', 'Complete Team step', 'team-step'));
     if (divisionLead && cycle?.completedAt && current?.kind !== StepKind.ORIGIN_FINAL_REVIEW && hasPermission(actor, PermissionCode.ROUTE_FOR_REVIEW)) actions.push(action('FORWARD_ROUTE', 'Forward to next route step', 'route-step'));
     if (responsibleOriginLead && current?.kind === StepKind.ORIGIN_FINAL_REVIEW && cycle?.completedAt && hasPermission(actor, PermissionCode.SUBMIT_FOR_EXTERNAL_REVIEW)) actions.push(action('SUBMIT_CLIENT_PACKAGE', 'Submit Client package', 'client-package'));
-    if ((recipients ?? []).length && hasPermission(actor, PermissionCode.REQUEST_INFO)) actions.push({ code: WorkflowActionCode.REQUEST_WORKFLOW_INFO, label: 'Communicate privately', targetKind: 'route-conversation' });
+    if (
+      (responsibleOriginLead || divisionLead) &&
+      hasPermission(actor, PermissionCode.REQUEST_INFO)
+    )
+      actions.push({
+        code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+        label: 'Request Information',
+        targetKind: 'info-request',
+      });
     return actions;
   }
 }

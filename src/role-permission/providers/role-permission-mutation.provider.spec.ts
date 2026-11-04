@@ -260,3 +260,34 @@ describe('RolePermissionMutationProvider custom-role eligibility', () => {
     ).rejects.toMatchObject({ code: AppErrorCode.Forbidden });
   });
 });
+
+describe('RolePermissionMutationProvider role removal', () => {
+  it('revokes a custom UserRole through its lifecycle repository instead of deleting history', async () => {
+    const assignment = {
+      id: 'assignment-id',
+      role: role(),
+    };
+    const repository = {
+      findUser: jest.fn().mockResolvedValue({ id: 'user-id' }),
+      findRole: jest.fn().mockResolvedValue(role()),
+      findActiveAssignment: jest.fn().mockResolvedValue(assignment),
+      revokeAssignment: jest.fn().mockResolvedValue(true),
+    };
+    const provider = new RolePermissionMutationProvider(
+      repository as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      provider.revokeUserRole('user-id', role().id, 'admin-id'),
+    ).resolves.toBeUndefined();
+
+    expect(repository.revokeAssignment).toHaveBeenCalledWith(
+      'assignment-id',
+      'user-id',
+      role().id,
+      false,
+    );
+  });
+});

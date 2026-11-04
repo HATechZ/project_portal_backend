@@ -13,5 +13,10 @@ export type WorkRequestAssignmentSnapshot = {
     divisionId: string;
     teamId: string | null;
     permissionCodes: PermissionCode[];
+    responsibleRecipients: {
+      actorId: string;
+      memberId: string;
+      label: string;
+    }[];
   } | null;
 };

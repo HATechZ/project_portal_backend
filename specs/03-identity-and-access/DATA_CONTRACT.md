@@ -26,6 +26,11 @@ this one, is the authority.
 | `auth_session_consumed_refresh_tokens` | `AuthSessionConsumedRefreshToken` | Retained hashed refresh tokens for replay detection. |
 | `password_reset_tokens` | `PasswordResetToken` | Single-use expiring reset. |
 
+For Settings > Members custom-role changes, `UserRole` remains the only persisted grant. The
+target must have an active same-Tenant `Member.userId` relation; the shared orchestration creates
+or reuses a Member-backed `ActorProfile`. Reassignment timestamps the prior UserRole grant rather
+than deleting it, then writes/reuses the new grant in the same serializable transaction.
+
 ---
 
 ## 2. Fields that carry rules
@@ -127,6 +132,11 @@ DR-01, because a grant is an account-administration act rather than a workflow a
 | `clientContactId?` | optional client target; `(clientContactId, tenantId)` must identify one ClientContact (module 05) |
 | `label` | `VarChar(180)`, human-readable |
 | `isDefault` / `isActive` | at most one default for each non-null `(tenantId, userId)`, database-enforced |
+
+The protected `STARTER_ROLES.staff` identity is an acting-context fallback, not a distinct stored
+field. The shared reconciliation selects the earliest current default among active non-Staff custom
+profiles; if none exists, it selects Staff. UserRole revocation and assignment invoke that same
+transactional reconciliation, preserving grant/profile history without storing a role on Member.
 
 An ActorProfile may have neither business target (for example, a Tenant Super Administrator) or
 exactly one of `memberId` and `clientContactId`; both populated is rejected by
@@ -326,3 +336,30 @@ Reuse Role.customScope, timestamp-revoked RolePermission grants, active UserRole
 ### Immediate grant-constraint ordering
 
 Scope/grant replacement revokes deselected grants under the original role scope before updating Role.customScope, then restores/inserts only newly selected grants under the new scope. The tenant Prisma extension writes tenantId on grant updates, which invokes the immediate role_permissions_role_tenant_match constraint trigger even when the requested update only changes revokedAt. Updating the role scope first causes revocation of an old-scope-only grant to raise PostgreSQL 23503 / Prisma P2003. The transaction retains unchanged grants and their IDs/timestamps, performs no grant deletion, and leaves catalogue PermissionDependency rows unchanged.
+
+## Proposed schema change: optional Team binding for role grants
+
+**Approval required; not applied.** The current API contract rejects a `teamId` input and
+derives Team responsibility from the current ActorProfile and Team/Work Request relationship.
+The existing `20260928000100_add_user_role_team_scope_binding` migration instead requires every
+Team-scoped custom UserRole to have `team_id`. As a result, a valid Team-scoped POST or PATCH
+fails with PostgreSQL 23514 / Prisma P2039. The older `UserRole` description above reflects
+the existing database, not a change already applied to it.
+
+Proposed narrowly scoped migration: retain `public.user_roles.team_id uuid NULL`, its
+tenant-qualified `(team_id, tenant_id)` foreign key to `teams(id, tenant_id)`, the index,
+and all existing data. Replace both `assert_user_role_team_scope_shape()` and
+`assert_role_user_role_team_scope_shape()` so that a Team-scoped grant may have `team_id`
+NULL while preserving existing tenant-qualified legacy bindings. Preserve the restriction on
+new active non-Team bindings and ensure role scope changes and later updates do not reject
+revoked historical Team bindings. Do not select or backfill a Team, alter RLS, delete grants,
+or change any table column or FK. Existing active Team bindings remain historical compatibility
+data; this change alone does not decide whether a particular application read path still uses
+them for authorization.
+
+Before preparing a migration, reconcile the API and older data contract, audit every active
+`boundTeamId` consumer and affected policy, and require regression tests for tenant isolation,
+Team object scope, Team and non-Team grant writes, revoked bindings, role-scope transitions,
+and assignment/reassignment. A rollback to the old functions requires an explicit preflight:
+no Team-scoped UserRole may have NULL `team_id`, and no incompatible non-Team row may have
+non-NULL `team_id`; if the preflight fails, rollback must stop rather than guess or delete data.

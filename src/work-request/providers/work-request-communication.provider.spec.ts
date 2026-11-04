@@ -60,4 +60,14 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
     await expect(context(() => provider.routeProjection('request-a', actor))).rejects.toMatchObject({ status: 404 });
     expect(communications.history).not.toHaveBeenCalled();
   });
+
+  it('allows a visible system-scoped administrator to read internal history without granting workflow participation', async () => {
+    const admin = { id: 'admin', isActive: true, member: null, clientContact: null, role: { customScope: null, systemRole: { systemCode: 'tenant_super_admin' } } } as never;
+    const communications = { isRelatedActor: jest.fn(), history: jest.fn().mockResolvedValue({ events: [] }) };
+    const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
+    const provider = new WorkRequestCommunicationProvider(communications as never, reads as never);
+    await expect(context(() => provider.internalHistory('request-a', admin))).resolves.toEqual({ events: [] });
+    expect(reads.find).toHaveBeenCalledWith('request-a', admin);
+    expect(communications.isRelatedActor).not.toHaveBeenCalled();
+  });
 });

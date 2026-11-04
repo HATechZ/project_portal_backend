@@ -56,6 +56,7 @@ Shipped code or schema that contradicts the rules; each has a failing unticked `
 | 00 | `UsersService` injects `PrismaService` (layering) | X | `00/tasks.md` Phase 5 |
 | 02.1 | Art. IX waived 2026-08-28: models in `schema.prisma`, no migration yet | IX | `02.1-messaging/DATA_CONTRACT.md` §3 |
 | 03 | Fixed-role enum/seed bridge is RETIRED; Phase 6 catalogue resolution is frozen; runtime/seed conversion remains pending | IX | `ROLE_ARCHITECTURE_FREEZE.md`, `PERMISSION_CATALOGUE_GLOBALIZATION.md` |
+| 03 | Team-scoped role grant API conflicts with existing `team_id` trigger; proposal awaits approval | IX | `03-identity-and-access/DATA_CONTRACT.md` |
 | 04 | app_user lacks UPDATE on `companies` (confirmed live 2026-09-15) | IX | `04-organization/DATA_CONTRACT.md` |
 
 ## Session Log

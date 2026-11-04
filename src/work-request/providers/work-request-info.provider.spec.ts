@@ -117,6 +117,16 @@ describe('WorkRequestInfoProvider', () => {
       }),
       history: jest.fn().mockResolvedValue([record(snapshot)]),
       isRouteWorkRequest: jest.fn().mockResolvedValue(null),
+      isActiveRouteLead: jest.fn().mockResolvedValue(false),
+      isVisible: jest.fn().mockResolvedValue(true),
+      eligibleRecipients: jest.fn().mockResolvedValue([
+        {
+          id: 'target-a',
+          label: 'Target Lead',
+          memberId: 'member-target',
+          clientContactId: null,
+        },
+      ]),
     };
     const provider = new WorkRequestInfoProvider(
       repository as never,
@@ -125,6 +135,66 @@ describe('WorkRequestInfoProvider', () => {
     );
     return { provider, repository };
   };
+
+  it('allows the addressed active ClientContact to respond before Division assignment', async () => {
+    const snapshot = prepared();
+    snapshot.request.events = [{ resultingState: State.CREATED }];
+    snapshot.request.assignments = [];
+    const { provider } = subject(snapshot);
+    const contact = actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO, 'client_contact');
+    contact.role.rolePermissions[0].permission.scopeCompatibilities = [{ scope: 'client_contact' }];
+    contact.clientContact = { isActive: true, clientId: 'client-a', client: { isActive: true } };
+    await expect(provider.respond('request-a', 'info-a', { message: 'Details.' }, contact)).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
+  });
+
+  it('allows a visible system-scoped administrator to inspect recipients and history but not create a request', async () => {
+    const { provider, repository } = subject();
+    const admin = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+    admin.member = null;
+    admin.role.isActive = true;
+    await expect(provider.eligibleRecipients('request-a', admin)).resolves.toHaveLength(1);
+    await expect(provider.history('request-a', admin)).resolves.toHaveLength(1);
+    expect(repository.isVisible).toHaveBeenCalledWith('request-a', admin);
+    await expect(provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify' }, admin)).rejects.toMatchObject({ status: 403 });
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it('does not allow administrator reads when resource visibility fails', async () => {
+    const { provider, repository } = subject();
+    const admin = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+    admin.member = null;
+    admin.role.isActive = true;
+    repository.isVisible.mockResolvedValue(false);
+    await expect(provider.eligibleRecipients('request-a', admin)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('does not allow administrator recipient reads without the explicit grant', async () => {
+    const { provider, repository } = subject();
+    const admin = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+    admin.member = null;
+    admin.role.isActive = true;
+    admin.role.rolePermissions = [];
+    await expect(provider.eligibleRecipients('request-a', admin)).rejects.toMatchObject({ status: 403 });
+    expect(repository.isVisible).not.toHaveBeenCalled();
+  });
+
+  it('allows an addressed active route Lead to respond and restricts their history to their own requests', async () => {
+    const snapshot = prepared();
+    snapshot.request.assignments = [];
+    const { provider, repository } = subject(snapshot);
+    repository.isActiveRouteLead.mockResolvedValue(true);
+    await expect(provider.respond('request-a', 'info-a', { message: 'Details.' }, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO))).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
+    await provider.history('request-a', actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO));
+    expect(repository.history).toHaveBeenCalledWith('request-a', 'actor-a');
+  });
+
+  it('does not allow an unrelated addressed internal actor to respond', async () => {
+    const snapshot = prepared();
+    snapshot.request.assignments = [];
+    const { provider, repository } = subject(snapshot);
+    await expect(provider.respond('request-a', 'info-a', { message: 'Details.' }, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO))).rejects.toMatchObject({ status: 403 });
+    expect(repository.respond).not.toHaveBeenCalled();
+  });
 
   it('persists a scoped information request without appending a workflow transition', async () => {
     const { provider, repository } = subject();
@@ -159,17 +229,57 @@ describe('WorkRequestInfoProvider', () => {
     expect(repository.respond).not.toHaveBeenCalled();
   });
 
-  it('rejects the historical C2 request/respond lifecycle for a route Work Request', async () => {
+  it('uses the existing information-request lifecycle for a route Work Request', async () => {
     const { provider, repository } = subject();
     repository.isRouteWorkRequest.mockResolvedValue({ id: 'route-a' });
     await expect(
       provider.request(
         'request-a',
-        { targetActorId: 'target-a', message: 'This must be private pair communication.' },
+        { targetActorId: 'target-a', message: 'Please clarify the route handoff.' },
         actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
       ),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(repository.create).not.toHaveBeenCalled();
+    ).resolves.toEqual(expect.objectContaining({ id: 'info-a', status: 'OPEN' }));
+    expect(repository.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows the active responsible originating Lead to request route information before Division assignment', async () => {
+    const routeSnapshot = prepared();
+    routeSnapshot.request.assignments = [];
+    routeSnapshot.request.route = {
+      responsibleOriginatingLead: {
+        memberId: 'member-a',
+        revokedAt: null,
+        member: { isActive: true },
+        division: { isActive: true },
+      },
+    };
+    const { provider, repository } = subject(routeSnapshot);
+
+    await expect(
+      provider.eligibleRecipients(
+        'request-a',
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      ),
+    ).resolves.toEqual([
+      {
+        actorId: 'target-a',
+        actorProfileId: 'target-a',
+        label: 'Target Lead',
+        recipientType: 'INTERNAL_MEMBER',
+        contextType: 'DIVISION_LEAD',
+        canReceive: true,
+        unavailableReason: null,
+        displayName: 'Target Lead',
+        canRespond: false,
+        context: { kind: 'DIVISION_LEAD' },
+        contexts: [],
+        type: 'INTERNAL_MEMBER',
+      },
+    ]);
+    expect(repository.eligibleRecipients).toHaveBeenCalledWith(
+      'request-a',
+      'actor-a',
+    );
   });
 
   it('requires the request-information grant before persistence', async () => {
@@ -290,5 +400,49 @@ describe('WorkRequestInfoProvider', () => {
       }),
     ]);
     expect(repository.history).toHaveBeenCalledWith('request-a', undefined);
+  });
+
+  it('returns only backend-derived eligible information recipients', async () => {
+    const { provider, repository } = subject();
+
+    await expect(
+      provider.eligibleRecipients(
+        'request-a',
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      ),
+    ).resolves.toEqual([
+      {
+        actorId: 'target-a',
+        actorProfileId: 'target-a',
+        label: 'Target Lead',
+        recipientType: 'INTERNAL_MEMBER',
+        contextType: 'DIVISION_LEAD',
+        canReceive: true,
+        unavailableReason: null,
+        displayName: 'Target Lead',
+        canRespond: false,
+        context: { kind: 'DIVISION_LEAD' },
+        contexts: [],
+        type: 'INTERNAL_MEMBER',
+      },
+    ]);
+    expect(repository.eligibleRecipients).toHaveBeenCalledWith(
+      'request-a',
+      'actor-a',
+    );
+  });
+
+  it('rejects a target absent from the backend-derived recipient set', async () => {
+    const { provider, repository } = subject();
+    repository.eligibleRecipients.mockResolvedValue([]);
+
+    await expect(
+      provider.request(
+        'request-a',
+        { targetActorId: 'target-a', message: 'Clarify.' },
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      ),
+    ).rejects.toThrow('not eligible');
+    expect(repository.create).not.toHaveBeenCalled();
   });
 });

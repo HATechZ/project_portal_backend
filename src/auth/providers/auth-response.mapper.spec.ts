@@ -32,6 +32,7 @@ describe('toAuthUserResponse', () => {
       ],
     } as never;
     const actor = {
+      id: 'client-actor-id',
       role: {
         isActive: true,
         customCode: 'Client reviewer',
@@ -58,6 +59,7 @@ describe('toAuthUserResponse', () => {
     const response = toAuthUserResponse(user, actor);
 
     expect(response).toMatchObject({
+      activeActorProfileId: 'client-actor-id',
       roles: ['Client reviewer'],
       roleScopes: ['client_contact'],
       permissions: [
@@ -93,6 +95,7 @@ describe('toAuthUserResponse', () => {
       ],
     } as never;
     const activeStaffActor = {
+      id: 'staff-actor-id',
       role: {
         isActive: true,
         customCode: 'staff',
@@ -118,6 +121,7 @@ describe('toAuthUserResponse', () => {
     } as never;
 
     expect(toAuthUserResponse(user, activeStaffActor)).toMatchObject({
+      activeActorProfileId: 'staff-actor-id',
       roles: ['staff'],
       roleScopes: ['member'],
       permissions: [PermissionCode.VIEW_BID],

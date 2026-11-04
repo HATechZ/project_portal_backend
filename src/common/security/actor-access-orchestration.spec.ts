@@ -22,6 +22,7 @@ function dbWithExistingState() {
       updateMany: jest.fn(),
       update: jest.fn().mockResolvedValue({ id: 'actor-profile-1' }),
       create: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
   };
 }
@@ -132,5 +133,83 @@ describe('actor access orchestration', () => {
       actorProfileId: 'member-linked-profile',
     });
     expect(db.actorProfile.create).not.toHaveBeenCalled();
+  });
+
+  it('selects the first custom acting profile when Staff is the only current fallback', async () => {
+    const db = dbWithExistingState();
+    db.actorProfile.findMany.mockResolvedValue([
+      {
+        id: 'staff-profile',
+        role: { isSystemRole: false, customCode: 'staff' },
+      },
+      {
+        id: 'custom-profile',
+        role: { isSystemRole: false, customCode: 'marketing_lead_ccr' },
+      },
+    ]);
+
+    await ensureUserRoleAndRoleOnlyProfile(db as never, {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      roleId: 'role-1',
+      assignedByUserId: 'admin-1',
+    });
+
+    expect(db.actorProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'custom-profile', tenantId: 'tenant-1' },
+        data: { isDefault: true },
+      }),
+    );
+  });
+
+  it('falls back to Staff when it is the only active acting profile', async () => {
+    const db = dbWithExistingState();
+    db.actorProfile.findMany.mockResolvedValue([
+      {
+        id: 'staff-profile',
+        role: { isSystemRole: false, customCode: 'staff' },
+      },
+    ]);
+
+    await ensureUserRoleAndRoleOnlyProfile(db as never, {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      roleId: 'role-1',
+      assignedByUserId: 'admin-1',
+    });
+
+    expect(db.actorProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'staff-profile', tenantId: 'tenant-1' } }),
+    );
+  });
+
+  it('keeps the existing default among multiple non-Staff custom profiles', async () => {
+    const db = dbWithExistingState();
+    db.actorProfile.findMany.mockResolvedValue([
+      {
+        id: 'custom-current',
+        role: { isSystemRole: false, customCode: 'marketing_lead_ccr' },
+      },
+      {
+        id: 'custom-other',
+        role: { isSystemRole: false, customCode: 'project_lead' },
+      },
+      {
+        id: 'staff-profile',
+        role: { isSystemRole: false, customCode: 'staff' },
+      },
+    ]);
+
+    await ensureUserRoleAndRoleOnlyProfile(db as never, {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      roleId: 'role-1',
+      assignedByUserId: 'admin-1',
+    });
+
+    expect(db.actorProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'custom-current', tenantId: 'tenant-1' } }),
+    );
   });
 });

@@ -285,6 +285,12 @@ export class WorkRequestAssignmentResponseDto {
   @ApiPropertyOptional({ format: 'uuid' }) memberId!: string | null;
   @ApiProperty() assignedAt!: Date;
   @ApiProperty() currentState!: string;
+  @ApiProperty({
+    type: [Object],
+    description:
+      'Current active Division Lead acting profile(s) responsible for a Division assignment.',
+  })
+  responsibleRecipients!: { actorId: string; memberId: string; label: string }[];
 }
 
 export class WorkRequestAssignmentHistoryResponseDto {
@@ -310,6 +316,8 @@ export class WorkRequestAssignmentHistoryResponseDto {
   })
   assignee!: { id: string; label: string } | null;
   @ApiProperty({ type: Object }) assignedBy!: { id: string; label: string };
+  @ApiProperty({ type: [Object], description: 'Current active Division Leads; empty for historical and non-Division assignments.' })
+  responsibleRecipients!: { actorId: string; memberId: string; label: string; displayName: string }[];
 }
 
 export class WorkRequestEventResponseDto {
@@ -383,6 +391,19 @@ export class WorkRequestInfoParticipantDto {
   @ApiProperty({ format: 'uuid' }) actorId!: string;
   @ApiProperty({ enum: ['INTERNAL_MEMBER', 'EXTERNAL_CLIENT_CONTACT'] })
   type!: 'INTERNAL_MEMBER' | 'EXTERNAL_CLIENT_CONTACT';
+}
+
+export class WorkRequestInfoRecipientDto extends WorkRequestInfoParticipantDto {
+  @ApiProperty({ format: 'uuid' }) actorProfileId!: string;
+  @ApiProperty() label!: string;
+  @ApiProperty() displayName!: string;
+  @ApiProperty() recipientType!: 'INTERNAL_MEMBER' | 'EXTERNAL_CLIENT_CONTACT';
+  @ApiProperty() contextType!: 'DIVISION_LEAD' | 'CLIENT_CONTACT';
+  @ApiProperty() canReceive!: boolean;
+  @ApiPropertyOptional({ nullable: true }) unavailableReason!: string | null;
+  @ApiProperty({ description: 'Whether this profile has an active compatible permission to respond.' }) canRespond!: boolean;
+  @ApiProperty({ type: Object }) context!: { kind: 'DIVISION_LEAD' | 'CLIENT_CONTACT'; id?: string; name?: string };
+  @ApiProperty({ type: [Object] }) contexts!: { kind: 'DIVISION_LEAD' | 'CLIENT_CONTACT'; id: string; name: string }[];
 }
 
 export class WorkRequestInfoAttachmentDto {

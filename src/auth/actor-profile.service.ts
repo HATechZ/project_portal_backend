@@ -5,6 +5,7 @@ import {
   ActorProfileRecord,
   ActorProfileRepository,
 } from './repositories/actor-profile.repository';
+import { isStaffStarterRoleCode } from '../common/security/starter-role-definition';
 
 @Injectable()
 export class ActorProfileService {
@@ -36,6 +37,8 @@ export class ActorProfileService {
     memberId: actor.memberId,
     clientContactId: actor.clientContactId,
     isDefault: actor.isDefault,
+    isCurrent: actor.isDefault,
+    isFallback: isStaffStarterRoleCode(actor.role.customCode),
     isActive: actor.isActive,
   });
 }
