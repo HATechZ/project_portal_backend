@@ -14,6 +14,7 @@ import { WorkRequestReadRepository } from './repositories/work-request-read.repo
 import { WorkRequestEventRepository } from './repositories/work-request-event.repository';
 import { WorkRequestNamingProvider } from './providers/work-request-naming.provider';
 import { WorkRequestAssignmentProvider } from './providers/work-request-assignment.provider';
+import { WorkRequestAssignmentHistoryProvider } from './providers/work-request-assignment-history.provider';
 import {
   AssignDivisionDto,
   AssignMemberDto,
@@ -65,6 +66,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     history: WorkRequestDocumentHistoryProvider,
     naming: WorkRequestNamingProvider,
     private readonly assignments: WorkRequestAssignmentProvider,
+    private readonly assignmentHistoryProvider: WorkRequestAssignmentHistoryProvider,
     private readonly workflow: WorkRequestWorkflowProvider,
     private readonly info: WorkRequestInfoProvider,
     private readonly clientLifecycle: WorkRequestClientSubmissionProvider,
@@ -123,7 +125,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
   }
 
   assignmentHistory(id: string, actor: SessionActor) {
-    return this.assignments.history(id, actor);
+    return this.assignmentHistoryProvider.history(id, actor);
   }
 
   submit(id: string, input: WorkRequestWorkflowNoteDto, actor: SessionActor) {

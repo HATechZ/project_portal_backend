@@ -42,13 +42,19 @@ describe('AuthSessionRepository Staff acting-profile fallback', () => {
   }
 
   it('uses Staff only when it is the sole active custom context', async () => {
-    const { repository } = subject(null, actor('staff-profile', 'staff', ['VIEW_BID']));
+    const { repository } = subject(
+      null,
+      actor('staff-profile', 'staff', ['VIEW_BID']),
+    );
 
     await expect(
       RequestContext.run({ tenantId: 'tenant-id' } as never, () =>
         repository.findActiveActor('user-id'),
       ),
-    ).resolves.toMatchObject({ id: 'staff-profile', role: { customCode: 'staff' } });
+    ).resolves.toMatchObject({
+      id: 'staff-profile',
+      role: { customCode: 'staff' },
+    });
   });
 
   it('uses the non-Staff custom profile and does not union Staff permissions', async () => {
@@ -64,9 +70,9 @@ describe('AuthSessionRepository Staff acting-profile fallback', () => {
       id: 'marketing-profile',
       role: { customCode: 'marketing_lead_ccr' },
     });
-    expect(selected?.role.rolePermissions.map(({ permission }) => permission.code)).toEqual([
-      'CREATE_BID',
-    ]);
+    expect(
+      selected?.role.rolePermissions.map(({ permission }) => permission.code),
+    ).toEqual(['CREATE_BID']);
     expect(db.actorProfile.findFirst).toHaveBeenCalledTimes(1);
   });
 

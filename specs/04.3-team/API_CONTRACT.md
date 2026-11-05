@@ -46,7 +46,8 @@ object scope.
 | GET | `/team/:id` | authorized scoped read; 200 or indistinguishable 404. |
 | PATCH | `/team/:id` | tenant_super_admin, division_head, or scoped division_lead; `ADD_TEAM`; `{ name }`; 200. |
 | DELETE | `/team/:id` | same Team-management scope; `ADD_TEAM`; guarded hard delete 204 or 409 history block. |
-| PUT | `/team/:id/lead` | tenant_super_admin, division_head, or scoped division_lead; `ADD_TEAM`; `{ leadMemberId }`; 200. |
+| PUT | `/team/:id/lead` | Explicit `UPDATE_TEAM` permission plus same-Tenant, compatible-scope, and visible Team resource rule; `{ leadMemberId }`; 200. |
+| DELETE | `/team/:id/lead` | Same explicit Team-management permission and tenant/resource scope as lead assignment; clears the current lead assignment only; 200. Idempotent when no lead is assigned. |
 | GET | `/team/:id/member` | authorized Team scope; list current and, with `includeEnded=true`, ended association history; 200. |
 | POST | `/team/:id/member` | tenant_super_admin/division_head/scoped division_lead/exact `team_lead`; `ASSIGN_MEMBER`; `{ memberId, teamRole? }`; 201. Member may be existing or newly created by a prior separate `/member` call; this route never creates the Member. |
 | DELETE | `/team/:id/member/:memberId` | same membership scope; `ASSIGN_MEMBER`; ends the Member's active Team assignment with 204. The Member disappears from the active Team list, while the membership row/history remains. It does not delete the Member or change User roles or permissions. |

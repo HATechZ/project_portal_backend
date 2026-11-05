@@ -10,7 +10,8 @@ import { memberNotFound } from './member.errors';
 
 /**
  * A Member may only move to a Division in its own Company, and not while it
- * still holds active Team relations in the Division it is leaving.
+ * remains the active Lead of its current Division or still holds active Team
+ * relations in the Division it is leaving.
  */
 export async function assertDivisionMove(
   repositories: {
@@ -24,12 +25,25 @@ export async function assertDivisionMove(
   if (!(await repositories.repository.findDivision(divisionId, companyId))) {
     throw memberNotFound(divisionId);
   }
+  if (member.divisionId === divisionId) return;
   if (
-    member.divisionId !== divisionId &&
-    (await repositories.relations.hasCrossDivisionTeamLinks(
+    await repositories.relations.hasActiveDivisionLead(
+      member.id,
+      member.divisionId,
+    )
+  ) {
+    throw new AppException({
+      code: AppErrorCode.Conflict,
+      status: HttpStatus.CONFLICT,
+      message:
+        'Remove or reassign this Division Lead before moving the Member to another Division.',
+    });
+  }
+  if (
+    await repositories.relations.hasCrossDivisionTeamLinks(
       member.id,
       divisionId,
-    ))
+    )
   ) {
     throw new AppException({
       code: AppErrorCode.Conflict,

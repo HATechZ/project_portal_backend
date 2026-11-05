@@ -259,7 +259,10 @@ export class RolePermissionRepository extends BaseRepository {
           where: { id, tenantId },
           data: { revokedAt: new Date() },
         });
-        await reconcileActingProfileSelection(transaction, { tenantId, userId });
+        await reconcileActingProfileSelection(transaction, {
+          tenantId,
+          userId,
+        });
         return true;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

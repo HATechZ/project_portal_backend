@@ -2,6 +2,7 @@ import { TeamMembershipService } from './team-membership.service';
 import { TeamService } from './team.service';
 
 const company = { id: 'company-1' };
+const actor = {} as never;
 const team = {
   id: 'team-1',
   companyId: company.id,
@@ -13,12 +14,23 @@ const team = {
   createdAt: new Date(),
   updatedAt: new Date(),
 };
+const teamWithLead = {
+  ...team,
+  leadMemberId: 'member-1',
+  leadMember: {
+    id: 'member-1',
+    name: 'Lead Member',
+    email: 'lead@example.test',
+    designation: null,
+  },
+};
 
 function repository() {
   return {
     findScopedCompany: jest.fn().mockResolvedValue(company),
     findCompanyDivisionIds: jest.fn().mockResolvedValue(['division-1']),
     findById: jest.fn().mockResolvedValue(team),
+    findVisibleById: jest.fn().mockResolvedValue(team),
     findMember: jest.fn().mockResolvedValue({
       id: 'member-1',
       companyId: company.id,
@@ -28,6 +40,7 @@ function repository() {
     create: jest.fn().mockResolvedValue(team),
     updateName: jest.fn().mockResolvedValue(team),
     assignLead: jest.fn().mockResolvedValue(team),
+    clearLead: jest.fn().mockResolvedValue(team),
     hasAnyMembership: jest.fn().mockResolvedValue(false),
     delete: jest.fn(),
     listMembers: jest.fn().mockResolvedValue([]),
@@ -50,11 +63,65 @@ function repository() {
 }
 
 describe('Team services', () => {
+  it('clears only the Team Lead assignment and returns the cleared relation', async () => {
+    const repo = repository();
+    repo.findById.mockResolvedValue(teamWithLead);
+    repo.clearLead.mockResolvedValue(team);
+    const service = new TeamService(repo as never);
+
+    await expect(service.clearLead(team.id, actor)).resolves.toMatchObject({
+      id: team.id,
+      leadMemberId: null,
+      leadMember: null,
+    });
+    expect(repo.clearLead).toHaveBeenCalledWith(team.id, company.id);
+    expect(repo.findMember).not.toHaveBeenCalled();
+    expect(repo.endMember).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent when the Team already has no lead and permits reassignment', async () => {
+    const repo = repository();
+    const reassigned = { ...teamWithLead, leadMemberId: 'member-2' };
+    repo.clearLead.mockResolvedValue(team);
+    repo.assignLead.mockResolvedValue(reassigned);
+    const service = new TeamService(repo as never);
+
+    await expect(service.clearLead(team.id, actor)).resolves.toMatchObject({
+      leadMemberId: null,
+      leadMember: null,
+    });
+    await expect(
+      service.assignLead(team.id, { leadMemberId: 'member-2' }, actor),
+    ).resolves.toMatchObject({ leadMemberId: 'member-2' });
+    expect(repo.clearLead).toHaveBeenCalledTimes(1);
+    expect(repo.assignLead).toHaveBeenCalledWith(
+      team.id,
+      company.id,
+      'member-2',
+    );
+  });
+
+  it('requires the same scoped Team visibility used by lead assignment', async () => {
+    const repo = repository();
+    repo.findVisibleById.mockResolvedValue(null);
+    const service = new TeamService(repo as never);
+
+    await expect(service.clearLead(team.id, actor)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(repo.findVisibleById).toHaveBeenCalledWith(
+      team.id,
+      company.id,
+      actor,
+    );
+    expect(repo.clearLead).not.toHaveBeenCalled();
+  });
+
   it('enforces active same-company, same-division member eligibility as a business rule', async () => {
     const repo = repository();
     const service = new TeamService(repo as never);
     await expect(
-      service.assignLead(team.id, { leadMemberId: 'member-1' }),
+      service.assignLead(team.id, { leadMemberId: 'member-1' }, actor),
     ).resolves.toBeDefined();
     repo.findMember.mockResolvedValueOnce({
       id: 'member-2',
@@ -63,7 +130,7 @@ describe('Team services', () => {
       isActive: true,
     });
     await expect(
-      service.assignLead(team.id, { leadMemberId: 'member-2' }),
+      service.assignLead(team.id, { leadMemberId: 'member-2' }, actor),
     ).rejects.toMatchObject({ status: 409 });
   });
 

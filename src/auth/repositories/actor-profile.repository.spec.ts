@@ -11,7 +11,11 @@ describe('ActorProfileRepository acting-profile selection', () => {
       label: 'Marketing Lead - CCR',
       isDefault: true,
       isActive: true,
-      role: { customCode: 'marketing_lead_ccr', customScope: 'company', systemRole: null },
+      role: {
+        customCode: 'marketing_lead_ccr',
+        customScope: 'company',
+        systemRole: null,
+      },
     };
     const db = {
       actorProfile: {

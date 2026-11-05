@@ -15,7 +15,7 @@ controller, or specification.
 
 | Operation | Atomic records | Authorization rule |
 |---|---|---|
-| Team CRUD / assign lead | Team, Division and candidate Member reads | tenant_super_admin, division_head, or scoped division_lead; `ADD_TEAM` |
+| Team CRUD / assign/clear lead | Team, Division and candidate Member reads | explicit Team-management permission; same Tenant, compatible scope, and Team resource rule |
 | add/end membership | Team, actor profile/member scope, candidate Member, active membership | tenant_super_admin/division_head/scoped division_lead or exact `team_lead`; `ASSIGN_MEMBER`; existing or separately newly created Member only |
 | delete | Team and all membership history probe | Team-management scope; hard delete only if probe clear |
 
@@ -24,6 +24,8 @@ access to the actor's own Tenant/Company. For division_lead it compares that Mem
 to Team Division. For `team_lead` it additionally compares Member ID to `leadMemberId` and
 admits only membership add/end routes for the exact Team they lead. All
 Member/lead candidates are scoped by Tenant/Company/Division and active status before write.
+Clearing a Team Lead changes only the nullable `Team.leadMemberId`; it is idempotent and leaves
+the former lead's Member and any Team membership rows unchanged.
 Add/end serializes or locks the active association to prevent duplicate active rows; end sets
 `leftAt`. Use AppExceptions for
 semantic 403/404/409 and let central Prisma mapping handle database races.

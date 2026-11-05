@@ -5,7 +5,8 @@ export class AuthUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({
     format: 'uuid',
-    description: 'The ActorProfile used for this response and subsequent authorization.',
+    description:
+      'The ActorProfile used for this response and subsequent authorization.',
   })
   activeActorProfileId!: string;
   @ApiProperty({ example: 'Tenant Super Administrator' }) fullName!: string;

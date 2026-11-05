@@ -34,6 +34,11 @@ and `leftAt` is never caller input. End membership updates the single active ass
 another active row for the same pair is rejected by application validation and concurrency-safe
 recheck because current schema has an index, not a unique active-pair constraint.
 
+Lead removal is a separate, idempotent Team write: it sets only `leadMemberId` to `NULL` and
+returns the updated Team projection with `leadMemberId: null` and `leadMember: null`. It neither
+deletes nor ends the former lead's Member or `team_members` records, and does not invent an audit
+record where the existing Team model has none.
+
 Before Team delete, query all `team_members` rows regardless of `leftAt`; a row blocks deletion.
 No membership history is cascaded. No write changes ownership, Division, activation, or
 timestamps. Use app_user through normal fail-closed UnitOfWork/RLS; never app_relay. No schema,

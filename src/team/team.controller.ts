@@ -124,7 +124,25 @@ export class TeamController {
   assignLead(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() input: AssignTeamLeadDto,
+    @ActiveActor() actor: SessionActor,
   ) {
-    return this.teamService.assignLead(id, input);
+    return this.teamService.assignLead(id, input, actor);
+  }
+
+  @Delete(':id/lead')
+  @FinalPermissions(PermissionCode.UPDATE_TEAM)
+  @ResponseMessage('Team lead removed successfully')
+  @ApiOperation({
+    summary: 'Remove a Team Lead',
+    description:
+      'Clears the Team Lead assignment without changing the Member or Team membership records. Safe to repeat when no Team Lead is assigned.',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiStandardOkResponse(TeamResponseDto, 'Team lead removed')
+  removeLead(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.teamService.clearLead(id, actor);
   }
 }

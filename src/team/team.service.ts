@@ -90,9 +90,10 @@ export class TeamService {
   async assignLead(
     id: string,
     input: AssignTeamLeadDto,
+    actor: SessionActor,
   ): Promise<TeamResponseDto> {
     const company = await this.requireScopedCompany();
-    const team = await this.requireTeam(id, company.id);
+    const team = await this.requireVisibleTeam(id, company.id, actor);
     await this.assertEligibleMember(
       input.leadMemberId,
       company.id,
@@ -101,6 +102,12 @@ export class TeamService {
     return toTeamResponse(
       await this.repository.assignLead(id, company.id, input.leadMemberId),
     );
+  }
+
+  async clearLead(id: string, actor: SessionActor): Promise<TeamResponseDto> {
+    const company = await this.requireScopedCompany();
+    await this.requireVisibleTeam(id, company.id, actor);
+    return toTeamResponse(await this.repository.clearLead(id, company.id));
   }
 
   async requireScopedCompany(): Promise<ScopedCompanyRecord> {
@@ -118,6 +125,16 @@ export class TeamService {
 
   async requireTeam(id: string, companyId: string): Promise<TeamRecord> {
     const team = await this.repository.findById(id, companyId);
+    if (!team) throw teamNotFound(id);
+    return team;
+  }
+
+  async requireVisibleTeam(
+    id: string,
+    companyId: string,
+    actor: SessionActor,
+  ): Promise<TeamRecord> {
+    const team = await this.repository.findVisibleById(id, companyId, actor);
     if (!team) throw teamNotFound(id);
     return team;
   }

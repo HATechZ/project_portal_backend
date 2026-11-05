@@ -118,4 +118,18 @@ export class MemberRelationsRepository extends BaseRepository {
       return ledTeam !== null || activeMembership !== null;
     });
   }
+
+  async hasActiveDivisionLead(
+    memberId: string,
+    divisionId: string,
+  ): Promise<boolean> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const lead = await db.divisionLead.findFirst({
+        where: { tenantId, memberId, divisionId, revokedAt: null },
+        select: { id: true },
+      });
+      return lead !== null;
+    });
+  }
 }

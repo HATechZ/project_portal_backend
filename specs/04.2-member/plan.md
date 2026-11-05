@@ -30,7 +30,7 @@ automatic Staff target grants cannot expose Tenant-wide resources.
 | Operation | Atomic records | Rule |
 |---|---|---|
 | create | linked User, Member, and scoped Division/Designation/actor context reads | one Tenant UnitOfWork; no UserRole, ActorProfile, or Team assignment write |
-| update | Member plus scoped Division/Designation/dependency reads | one Tenant UnitOfWork; existing authority unchanged |
+| update | Member plus scoped Division/Designation/leadership/Team dependency reads | one Tenant UnitOfWork; a move blocks on active old-Division leadership or conflicting Team links |
 | delete | Member, active leadership/Team membership, access profiles/grants/sessions, and linked User | one Tenant UnitOfWork; active leadership blocks; end active access and retain all history |
 | access link | Member, User/profile/active-role reads; Member user link and optional ActorProfile member target | serializable Tenant UnitOfWork to prevent link races |
 

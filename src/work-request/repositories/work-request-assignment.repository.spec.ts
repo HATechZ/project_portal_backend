@@ -1,4 +1,5 @@
 import { RequestContext } from '../../common/context/request-context';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import {
   WorkRequestV1AssignmentLevelCode as Level,
   WorkRequestV1StateCode as State,
@@ -41,6 +42,39 @@ describe('WorkRequestAssignmentRepository', () => {
     expect(updateMany).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledTimes(1);
     expect(eventCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns a domain conflict when the active assignment changed before reassignment', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const create = jest.fn();
+    const eventCreate = jest.fn();
+    const repository = new WorkRequestAssignmentRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1Assignment: { updateMany, create },
+          workRequestV1Event: { create: eventCreate },
+        }),
+    } as never);
+
+    await expect(
+      RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
+        repository.write({
+          workRequestId: 'request-a',
+          level: Level.DIVISION,
+          targetId: 'division-b',
+          actorId: 'actor-a',
+          priorState: State.DIVISION_ASSIGNED,
+          resultingState: State.DIVISION_ASSIGNED,
+          action: 'DIVISION_REASSIGNED',
+          replacing: true,
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: AppErrorCode.Conflict,
+      status: 409,
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(eventCreate).not.toHaveBeenCalled();
   });
 
   it('checks only the exact assigned Team for active Member membership', async () => {

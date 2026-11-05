@@ -75,11 +75,13 @@ export class AuthSessionRepository extends BaseRepository {
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
         select: sessionActorSelect(tenantId, userId),
       });
-      const fallback = actor ?? (await db.actorProfile.findFirst({
-        where: eligibleWhere,
-        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-        select: sessionActorSelect(tenantId, userId),
-      }));
+      const fallback =
+        actor ??
+        (await db.actorProfile.findFirst({
+          where: eligibleWhere,
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+          select: sessionActorSelect(tenantId, userId),
+        }));
       return fallback ? withBoundTeamId(fallback) : null;
     });
   }

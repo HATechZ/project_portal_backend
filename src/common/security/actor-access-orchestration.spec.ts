@@ -67,7 +67,35 @@ describe('actor access orchestration', () => {
       actorProfileId: 'actor-profile-new',
     });
     expect(db.userRole.create).toHaveBeenCalledTimes(1);
+    expect(db.userRole.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ teamId: expect.anything() }),
+      }),
+    );
     expect(db.actorProfile.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a new active grant after revocation without rewriting role history', async () => {
+    const db = dbWithExistingState();
+    db.userRole.findFirst.mockResolvedValueOnce(null);
+    db.userRole.create.mockResolvedValueOnce({ id: 'user-role-reactivated' });
+    db.actorProfile.findFirst.mockReset();
+    db.actorProfile.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    db.actorProfile.create.mockResolvedValueOnce({ id: 'actor-profile-new' });
+
+    await expect(
+      ensureUserRoleAndRoleOnlyProfile(db as never, {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        roleId: 'role-1',
+        assignedByUserId: 'admin-1',
+      }),
+    ).resolves.toMatchObject({ assignmentId: 'user-role-reactivated' });
+
+    expect(db.userRole.create).toHaveBeenCalledTimes(1);
+    expect(db.userRole).not.toHaveProperty('delete');
   });
 
   it('persists the approved Team binding on a newly created TEAM grant', async () => {
@@ -180,7 +208,9 @@ describe('actor access orchestration', () => {
     });
 
     expect(db.actorProfile.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'staff-profile', tenantId: 'tenant-1' } }),
+      expect.objectContaining({
+        where: { id: 'staff-profile', tenantId: 'tenant-1' },
+      }),
     );
   });
 
@@ -209,7 +239,9 @@ describe('actor access orchestration', () => {
     });
 
     expect(db.actorProfile.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'custom-current', tenantId: 'tenant-1' } }),
+      expect.objectContaining({
+        where: { id: 'custom-current', tenantId: 'tenant-1' },
+      }),
     );
   });
 });

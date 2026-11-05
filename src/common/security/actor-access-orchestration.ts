@@ -172,9 +172,9 @@ export async function reconcileActingProfileSelection(
       !profile.role.isSystemRole &&
       !isStaffStarterRoleCode(profile.role.customCode),
   );
-  const selected = (nonStaffCustomProfiles.length
-    ? nonStaffCustomProfiles
-    : profiles)[0];
+  const selected = (
+    nonStaffCustomProfiles.length ? nonStaffCustomProfiles : profiles
+  )[0];
   if (!selected) return;
   await db.actorProfile.updateMany({
     where: {

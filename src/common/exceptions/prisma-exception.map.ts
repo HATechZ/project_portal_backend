@@ -75,14 +75,6 @@ const INVALID_SIGNUP_SQLSTATES = new Set(['22001', '22023', '23503']);
 const UNIQUE_VIOLATION_SQLSTATE = '23505';
 const RESTRICT_VIOLATION_SQLSTATE = '23001';
 
-function isObsoleteTeamGrantConstraint(error: Prisma.PrismaClientKnownRequestError): boolean {
-  const meta = error.meta as { modelName?: unknown; driverAdapterError?: { cause?: { originalCode?: unknown; originalMessage?: unknown } } } | undefined;
-  const cause = meta?.driverAdapterError?.cause;
-  return error.code === 'P2039' && meta?.modelName === 'UserRole' &&
-    cause?.originalCode === '23514' &&
-    cause.originalMessage === 'Team-scoped custom role grants require team_id';
-}
-
 function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
   const meta = error.meta as
     | {
@@ -99,14 +91,6 @@ function rawQuerySqlState(error: Prisma.PrismaClientKnownRequestError): string {
 
 export function mapPrismaException(error: unknown): AppException | undefined {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (isObsoleteTeamGrantConstraint(error)) {
-      return new AppException({
-        code: AppErrorCode.ServiceUnavailable,
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        message: 'Team-scoped role assignment is temporarily unavailable because a database update is required. Contact your administrator.',
-        cause: error,
-      });
-    }
     if (rawQuerySqlState(error) === RESTRICT_VIOLATION_SQLSTATE) {
       return new AppException({
         code: AppErrorCode.DatabaseConstraint,

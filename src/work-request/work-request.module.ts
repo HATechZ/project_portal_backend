@@ -20,6 +20,7 @@ import { WorkRequestNamingProvider } from './providers/work-request-naming.provi
 import { WorkRequestStorageCleanupRepository } from './repositories/work-request-storage-cleanup.repository';
 import { WorkRequestAssignmentController } from './work-request-assignment.controller';
 import { WorkRequestAssignmentProvider } from './providers/work-request-assignment.provider';
+import { WorkRequestAssignmentHistoryProvider } from './providers/work-request-assignment-history.provider';
 import { WorkRequestAssignmentRepository } from './repositories/work-request-assignment.repository';
 import { WorkRequestAssignmentReadRepository } from './repositories/work-request-assignment-read.repository';
 import { WorkRequestWorkflowController } from './work-request-workflow.controller';
@@ -70,6 +71,7 @@ import { WorkRequestDocumentDownloadProvider } from './providers/work-request-do
     WorkRequestAssignmentRepository,
     WorkRequestAssignmentReadRepository,
     WorkRequestAssignmentProvider,
+    WorkRequestAssignmentHistoryProvider,
     WorkRequestWorkflowRepository,
     WorkRequestWorkflowProvider,
     WorkRequestInfoRepository,

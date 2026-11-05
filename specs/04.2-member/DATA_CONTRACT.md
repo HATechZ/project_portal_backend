@@ -90,11 +90,12 @@ authenticated User -> active `team_lead` ActorProfile -> Member -> Team where
 alone does not authorize another Team. Ordinary update
 receives only mutable business fields and remains governed by its existing authority. The
 dedicated access-link route is the only route accepting existing User/ActorProfile IDs.
-When `divisionId` changes, query Teams led by the Member and active `team_members` joined to Team;
-if any Team Division differs from the requested Division, return 409 before update. Ended
-membership history does not itself block a move. Constraints and shared Prisma mapping are the
-race backstop. Member creation never writes `team_members`; Team assignment stays a separate
-Team operation. Runtime walkthrough on 2026-09-09 is blocked because app_user lacks Member write
+When `divisionId` changes, an active `DivisionLead` row for the Member's current Division returns
+409 before update; it must be explicitly revoked or reassigned first. Query Teams led by the
+Member and active `team_members` joined to Team; if any Team Division differs from the requested
+Division, return 409 before update. Ended membership history does not itself block a move.
+Constraints and shared Prisma mapping are the race backstop. Member creation never writes
+`team_members`; Team assignment stays a separate Team operation. Runtime walkthrough on 2026-09-09 is blocked because app_user lacks Member write
 privilege on `members`; no structural, privilege, or RLS change was applied by Codex.
 
 ## Assignment candidate queries

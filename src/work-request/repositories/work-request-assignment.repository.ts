@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   WorkRequestV1AssignmentLevelCode,
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
+import { AppErrorCode } from '../../common/exceptions/app-error-code';
+import { AppException } from '../../common/exceptions/app-exception';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import type { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
@@ -103,7 +105,13 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
           },
           data: { replacedAt: at },
         });
-        if (closed.count !== 1) throw new Error('WR_ACTIVE_ASSIGNMENT');
+        if (closed.count !== 1)
+          throw new AppException({
+            code: AppErrorCode.Conflict,
+            status: HttpStatus.CONFLICT,
+            message:
+              'The active Work Request assignment changed before reassignment could be completed. Refresh and try again.',
+          });
       }
       const assignment = await db.workRequestV1Assignment.create({
         data: {

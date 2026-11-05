@@ -214,6 +214,17 @@ export class TeamRepository extends BaseRepository {
     );
   }
 
+  clearLead(id: string, companyId: string): Promise<TeamRecord> {
+    void companyId;
+    return this.transaction((db) =>
+      db.team.update({
+        where: { id },
+        data: { leadMemberId: null, updatedAt: new Date() },
+        select: teamSelect,
+      }),
+    );
+  }
+
   async hasAnyMembership(teamId: string): Promise<boolean> {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {

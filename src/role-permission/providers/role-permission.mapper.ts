@@ -44,9 +44,9 @@ export function toPermissionResponse(permission: {
     actionType: permission.actionType,
     resource: permission.resource,
     compatibleScopes: permission.scopeCompatibilities.map(({ scope }) => scope),
-    requiredPermissionIds: (permission.requiredPermissionDependencies ?? []).map(
-      ({ requiredPermissionId }) => requiredPermissionId,
-    ),
+    requiredPermissionIds: (
+      permission.requiredPermissionDependencies ?? []
+    ).map(({ requiredPermissionId }) => requiredPermissionId),
   };
 }
 

@@ -106,11 +106,14 @@ describe('HttpExceptionFilter', () => {
   it('logs Prisma constraint metadata without exposing it in the response', () => {
     const { host, json } = captureResponse();
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    const error = new Prisma.PrismaClientKnownRequestError('constraint trigger', {
-      code: 'P2003',
-      clientVersion: 'test',
-      meta: { constraint: 'role_permissions_role_tenant_match' },
-    });
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'constraint trigger',
+      {
+        code: 'P2003',
+        clientVersion: 'test',
+        meta: { constraint: 'role_permissions_role_tenant_match' },
+      },
+    );
 
     new HttpExceptionFilter().catch(error, host);
 
@@ -119,7 +122,9 @@ describe('HttpExceptionFilter', () => {
     );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.objectContaining({ code: AppErrorCode.DatabaseConstraint }),
+        error: expect.objectContaining({
+          code: AppErrorCode.DatabaseConstraint,
+        }),
       }),
     );
     warn.mockRestore();

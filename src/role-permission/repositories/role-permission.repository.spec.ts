@@ -7,10 +7,15 @@ const permissionA = '30000000-0000-4000-8000-000000000001';
 const permissionB = '30000000-0000-4000-8000-000000000002';
 const permissionC = '30000000-0000-4000-8000-000000000003';
 
-function subject(grants: Array<{ id: string; permissionId: string; revokedAt: Date | null }>) {
+function subject(
+  grants: Array<{ id: string; permissionId: string; revokedAt: Date | null }>,
+) {
   const transaction = {
     permission: { findMany: jest.fn().mockResolvedValue([]) },
-    role: { updateMany: jest.fn(), findFirstOrThrow: jest.fn().mockResolvedValue({ id: roleId }) },
+    role: {
+      updateMany: jest.fn(),
+      findFirstOrThrow: jest.fn().mockResolvedValue({ id: roleId }),
+    },
     rolePermission: {
       findMany: jest.fn().mockResolvedValue(grants),
       updateMany: jest.fn(),
@@ -20,9 +25,15 @@ function subject(grants: Array<{ id: string; permissionId: string; revokedAt: Da
     userRole: { update: jest.fn() },
   };
   const unitOfWork = {
-    execute: jest.fn((work: (db: typeof transaction) => Promise<unknown>) => work(transaction)),
+    execute: jest.fn((work: (db: typeof transaction) => Promise<unknown>) =>
+      work(transaction),
+    ),
   };
-  return { repository: new RolePermissionRepository(unitOfWork as never), transaction, unitOfWork };
+  return {
+    repository: new RolePermissionRepository(unitOfWork as never),
+    transaction,
+    unitOfWork,
+  };
 }
 
 async function replace(
@@ -39,14 +50,21 @@ describe('RolePermissionRepository permission synchronization', () => {
     const { repository, transaction } = subject([
       { id: 'grant-a', permissionId: permissionA, revokedAt: null },
     ]);
-    transaction.permission.findMany.mockResolvedValue([{ id: permissionA }, { id: permissionB }]);
+    transaction.permission.findMany.mockResolvedValue([
+      { id: permissionA },
+      { id: permissionB },
+    ]);
 
     await replace(repository, [permissionA, permissionB]);
 
     expect(transaction.rolePermission.updateMany).not.toHaveBeenCalled();
     expect(transaction.rolePermission.update).not.toHaveBeenCalled();
     expect(transaction.rolePermission.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ tenantId, roleId, permissionId: permissionB }),
+      data: expect.objectContaining({
+        tenantId,
+        roleId,
+        permissionId: permissionB,
+      }),
     });
   });
 
@@ -86,7 +104,10 @@ describe('RolePermissionRepository permission synchronization', () => {
       { id: 'grant-a', permissionId: permissionA, revokedAt: null },
       { id: 'grant-b', permissionId: permissionB, revokedAt: null },
     ]);
-    transaction.permission.findMany.mockResolvedValue([{ id: permissionA }, { id: permissionB }]);
+    transaction.permission.findMany.mockResolvedValue([
+      { id: permissionA },
+      { id: permissionB },
+    ]);
 
     await replace(repository, [permissionA, permissionB]);
 
@@ -99,7 +120,10 @@ describe('RolePermissionRepository permission synchronization', () => {
     const { repository, transaction } = subject([
       { id: 'grant-a', permissionId: permissionA, revokedAt: null },
     ]);
-    transaction.permission.findMany.mockResolvedValue([{ id: permissionA }, { id: permissionB }]);
+    transaction.permission.findMany.mockResolvedValue([
+      { id: permissionA },
+      { id: permissionB },
+    ]);
 
     await replace(repository, [permissionA, permissionB]);
 
@@ -110,9 +134,13 @@ describe('RolePermissionRepository permission synchronization', () => {
   it('propagates a persistence failure so the unit-of-work rolls back the entire update', async () => {
     const { repository, transaction, unitOfWork } = subject([]);
     transaction.permission.findMany.mockResolvedValue([{ id: permissionC }]);
-    transaction.rolePermission.create.mockRejectedValueOnce(new Error('constraint failure'));
+    transaction.rolePermission.create.mockRejectedValueOnce(
+      new Error('constraint failure'),
+    );
 
-    await expect(replace(repository, [permissionC])).rejects.toThrow('constraint failure');
+    await expect(replace(repository, [permissionC])).rejects.toThrow(
+      'constraint failure',
+    );
     expect(unitOfWork.execute).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
     });
