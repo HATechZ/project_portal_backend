@@ -1,5 +1,5 @@
 import { Body, Controller, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
-import { ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
@@ -20,11 +20,13 @@ export class WorkRequestRevisionController {
 
   @Post('revisions')
   @FinalPermissions(PermissionCode.REQUEST_WORK_REQUEST_REVISION)
+  @ApiOperation({ summary: 'Create Work Request Revision' })
   request(@Param('id', ParseUUIDPipe) id: string, @Body() body: RequestWorkRequestRouteRevisionDto, @ActiveActor() actor: SessionActor) {
     return this.revisions.request(id, body, actor);
   }
   @Post('revisions/:revisionId/resubmit')
   @FinalPermissions(PermissionCode.SUBMIT_WORK_REQUEST)
+  @ApiOperation({ summary: 'Resubmit Work Request Revision' })
   resubmit(@Param('id', ParseUUIDPipe) id: string, @Param('revisionId', ParseUUIDPipe) revisionId: string, @Body() body: ResubmitWorkRequestRouteRevisionDto, @ActiveActor() actor: SessionActor) {
     return this.revisions.resubmit(id, revisionId, body, actor);
   }

@@ -133,16 +133,19 @@ export class WorkRequestController {
   }
   @Get(':id/route')
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
+  @ApiOperation({ summary: 'Get Work Request Route' })
   route(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
     return this.service.route(id, actor);
   }
   @Post(':id/route-steps/:stepId/forward')
   @FinalPermissions(PermissionCode.ROUTE_FOR_REVIEW)
+  @ApiOperation({ summary: 'Forward Work Request Route Step' })
   forward(@Param('id', ParseUUIDPipe) id: string, @Param('stepId', ParseUUIDPipe) stepId: string, @ActiveActor() actor: SessionActor) {
     return this.service.forwardRoute(id, stepId, actor);
   }
   @Post(':id/route-amendments')
   @FinalPermissions(PermissionCode.UPDATE_WORK_REQUEST)
+  @ApiOperation({ summary: 'Amend Work Request Route' })
   amend(@Param('id', ParseUUIDPipe) id: string, @Body() body: AmendWorkRequestRouteDto, @ActiveActor() actor: SessionActor) {
     return this.service.amendRoute(id, body, actor);
   }

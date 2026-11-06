@@ -43,7 +43,8 @@ export class WorkRequestInfoProvider {
           throw conflict('Work Request has no current workflow state.');
         if (state === 'ACCEPTED' || state === 'REJECTED')
           throw conflict('Work Request is no longer active.');
-        this.assertParticipant(actor, snapshot);
+        // Administrative visibility does not create a communication identity.
+        if (!actor.member?.id && !actor.clientContact?.id) throw forbidden();
         const recipients = await this.repository.eligibleRecipients(id, actor.id);
         if (!recipients?.some((recipient) => recipient.id === input.targetActorId))
           throw forbidden('The selected information recipient is not eligible.');
@@ -98,25 +99,21 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
-        this.assertPermission(actor, WorkflowActionCode.RESPOND_WORKFLOW_INFO);
         const snapshot = await this.repository.prepare(
           id,
-          undefined,
+          actor.id,
           infoRequestId,
         );
         if (
           !snapshot?.parent ||
           !snapshot.info ||
+          !snapshot.target ||
           snapshot.info.targetActorId !== actor.id
         )
           throw notFound('Information Request was not found.');
         const state = snapshot.request.events[0]?.resultingState;
         if (!state || state === State.ACCEPTED || state === State.REJECTED)
           throw conflict('Work Request is no longer active.');
-        const routeRecipient = actor.member?.id
-          ? await this.repository.isActiveRouteLead(id, actor.member.id)
-          : false;
-        this.assertParticipant(actor, snapshot, routeRecipient);
         await this.assertAttachments(id, input.documentVersionIds);
         const metadata = workRequestTransitionRequestMetadata();
         const result = await this.repository.respond(
@@ -179,8 +176,7 @@ export class WorkRequestInfoProvider {
       const state = snapshot.request.events[0]?.resultingState;
       if (!state || state === State.ACCEPTED || state === State.REJECTED)
         throw conflict('Work Request is no longer active.');
-      const administrativeRead = await this.canReadAsAdministrator(id, actor, snapshot);
-      if (!administrativeRead) this.assertParticipant(actor, snapshot);
+      if (!actor.member?.id && !actor.clientContact?.id) return [];
       const recipients = await this.repository.eligibleRecipients(id, actor.id);
       if (!recipients) throw notFound();
       return recipients.map((recipient) => ({
@@ -192,7 +188,10 @@ export class WorkRequestInfoProvider {
         contextType: recipient.memberId ? 'DIVISION_LEAD' as const : 'CLIENT_CONTACT' as const,
         canReceive: true,
         unavailableReason: null,
-        canRespond: !!recipient.role?.isActive && recipient.role.userRolesByRoleId.some((grant) => grant.userId === recipient.userId) && recipient.role.rolePermissions.some(({ permission }) => recipient.role.customScope === null || permission.scopeCompatibilities.some(({ scope }) => scope === recipient.role.customScope)),
+        // Selection means the actor has a usable portal profile.  The exact
+        // addressed-request check, rather than a broad response grant, governs
+        // whether this person can reply.
+        canRespond: true,
         context: recipient.memberId
           ? { kind: 'DIVISION_LEAD' as const, ...recipient.member?.divisionLeadsByMemberId[0]?.division }
           : { kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact?.client },
@@ -209,7 +208,7 @@ export class WorkRequestInfoProvider {
   async recipientStatus(id: string, actor: SessionActor) {
     await this.eligibleRecipients(id, actor);
     return this.uow.execute(async () => {
-      const status = await this.repository.clientRecipientStatus(id);
+      const status = await this.repository.clientRecipientStatus(id, actor.id);
       if (!status) throw notFound();
       return status;
     });

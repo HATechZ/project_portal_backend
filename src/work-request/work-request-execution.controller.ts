@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
-import { ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AccessTokenGuard } from '../common/security/access-token.guard';
 import { ActiveActor } from '../common/security/active-actor.decorator';
 import { AuthenticationGuard } from '../common/security/authentication.guard';
@@ -24,31 +24,37 @@ export class WorkRequestExecutionController {
 
   @Get('internal-cycles/:cycleId')
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
+  @ApiOperation({ summary: 'Get Work Request Internal Cycle' })
   internalCycle(@Param('id', ParseUUIDPipe) id: string, @Param('cycleId', ParseUUIDPipe) cycleId: string, @ActiveActor() actor: SessionActor) {
     return this.execution.internalCycle(id, cycleId, actor);
   }
   @Post('division-cycles/:cycleId/team-sequence')
   @FinalPermissions(PermissionCode.ASSIGN_WORK_REQUEST_TEAM)
+  @ApiOperation({ summary: 'Define Division Team Sequence' })
   defineTeamSequence(@Param('id', ParseUUIDPipe) id: string, @Param('cycleId', ParseUUIDPipe) cycleId: string, @Body() body: DefineWorkRequestTeamSequenceDto, @ActiveActor() actor: SessionActor) {
     return this.execution.defineTeamSequence(id, cycleId, body, actor);
   }
   @Post('team-steps/:teamStepId/member-sequence')
   @FinalPermissions(PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)
+  @ApiOperation({ summary: 'Define Team Member Sequence' })
   defineMemberSequence(@Param('id', ParseUUIDPipe) id: string, @Param('teamStepId', ParseUUIDPipe) teamStepId: string, @Body() body: DefineWorkRequestMemberSequenceDto, @ActiveActor() actor: SessionActor) {
     return this.execution.defineMemberSequence(id, teamStepId, body, actor);
   }
   @Post('team-steps/:teamStepId/member-steps')
   @FinalPermissions(PermissionCode.ASSIGN_WORK_REQUEST_MEMBER)
+  @ApiOperation({ summary: 'Assign Member to Team Step' })
   appendMemberStep(@Param('id', ParseUUIDPipe) id: string, @Param('teamStepId', ParseUUIDPipe) teamStepId: string, @Body() body: AppendWorkRequestMemberStepDto, @ActiveActor() actor: SessionActor) {
     return this.execution.appendMemberStep(id, teamStepId, body, actor);
   }
   @Post('member-steps/:memberStepId/submit')
   @FinalPermissions(PermissionCode.SUBMIT_WORK_REQUEST)
+  @ApiOperation({ summary: 'Submit Member Step' })
   submitMemberStep(@Param('id', ParseUUIDPipe) id: string, @Param('memberStepId', ParseUUIDPipe) memberStepId: string, @ActiveActor() actor: SessionActor) {
     return this.execution.submitMemberStep(id, memberStepId, actor);
   }
   @Post('team-steps/:teamStepId/complete')
   @FinalPermissions(PermissionCode.APPROVE_WORK_REQUEST_REVIEW)
+  @ApiOperation({ summary: 'Complete Team Step' })
   completeTeamStep(@Param('id', ParseUUIDPipe) id: string, @Param('teamStepId', ParseUUIDPipe) teamStepId: string, @ActiveActor() actor: SessionActor) {
     return this.execution.completeTeamStep(id, teamStepId, actor);
   }

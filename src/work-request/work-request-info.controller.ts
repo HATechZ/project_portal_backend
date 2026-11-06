@@ -90,7 +90,6 @@ export class WorkRequestInfoController {
   }
 
   @Post(':infoRequestId/respond')
-  @FinalPermissions(PermissionCode.RESPOND_TO_INFO_REQUEST)
   @ApiOperation({
     summary:
       'Respond to Information Request by Work Request ID and Information Request ID',

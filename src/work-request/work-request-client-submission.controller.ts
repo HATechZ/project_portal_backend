@@ -82,10 +82,12 @@ export class WorkRequestClientSubmissionController {
   }
   @Post('reconsideration')
   @FinalPermissions(PermissionCode.REQUEST_WORK_REQUEST_REVISION)
+  @ApiOperation({ summary: 'Create Work Request Reconsideration' })
   requestReconsideration(@Param('id', ParseUUIDPipe) id: string, @Body() body: RequestWorkRequestReconsiderationDto, @ActiveActor() actor: SessionActor) {
     return this.service.requestReconsideration(id, body, actor);
   }
   @Post('reconsideration/decision')
+  @ApiOperation({ summary: 'Decide Work Request Reconsideration' })
   decideReconsideration(@Param('id', ParseUUIDPipe) id: string, @Body() body: DecideWorkRequestReconsiderationDto, @ActiveActor() actor: SessionActor) {
     return this.service.decideReconsideration(id, body, actor);
   }

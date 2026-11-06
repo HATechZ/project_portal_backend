@@ -3,6 +3,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   WorkRequestV1AssignmentLevelCode,
   WorkRequestV1StateCode,
+  WorkRequestRouteStepKind,
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
@@ -160,8 +161,176 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         },
         select: { id: true, action: true, occurredAt: true },
       });
+      await this.synchronizeInitialRouteDivisionAssignment(db, input, at);
       return { ...assignment, currentState: input.resultingState, event };
     });
+  }
+
+  /**
+   * Route-based requests reuse the initial Division-assignment command to
+   * hand off from their immutable origin occurrence to the first configured
+   * intermediate occurrence.  Keep that derived route position in the same
+   * transaction as the compatibility assignment/event write.
+   */
+  async synchronizeExistingRouteDivisionAssignment(
+    workRequestId: string,
+    targetId: string,
+    actorId: string,
+  ): Promise<boolean> {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(async (db) => {
+      const active = await db.workRequestV1Assignment.findFirst({
+        where: {
+          tenantId,
+          workRequestId,
+          level: WorkRequestV1AssignmentLevelCode.DIVISION,
+          divisionId: targetId,
+          unassignedAt: null,
+          replacedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!active) return false;
+      return this.synchronizeInitialRouteDivisionAssignment(
+        db,
+        {
+          workRequestId,
+          level: WorkRequestV1AssignmentLevelCode.DIVISION,
+          targetId,
+          actorId,
+          action: 'DIVISION_ASSIGNED',
+          replacing: false,
+        },
+        new Date(),
+      );
+    });
+  }
+
+  private async synchronizeInitialRouteDivisionAssignment(
+    db: PrismaExecutor,
+    input: {
+      workRequestId: string;
+      level: WorkRequestV1AssignmentLevelCode;
+      targetId: string;
+      actorId: string;
+      action: string;
+      replacing: boolean;
+    },
+    at: Date,
+  ): Promise<boolean> {
+    if (
+      input.level !== WorkRequestV1AssignmentLevelCode.DIVISION ||
+      input.replacing ||
+      input.action !== 'DIVISION_ASSIGNED'
+    )
+      return false;
+    const tenantId = RequestContext.requireTenantId();
+    const route = await db.workRequestRoute.findFirst({
+      where: { tenantId, workRequestId: input.workRequestId },
+      select: {
+        id: true,
+        projection: {
+          select: { routeVersionId: true, routeStepId: true },
+        },
+      },
+    });
+    if (!route?.projection?.routeStepId || !route.projection.routeVersionId)
+      return false;
+    const routeVersionId = route.projection.routeVersionId;
+    const current = await db.workRequestRouteStep.findFirst({
+      where: {
+        tenantId,
+        id: route.projection.routeStepId,
+        routeId: route.id,
+      },
+      select: { id: true, ordinal: true, kind: true, completedAt: true },
+    });
+    // A retry after the hand-off is already synchronized is intentionally a
+    // no-op; it must not manufacture duplicate route history.
+    if (current?.kind !== WorkRequestRouteStepKind.ORIGIN_START) return false;
+    if (current.completedAt)
+      throw conflict('The Work Request route origin has already completed.');
+    const next = await db.workRequestRouteStep.findFirst({
+      where: {
+        tenantId,
+        routeId: route.id,
+        routeVersionId,
+        ordinal: current.ordinal + 1,
+        kind: WorkRequestRouteStepKind.INTERMEDIATE,
+        divisionId: input.targetId,
+      },
+      select: { id: true },
+    });
+    if (!next)
+      throw conflict(
+        'The assigned Division is not the next configured Work Request route occurrence.',
+      );
+    const cycle = await db.workRequestDivisionCycle.findFirst({
+      where: { tenantId, routeId: route.id, routeStepId: current.id },
+      select: {
+        id: true,
+        completedAt: true,
+        teamSteps: { take: 1, select: { id: true } },
+      },
+    });
+    if (!cycle || cycle.completedAt || cycle.teamSteps.length)
+      throw conflict(
+        'The Work Request origin execution has already started and cannot be assigned as an initial Division hand-off.',
+      );
+    const nextCycleId = randomUUID();
+    await db.workRequestRouteStep.update({
+      where: { id: current.id },
+      data: { completedAt: at },
+    });
+    await db.workRequestDivisionCycle.update({
+      where: { id: cycle.id },
+      data: { completedAt: at },
+    });
+    await db.workRequestRouteStep.update({
+      where: { id: next.id },
+      data: { activatedAt: at },
+    });
+    await db.workRequestDivisionCycle.create({
+      data: {
+        id: nextCycleId,
+        tenantId,
+        routeId: route.id,
+        routeStepId: next.id,
+        activatedAt: at,
+      },
+    });
+    await db.workRequestRouteProjection.update({
+      where: { routeId_tenantId: { routeId: route.id, tenantId } },
+      data: {
+        routeStepId: next.id,
+        divisionCycleId: nextCycleId,
+        teamStepId: null,
+        memberStepId: null,
+        updatedAt: at,
+      },
+    });
+    await db.workRequestRouteEvent.create({
+      data: {
+        id: randomUUID(),
+        tenantId,
+        routeId: route.id,
+        routeStepId: next.id,
+        action: 'ROUTE_FORWARDED',
+        performedByActorId: input.actorId,
+      },
+    });
+    await db.workRequestRouteEvent.create({
+      data: {
+        id: randomUUID(),
+        tenantId,
+        routeId: route.id,
+        routeStepId: next.id,
+        divisionCycleId: nextCycleId,
+        action: 'DIVISION_CYCLE_ACTIVATED',
+        performedByActorId: input.actorId,
+      },
+    });
+    return true;
   }
 
   private async target(
@@ -287,4 +456,12 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
       responsibleRecipients: [],
     };
   }
+}
+
+function conflict(message: string) {
+  return new AppException({
+    code: AppErrorCode.Conflict,
+    status: HttpStatus.CONFLICT,
+    message,
+  });
 }

@@ -54,7 +54,7 @@ export class WorkRequestInfoRepository extends BaseRepository {
       if (!request) return null;
       const target = targetActorId
         ? await db.actorProfile.findFirst({
-            where: { id: targetActorId, tenantId, isActive: true },
+            where: { id: targetActorId, tenantId, isActive: true, user: { is: { isActive: true } } },
             select: workRequestInfoTargetSelect(),
           })
         : null;
@@ -79,84 +79,145 @@ export class WorkRequestInfoRepository extends BaseRepository {
           directProject: {
             select: { clientId: true, client: { select: { companyId: true } } },
           },
-          assignments: {
-            where: {
-              unassignedAt: null,
-              replacedAt: null,
-              level: 'DIVISION',
+          route: {
+            select: {
+              originatingDivisionId: true,
+              responsibleOriginatingLead: {
+                select: {
+                  memberId: true,
+                  revokedAt: true,
+                  member: { select: { isActive: true } },
+                  division: { select: { isActive: true } },
+                },
+              },
+              projection: { select: { divisionCycleId: true } },
+              divisionCycles: {
+                where: { completedAt: null },
+                select: {
+                  id: true,
+                  routeStep: { select: { divisionId: true } },
+                  teamSteps: {
+                    select: {
+                      teamId: true,
+                      team: { select: { divisionId: true, leadMemberId: true, isActive: true } },
+                    },
+                  },
+                },
+              },
             },
-            select: { divisionId: true },
           },
         },
       });
       if (!request) return null;
       const parent = request.bid ?? request.directProject;
       if (!parent?.client.companyId) return null;
-      const divisionIds = request.assignments.flatMap((item) =>
-        item.divisionId ? [item.divisionId] : [],
+      const requester = await db.actorProfile.findFirst({
+        where: { id: requesterActorId, tenantId, isActive: true, user: { is: { isActive: true } } },
+        select: { id: true, memberId: true, clientContactId: true },
+      });
+      if (!requester) return [];
+
+      const route: any = request.route;
+      const activeCycle = route?.divisionCycles.find(
+        (cycle: any) => cycle.id === route.projection?.divisionCycleId,
       );
-      const route = await this.routeDivisions(db, workRequestId);
-      if (route) {
-        const requester = await db.actorProfile.findFirst({
-          where: { id: requesterActorId, tenantId, isActive: true },
-          select: { memberId: true },
-        });
-        if (requester?.memberId === route.responsibleMemberId && route.responsibleActive)
-          divisionIds.push(...route.divisionIds);
+      const activeDivisionId = activeCycle?.routeStep.divisionId;
+      const activeTeamSteps = activeCycle?.teamSteps.filter(
+        (step: any) => step.team.isActive,
+      ) ?? [];
+      const teamIds = activeTeamSteps.map((step: any) => step.teamId);
+      const ledTeamSteps = requester.memberId
+        ? activeTeamSteps.filter((step: any) => step.team.leadMemberId === requester.memberId)
+        : [];
+      const memberTeamIds = requester.memberId && teamIds.length
+        ? (await db.workRequestMemberStep.findMany({
+            where: {
+              tenantId,
+              route: { is: { workRequestId } },
+              memberId: requester.memberId,
+              teamStep: { divisionCycleId: activeCycle?.id },
+            },
+            select: { teamStep: { select: { teamId: true } } },
+          })).map((step: any) => step.teamStep.teamId)
+        : [];
+      const origin = !!(
+        requester.memberId && route?.responsibleOriginatingLead &&
+        route.responsibleOriginatingLead.memberId === requester.memberId &&
+        route.responsibleOriginatingLead.revokedAt === null &&
+        route.responsibleOriginatingLead.member.isActive &&
+        route.responsibleOriginatingLead.division.isActive
+      );
+      const isActiveDivisionLead = !!(requester.memberId && activeDivisionId &&
+        await db.divisionLead.findFirst({
+          where: { tenantId, memberId: requester.memberId, divisionId: activeDivisionId, revokedAt: null, member: { is: { isActive: true } }, division: { is: { isActive: true } } },
+          select: { id: true },
+        }));
+
+      const memberIds = new Set<string>();
+      let includeClientContacts = false;
+      if (origin) {
+        includeClientContacts = true;
+        (await activeDivisionLeadMembers(db, tenantId, parent.client.companyId)).forEach((id: string) => memberIds.add(id));
+      } else if (isActiveDivisionLead) {
+        for (const step of activeTeamSteps)
+          if (step.team.divisionId === activeDivisionId && step.team.leadMemberId)
+            memberIds.add(step.team.leadMemberId);
+        (await activeDivisionLeadMembers(db, tenantId, parent.client.companyId)).forEach((id: string) => memberIds.add(id));
+      } else if (ledTeamSteps.length) {
+        const divisionIds = [...new Set<string>(ledTeamSteps.map((step: any) => step.team.divisionId))];
+        for (const divisionId of divisionIds)
+          (await activeDivisionLeadMembers(db, tenantId, parent.client.companyId, [divisionId])).forEach((id: string) => memberIds.add(id));
+        for (const step of activeTeamSteps)
+          if (divisionIds.includes(step.team.divisionId) && step.team.leadMemberId)
+            memberIds.add(step.team.leadMemberId);
+        (await activeTeamMemberIds(db, tenantId, ledTeamSteps.map((step: any) => step.teamId))).forEach((id: string) => memberIds.add(id));
+      } else if (memberTeamIds.length) {
+        const ownTeamIds = [...new Set(memberTeamIds)];
+        for (const step of activeTeamSteps)
+          if (ownTeamIds.includes(step.teamId) && step.team.leadMemberId)
+            memberIds.add(step.team.leadMemberId);
+        (await activeTeamMemberIds(db, tenantId, ownTeamIds)).forEach((id: string) => memberIds.add(id));
       }
-      return db.actorProfile.findMany({
+
+      // A persisted pair is a narrowly-scoped reciprocal edge.  It augments
+      // only this Work Request's exact counterpart; it never expands a role's
+      // normal matrix or exposes unrelated people.
+      const reciprocal = await db.workRequestV1InfoRequest.findMany({
         where: {
           tenantId,
-          id: { not: requesterActorId },
-          isActive: true,
-          isDefault: true,
-          user: { is: { isActive: true } },
+          workRequestId,
           OR: [
-            {
-              clientContact: {
-                is: {
-                  clientId: parent.clientId,
-                  isActive: true,
-                  client: { is: { isActive: true } },
-                },
-              },
-            },
-            {
-              member: {
-                is: {
-                  companyId: parent.client.companyId,
-                  isActive: true,
-                  divisionLeadsByMemberId: {
-                    some: {
-                      divisionId: { in: divisionIds },
-                      revokedAt: null,
-                      division: { is: { isActive: true } },
-                    },
-                  },
-                },
-              },
-            },
+            { requestedByActorId: requesterActorId },
+            { targetActorId: requesterActorId },
           ],
         },
-        select: {
-          id: true,
-          label: true,
-          memberId: true,
-          clientContactId: true,
-          userId: true,
-          role: { select: { isActive: true, customScope: true,
-            userRolesByRoleId: { where: { revokedAt: null, tenantId }, select: { userId: true } },
-            rolePermissions: { where: { revokedAt: null, permission: { code: 'RESPOND_TO_INFO_REQUEST' } }, select: { permission: { select: { scopeCompatibilities: { select: { scope: true } } } } } },
-          } },
-          member: { select: { name: true, divisionLeadsByMemberId: {
-            where: { divisionId: { in: divisionIds }, revokedAt: null },
-            select: { division: { select: { id: true, name: true } } },
-          } } },
-          clientContact: { select: { name: true, client: { select: { id: true, name: true } } } },
-        },
-        orderBy: [{ label: 'asc' }, { id: 'asc' }],
+        select: { requestedByActorId: true, targetActorId: true },
       });
+      const reciprocalActorIds = reciprocal.map((item: any) =>
+        item.requestedByActorId === requesterActorId ? item.targetActorId : item.requestedByActorId,
+      );
+
+      if (requester.memberId) memberIds.delete(requester.memberId);
+
+      const internal = memberIds.size
+        ? await recipientProfiles(db, tenantId, parent.client.companyId, [...memberIds], requesterActorId)
+        : [];
+      const contacts = includeClientContacts
+        ? await clientRecipientProfiles(db, tenantId, parent.clientId, requesterActorId)
+        : [];
+      const reciprocalProfiles = reciprocalActorIds.length
+        ? await activeProfiles(db, tenantId, parent.client.companyId, reciprocalActorIds, requesterActorId)
+        : [];
+      return dedupeProfiles([...internal, ...contacts, ...reciprocalProfiles]);
     });
+  }
+
+  hasInfoRelationship(workRequestId: string, actorId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) => db.workRequestV1InfoRequest.findFirst({
+      where: { tenantId, workRequestId, OR: [{ requestedByActorId: actorId }, { targetActorId: actorId }] },
+      select: { id: true },
+    }));
   }
 
   async isActiveRouteLead(workRequestId: string, memberId: string) {
@@ -189,7 +250,7 @@ export class WorkRequestInfoRepository extends BaseRepository {
     return { divisionIds: [...divisionIds], responsibleMemberId: lead.memberId, responsibleActive: lead.revokedAt === null && lead.member.isActive && lead.division.isActive };
   }
 
-  clientRecipientStatus(workRequestId: string) {
+  clientRecipientStatus(workRequestId: string, requesterActorId: string) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const request = await db.workRequestV1.findFirst({ where: { id: workRequestId, tenantId }, select: {
@@ -197,6 +258,10 @@ export class WorkRequestInfoRepository extends BaseRepository {
       } });
       const clientId = request?.bid?.clientId ?? request?.directProject?.clientId;
       if (!clientId) return null;
+      const route = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, select: { responsibleOriginatingLead: { select: { memberId: true, revokedAt: true } } } });
+      const requester = await db.actorProfile.findFirst({ where: { tenantId, id: requesterActorId, isActive: true }, select: { memberId: true } });
+      if (!route?.responsibleOriginatingLead || route.responsibleOriginatingLead.revokedAt !== null || route.responsibleOriginatingLead.memberId !== requester?.memberId)
+        return { activeContacts: 0, contactsWithActiveDefaultProfile: 0, unavailableContacts: [] };
       const contacts = await db.clientContact.findMany({ where: { tenantId, clientId, isActive: true, client: { is: { isActive: true } } }, select: {
         id: true, name: true, client: { select: { id: true, name: true } },
         actorProfilesByClientContactId: { where: { isActive: true, isDefault: true, user: { is: { isActive: true } } }, select: { id: true } },
@@ -379,4 +444,116 @@ export class WorkRequestInfoRepository extends BaseRepository {
     );
     return versions.length === ids.length;
   }
+}
+
+const recipientProfileSelect = {
+  id: true,
+  label: true,
+  memberId: true,
+  clientContactId: true,
+  member: { select: {
+    name: true,
+    divisionLeadsByMemberId: {
+      where: { revokedAt: null, division: { is: { isActive: true } } },
+      select: { division: { select: { id: true, name: true } } },
+    },
+  } },
+  clientContact: { select: { name: true, client: { select: { id: true, name: true } } } },
+};
+
+async function activeDivisionLeadMembers(
+  db: any,
+  tenantId: string,
+  companyId: string,
+  divisionIds?: string[],
+) {
+  const leads = await db.divisionLead.findMany({
+    where: {
+      tenantId,
+      revokedAt: null,
+      ...(divisionIds ? { divisionId: { in: divisionIds } } : {}),
+      member: { is: { isActive: true, companyId } },
+      division: { is: { isActive: true, companyId } },
+    },
+    select: { memberId: true },
+  });
+  return leads.map((lead: { memberId: string }) => lead.memberId);
+}
+
+async function activeTeamMemberIds(db: any, tenantId: string, teamIds: string[]) {
+  if (!teamIds.length) return [];
+  const members = await db.teamMember.findMany({
+    where: {
+      tenantId,
+      teamId: { in: [...new Set(teamIds)] },
+      leftAt: null,
+      member: { is: { isActive: true } },
+    },
+    select: { memberId: true },
+  });
+  return members.map((member: { memberId: string }) => member.memberId);
+}
+
+function activeProfiles(
+  db: any,
+  tenantId: string,
+  companyId: string,
+  actorIds: string[],
+  excludeActorId: string,
+) {
+  return db.actorProfile.findMany({
+    where: {
+      tenantId,
+      id: { in: [...new Set(actorIds)], not: excludeActorId },
+      isActive: true,
+      user: { is: { isActive: true } },
+      OR: [
+        { member: { is: { isActive: true, companyId, company: { is: { isActive: true } } } } },
+        { clientContact: { is: { isActive: true, client: { is: { isActive: true } } } } },
+      ],
+    },
+    select: recipientProfileSelect,
+    orderBy: [{ label: 'asc' }, { id: 'asc' }],
+  });
+}
+
+function recipientProfiles(
+  db: any,
+  tenantId: string,
+  companyId: string,
+  memberIds: string[],
+  excludeActorId: string,
+) {
+  return db.actorProfile.findMany({
+    where: {
+      tenantId,
+      id: { not: excludeActorId },
+      isActive: true,
+      isDefault: true,
+      user: { is: { isActive: true } },
+      member: { is: { id: { in: [...new Set(memberIds)] }, companyId, isActive: true, company: { is: { isActive: true } } } },
+    },
+    select: recipientProfileSelect,
+    orderBy: [{ label: 'asc' }, { id: 'asc' }],
+  });
+}
+
+function clientRecipientProfiles(db: any, tenantId: string, clientId: string, excludeActorId: string) {
+  return db.actorProfile.findMany({
+    where: {
+      tenantId,
+      id: { not: excludeActorId },
+      isActive: true,
+      isDefault: true,
+      user: { is: { isActive: true } },
+      clientContact: { is: { clientId, isActive: true, client: { is: { isActive: true } } } },
+    },
+    select: recipientProfileSelect,
+    orderBy: [{ label: 'asc' }, { id: 'asc' }],
+  });
+}
+
+function dedupeProfiles(profiles: any[]) {
+  return [...new Map(profiles.map((profile) => [profile.id, profile])).values()]
+    .sort((left: any, right: any) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id));
 }

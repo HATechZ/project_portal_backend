@@ -118,7 +118,7 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
   history(workRequestId: string, actorId: string, internal: boolean) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
-      const route: any = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, include: { projection: true, steps: { select: { id: true, ordinal: true, kind: true, divisionId: true, activatedAt: true, completedAt: true } } } });
+      const route: any = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, include: { projection: true, steps: { orderBy: { ordinal: 'asc' }, select: { id: true, ordinal: true, kind: true, divisionId: true, activatedAt: true, completedAt: true } } } });
       if (!route) return null;
       return internal
         ? {
@@ -132,7 +132,12 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
           }
         : {
             projection: route.projection
-              ? { routeVersionId: route.projection.routeVersionId, routeStepId: route.projection.routeStepId, updatedAt: route.projection.updatedAt }
+              ? {
+                  routeVersionId: route.projection.routeVersionId,
+                  routeStepId: route.projection.routeStepId,
+                  divisionCycleId: route.projection.divisionCycleId,
+                  updatedAt: route.projection.updatedAt,
+                }
               : null,
             steps: route.steps,
           };

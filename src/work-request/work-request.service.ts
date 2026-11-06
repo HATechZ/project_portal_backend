@@ -100,6 +100,14 @@ export class WorkRequestService extends WorkRequestServiceBase {
     return routeActions ?? super.availableActions(id, actor);
   }
 
+  override async find(id: string, actor: SessionActor) {
+    const response = await super.find(id, actor);
+    const routeActions = await this.routeActions.available(id, actor);
+    return routeActions === null
+      ? response
+      : { ...response, availableActions: routeActions };
+  }
+
   downloadDocuments(
     id: string,
     versionIds: string[] | undefined,

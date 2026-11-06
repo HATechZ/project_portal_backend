@@ -104,4 +104,98 @@ describe('WorkRequestAssignmentRepository', () => {
 
     expect(memberFindFirst).toHaveBeenCalledTimes(1);
   });
+
+  it('advances an initial route Division hand-off atomically with its assignment', async () => {
+    const routeStepUpdate = jest.fn();
+    const cycleUpdate = jest.fn();
+    const cycleCreate = jest.fn();
+    const projectionUpdate = jest.fn();
+    const routeEventCreate = jest.fn();
+    const repository = new WorkRequestAssignmentRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestV1Assignment: {
+            create: jest.fn().mockResolvedValue({
+              id: 'assignment-a',
+              level: Level.DIVISION,
+              divisionId: 'division-next',
+              teamId: null,
+              memberId: null,
+              assignedAt: new Date(),
+            }),
+          },
+          workRequestV1Event: {
+            create: jest.fn().mockResolvedValue({
+              id: 'event-a',
+              action: 'DIVISION_ASSIGNED',
+              occurredAt: new Date(),
+            }),
+          },
+          workRequestRoute: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'route-a',
+              projection: {
+                routeVersionId: 'version-a',
+                routeStepId: 'origin-step',
+              },
+            }),
+          },
+          workRequestRouteStep: {
+            findFirst: jest
+              .fn()
+              .mockResolvedValueOnce({
+                id: 'origin-step',
+                ordinal: 1,
+                kind: 'ORIGIN_START',
+                completedAt: null,
+              })
+              .mockResolvedValueOnce({ id: 'next-step' }),
+            update: routeStepUpdate,
+          },
+          workRequestDivisionCycle: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'origin-cycle',
+              completedAt: null,
+              teamSteps: [],
+            }),
+            update: cycleUpdate,
+            create: cycleCreate,
+          },
+          workRequestRouteProjection: { update: projectionUpdate },
+          workRequestRouteEvent: { create: routeEventCreate },
+        }),
+    } as never);
+
+    await RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
+      repository.write({
+        workRequestId: 'request-a',
+        level: Level.DIVISION,
+        targetId: 'division-next',
+        actorId: 'actor-a',
+        priorState: State.CREATED,
+        resultingState: State.DIVISION_ASSIGNED,
+        action: 'DIVISION_ASSIGNED',
+        replacing: false,
+      }),
+    );
+
+    expect(routeStepUpdate).toHaveBeenCalledTimes(2);
+    expect(cycleUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'origin-cycle' },
+        data: expect.objectContaining({ completedAt: expect.any(Date) }),
+      }),
+    );
+    expect(cycleCreate).toHaveBeenCalledTimes(1);
+    expect(projectionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          routeStepId: 'next-step',
+          teamStepId: null,
+          memberStepId: null,
+        }),
+      }),
+    );
+    expect(routeEventCreate).toHaveBeenCalledTimes(2);
+  });
 });

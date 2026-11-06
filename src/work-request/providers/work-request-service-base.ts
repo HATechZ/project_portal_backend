@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { HttpStatus, Inject } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
@@ -7,10 +7,7 @@ import { PaginationQueryDto } from '../../common/pagination/dtos/pagination-quer
 import { paginate } from '../../common/pagination/paginate';
 import type { SessionActor } from '../../common/security/session.types';
 import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
-import {
-  FILE_STORAGE,
-  type FileStorage,
-} from '../../contracts/storage/file-storage.port';
+import type { FileStorage } from '../../contracts/storage/file-storage.port';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { OutboxService } from '../../infra/messaging/outbox.service';
 import { DocumentVersionCreated } from '../../contracts/events/document-events';
@@ -60,7 +57,11 @@ export abstract class WorkRequestServiceBase {
     private readonly actions: WorkRequestActionsProvider,
     private readonly history: WorkRequestDocumentHistoryProvider,
     private readonly naming: WorkRequestNamingProvider,
-    @Inject(FILE_STORAGE) private readonly storage: FileStorage,
+    // The concrete injectable service owns the FILE_STORAGE token. Decorating
+    // this abstract base parameter leaks inherited Nest metadata at index 8
+    // (the subclass's WorkRequestAssignmentProvider slot), so Nest injects the
+    // storage adapter into the assignment provider field.
+    private readonly storage: FileStorage,
     private readonly receipts?: DocumentUploadRequestRepository,
     private readonly outbox?: OutboxService,
     private readonly objectScope = new ObjectScopeProvider(),
