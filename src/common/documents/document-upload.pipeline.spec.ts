@@ -41,10 +41,17 @@ describe('DocumentUploadPipeline', () => {
     });
     expect(drafts[0].storageKey).not.toContain('projectId');
   });
-  it('rejects missing or mismatched positional document code mapping', () => {
-    expect(() => DocumentUploadPipeline.prepare(input([upload()], []))).toThrow(
-      'equally sized',
-    );
+  it('permits an uncategorized Work Request attachment while retaining server-owned metadata', () => {
+    const [draft] = DocumentUploadPipeline.prepare(input([upload()], []));
+    expect(draft).toMatchObject({
+      documentCodeId: null,
+      documentCode: null,
+      documentName: null,
+      generatedFileName: 'final_plan_v7.pdf',
+    });
+    expect(draft.storageKey).toContain('documents/');
+  });
+  it('rejects missing uploads', () => {
     expect(() => DocumentUploadPipeline.prepare(input([], []))).toThrow(
       'equally sized',
     );

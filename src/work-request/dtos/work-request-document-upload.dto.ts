@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsDefined, IsUUID } from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { WorkRequestDocumentMetadataDto } from './work-request.dto';
 
@@ -13,7 +13,7 @@ const array = ({ value }: { value: unknown }) =>
 /** Multipart contract for new Work Request logical documents only. */
 export class WorkRequestDocumentUploadMultipartDto extends WorkRequestDocumentMetadataDto {
   @ApiProperty({ type: String, format: 'uuid', isArray: true })
-  @IsDefined()
+  @IsOptional()
   @Transform(array)
   @IsUUID(undefined, { each: true })
   documentCodeIds!: string[];

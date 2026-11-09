@@ -1,9 +1,25 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CreateWorkRequestDto, UpdateWorkRequestDto } from './work-request.dto';
+import { CreateWorkRequestDto, UpdateWorkRequestDto, CreateWorkRequestInfoRequestDto, RespondWorkRequestInfoRequestDto } from './work-request.dto';
 
 const bidId = '11111111-1111-4111-8111-111111111111';
 const projectId = '22222222-2222-4222-8222-222222222222';
+
+describe.each([CreateWorkRequestInfoRequestDto, RespondWorkRequestInfoRequestDto])('%s message or attachment validation', (Dto) => {
+  it.each([
+    [{ message: ' text ' }, true],
+    [{ documentVersionIds: [bidId] }, true],
+    [{ message: '   ', documentVersionIds: [bidId] }, true],
+    [{ message: 'text', documentVersionIds: [bidId] }, true],
+    [{}, false],
+    [{ message: '   ', documentVersionIds: [] }, false],
+    [{ documentVersionIds: bidId }, false],
+  ])('validates %j', async (input, valid) => {
+    const dto = plainToInstance(Dto, { targetActorId: bidId, ...input });
+    const errors = await validate(dto);
+    expect(errors.length === 0).toBe(valid);
+  });
+});
 
 async function createErrors(input: Record<string, unknown>) {
   return validate(plainToInstance(CreateWorkRequestDto, input), {

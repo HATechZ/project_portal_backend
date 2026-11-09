@@ -1,7 +1,7 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
 import {
   WorkflowActionCode,
-  WorkRequestV1AssignmentLevelCode as Level,
+  PermissionCode,
   WorkRequestV1StateCode as State,
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
@@ -36,6 +36,7 @@ export class WorkRequestInfoProvider {
     return this.uow.execute(
       async () => {
         this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+        const message = infoMessage(input.message, input.documentVersionIds);
         const snapshot = await this.repository.prepare(id, input.targetActorId);
         if (!snapshot?.parent || !snapshot.target) throw notFound();
         const state = snapshot.request.events[0]?.resultingState;
@@ -57,7 +58,7 @@ export class WorkRequestInfoProvider {
             workRequestId: id,
             requestedByActorId: actor.id,
             targetActorId: input.targetActorId,
-            message: input.message,
+            message,
             stateAtRequest: state,
             parentInfoRequestId: input.parentInfoRequestId,
             documentVersionIds: input.documentVersionIds,
@@ -99,6 +100,7 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
+        const message = infoMessage(input.message, input.documentVersionIds);
         const snapshot = await this.repository.prepare(
           id,
           actor.id,
@@ -120,7 +122,7 @@ export class WorkRequestInfoProvider {
           id,
           infoRequestId,
           actor.id,
-          input.message,
+          message,
           input.documentVersionIds,
           metadata.idempotencyKey,
           metadata.correlationId,
@@ -149,21 +151,13 @@ export class WorkRequestInfoProvider {
 
   async history(id: string, actor: SessionActor) {
     return this.uow.execute(async () => {
+      if (!actor.isActive) throw forbidden();
       const snapshot = await this.repository.prepare(id);
       if (!snapshot?.parent) throw notFound();
-      const routeRecipient = actor.member?.id
-        ? await this.repository.isActiveRouteLead(id, actor.member.id)
-        : false;
-      const administrativeRead = await this.canReadAsAdministrator(id, actor, snapshot);
-      if (!administrativeRead) this.assertParticipant(actor, snapshot, routeRecipient);
-      const routeOnly = routeRecipient && actor.member && !isInternalResponsible(
-        actor.member.id, snapshot.request.assignments, snapshot.request.route,
-      );
+      const participant = await this.repository.hasInfoRelationship(id, actor.id);
+      if (!participant && !(await this.canReadAsAdministrator(id, actor, snapshot))) throw forbidden();
       return (
-        await this.repository.history(
-          id,
-          isExternal(actor) || routeOnly ? actor.id : undefined,
-        )
+        await this.repository.history(id, participant ? actor.id : undefined)
       ).map(requestResponse);
     });
   }
@@ -179,11 +173,33 @@ export class WorkRequestInfoProvider {
       if (!actor.member?.id && !actor.clientContact?.id) return [];
       const recipients = await this.repository.eligibleRecipients(id, actor.id);
       if (!recipients) throw notFound();
-      return recipients.map((recipient) => ({
+      return recipients.map((recipient) => {
+        const member = recipient.member;
+        const teams = new Map<string, { id: string; name: string }>();
+        for (const { team } of member?.teamMembersByMemberId ?? []) teams.set(team.id, team);
+        for (const team of member?.teamsByLeadMemberId ?? []) teams.set(team.id, team);
+        const orderedTeams = [...teams.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        return {
         actorId: recipient.id,
         actorProfileId: recipient.id,
         label: recipient.label,
         displayName: recipient.member?.name ?? recipient.clientContact?.name ?? recipient.label,
+        memberId: recipient.memberId ?? null,
+        email: member?.email ?? recipient.clientContact?.email ?? null,
+        divisionId: member?.division?.id ?? null,
+        divisionName: member?.division?.name ?? null,
+        designationId: member?.designation?.id ?? null,
+        designationName: member?.designation?.name ?? null,
+        teamIds: orderedTeams.map((team) => team.id),
+        teamNames: orderedTeams.map((team) => team.name),
+        relationshipContexts: recipient.memberId
+          ? [
+              ...(member?.division ? [{ kind: 'MEMBER' as const, ...member.division }] : []),
+              ...(member?.divisionLeadsByMemberId ?? []).map(({ division }) => ({ kind: 'DIVISION_LEAD' as const, ...division })),
+              ...(member?.teamsByLeadMemberId ?? []).map((team) => ({ kind: 'TEAM_LEAD' as const, ...team })),
+              ...(member?.teamMembersByMemberId ?? []).map(({ team }) => ({ kind: 'TEAM_MEMBER' as const, ...team })),
+            ]
+          : recipient.clientContact ? [{ kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact.client }] : [],
         recipientType: recipient.memberId ? 'INTERNAL_MEMBER' as const : 'EXTERNAL_CLIENT_CONTACT' as const,
         contextType: recipient.memberId ? 'DIVISION_LEAD' as const : 'CLIENT_CONTACT' as const,
         canReceive: true,
@@ -201,7 +217,8 @@ export class WorkRequestInfoProvider {
         type: recipient.memberId
           ? ('INTERNAL_MEMBER' as const)
           : ('EXTERNAL_CLIENT_CONTACT' as const),
-      }));
+        };
+      });
     });
   }
 
@@ -216,6 +233,7 @@ export class WorkRequestInfoProvider {
 
   private async canReadAsAdministrator(id: string, actor: SessionActor, snapshot: any) {
     if (!actor.isActive || !actor.role.isActive || !hasCompanyWorkRequestScope(actor)) return false;
+    if (!actor.role.rolePermissions.some(({ revokedAt, permission }) => revokedAt === null && permission.code === PermissionCode.VIEW_WORK_REQUEST && (actor.role.customScope === null || permission.scopeCompatibilities?.some(({ scope }) => scope === actor.role.customScope)))) return false;
     if (actor.role.customScope === 'company' && (!actor.member?.isActive || !actor.member.company.isActive || actor.member.companyId !== snapshot.parent.client.companyId)) return false;
     return this.repository.isVisible(id, actor);
   }
@@ -263,35 +281,6 @@ export class WorkRequestInfoProvider {
       throw conflict('An attachment version is invalid for this Work Request.');
   }
 
-  private assertParticipant(
-    actor: SessionActor,
-    snapshot: any,
-    routeRecipient = false,
-  ) {
-    if (!actor.isActive) throw forbidden();
-    if (isExternal(actor)) {
-      if (
-        !actor.clientContact?.isActive ||
-        !actor.clientContact.client.isActive ||
-        actor.clientContact.clientId !== snapshot.parent.clientId
-      )
-        throw forbidden();
-      return;
-    }
-    const member = actor.member;
-    if (
-      !member?.isActive ||
-      !member.company.isActive ||
-      member.companyId !== snapshot.parent.client.companyId ||
-      !(routeRecipient || isInternalResponsible(
-        member.id,
-        snapshot.request.assignments,
-        snapshot.request.route,
-      ))
-    )
-      throw forbidden();
-  }
-
   private async publish(
     workRequestId: string,
     actorId: string,
@@ -323,50 +312,13 @@ export class WorkRequestInfoProvider {
   }
 }
 
-function internalLevel(level: Level) {
-  return (
-    [
-      Level.MEMBER,
-      Level.CHECKING,
-      Level.APPROVAL,
-      Level.FINAL_REVIEW,
-      Level.EXTERNAL_REVIEW,
-    ] as Level[]
-  ).includes(level);
+function infoMessage(message: string | undefined, documentVersionIds?: string[]) {
+  const normalized = message?.trim() ?? '';
+  if (!normalized && !documentVersionIds?.length)
+    throw new BadRequestException('A message or at least one attachment is required.');
+  return normalized;
 }
-function isInternalResponsible(
-  memberId: string,
-  assignments: any[],
-  route?: {
-    responsibleOriginatingLead?: {
-      memberId: string;
-      revokedAt: Date | null;
-      member: { isActive: boolean };
-      division: { isActive: boolean };
-    } | null;
-  } | null,
-) {
-  return (
-    assignments.some(
-      (assignment) =>
-        (internalLevel(assignment.level) && assignment.memberId === memberId) ||
-        (assignment.level === Level.DIVISION &&
-          assignment.division?.divisionLeadsByDivisionId.some(
-            (lead: { memberId: string }) => lead.memberId === memberId,
-          )),
-    ) ||
-    (route?.responsibleOriginatingLead?.memberId === memberId &&
-      route.responsibleOriginatingLead.revokedAt === null &&
-      route.responsibleOriginatingLead.member.isActive &&
-      route.responsibleOriginatingLead.division.isActive)
-  );
-}
-function isExternal(actor: SessionActor) {
-  return (
-    actor.role.customScope === 'client' ||
-    actor.role.customScope === 'client_contact'
-  );
-}
+
 function participant(actor: any): {
   actorId: string;
   type: 'INTERNAL_MEMBER' | 'EXTERNAL_CLIENT_CONTACT';

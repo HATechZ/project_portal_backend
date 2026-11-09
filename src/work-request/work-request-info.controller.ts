@@ -112,7 +112,6 @@ export class WorkRequestInfoController {
   }
 
   @Get()
-  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Information Requests by Work Request ID' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Work Request ID' })
   @ApiStandardArrayResponse(WorkRequestInfoRequestDto)

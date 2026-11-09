@@ -83,7 +83,8 @@ export class DocumentUploadPipeline {
   }): NewDocumentDraft[] {
     if (
       (!input.allowEmpty && !input.uploads.length) ||
-      input.uploads.length !== input.documentCodeIds.length
+      (input.documentCodeIds.length !== 0 &&
+        input.uploads.length !== input.documentCodeIds.length)
     )
       throw bad(
         'files and documentCodeIds must be equally sized non-empty arrays.',
@@ -99,21 +100,24 @@ export class DocumentUploadPipeline {
       );
     if (!input.uploads.length) return [];
     return input.uploads.map((upload, index) => {
-      const code = input.codes.get(input.documentCodeIds[index]);
-      if (!code)
+      const codeId = input.documentCodeIds[index];
+      const code = codeId ? input.codes.get(codeId) : undefined;
+      if (codeId && !code)
         throw notFound('A Document Code was not found or is inactive.');
       const uploadedFileName = safeName(upload.originalname);
       assertAllowed(uploadedFileName, upload.mimetype);
       if (upload.size < 1) throw bad('Uploaded file is invalid.');
-      const generatedFileName = input.generatedFileName(code, uploadedFileName);
+      const generatedFileName = code
+        ? input.generatedFileName(code, uploadedFileName)
+        : uploadedFileName;
       if (!generatedFileName || generatedFileName.length > 260)
         throw bad('Generated filename is invalid.');
       return {
         documentId: randomUUID(),
         versionId: randomUUID(),
-        documentCodeId: input.documentCodeIds[index],
-        documentCode: code.code,
-        documentName: code.name,
+        documentCodeId: (codeId ?? null) as unknown as string,
+        documentCode: (code?.code ?? null) as unknown as string,
+        documentName: (code?.name ?? null) as unknown as string,
         originalFileName: uploadedFileName,
         description: normalizeDescription(input.descriptions?.[index]),
         shipmentNumber: normalizeShipmentNumber(input.shipmentNumbers?.[index]),

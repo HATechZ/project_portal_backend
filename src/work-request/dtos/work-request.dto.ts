@@ -9,6 +9,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -360,29 +361,33 @@ export class CreateWorkRequestInfoRequestDto {
   @IsUUID()
   targetActorId!: string;
 
-  @ApiProperty({ description: 'Clarification message.' })
+  @ApiPropertyOptional({ description: 'Clarification message; required when no documents are attached.' })
+  @ValidateIf((input, value) => !(Array.isArray(input.documentVersionIds) && input.documentVersionIds.length > 0 && (value === undefined || (typeof value === 'string' && value.trim() === ''))))
   @Transform(trim)
   @IsString()
   @IsNotEmpty()
   @MaxLength(10000)
-  message!: string;
+  message?: string;
 
   @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true })
   @IsOptional()
+  @IsArray()
   @IsUUID(undefined, { each: true })
   documentVersionIds?: string[];
 }
 
 export class RespondWorkRequestInfoRequestDto {
-  @ApiProperty({ description: 'Clarification response message.' })
+  @ApiPropertyOptional({ description: 'Clarification response message; required when no documents are attached.' })
+  @ValidateIf((input, value) => !(Array.isArray(input.documentVersionIds) && input.documentVersionIds.length > 0 && (value === undefined || (typeof value === 'string' && value.trim() === ''))))
   @Transform(trim)
   @IsString()
   @IsNotEmpty()
   @MaxLength(10000)
-  message!: string;
+  message?: string;
 
   @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true })
   @IsOptional()
+  @IsArray()
   @IsUUID(undefined, { each: true })
   documentVersionIds?: string[];
 }
@@ -397,6 +402,16 @@ export class WorkRequestInfoRecipientDto extends WorkRequestInfoParticipantDto {
   @ApiProperty({ format: 'uuid' }) actorProfileId!: string;
   @ApiProperty() label!: string;
   @ApiProperty() displayName!: string;
+  @ApiProperty({ nullable: true, format: 'uuid' }) memberId!: string | null;
+  @ApiProperty({ nullable: true }) email!: string | null;
+  @ApiProperty({ nullable: true, format: 'uuid' }) divisionId!: string | null;
+  @ApiProperty({ nullable: true }) divisionName!: string | null;
+  @ApiProperty({ nullable: true, format: 'uuid' }) designationId!: string | null;
+  @ApiProperty({ nullable: true }) designationName!: string | null;
+  @ApiProperty({ type: [String] }) teamIds!: string[];
+  @ApiProperty({ type: [String] }) teamNames!: string[];
+  @ApiProperty({ type: [Object], description: 'Current organization and client relationships.' })
+  relationshipContexts!: { kind: 'MEMBER' | 'DIVISION_LEAD' | 'TEAM_LEAD' | 'TEAM_MEMBER' | 'CLIENT_CONTACT'; id: string; name: string }[];
   @ApiProperty() recipientType!: 'INTERNAL_MEMBER' | 'EXTERNAL_CLIENT_CONTACT';
   @ApiProperty() contextType!: 'DIVISION_LEAD' | 'CLIENT_CONTACT';
   @ApiProperty() canReceive!: boolean;

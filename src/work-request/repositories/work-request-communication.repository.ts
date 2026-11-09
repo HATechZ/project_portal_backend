@@ -115,15 +115,16 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
     return this.transaction((db) => db.workRequestRouteConversation.findFirst({ where: { id: conversationId, tenantId, workRequestId, OR: [{ firstParticipantActorId: actorId }, { secondParticipantActorId: actorId }] }, include: { messages: { orderBy: [{ sequenceNumber: 'asc' }, { id: 'asc' }], include: { attachments: { select: { documentVersionId: true } } } } } }));
   }
 
-  history(workRequestId: string, actorId: string, internal: boolean) {
+  history(workRequestId: string, actorId: string, internal: boolean, execution = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
-      const route: any = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, include: { projection: true, steps: { orderBy: { ordinal: 'asc' }, select: { id: true, ordinal: true, kind: true, divisionId: true, activatedAt: true, completedAt: true } } } });
+      const route: any = await db.workRequestRoute.findFirst({ where: { tenantId, workRequestId }, include: { projection: true, steps: { orderBy: { ordinal: 'asc' }, select: { id: true, ordinal: true, kind: true, divisionId: true, division: { select: { name: true } }, activatedAt: true, completedAt: true } } } });
       if (!route) return null;
+      const steps = route.steps.map(({ division, ...step }: any) => ({ ...step, divisionName: division?.name ?? null }));
       return internal
         ? {
             projection: route.projection,
-            steps: route.steps,
+            steps,
             events: await db.workRequestRouteEvent.findMany({
               where: { tenantId, routeId: route.id },
               orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
@@ -136,10 +137,11 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
                   routeVersionId: route.projection.routeVersionId,
                   routeStepId: route.projection.routeStepId,
                   divisionCycleId: route.projection.divisionCycleId,
+                  ...(execution ? { teamStepId: route.projection.teamStepId, memberStepId: route.projection.memberStepId } : {}),
                   updatedAt: route.projection.updatedAt,
                 }
               : null,
-            steps: route.steps,
+            steps,
           };
     });
   }

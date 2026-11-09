@@ -49,7 +49,7 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
 
     await expect(context(() => provider.routeProjection('request-a', actor))).resolves.toBe(history);
     expect(reads.find).toHaveBeenCalledWith('request-a', actor);
-    expect(communications.history).toHaveBeenCalledWith('request-a', 'actor-a', false);
+    expect(communications.history).toHaveBeenCalledWith('request-a', 'actor-a', false, true);
   });
 
   it('does not disclose a route projection when the Work Request visibility predicate rejects it', async () => {

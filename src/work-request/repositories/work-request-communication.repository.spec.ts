@@ -43,4 +43,21 @@ describe('WorkRequestCommunicationRepository Phase 6 pair persistence', () => {
       }),
     );
   });
+
+  it('returns each route Division name and the exact persisted execution pointers', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      projection: { routeVersionId: 'version-a', routeStepId: 'step-a', divisionCycleId: 'cycle-a', teamStepId: 'team-step-a', memberStepId: null, updatedAt: new Date('2026-01-01T00:00:00.000Z') },
+      steps: [
+        { id: 'step-a', ordinal: 1, divisionId: 'division-a', division: { name: 'Engineering' } },
+        { id: 'step-b', ordinal: 2, divisionId: null, division: null },
+      ],
+    });
+    const subject = new WorkRequestCommunicationRepository({ execute: (work: (executor: never) => Promise<unknown>) => work({ workRequestRoute: { findFirst } } as never) } as never);
+    const result = await context(() => subject.history('request-a', 'actor-a', false, true));
+    expect(result).toMatchObject({ projection: { divisionCycleId: 'cycle-a', teamStepId: 'team-step-a', memberStepId: null }, steps: [{ divisionId: 'division-a', divisionName: 'Engineering' }, { divisionId: null, divisionName: null }] });
+    expect(findFirst.mock.calls[0][0].include.steps.select.division.select).toEqual({ name: true });
+    const main = await context(() => subject.history('request-a', 'actor-a', false));
+    expect(main?.projection).not.toHaveProperty('teamStepId');
+    expect(main?.projection).not.toHaveProperty('memberStepId');
+  });
 });

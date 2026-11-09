@@ -98,7 +98,7 @@ export abstract class WorkRequestServiceBase {
         requestId,
       }));
     if (replay) return replay.response as unknown as DocumentSummaryDto[];
-    const revisionCode = context.naming.kind === 'BID' ? 'A' : '01';
+    const revisionCode = context.naming?.kind === 'BID' ? 'A' : '01';
     const drafts = DocumentUploadPipeline.prepare({
       uploads,
       documentCodeIds,
@@ -108,7 +108,7 @@ export abstract class WorkRequestServiceBase {
       revisionCode,
       storagePrefix: `tenants/${RequestContext.requireTenantId()}/work-requests/${id}/documents`,
       generatedFileName: (code, uploadedFileName) =>
-        context.naming.kind === 'BID'
+        context.naming?.kind === 'BID'
           ? this.naming.generatedFileName({
               bidNaming: context.naming,
               documentCode: code.code,
@@ -116,13 +116,13 @@ export abstract class WorkRequestServiceBase {
               uploadedFileName,
               revisionCode,
             })!
-          : formatDirectProjectDocumentFileName({
+          : context.naming ? formatDirectProjectDocumentFileName({
               ...context.naming,
               documentCode: code.code,
               documentName: code.name,
               uploadedFileName,
               revisionCode,
-            }),
+            }) : uploadedFileName,
     });
     let stored: string[] = [];
     try {
@@ -765,5 +765,7 @@ function mapReferenceError(error: unknown): Error {
     return conflict(
       'Document uploads require one unambiguous current execution Division.',
     );
+  if (error.message === 'WR_NAMING_CONTEXT')
+    return conflict('Document naming details are incomplete for this Work Request.');
   return error;
 }

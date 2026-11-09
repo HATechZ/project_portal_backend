@@ -414,7 +414,10 @@ export class WorkRequestRepository extends BaseRepository {
           },
         },
       });
-      return route;
+      return route ? {
+        ...route,
+        steps: route.steps.map((step) => ({ ...step, divisionName: step.division?.name ?? null })),
+      } : null;
     });
   }
   forwardRoute(
@@ -688,28 +691,24 @@ export class WorkRequestRepository extends BaseRepository {
         },
       });
       if (!request) return null;
-      const divisionId = this.currentDocumentDivisionId(request);
-      if (!divisionId) throw new Error('WR_DOCUMENT_CONTEXT');
-      const configuredGroups = await db.divisionDocumentGroup.findMany({
-        where: { tenantId, divisionId },
-        select: { documentGroup: true },
-      });
-      const allowedGroups = workRequestDocumentGroups(
-        configuredGroups.map((row) => row.documentGroup),
-      );
       const parent = request.bid ?? request.directProject;
-      if (
+      if (!parent) throw new Error('WR_PARENT');
+      const needsCodedNaming = documentCodeIds.length > 0;
+      if (needsCodedNaming && (
+        !this.currentDocumentDivisionId(request) ||
         !parent ||
         !parent.projectCode ||
         !parent.cargoCodeSnapshot ||
         !parent.vesselCodeSnapshot ||
         !parent.shipmentNumber
-      )
+      ))
         throw new Error('WR_NAMING_CONTEXT');
-      const codes = await db.documentCodeOption.findMany({
-        where: applicableDocumentCodeWhere(tenantId, allowedGroups, documentCodeIds),
+      const divisionId = this.currentDocumentDivisionId(request);
+      const configuredGroups = needsCodedNaming ? await db.divisionDocumentGroup.findMany({ where: { tenantId, divisionId: divisionId! }, select: { documentGroup: true } }) : [];
+      const codes = needsCodedNaming ? await db.documentCodeOption.findMany({
+        where: applicableDocumentCodeWhere(tenantId, workRequestDocumentGroups(configuredGroups.map((row) => row.documentGroup)), documentCodeIds),
         select: { id: true, code: true, name: true },
-      });
+      }) : [];
       if (codes.length !== new Set(documentCodeIds).size)
         throw new Error('WR_DOCUMENT_CODE');
       return {
@@ -718,7 +717,7 @@ export class WorkRequestRepository extends BaseRepository {
           clientId: parent.clientId,
           companyId: parent.client.companyId,
         },
-        naming: request.bid
+        naming: needsCodedNaming && request.bid
           ? {
               kind: 'BID' as const,
               biddingNumber: request.bid.biddingNumber,
@@ -727,13 +726,13 @@ export class WorkRequestRepository extends BaseRepository {
               vesselCode: request.bid.vesselCodeSnapshot,
               shipmentNumber: request.bid.shipmentNumber,
             }
-          : {
+          : needsCodedNaming ? {
               kind: 'PROJECT' as const,
               projectCode: request.directProject!.projectCode!,
               cargoCode: request.directProject!.cargoCodeSnapshot!,
               vesselCode: request.directProject!.vesselCodeSnapshot!,
               shipmentNumber: request.directProject!.shipmentNumber!,
-            },
+            } : null,
         codes: new Map(
           codes.map((code) => [code.id, { code: code.code, name: code.name }]),
         ),

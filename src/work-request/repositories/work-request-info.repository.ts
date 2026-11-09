@@ -129,7 +129,7 @@ export class WorkRequestInfoRepository extends BaseRepository {
       const ledTeamSteps = requester.memberId
         ? activeTeamSteps.filter((step: any) => step.team.leadMemberId === requester.memberId)
         : [];
-      const memberTeamIds = requester.memberId && teamIds.length
+      const assignedMemberTeamIds = requester.memberId && teamIds.length
         ? (await db.workRequestMemberStep.findMany({
             where: {
               tenantId,
@@ -139,6 +139,14 @@ export class WorkRequestInfoRepository extends BaseRepository {
             },
             select: { teamStep: { select: { teamId: true } } },
           })).map((step: any) => step.teamStep.teamId)
+        : [];
+      const memberTeamIds = requester.memberId && assignedMemberTeamIds.length
+        ? (await activeTeamMembershipIds(
+            db,
+            tenantId,
+            requester.memberId,
+            assignedMemberTeamIds,
+          ))
         : [];
       const origin = !!(
         requester.memberId && route?.responsibleOriginatingLead &&
@@ -453,12 +461,23 @@ const recipientProfileSelect = {
   clientContactId: true,
   member: { select: {
     name: true,
+    email: true,
+    division: { select: { id: true, name: true } },
+    designation: { select: { id: true, name: true } },
+    teamMembersByMemberId: {
+      where: { leftAt: null, team: { is: { isActive: true } } },
+      select: { team: { select: { id: true, name: true } } },
+    },
+    teamsByLeadMemberId: {
+      where: { isActive: true },
+      select: { id: true, name: true },
+    },
     divisionLeadsByMemberId: {
       where: { revokedAt: null, division: { is: { isActive: true } } },
       select: { division: { select: { id: true, name: true } } },
     },
   } },
-  clientContact: { select: { name: true, client: { select: { id: true, name: true } } } },
+  clientContact: { select: { name: true, email: true, client: { select: { id: true, name: true } } } },
 };
 
 async function activeDivisionLeadMembers(
@@ -492,6 +511,26 @@ async function activeTeamMemberIds(db: any, tenantId: string, teamIds: string[])
     select: { memberId: true },
   });
   return members.map((member: { memberId: string }) => member.memberId);
+}
+
+async function activeTeamMembershipIds(
+  db: any,
+  tenantId: string,
+  memberId: string,
+  teamIds: string[],
+): Promise<string[]> {
+  const memberships: { teamId: string }[] = await db.teamMember.findMany({
+    where: {
+      tenantId,
+      memberId,
+      teamId: { in: [...new Set(teamIds)] },
+      leftAt: null,
+      team: { is: { isActive: true } },
+      member: { is: { isActive: true } },
+    },
+    select: { teamId: true },
+  });
+  return memberships.map((membership: { teamId: string }) => membership.teamId);
 }
 
 function activeProfiles(

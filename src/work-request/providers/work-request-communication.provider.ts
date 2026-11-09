@@ -56,7 +56,7 @@ export class WorkRequestCommunicationProvider {
   async routeProjection(id: string, actor: SessionActor) {
     const workRequest = await this.reads.find(id, actor);
     if (!workRequest) throw notFound('Work Request was not found.');
-    const history = await this.communications.history(id, actor.id, false);
+    const history = await this.communications.history(id, actor.id, false, true);
     if (!history) throw notFound();
     return history;
   }

@@ -123,7 +123,7 @@ export class WorkRequestDocumentController {
     return this.service.createStandaloneDocuments(
       id,
       files,
-      body.documentCodeIds,
+      body.documentCodeIds ?? [],
       body.descriptions,
       body.shipmentNumbers,
       actor,
