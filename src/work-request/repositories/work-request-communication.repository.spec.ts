@@ -44,6 +44,26 @@ describe('WorkRequestCommunicationRepository Phase 6 pair persistence', () => {
     );
   });
 
+  it('selects Member step IDs so route actions can match the active projection', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const subject = new WorkRequestCommunicationRepository({
+      execute: (work: (executor: never) => Promise<unknown>) =>
+        work({ workRequestRoute: { findFirst } } as never),
+    } as never);
+
+    await context(() => subject.route('request-a'));
+
+    expect(
+      findFirst.mock.calls[0][0].include.divisionCycles.include.teamSteps.include
+        .memberSteps.select,
+    ).toEqual({
+      id: true,
+      memberId: true,
+      activatedAt: true,
+      submittedAt: true,
+    });
+  });
+
   it('returns each route Division name and the exact persisted execution pointers', async () => {
     const findFirst = jest.fn().mockResolvedValue({
       projection: { routeVersionId: 'version-a', routeStepId: 'step-a', divisionCycleId: 'cycle-a', teamStepId: 'team-step-a', memberStepId: null, updatedAt: new Date('2026-01-01T00:00:00.000Z') },

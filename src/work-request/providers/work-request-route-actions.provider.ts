@@ -18,6 +18,19 @@ export class WorkRequestRouteActionsProvider {
     if (!route) return null;
     const memberId = actor.member?.id;
     if (!admin && !(await this.communications.isRelatedActor(workRequestId, memberId!))) return [];
+    const revision = route.projection?.openRevision;
+    if (route.projection?.openRevisionId) {
+      const scope = actor.role.customScope;
+      const compatible = revision?.classification === 'CROSS_DIVISION_FORMAL'
+        ? scope === 'division'
+        : revision?.classification === 'INTERNAL_TEAM'
+          ? scope === 'division' || scope === 'team'
+          : scope === 'division' || scope === 'team' || scope === 'member';
+      return revision && !revision.submittedAt && !revision.resumedAt &&
+        (admin || (revision.sourceActorId === actor.id && compatible)) &&
+        hasPermission(actor, PermissionCode.SUBMIT_WORK_REQUEST)
+        ? [action('RESUBMIT_REVISION', 'Resubmit revision', 'revision')] : [];
+    }
     const actions: { code: string; label: string; targetKind: string }[] = [];
     const cycle = route.divisionCycles.find((item: any) => item.id === route.projection?.divisionCycleId);
     const current = route.steps.find((item: any) => item.id === route.projection?.routeStepId);
@@ -44,6 +57,14 @@ export class WorkRequestRouteActionsProvider {
         : activeDivisionLead);
     const team = cycle?.teamSteps.find((item: any) => item.id === route.projection?.teamStepId && item.activatedAt && !item.completedAt);
     const member = team?.memberSteps.find((item: any) => item.id === route.projection?.memberStepId && item.activatedAt && !item.submittedAt);
+    const teamOwner = actor.role.customScope === 'team' && team?.team.leadMemberId === memberId;
+    const memberOwner = actor.role.customScope === 'member' && member?.memberId === memberId;
+    const memberSource = team?.memberSteps.some((step: any) => step.activatedAt && step.memberId !== memberId);
+    const teamSource = cycle?.teamSteps.some((step: any) => step.activatedAt && step.team.leadMemberId && (divisionLead || step.id !== team?.id));
+    const divisionSource = route.divisionCycles.some((item: any) => item.id !== cycle?.id && item.routeStep?.divisionId !== cycle?.routeStep?.divisionId);
+    if (hasPermission(actor, PermissionCode.REQUEST_WORK_REQUEST_REVISION) &&
+      (((memberOwner || teamOwner) && memberSource) || (teamOwner && teamSource) || (divisionLead && cycle && (teamSource || divisionSource))))
+      actions.push(action('REQUEST_REVISION', 'Request revision', 'revision'));
     if (
       responsibleOriginLead &&
       current?.kind === StepKind.ORIGIN_START &&
@@ -60,10 +81,20 @@ export class WorkRequestRouteActionsProvider {
     if ((admin || (actor.role.customScope === 'team' && team?.team.leadMemberId === memberId)) && team?.memberSteps.length && team.memberSteps.every((item: any) => item.submittedAt) && hasPermission(actor, PermissionCode.APPROVE_WORK_REQUEST_REVIEW)) actions.push(action('COMPLETE_TEAM_STEP', 'Complete Team step', 'team-step'));
     if (divisionLead && cycle?.completedAt && current?.kind !== StepKind.ORIGIN_FINAL_REVIEW && hasPermission(actor, PermissionCode.ROUTE_FOR_REVIEW)) actions.push(action('FORWARD_ROUTE', 'Forward to next route step', 'route-step'));
     if (responsibleOriginLead && current?.kind === StepKind.ORIGIN_FINAL_REVIEW && cycle?.completedAt && hasPermission(actor, PermissionCode.SUBMIT_FOR_EXTERNAL_REVIEW)) actions.push(action('SUBMIT_CLIENT_PACKAGE', 'Submit Client package', 'client-package'));
+    let hasRequestInfoRecipient = false;
     if (
-      (responsibleOriginLead || divisionLead) &&
+      !admin &&
+      memberId &&
       hasPermission(actor, PermissionCode.REQUEST_INFO)
-    )
+    ) {
+      const recipients = await this.communications.recipientActorIds(
+        workRequestId,
+        actor.id,
+        memberId,
+      );
+      hasRequestInfoRecipient = !!recipients?.length;
+    }
+    if (hasRequestInfoRecipient)
       actions.push({
         code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
         label: 'Request Information',

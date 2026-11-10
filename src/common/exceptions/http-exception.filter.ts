@@ -32,17 +32,29 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const error = this.toErrorBody(exception, status);
+    const requestId = RequestContext.requestId() ?? 'unknown';
+    const exceptionName = thrown instanceof Error ? thrown.name : typeof thrown;
+    const exceptionMessage =
+      thrown instanceof Error ? thrown.message : String(thrown);
+    const prismaCode =
+      thrown instanceof Prisma.PrismaClientKnownRequestError
+        ? thrown.code
+        : undefined;
 
     if (thrown instanceof Prisma.PrismaClientKnownRequestError) {
       this.logger.warn(
-        `${request.method} ${request.originalUrl} Prisma ${thrown.code} ` +
-          `requestId=${RequestContext.requestId() ?? 'unknown'} meta=${JSON.stringify(thrown.meta)}`,
+        `[HTTP EXCEPTION] requestId=${requestId} method=${request.method} ` +
+          `route=${request.originalUrl} name=${exceptionName} ` +
+          `message=${exceptionMessage} prismaCode=${prismaCode} ` +
+          `meta=${JSON.stringify(thrown.meta)}`,
       );
     }
 
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.originalUrl}`,
+        `[HTTP EXCEPTION] requestId=${requestId} method=${request.method} ` +
+          `route=${request.originalUrl} name=${exceptionName} ` +
+          `message=${exceptionMessage} prismaCode=${prismaCode ?? 'none'}`,
         thrown instanceof Error ? thrown.stack : String(thrown),
       );
     }

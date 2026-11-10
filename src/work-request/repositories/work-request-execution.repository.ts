@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RequestContext } from '../../common/context/request-context';
+import { AppConfiguration } from '../../config/configuration';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { BaseRepository } from '../../infra/prisma/base.repository';
@@ -8,7 +10,12 @@ import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 
 @Injectable()
 export class WorkRequestExecutionRepository extends BaseRepository {
-  constructor(uow: UnitOfWorkService) {
+  private readonly logger = new Logger(WorkRequestExecutionRepository.name);
+
+  constructor(
+    uow: UnitOfWorkService,
+    private readonly config?: ConfigService<AppConfiguration, true>,
+  ) {
     super(uow);
   }
 
@@ -21,7 +28,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
           routeStep: { select: { divisionId: true } },
           teamSteps: {
             orderBy: { ordinal: 'asc' },
-            include: { team: { select: { id: true, name: true, leadMemberId: true } }, memberSteps: { orderBy: { ordinal: 'asc' }, include: { member: { select: { id: true, name: true } } } } },
+            include: { team: { select: { id: true, name: true, leadMemberId: true } }, memberSteps: { where: { cancelledAt: null }, orderBy: { ordinal: 'asc' }, include: { member: { select: { id: true, name: true } } } } },
           },
         },
       });
@@ -90,7 +97,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
       const teamStep = await activeTeamStep(db, tenantId, workRequestId, teamStepId);
       if (!isAdmin && teamStep.team.leadMemberId !== memberId) throw forbidden();
       await requireTeamMembers(db, tenantId, teamStep.teamId, [targetMemberId]);
-      const last = await db.workRequestMemberStep.findFirst({ where: { tenantId, teamStepId }, orderBy: { ordinal: 'desc' }, select: { ordinal: true } });
+      const last = await db.workRequestMemberStep.findFirst({ where: { tenantId, teamStepId, cancelledAt: null }, orderBy: { ordinal: 'desc' }, select: { ordinal: true } });
       if (!last) throw conflict('Define the Member sequence before appending.');
       const id = randomUUID();
       await db.workRequestMemberStep.create({ data: { id, tenantId, routeId: teamStep.routeId, teamStepId, ordinal: last.ordinal + 1, memberId: targetMemberId } });
@@ -99,21 +106,86 @@ export class WorkRequestExecutionRepository extends BaseRepository {
     }, { isolationLevel: 'Serializable' });
   }
 
-  submitMemberStep(workRequestId: string, memberStepId: string, actorId: string, memberId: string | null, isAdmin = false) {
+  submitMemberStep(workRequestId: string, memberStepId: string, actorId: string, memberId: string | null, input: { message?: string; documentVersionIds?: string[] } = {}, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
+    let checkpoint = 'request entered';
+    this.trace(checkpoint, { workRequestId, memberStepId, actorId });
     return this.transaction(async (db) => {
+      checkpoint = 'payload parsed';
+      this.trace(checkpoint, {
+        hasMessage: !!input.message?.trim(),
+        documentVersionCount: input.documentVersionIds?.length ?? 0,
+      });
       const step = await db.workRequestMemberStep.findFirst({ where: { id: memberStepId, tenantId, route: { is: { workRequestId } } }, include: { teamStep: { include: { divisionCycle: true } } } });
       if (!step || (!isAdmin && step.memberId !== memberId) || step.submittedAt || !step.activatedAt || step.teamStep.completedAt || step.teamStep.divisionCycle.completedAt) throw conflict('Only the active Member step may be submitted.');
-      const projection = await db.workRequestRouteProjection.findFirst({ where: { tenantId, routeId: step.routeId }, select: { memberStepId: true } });
+      const projection = await db.workRequestRouteProjection.findFirst({ where: { tenantId, routeId: step.routeId }, select: { memberStepId: true, openRevisionId: true } });
+      if (projection?.openRevisionId) throw conflict('Resolve the open revision before normal Member submission.');
       if (projection?.memberStepId !== step.id) throw conflict('Only the active Member step may be submitted.');
+      const documentVersionIds = [...new Set(input.documentVersionIds ?? [])];
+      if (documentVersionIds.length) {
+        const validVersions = await db.workRequestV1DocumentVersion.count({
+          where: { tenantId, id: { in: documentVersionIds }, document: { workRequestId } },
+        });
+        if (validVersions !== documentVersionIds.length)
+          throw bad('Every attachment must be an exact Work Request document version.');
+      }
+      checkpoint = 'documentVersionIds validated';
+      this.trace(checkpoint, { documentVersionCount: documentVersionIds.length });
       const now = new Date();
+      checkpoint = 'submission row create started';
+      this.trace(checkpoint, { documentVersionCount: documentVersionIds.length });
+      await db.workRequestMemberStepSubmission.create({
+        data: {
+          id: randomUUID(), tenantId, routeId: step.routeId, workRequestId,
+          memberStepId: step.id, submittedByActorId: actorId,
+          message: input.message ?? null, submittedAt: now,
+          documents: {
+            create: documentVersionIds.map((documentVersionId, position) => ({
+              id: randomUUID(), documentVersionId, position,
+            })),
+          },
+        },
+      });
+      checkpoint = 'submission row created';
+      this.trace(checkpoint);
+      checkpoint = 'document link rows created';
+      this.trace(checkpoint, { documentVersionCount: documentVersionIds.length });
+      checkpoint = 'current MemberStep update';
+      this.trace(checkpoint);
       await db.workRequestMemberStep.update({ where: { id: step.id }, data: { submittedAt: now } });
-      const next = await db.workRequestMemberStep.findFirst({ where: { tenantId, teamStepId: step.teamStepId, ordinal: step.ordinal + 1, activatedAt: null, submittedAt: null } });
+      const next = await db.workRequestMemberStep.findFirst({ where: { tenantId, teamStepId: step.teamStepId, ordinal: { gt: step.ordinal }, cancelledAt: null, activatedAt: null, submittedAt: null }, orderBy: { ordinal: 'asc' } });
+      checkpoint = next ? 'next MemberStep activation' : 'Team Lead return';
+      this.trace(checkpoint);
       if (next) await db.workRequestMemberStep.update({ where: { id: next.id }, data: { activatedAt: now } });
       await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: step.routeId, tenantId } }, data: { memberStepId: next?.id ?? null, updatedAt: now } });
       await event(db, tenantId, step.routeId, actorId, 'MEMBER_STEP_SUBMITTED', { divisionCycleId: step.teamStep.divisionCycleId, teamStepId: step.teamStepId, memberStepId: step.id });
       return this.internalCycle(workRequestId, step.teamStep.divisionCycleId, memberId, isAdmin);
-    }, { isolationLevel: 'Serializable' });
+    }, { isolationLevel: 'Serializable' }).then(
+      (result) => {
+        this.trace('transaction commit');
+        return result;
+      },
+      (error: unknown) => {
+        this.traceFailure(checkpoint, error);
+        throw error;
+      },
+    );
+  }
+
+  private trace(checkpoint: string, details: Record<string, unknown> = {}) {
+    if (this.config?.get('app.env', { infer: true }) !== 'development') return;
+    this.logger.debug(
+      `[WR MEMBER SUBMIT DEBUG] checkpoint=${checkpoint} requestId=${RequestContext.requestId() ?? 'unknown'} ${JSON.stringify(details)}`,
+    );
+  }
+
+  private traceFailure(checkpoint: string, error: unknown) {
+    if (this.config?.get('app.env', { infer: true }) !== 'development') return;
+    const candidate = error as { code?: unknown };
+    this.logger.error(
+      `[WR MEMBER SUBMIT DEBUG] checkpoint=${checkpoint} requestId=${RequestContext.requestId() ?? 'unknown'} name=${error instanceof Error ? error.name : typeof error} message=${error instanceof Error ? error.message : String(error)} prismaCode=${typeof candidate?.code === 'string' ? candidate.code : 'none'}`,
+      error instanceof Error ? error.stack : undefined,
+    );
   }
 
   completeTeamStep(workRequestId: string, teamStepId: string, actorId: string, memberId: string | null, isAdmin = false) {
@@ -121,7 +193,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
     return this.transaction(async (db) => {
       const teamStep = await activeTeamStep(db, tenantId, workRequestId, teamStepId);
       if (!isAdmin && teamStep.team.leadMemberId !== memberId) throw forbidden();
-      const pending = await db.workRequestMemberStep.count({ where: { tenantId, teamStepId, submittedAt: null } });
+      const pending = await db.workRequestMemberStep.count({ where: { tenantId, teamStepId, cancelledAt: null, submittedAt: null } });
       if (pending) throw conflict('Every Member step must be submitted before Team completion.');
       const now = new Date();
       await db.workRequestTeamStep.update({ where: { id: teamStep.id }, data: { completedAt: now } });

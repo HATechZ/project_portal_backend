@@ -164,6 +164,22 @@ export class AppendWorkRequestMemberStepDto {
   memberId!: string;
 }
 
+export class SubmitWorkRequestMemberStepDto {
+  @ApiPropertyOptional({ description: 'Optional Member completion message.' })
+  @IsOptional()
+  @Transform(optionalTrim)
+  @IsString()
+  @MaxLength(10000)
+  message?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true, description: 'Existing Work Request document-version IDs. Duplicate IDs are stored once in first-supplied order.' })
+  @IsOptional()
+  @Transform(array)
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  documentVersionIds?: string[];
+}
+
 export class RequestWorkRequestRouteRevisionDto {
   @ApiProperty({ enum: WorkRequestRouteRevisionClassification })
   @IsEnum(WorkRequestRouteRevisionClassification)
@@ -201,6 +217,13 @@ export class ResubmitWorkRequestRouteRevisionDto {
   @IsString()
   @MaxLength(10000)
   note?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true, description: 'Existing Work Request document-version IDs used for this correction. Duplicate IDs are stored once in first-supplied order.' })
+  @IsOptional()
+  @Transform(array)
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  documentVersionIds?: string[];
 }
 
 /** Phase 6 route-private communication.  This deliberately is not the V1/C2

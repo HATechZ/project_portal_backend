@@ -12,6 +12,7 @@ import {
   AppendWorkRequestMemberStepDto,
   DefineWorkRequestMemberSequenceDto,
   DefineWorkRequestTeamSequenceDto,
+  SubmitWorkRequestMemberStepDto,
 } from './dtos/work-request.dto';
 import { WorkRequestExecutionProvider } from './providers/work-request-execution.provider';
 
@@ -49,8 +50,8 @@ export class WorkRequestExecutionController {
   @Post('member-steps/:memberStepId/submit')
   @FinalPermissions(PermissionCode.SUBMIT_WORK_REQUEST)
   @ApiOperation({ summary: 'Submit Member Step' })
-  submitMemberStep(@Param('id', ParseUUIDPipe) id: string, @Param('memberStepId', ParseUUIDPipe) memberStepId: string, @ActiveActor() actor: SessionActor) {
-    return this.execution.submitMemberStep(id, memberStepId, actor);
+  submitMemberStep(@Param('id', ParseUUIDPipe) id: string, @Param('memberStepId', ParseUUIDPipe) memberStepId: string, @Body() body: SubmitWorkRequestMemberStepDto, @ActiveActor() actor: SessionActor) {
+    return this.execution.submitMemberStep(id, memberStepId, body, actor);
   }
   @Post('team-steps/:teamStepId/complete')
   @FinalPermissions(PermissionCode.APPROVE_WORK_REQUEST_REVIEW)

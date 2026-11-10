@@ -268,9 +268,42 @@ describe('WorkRequestInfoProvider', () => {
     },
   );
 
+  it('returns empty history to a valid initiator before their first Request Info row', async () => {
+    const { provider, repository } = subject();
+    repository.hasInfoRelationship.mockResolvedValue(null);
+    repository.eligibleRecipients.mockResolvedValue([{ id: 'target-a' }]);
+
+    await expect(
+      provider.history('request-a', actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO)),
+    ).resolves.toEqual([]);
+    expect(repository.eligibleRecipients).toHaveBeenCalledWith('request-a', 'actor-a');
+    expect(repository.history).not.toHaveBeenCalled();
+  });
+
+  it('keeps existing initiator history actor-scoped after their first Request Info row', async () => {
+    const { provider, repository } = subject();
+
+    await expect(
+      provider.history('request-a', actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO)),
+    ).resolves.toHaveLength(1);
+    expect(repository.history).toHaveBeenCalledWith('request-a', 'actor-a');
+    expect(repository.eligibleRecipients).not.toHaveBeenCalled();
+  });
+
+  it('denies a new actor without Request Info permission even when recipients would exist', async () => {
+    const { provider, repository } = subject();
+    repository.hasInfoRelationship.mockResolvedValue(null);
+    const noPermission = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+    noPermission.role.rolePermissions = [];
+
+    await expect(provider.history('request-a', noPermission)).rejects.toMatchObject({ status: 403 });
+    expect(repository.eligibleRecipients).not.toHaveBeenCalled();
+  });
+
   it('denies unrelated actors and administrative actors without an explicit history grant', async () => {
     const { provider, repository } = subject();
     repository.hasInfoRelationship.mockResolvedValue(null);
+    repository.eligibleRecipients.mockResolvedValue([]);
     const unrelated = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'member');
     await expect(provider.history('request-a', unrelated)).rejects.toMatchObject({ status: 403 });
     const admin = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);

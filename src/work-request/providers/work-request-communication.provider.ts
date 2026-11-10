@@ -7,6 +7,7 @@ import { hasCompanyWorkRequestScope } from '../../common/security/work-request-v
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
 import { WorkRequestCommunicationRepository } from '../repositories/work-request-communication.repository';
 import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
+import { documentDownloadUrl, documentPreviewUrl } from '../../common/documents/document-access';
 
 @Injectable()
 export class WorkRequestCommunicationProvider {
@@ -68,7 +69,7 @@ export class WorkRequestCommunicationProvider {
     }
     const history = await this.communications.history(id, actor.id, true);
     if (!history) throw notFound();
-    return history;
+    return { ...history, events: (history as { events: unknown[] }).events.map(internalEventResponse) };
   }
   private async assertRelated(id: string, actor: SessionActor) {
     const related = await this.communications.isRelatedActor(id, memberId(actor));
@@ -78,6 +79,32 @@ export class WorkRequestCommunicationProvider {
 }
 function memberId(actor: SessionActor) { if (!actor.member?.id || !actor.member.isActive) throw forbidden(); return actor.member.id; }
 function messageResponse(message: any) { return { id: message.id, conversationId: message.conversationId, sequenceNumber: message.sequenceNumber, senderActorId: message.senderActorId, recipientActorId: message.recipientActorId, message: message.body, sentAt: message.sentAt, attachments: message.attachments.map((attachment: any) => ({ documentVersionId: attachment.documentVersionId })) }; }
+function internalEventResponse({ memberStep, ...event }: any) {
+  const submission = memberStep?.submission;
+  return {
+    ...event,
+    submission: submission ? {
+      submittedByActorId: submission.submittedByActorId,
+      message: submission.message,
+      submittedAt: submission.submittedAt,
+      documents: submission.documents.map(({ documentVersion }: any) => ({
+        documentVersionId: documentVersion.id,
+        documentId: documentVersion.document.id,
+        documentCode: documentVersion.document.documentCodeSnapshot,
+        documentName: documentVersion.document.documentNameSnapshot,
+        description: documentVersion.document.description,
+        originalFileName: documentVersion.originalFileName,
+        uploadedFileName: documentVersion.uploadedFileName ?? documentVersion.document.originalFileName,
+        generatedFileName: documentVersion.generatedFileName,
+        versionNumber: documentVersion.versionNumber,
+        revisionCode: documentVersion.revisionCode,
+        mimeType: documentVersion.mimeType,
+        previewUrl: documentPreviewUrl(documentVersion.id, documentVersion.mimeType),
+        downloadUrl: documentDownloadUrl(documentVersion.id),
+      })),
+    } : null,
+  };
+}
 function error(code: AppErrorCode, status: HttpStatus, message: string) { return new AppException({ code, status, message }); }
 function bad(message: string) { return error(AppErrorCode.BadRequest, HttpStatus.BAD_REQUEST, message); }
 function forbidden() { return error(AppErrorCode.Forbidden, HttpStatus.FORBIDDEN, "You don't have permission to perform this action."); }

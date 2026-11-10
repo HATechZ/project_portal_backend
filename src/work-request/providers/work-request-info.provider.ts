@@ -155,10 +155,18 @@ export class WorkRequestInfoProvider {
       const snapshot = await this.repository.prepare(id);
       if (!snapshot?.parent) throw notFound();
       const participant = await this.repository.hasInfoRelationship(id, actor.id);
-      if (!participant && !(await this.canReadAsAdministrator(id, actor, snapshot))) throw forbidden();
-      return (
-        await this.repository.history(id, participant ? actor.id : undefined)
-      ).map(requestResponse);
+      if (participant)
+        return (await this.repository.history(id, actor.id)).map(requestResponse);
+      if (await this.canReadAsAdministrator(id, actor, snapshot))
+        return (await this.repository.history(id)).map(requestResponse);
+
+      // A valid initiator must be able to open the modal before a first row
+      // exists.  Do not query unscoped history here: no relationship means an
+      // empty private history, never other participants' conversations.
+      this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
+      const recipients = await this.repository.eligibleRecipients(id, actor.id);
+      if (!recipients?.length) throw forbidden();
+      return [];
     });
   }
 

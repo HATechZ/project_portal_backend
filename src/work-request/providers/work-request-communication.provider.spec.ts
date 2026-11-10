@@ -70,4 +70,13 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
     expect(reads.find).toHaveBeenCalledWith('request-a', admin);
     expect(communications.isRelatedActor).not.toHaveBeenCalled();
   });
+
+  it('returns Member submission message and safe existing document-version metadata in internal history', async () => {
+    const event = { id: 'event-a', memberStep: { submission: { submittedByActorId: 'actor-a', message: 'Completed', submittedAt: new Date(), documents: [{ documentVersion: { id: 'version-a', versionNumber: 2, revisionCode: 'B', originalFileName: 'report.pdf', uploadedFileName: null, generatedFileName: 'report-B.pdf', mimeType: 'application/pdf', document: { id: 'document-a', originalFileName: 'report.pdf', description: 'Calculation report', documentCodeSnapshot: 'CALC', documentNameSnapshot: 'Calculation' } } }] } } };
+    const communications = { isRelatedActor: jest.fn().mockResolvedValue(true), history: jest.fn().mockResolvedValue({ events: [event] }) };
+    const provider = new WorkRequestCommunicationProvider(communications as never, {} as never);
+    const result: any = await context(() => provider.internalHistory('request-a', actor));
+    expect(result.events[0]).toMatchObject({ id: 'event-a', submission: { submittedByActorId: 'actor-a', message: 'Completed', documents: [{ documentVersionId: 'version-a', documentId: 'document-a', documentCode: 'CALC', description: 'Calculation report', versionNumber: 2, downloadUrl: expect.stringContaining('version-a') }] } });
+    expect(result.events[0].submission.documents[0]).not.toHaveProperty('storageKey');
+  });
 });

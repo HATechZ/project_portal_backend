@@ -638,6 +638,10 @@ model Tenant {
   workRequestRouteConversations              WorkRequestRouteConversation[]
   workRequestRouteMessages                   WorkRequestRouteMessage[]
   workRequestRouteMessageAttachments         WorkRequestRouteMessageAttachment[]
+  workRequestRouteRevisionSubmissions        WorkRequestRouteRevisionSubmission[]
+  workRequestRouteRevisionSubmissionDocuments WorkRequestRouteRevisionSubmissionDocument[]
+  workRequestMemberStepSubmissions           WorkRequestMemberStepSubmission[]
+  workRequestMemberStepSubmissionDocuments   WorkRequestMemberStepSubmissionDocument[]
   workRequestRouteReconsiderations           WorkRequestRouteReconsideration[]
   workRequestRouteReconsiderationDecisions   WorkRequestRouteReconsiderationDecision[]
   bidDetails                                BidDetail[]
@@ -879,6 +883,8 @@ model ActorProfile {
   workRequestRouteConversationsAsSecondParticipant            WorkRequestRouteConversation[]             @relation("WorkRequestRouteConversationsSecondParticipantActorIdActorProfiles")
   workRequestRouteMessagesSent                                WorkRequestRouteMessage[]                  @relation("WorkRequestRouteMessagesSenderActorIdActorProfiles")
   workRequestRouteMessagesReceived                            WorkRequestRouteMessage[]                  @relation("WorkRequestRouteMessagesRecipientActorIdActorProfiles")
+  workRequestRouteRevisionSubmissions                         WorkRequestRouteRevisionSubmission[]       @relation("WorkRequestRouteRevisionSubmissionsSubmittedByActorIdActorProfiles")
+  workRequestMemberStepSubmissions                            WorkRequestMemberStepSubmission[]          @relation("WorkRequestMemberStepSubmissionsSubmittedByActorIdActorProfiles")
   workRequestRouteReconsiderationsRequested                   WorkRequestRouteReconsideration[]          @relation("WorkRequestRouteReconsiderationsRequestedByActorIdActorProfiles")
   workRequestRouteReconsiderationDecisions                    WorkRequestRouteReconsiderationDecision[]  @relation("WorkRequestRouteReconsiderationDecisionsDecidedByActorIdActorProfiles")
   projectStatusEventsByChangedByActorId                       ProjectStatusEvent[]                       @relation("ProjectStatusEventsChangedByActorIdActorProfiles")
@@ -2069,6 +2075,8 @@ model WorkRequestV1DocumentVersion {
   infoRequestAttachments     WorkRequestV1InfoRequestAttachment[]    @relation("WorkRequestV1InfoRequestAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions")
   infoResponseAttachments    WorkRequestV1InfoResponseAttachment[]   @relation("WorkRequestV1InfoResponseAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions")
   routeMessageAttachments    WorkRequestRouteMessageAttachment[]     @relation("WorkRequestRouteMessageAttachmentsDocumentVersionIdWorkRequestV1DocumentVersions")
+  routeRevisionSubmissionDocuments WorkRequestRouteRevisionSubmissionDocument[] @relation("WorkRequestRouteRevisionSubmissionDocumentsDocumentVersionIdWorkRequestV1DocumentVersions")
+  memberStepSubmissionDocuments WorkRequestMemberStepSubmissionDocument[] @relation("WorkRequestMemberStepSubmissionDocumentsDocumentVersionIdWorkRequestV1DocumentVersions")
 
   @@unique([id, tenantId])
   @@unique([tenantId, workRequestV1DocumentId, versionNumber])
@@ -3189,6 +3197,8 @@ model WorkRequestRoute {
   conversations              WorkRequestRouteConversation[]
   messages                   WorkRequestRouteMessage[]
   messageAttachments         WorkRequestRouteMessageAttachment[]
+  revisionSubmissions        WorkRequestRouteRevisionSubmission[]
+  memberStepSubmissions      WorkRequestMemberStepSubmission[]
   reconsiderations           WorkRequestRouteReconsideration[]
 
   @@unique([id, tenantId])
@@ -3351,6 +3361,7 @@ model WorkRequestMemberStep {
   appendedAt  DateTime @default(now()) @map("appended_at") @db.Timestamp(6)
   activatedAt DateTime? @map("activated_at") @db.Timestamp(6)
   submittedAt DateTime? @map("submitted_at") @db.Timestamp(6)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamp(6)
 
   tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   route      WorkRequestRoute    @relation(fields: [routeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
@@ -3361,12 +3372,58 @@ model WorkRequestMemberStep {
   revisionsAsResume    WorkRequestRouteRevision[] @relation("WorkRequestRouteRevisionResumeMemberStep")
   events     WorkRequestRouteEvent[]
   projection WorkRequestRouteProjection[] @relation("WorkRequestRouteProjectionMemberStep")
+  submission WorkRequestMemberStepSubmission?
 
   @@unique([id, tenantId])
   @@unique([id, tenantId, routeId])
   @@unique([tenantId, teamStepId, ordinal])
   @@index([tenantId, routeId, submittedAt])
   @@map("work_request_member_steps")
+}
+
+/// Immutable Member work handoff detail. The referenced document versions stay
+/// owned by the normal Work Request document/version architecture.
+model WorkRequestMemberStepSubmission {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  routeId           String   @map("route_id") @db.Uuid
+  workRequestId     String   @map("work_request_id") @db.Uuid
+  memberStepId      String   @map("member_step_id") @db.Uuid
+  submittedByActorId String  @map("submitted_by_actor_id") @db.Uuid
+  message           String?  @map("message") @db.Text
+  submittedAt       DateTime @default(now()) @map("submitted_at") @db.Timestamp(6)
+
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  route            WorkRequestRoute       @relation(fields: [routeId, tenantId, workRequestId], references: [id, tenantId, workRequestId], onDelete: Restrict, onUpdate: Cascade)
+  memberStep       WorkRequestMemberStep  @relation(fields: [memberStepId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
+  submittedByActor ActorProfile           @relation("WorkRequestMemberStepSubmissionsSubmittedByActorIdActorProfiles", fields: [submittedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documents        WorkRequestMemberStepSubmissionDocument[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, memberStepId])
+  @@unique([memberStepId, tenantId, routeId])
+  @@unique([id, tenantId, workRequestId])
+  @@index([tenantId, routeId, submittedAt])
+  @@map("work_request_member_step_submissions")
+}
+
+model WorkRequestMemberStepSubmissionDocument {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  submissionId      String   @map("submission_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  position          Int      @map("position")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant          Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  submission      WorkRequestMemberStepSubmission @relation(fields: [submissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentVersion WorkRequestV1DocumentVersion @relation("WorkRequestMemberStepSubmissionDocumentsDocumentVersionIdWorkRequestV1DocumentVersions", fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, submissionId, documentVersionId], map: "wr_member_step_submission_document_version_key")
+  @@unique([tenantId, submissionId, position], map: "wr_member_step_submission_document_position_key")
+  @@index([tenantId, documentVersionId])
+  @@map("work_request_member_step_submission_documents")
 }
 
 /// Append-only lifecycle/audit record. Action remains open so a future
@@ -3447,6 +3504,7 @@ model WorkRequestRouteRevision {
   resumeMemberStep       WorkRequestMemberStep?    @relation("WorkRequestRouteRevisionResumeMemberStep", fields: [resumeMemberStepId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
   events                 WorkRequestRouteEvent[]
   projection             WorkRequestRouteProjection[] @relation("WorkRequestRouteProjectionRevision")
+  submission             WorkRequestRouteRevisionSubmission?
 
   @@unique([id, tenantId])
   @@unique([id, tenantId, routeId])
@@ -3454,6 +3512,51 @@ model WorkRequestRouteRevision {
   @@unique([tenantId, routeId, idempotencyKey])
   @@index([tenantId, routeId, resumedAt])
   @@map("work_request_route_revisions")
+}
+
+/// Immutable source-correction handoff for one route revision. It keeps the
+/// correction note and the exact document versions used for that resubmission.
+model WorkRequestRouteRevisionSubmission {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  id                 String   @id @map("id") @db.Uuid
+  routeId            String   @map("route_id") @db.Uuid
+  workRequestId      String   @map("work_request_id") @db.Uuid
+  revisionId         String   @map("revision_id") @db.Uuid
+  submittedByActorId String   @map("submitted_by_actor_id") @db.Uuid
+  note               String?  @map("note") @db.Text
+  submittedAt        DateTime @default(now()) @map("submitted_at") @db.Timestamp(6)
+
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  route            WorkRequestRoute         @relation(fields: [routeId, tenantId, workRequestId], references: [id, tenantId, workRequestId], onDelete: Restrict, onUpdate: Cascade)
+  revision         WorkRequestRouteRevision @relation(fields: [revisionId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
+  submittedByActor ActorProfile             @relation("WorkRequestRouteRevisionSubmissionsSubmittedByActorIdActorProfiles", fields: [submittedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documents        WorkRequestRouteRevisionSubmissionDocument[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, revisionId])
+  @@unique([revisionId, tenantId, routeId])
+  @@unique([id, tenantId, workRequestId])
+  @@index([tenantId, routeId, submittedAt])
+  @@map("work_request_route_revision_submissions")
+}
+
+model WorkRequestRouteRevisionSubmissionDocument {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  id                String   @id @map("id") @db.Uuid
+  submissionId      String   @map("submission_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  position          Int      @map("position")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant          Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  submission      WorkRequestRouteRevisionSubmission @relation(fields: [submissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  documentVersion WorkRequestV1DocumentVersion       @relation("WorkRequestRouteRevisionSubmissionDocumentsDocumentVersionIdWorkRequestV1DocumentVersions", fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, submissionId, documentVersionId], map: "wr_route_revision_submission_document_version_key")
+  @@unique([tenantId, submissionId, position], map: "wr_route_revision_submission_document_position_key")
+  @@index([tenantId, documentVersionId])
+  @@map("work_request_route_revision_submission_documents")
 }
 
 /// This is a transactionally maintained performance projection only. It is not

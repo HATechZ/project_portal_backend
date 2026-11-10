@@ -75,15 +75,34 @@ describe('WorkRequestRevisionRepository Phase 5 lifecycle guards', () => {
   it('restores only the preserved requester context when the exact source resubmits', async () => {
     const projectionUpdate = jest.fn();
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const submissionCreate = jest.fn();
     const db = {
       workRequestRouteRevision: { findFirst: jest.fn().mockResolvedValue({ id: 'revision-a', routeId: 'route-a', sourceActorId: 'actor-d', classification: Classification.INTERNAL_MEMBER, submittedAt: null, resumedAt: null, sourceActor: { memberId: 'member-d' }, route: { projection: { openRevisionId: 'revision-a' } }, resumeRouteStepId: 'route-step-a', resumeDivisionCycleId: 'cycle-a', resumeTeamStepId: 'team-step-a', resumeMemberStepId: 'member-step-a' }), updateMany, findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'revision-a' }) },
+      workRequestRouteRevisionSubmission: { create: submissionCreate },
       workRequestRouteProjection: { update: projectionUpdate },
       workRequestRouteEvent: { create: jest.fn() },
     };
     const subject = new WorkRequestRevisionRepository({ execute: (work) => work(db) } as never);
     await context(() => subject.resubmit('request-a', 'revision-a', 'actor-d', 'member-d', CustomRoleScope.member));
+    expect(submissionCreate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ revisionId: 'revision-a', note: null, documents: { create: [] } }) }));
     expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ submittedAt: null, resumedAt: null }) }));
     expect(projectionUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ routeStepId: 'route-step-a', memberStepId: 'member-step-a', openRevisionId: null }) }));
+  });
+
+  it('preserves the resubmission note and deduplicated document versions before resuming the requester', async () => {
+    const submissionCreate = jest.fn();
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const db = {
+      workRequestRouteRevision: { findFirst: jest.fn().mockResolvedValue({ id: 'revision-a', routeId: 'route-a', sourceActorId: 'actor-d', classification: Classification.INTERNAL_MEMBER, submittedAt: null, resumedAt: null, sourceActor: { memberId: 'member-d' }, route: { projection: { openRevisionId: 'revision-a' } }, resumeRouteStepId: 'route-step-a', resumeDivisionCycleId: 'cycle-a', resumeTeamStepId: 'team-step-a', resumeMemberStepId: 'member-step-a' }), updateMany, findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'revision-a' }) },
+      workRequestV1DocumentVersion: { count: jest.fn().mockResolvedValue(2) },
+      workRequestRouteRevisionSubmission: { create: submissionCreate },
+      workRequestRouteProjection: { update: jest.fn() },
+      workRequestRouteEvent: { create: jest.fn() },
+    };
+    const subject = new WorkRequestRevisionRepository({ execute: (work) => work(db) } as never);
+    await context(() => subject.resubmit('request-a', 'revision-a', 'actor-d', 'member-d', CustomRoleScope.member, { note: 'Corrected package.', documentVersionIds: ['version-a', 'version-b', 'version-a'] }));
+    expect(db.workRequestV1DocumentVersion.count).toHaveBeenCalledWith({ where: { tenantId: 'tenant-a', id: { in: ['version-a', 'version-b'] }, document: { workRequestId: 'request-a' } } });
+    expect(submissionCreate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ note: 'Corrected package.', documents: { create: [expect.objectContaining({ documentVersionId: 'version-a', position: 0 }), expect.objectContaining({ documentVersionId: 'version-b', position: 1 })] } }) }));
   });
 
   it('rejects a non-source actor without resuming the paused context', async () => {

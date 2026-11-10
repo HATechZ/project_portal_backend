@@ -63,7 +63,7 @@ export class WorkRequestRevisionRepository extends BaseRepository {
     }, { isolationLevel: 'Serializable' });
   }
 
-  resubmit(workRequestId: string, revisionId: string, actorId: string, memberId: string | null, scope: CustomRoleScope | null, isAdmin = false) {
+  resubmit(workRequestId: string, revisionId: string, actorId: string, memberId: string | null, scope: CustomRoleScope | null, input: { note?: string; documentVersionIds?: string[] } = {}, isAdmin = false) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
       const revision = await db.workRequestRouteRevision.findFirst({
@@ -72,13 +72,33 @@ export class WorkRequestRevisionRepository extends BaseRepository {
       });
       if (!revision || (!isAdmin && (revision.sourceActorId !== actorId || revision.sourceActor.memberId !== memberId || !scopeAllows(scope, revision.classification)))) throw forbidden();
       if (revision.submittedAt || revision.resumedAt || revision.route.projection?.openRevisionId !== revision.id) throw conflict('The revision is not open for this source.');
+      const documentVersionIds = [...new Set(input.documentVersionIds ?? [])];
+      if (documentVersionIds.length) {
+        const validVersions = await db.workRequestV1DocumentVersion.count({
+          where: { tenantId, id: { in: documentVersionIds }, document: { workRequestId } },
+        });
+        if (validVersions !== documentVersionIds.length)
+          throw bad('Every attachment must be an exact Work Request document version.');
+      }
       const now = new Date();
+      await db.workRequestRouteRevisionSubmission.create({
+        data: {
+          id: randomUUID(), tenantId, routeId: revision.routeId, workRequestId,
+          revisionId: revision.id, submittedByActorId: actorId, note: input.note ?? null,
+          submittedAt: now,
+          documents: {
+            create: documentVersionIds.map((documentVersionId, position) => ({
+              id: randomUUID(), documentVersionId, position,
+            })),
+          },
+        },
+      });
       const updated = await db.workRequestRouteRevision.updateMany({ where: { id: revision.id, tenantId, submittedAt: null, resumedAt: null }, data: { submittedAt: now, resumedAt: now } });
       if (updated.count !== 1) throw conflict('The revision has already been resumed.');
       await db.workRequestRouteProjection.update({ where: { routeId_tenantId: { routeId: revision.routeId, tenantId } }, data: { routeStepId: revision.resumeRouteStepId, divisionCycleId: revision.resumeDivisionCycleId, teamStepId: revision.resumeTeamStepId, memberStepId: revision.resumeMemberStepId, openRevisionId: null, updatedAt: now } });
       const eventId = randomUUID();
       const action = 'REVISION_RESUBMITTED_AND_RESUMED';
-      await db.workRequestRouteEvent.create({ data: { id: eventId, tenantId, routeId: revision.routeId, routeStepId: revision.resumeRouteStepId, divisionCycleId: revision.resumeDivisionCycleId, teamStepId: revision.resumeTeamStepId, memberStepId: revision.resumeMemberStepId, revisionId: revision.id, action, performedByActorId: actorId } });
+      await db.workRequestRouteEvent.create({ data: { id: eventId, tenantId, routeId: revision.routeId, routeStepId: revision.resumeRouteStepId, divisionCycleId: revision.resumeDivisionCycleId, teamStepId: revision.resumeTeamStepId, memberStepId: revision.resumeMemberStepId, revisionId: revision.id, action, note: input.note ?? null, performedByActorId: actorId } });
       return { revision: await db.workRequestRouteRevision.findFirstOrThrow({ where: { id: revision.id, tenantId } }), event: { id: eventId, action, occurredAt: now } };
     }, { isolationLevel: 'Serializable' });
   }
@@ -89,13 +109,21 @@ async function requesterContext(db: any, tenantId: string, routeId: string, proj
   const base = { routeStepId: projection.routeStepId, divisionCycleId: projection.divisionCycleId, teamStepId: projection.teamStepId, memberStepId: projection.memberStepId, requesterMemberId: memberId };
   if (isAdmin) return base;
   if (classification === Classification.INTERNAL_MEMBER) {
-    const step = projection.memberStepId && await db.workRequestMemberStep.findFirst({ where: { id: projection.memberStepId, tenantId, routeId, memberId, submittedAt: null, activatedAt: { not: null } } });
-    if (!step) throw forbidden();
+    const step = projection.memberStepId && await db.workRequestMemberStep.findFirst({ where: { id: projection.memberStepId, tenantId, routeId, memberId, cancelledAt: null, submittedAt: null, activatedAt: { not: null } } });
+    if (!step) {
+      const team = projection.teamStepId && await db.workRequestTeamStep.findFirst({ where: { id: projection.teamStepId, tenantId, routeId, activatedAt: { not: null }, completedAt: null, team: { leadMemberId: memberId } }, select: { id: true } });
+      if (!team) throw forbidden();
+    }
     return base;
   }
   if (classification === Classification.INTERNAL_TEAM) {
     const step = projection.teamStepId && await db.workRequestTeamStep.findFirst({ where: { id: projection.teamStepId, tenantId, routeId, activatedAt: { not: null }, completedAt: null }, include: { team: { select: { leadMemberId: true } } } });
-    if (!step || step.team.leadMemberId !== memberId) throw forbidden();
+    if (!step || step.team.leadMemberId !== memberId) {
+      const cycle = projection.divisionCycleId && await db.workRequestDivisionCycle.findFirst({ where: { id: projection.divisionCycleId, tenantId, routeId, completedAt: null }, include: { routeStep: { select: { divisionId: true } } } });
+      const lead = cycle?.routeStep.divisionId && await db.divisionLead.findFirst({ where: { tenantId, divisionId: cycle.routeStep.divisionId, memberId, revokedAt: null } });
+      if (!lead) throw forbidden();
+      return { ...base, divisionRequester: true };
+    }
     return base;
   }
   const cycle = projection.divisionCycleId && await db.workRequestDivisionCycle.findFirst({ where: { id: projection.divisionCycleId, tenantId, routeId, completedAt: null }, include: { routeStep: { select: { divisionId: true } } } });
@@ -108,14 +136,14 @@ async function sourceContext(db: any, tenantId: string, routeId: string, input: 
   if (ids.length !== 1) throw bad('Supply exactly one source execution context.');
   if (input.classification === Classification.INTERNAL_MEMBER) {
     if (!input.sourceMemberStepId) throw bad('An internal Member revision requires a Member source step.');
-    const step = await db.workRequestMemberStep.findFirst({ where: { id: input.sourceMemberStepId, tenantId, routeId, activatedAt: { not: null } }, include: { teamStep: true } });
+    const step = await db.workRequestMemberStep.findFirst({ where: { id: input.sourceMemberStepId, tenantId, routeId, cancelledAt: null, activatedAt: { not: null } }, include: { teamStep: true } });
     if (!step || step.teamStepId !== requester.teamStepId || step.memberId === requester.requesterMemberId) throw conflict('The source Member must be a different participant in the same Team context.');
     return actorForMember(db, tenantId, input.sourceActorId, step.memberId, { routeStepId: requester.routeStepId, divisionCycleId: requester.divisionCycleId, teamStepId: step.teamStepId, memberStepId: step.id });
   }
   if (input.classification === Classification.INTERNAL_TEAM) {
     if (!input.sourceTeamStepId) throw bad('An internal Team revision requires a Team source step.');
     const step = await db.workRequestTeamStep.findFirst({ where: { id: input.sourceTeamStepId, tenantId, routeId, activatedAt: { not: null } }, include: { team: { select: { leadMemberId: true } } } });
-    if (!step || step.divisionCycleId !== requester.divisionCycleId || !step.team.leadMemberId || step.id === requester.teamStepId) throw conflict('The source Team must be a different Team in the same Division cycle.');
+    if (!step || step.divisionCycleId !== requester.divisionCycleId || !step.team.leadMemberId || (!requester.divisionRequester && step.id === requester.teamStepId)) throw conflict('The source Team must be a different Team in the same Division cycle.');
     return actorForMember(db, tenantId, input.sourceActorId, step.team.leadMemberId, { routeStepId: requester.routeStepId, divisionCycleId: step.divisionCycleId, teamStepId: step.id, memberStepId: null });
   }
   if (!input.sourceDivisionCycleId) throw bad('A cross-Division revision requires a Division source cycle.');

@@ -24,8 +24,8 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
           },
         },
         steps: { select: { id: true, divisionId: true, ordinal: true, kind: true } },
-        projection: true,
-        divisionCycles: { include: { routeStep: { select: { divisionId: true } }, teamSteps: { include: { team: { select: { leadMemberId: true } }, memberSteps: { select: { memberId: true, activatedAt: true, submittedAt: true } } } } } },
+        projection: { include: { openRevision: true } },
+        divisionCycles: { include: { routeStep: { select: { divisionId: true } }, teamSteps: { include: { team: { select: { leadMemberId: true } }, memberSteps: { where: { cancelledAt: null }, select: { id: true, memberId: true, activatedAt: true, submittedAt: true } } } } } },
       },
     }));
   }
@@ -128,7 +128,18 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
             events: await db.workRequestRouteEvent.findMany({
               where: { tenantId, routeId: route.id },
               orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
-              select: { id: true, action: true, occurredAt: true, routeStepId: true, divisionCycleId: true, teamStepId: true, memberStepId: true },
+              select: {
+                id: true, action: true, occurredAt: true, routeStepId: true,
+                divisionCycleId: true, teamStepId: true, memberStepId: true,
+                memberStep: { select: { submission: { select: {
+                  submittedByActorId: true, message: true, submittedAt: true,
+                  documents: { orderBy: { position: 'asc' }, select: { documentVersion: { select: {
+                    id: true, versionNumber: true, revisionCode: true, originalFileName: true,
+                    uploadedFileName: true, generatedFileName: true, mimeType: true,
+                    document: { select: { id: true, originalFileName: true, description: true, documentCodeSnapshot: true, documentNameSnapshot: true } },
+                  } } } },
+                } } } },
+              },
             }),
           }
         : {

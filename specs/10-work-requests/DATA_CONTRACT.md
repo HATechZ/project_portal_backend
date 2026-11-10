@@ -8,11 +8,27 @@ The new model requires tenant-qualified, append-only/immutable history for route
 
 Persist route position, internal-cycle position, revision pause/resume, and Client lifecycle as separate facts/projections; do not create one giant global enum or mutable status sufficient to reconstruct history. New tables require tenant-qualified FKs, RLS `USING`/`WITH CHECK`, least grants, sequence/one-active constraints, idempotency uniqueness, and append-only protections where specified.
 
+Each route-revision resubmission records one immutable source-correction handoff with its source actor, optional note, timestamp, and ordered, exact Work Request document-version references. This handoff is distinct from normal Member-step submission history and is created before the paused requester context resumes.
+
 The Work Request persists `originatingDivisionId` and `responsibleOriginatingDivisionLeadId` as separate tenant-qualified facts. The latter identifies the exact active DivisionLead responsibility bound at creation; it is not derivable from Division membership. A transfer requires a separate append-only responsibility-change record with predecessor, successor, actor, reason, timestamp, and correlation.
 
 Conceptual relations are: `WorkRequestRouteVersion` (origin, responsible originating lead, predecessor/amendment and route plan); `WorkRequestRouteStep` (occurrence, ordinal, kind, Division, activation/completion); `WorkRequestDivisionCycle` (one per activated Division occurrence); `WorkRequestTeamStep` and `WorkRequestMemberStep` (parent cycle/step, ordinal, target, immutable lifecycle); `WorkRequestRevision` (classification, requester, actual source, exact contexts, resume destination, round, formal trigger); `WorkRequestConversation` (canonical pair per Work Request); `WorkRequestMessage` and immutable attachment references; and `WorkRequestReconsideration` with one request/decision history. These are conceptual names, not approved Prisma names.
 
 ## HISTORICAL / PRE-ROUTE DATA CONTRACT
+
+### Approved unused Member-step retirement
+
+`WorkRequestMemberStep.cancelledAt` is a nullable immutable timestamp for an unused
+ordinary future step retired by an explicit repair. It is not revision state. A
+cancelled step retains its ordinal, identity, member, original append event and all
+audit references. Cancellation is forbidden for activated/submitted steps and for
+steps referenced by a submission, revision requester/source/resume context, or the
+active projection. A cancelled step can never activate or submit. Forward selection
+chooses the lowest greater non-cancelled ordinal; completion ignores cancelled rows.
+Revision continues to use `WorkRequestRouteRevision` and never clears or alters this
+fact. The prepared `20261110010000_cancel_accidental_member_steps` migration retires
+only the two specifically diagnosed unused appends, with guarded identity/context
+assertions. Deployment and repair are owner-run, not automatically applied.
 
 ## Redesign boundary
 

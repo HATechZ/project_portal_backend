@@ -8,6 +8,7 @@ import {
   AppendWorkRequestMemberStepDto,
   DefineWorkRequestMemberSequenceDto,
   DefineWorkRequestTeamSequenceDto,
+  SubmitWorkRequestMemberStepDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestExecutionRepository } from '../repositories/work-request-execution.repository';
 
@@ -45,10 +46,10 @@ export class WorkRequestExecutionProvider {
     const admin = hasTenantWideInternalAuthority(actor);
     return this.execution.appendMemberStep(id, teamStepId, input.memberId, actor.id, memberId(actor, admin), admin);
   }
-  submitMemberStep(id: string, memberStepId: string, actor: SessionActor) {
+  submitMemberStep(id: string, memberStepId: string, input: SubmitWorkRequestMemberStepDto, actor: SessionActor) {
     assertScope(actor, 'member');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.submitMemberStep(id, memberStepId, actor.id, memberId(actor, admin), admin);
+    return this.execution.submitMemberStep(id, memberStepId, actor.id, memberId(actor, admin), input, admin);
   }
   completeTeamStep(id: string, teamStepId: string, actor: SessionActor) {
     assertScope(actor, 'team');

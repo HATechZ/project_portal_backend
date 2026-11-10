@@ -40,7 +40,7 @@ export class WorkRequestRevisionProvider {
       return result.revision;
     }, { isolationLevel: 'Serializable' });
   }
-  resubmit(id: string, revisionId: string, _input: ResubmitWorkRequestRouteRevisionDto, actor: SessionActor) {
+  resubmit(id: string, revisionId: string, input: ResubmitWorkRequestRouteRevisionDto, actor: SessionActor) {
     return this.uow.execute(async () => {
       const admin = hasTenantWideInternalAuthority(actor);
       const result = await this.revisions.resubmit(
@@ -49,6 +49,7 @@ export class WorkRequestRevisionProvider {
         actor.id,
         memberId(actor, admin),
         actor.role.customScope,
+        input,
         admin,
       );
       await this.publish(id, actor.id, result.event, workRequestTransitionRequestMetadata().correlationId);
@@ -65,7 +66,7 @@ export class WorkRequestRevisionProvider {
 
 function memberId(actor: SessionActor, admin: boolean) {
   if (admin) return null;
-  if (!actor.member?.id) throw new Error('WR_ROUTE_MEMBER');
+  if (!actor.member?.id) throw forbidden();
   return actor.member.id;
 }
 function scopeAllows(scope: CustomRoleScope | null, classification: Classification) {

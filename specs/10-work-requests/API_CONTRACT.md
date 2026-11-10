@@ -13,11 +13,11 @@
 | POST | `/api/v1/work-requests/:id/division-cycles/:cycleId/team-sequence` | Define the active Division cycle's fixed ordered Team sequence. |
 | POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/member-sequence` | Define the active Team's ordered Member sequence. |
 | POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/member-steps` | Append a future Member step to the active Team sequence. |
-| POST | `/api/v1/work-requests/:id/member-steps/:memberStepId/submit` | Submit current Member work. |
+| POST | `/api/v1/work-requests/:id/member-steps/:memberStepId/submit` | Submit current Member work. JSON body is optional: `{ message?: string, documentVersionIds?: UUID[] }`; IDs reference existing owned Work Request DocumentVersions only (no files/multipart). |
 | POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/complete` | Complete current Team work. |
 | POST | `/api/v1/work-requests/:id/route-steps/:routeStepId/forward` | Normal forward only to the next approved route occurrence. |
 | POST | `/api/v1/work-requests/:id/revisions` | Request internal Member, internal Team, or cross-Division formal revision. |
-| POST | `/api/v1/work-requests/:id/revisions/:revisionId/resubmit` | Source correction returns directly to preserved requester/resume destination. |
+| POST | `/api/v1/work-requests/:id/revisions/:revisionId/resubmit` | Source correction returns directly to preserved requester/resume destination. JSON body is optional: `{ note?: string, documentVersionIds?: UUID[] }`; IDs reference existing owned Work Request DocumentVersions only. |
 | GET | `/api/v1/work-requests/:id/communication-recipients` | Context-valid exact people available to the caller. |
 | POST | `/api/v1/work-requests/:id/conversations/messages` | Fan out one initial message to one or more exact recipients. |
 | GET | `/api/v1/work-requests/:id/conversations/:conversationId` | Pair-only continuous conversation history. |
@@ -135,7 +135,7 @@ Recipient descriptors include display name, Client or Division Lead context, `ca
 
 Internal history and information-request read endpoints also permit an active, explicitly permitted actor with company or tenant-wide internal Work Request visibility, after a tenant-scoped resource visibility check. This read access does not grant authority to create or respond to information requests or perform workflow actions; those retain their relationship requirements.
 
-An active ActorProfile with a persisted requester or target relationship may read its own Request Info records for the same Tenant and Work Request without `VIEW_WORK_REQUEST`, even after route responsibility changes. Participant results include only records involving that ActorProfile. The separately authorized administrative read requires `VIEW_WORK_REQUEST` and scoped Work Request visibility and grants no communication rights.
+An active ActorProfile with a persisted requester or target relationship may read its own Request Info records for the same Tenant and Work Request without `VIEW_WORK_REQUEST`, even after route responsibility changes. Participant results include only records involving that ActorProfile. An active ActorProfile with explicit `REQUEST_INFO` and one or more backend-derived eligible recipients may also open history before its first Request Info row; it receives an empty list, never another actor's records. The separately authorized administrative read requires `VIEW_WORK_REQUEST` and scoped Work Request visibility and grants no communication rights.
 
 External create is permitted only to a ClientContact with an explicitly granted compatible `REQUEST_INFO` role and the exact linked Client/Work Request relationship; no tenant-only access is valid.
 
