@@ -134,6 +134,35 @@ describe('WorkRequestExecutionRepository Phase 4 execution guards', () => {
     },
   );
 
+  it('describes an already-authorized same-tenant administrator as a high-level workflow view', async () => {
+    const db = {
+      workRequestDivisionCycle: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'cycle-a',
+          completedAt: null,
+          routeStep: {
+            divisionId: 'division-a',
+            division: { id: 'division-a', name: 'Division A' },
+          },
+          teamSteps: [],
+        }),
+      },
+    };
+
+    await expect(
+      context(() =>
+        repository(db).internalCycle('request-a', 'cycle-a', null, true),
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        workflowVisibility: {
+          canViewMainWorkflow: true,
+          canViewInternalWorkflow: true,
+        },
+      }),
+    );
+  });
+
   it('does not expose a cross-tenant cycle because the tenant-scoped read does not find it', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
     await expect(
@@ -142,6 +171,25 @@ describe('WorkRequestExecutionRepository Phase 4 execution guards', () => {
           'request-a',
           'cycle-a',
           'member-a',
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant-a' }),
+      }),
+    );
+  });
+
+  it('does not let tenant-wide administration bypass a cross-tenant cycle lookup', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    await expect(
+      context(() =>
+        repository({ workRequestDivisionCycle: { findFirst } }).internalCycle(
+          'foreign-request',
+          'foreign-cycle',
+          null,
+          true,
         ),
       ),
     ).rejects.toMatchObject({ status: 404 });

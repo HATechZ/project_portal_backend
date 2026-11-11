@@ -25,3 +25,6 @@ Required implementation proof includes:
 - Member execution remains nested under its Team and never appears as top-level Division Internal Workflow nodes.
 - Revision/resubmit behavior, including Member, Team, Division, and Client-to-Origin-Start revision, does not mutate the normal authoritative Team Sequence or normal Internal Workflow projection.
 - Main Workflow regression: adding the Internal Division Workflow does not change Main Workflow endpoint/data, route occurrences, lifecycle, Division forward behavior, route progression, Client stage, state transitions, or Division Lead presentation/behavior.
+- A same-tenant, resource-authorized `tenant_super_admin` receives `workflowVisibility: { canViewMainWorkflow: true, canViewInternalWorkflow: true }`, sees the existing Main Workflow unchanged, and can read an available Internal Division Workflow.
+- If multiple Internal Division Workflows are legitimately available within that Work Request/tenant context, the contract does not artificially restrict `tenant_super_admin` to one unrelated fixed Division; another tenant's workflows remain unavailable.
+- `tenant_super_admin` visibility metadata grants no new resource access or global business-relationship bypass. Team Lead and Member remain Main false/Internal true; Division-level responsible actor remains Main true/Internal true.

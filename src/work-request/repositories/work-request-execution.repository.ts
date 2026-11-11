@@ -77,7 +77,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
       return {
         ...cycle,
         workflowVisibility: {
-          canViewMainWorkflow: hasDivisionLeadResponsibility,
+          canViewMainWorkflow: isAdmin || hasDivisionLeadResponsibility,
           canViewInternalWorkflow: true,
         },
         availableActions: executionActions(

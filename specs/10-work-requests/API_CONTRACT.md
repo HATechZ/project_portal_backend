@@ -180,4 +180,21 @@ The projection contains top-level Team nodes only. Member steps remain nested ex
 
 Read authorization remains backend-enforced: explicit permission + tenant + compatible scope + Work Request relationship + assignment/responsibility + workflow state. A Division-level responsible actor may receive the unchanged Main Workflow route and its own Internal Division Workflow. A Team Lead or Member receives only the authorized Internal Division Workflow and must not receive Main Workflow route occurrences, cross-Division progress, or Client-stage data. An unrelated Division actor and every cross-tenant actor receive neither the Internal Workflow nor its inferred labels/counts/state. No hardcoded organizational role name authorizes this data; only `tenant_super_admin` remains system-defined.
 
+The additive internal-cycle response also exposes backend-derived presentation metadata:
+
+```ts
+workflowVisibility: {
+  canViewMainWorkflow: boolean;
+  canViewInternalWorkflow: boolean;
+}
+```
+
+For a same-tenant, resource-authorized `tenant_super_admin`, both flags are `true`. This
+metadata describes a visibility decision already authorized by the backend; it does not grant
+access, bypass tenant/Work Request/resource checks, or turn `tenant_super_admin` into a global
+business-relationship wildcard. If more than one Internal Division Workflow is legitimately
+available for the same Work Request and tenant, future additive discovery/read support may expose
+each available projection; the contract must not artificially restrict `tenant_super_admin` to one
+unrelated fixed Division, and must not change the Main Workflow contract.
+
 **Main Workflow backward compatibility (non-regression):** this feature must not require a change to existing Main Workflow endpoint/data, route occurrences, lifecycle, Division forward logic, route progression, Client stage, or the Division Lead Main Workflow presentation. The existing main-route response remains the source for the Main Workflow and is not appended with Internal Workflow execution semantics.
