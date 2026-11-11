@@ -18,7 +18,9 @@ function subject(rows = [row('version-a')]) {
   const documents = {
     downloadVersions: jest.fn(
       async (_workRequestId: string, versionIds?: string[]) =>
-        versionIds ? rows.filter((value) => versionIds.includes(value.id)) : rows,
+        versionIds
+          ? rows.filter((value) => versionIds.includes(value.id))
+          : rows,
     ),
   };
   const storage = {
@@ -48,13 +50,17 @@ async function files(body: Readable): Promise<Map<string, string>> {
     const extraLength = archive.readUInt16LE(offset + 30);
     const commentLength = archive.readUInt16LE(offset + 32);
     const localOffset = archive.readUInt32LE(offset + 42);
-    const name = archive.subarray(offset + 46, offset + 46 + nameLength).toString();
+    const name = archive
+      .subarray(offset + 46, offset + 46 + nameLength)
+      .toString();
     const localNameLength = archive.readUInt16LE(localOffset + 26);
     const localExtraLength = archive.readUInt16LE(localOffset + 28);
     const start = localOffset + 30 + localNameLength + localExtraLength;
     result.set(
       name,
-      inflateRawSync(archive.subarray(start, start + compressedSize)).toString(),
+      inflateRawSync(
+        archive.subarray(start, start + compressedSize),
+      ).toString(),
     );
     offset += 46 + nameLength + extraLength + commentLength;
   }

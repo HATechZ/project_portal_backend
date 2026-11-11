@@ -395,13 +395,15 @@ describe('WorkRequestAssignmentProvider', () => {
         {} as never,
       );
 
-      await expect(provider.history('request-a', {} as never)).resolves.toEqual([
-        expect.objectContaining({
-          memberId: 'member-a',
-          assignee: { id: 'member-a', label: 'Safe Member Name' },
-          assignedBy: { id: 'actor-a', label: 'Coordinator' },
-        }),
-      ]);
+      await expect(provider.history('request-a', {} as never)).resolves.toEqual(
+        [
+          expect.objectContaining({
+            memberId: 'member-a',
+            assignee: { id: 'member-a', label: 'Safe Member Name' },
+            assignedBy: { id: 'actor-a', label: 'Coordinator' },
+          }),
+        ],
+      );
     },
   );
 

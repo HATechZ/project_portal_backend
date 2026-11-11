@@ -53,7 +53,11 @@ async function* zip(entries: ZipEntry[]): AsyncGenerator<Buffer> {
       offset = checkedSize(offset + data.length);
       yield data;
     }
-    const descriptor = dataDescriptor(crc ^ 0xffffffff, compressedSize, uncompressedSize);
+    const descriptor = dataDescriptor(
+      crc ^ 0xffffffff,
+      compressedSize,
+      uncompressedSize,
+    );
     yield descriptor;
     offset = checkedSize(offset + descriptor.length);
     directory.push({
@@ -70,7 +74,11 @@ async function* zip(entries: ZipEntry[]): AsyncGenerator<Buffer> {
     yield header;
     offset = checkedSize(offset + header.length);
   }
-  yield endOfCentralDirectory(directory.length, offset - directoryOffset, directoryOffset);
+  yield endOfCentralDirectory(
+    directory.length,
+    offset - directoryOffset,
+    directoryOffset,
+  );
 }
 
 function localHeader(name: Buffer): Buffer {
@@ -122,7 +130,11 @@ function centralDirectoryHeader(entry: CentralDirectoryEntry): Buffer {
   return header;
 }
 
-function endOfCentralDirectory(count: number, size: number, offset: number): Buffer {
+function endOfCentralDirectory(
+  count: number,
+  size: number,
+  offset: number,
+): Buffer {
   if (count > 0xffff || size > MAX_ZIP32 || offset > MAX_ZIP32)
     throw new Error('ZIP archive exceeds ZIP32 limits.');
   const end = Buffer.alloc(22);
@@ -144,7 +156,8 @@ function checkedSize(value: number): number {
 
 function crc32(data: Buffer, crc: number): number {
   let value = crc;
-  for (const byte of data) value = (value >>> 8) ^ CRC_TABLE[(value ^ byte) & 0xff];
+  for (const byte of data)
+    value = (value >>> 8) ^ CRC_TABLE[(value ^ byte) & 0xff];
   return value;
 }
 

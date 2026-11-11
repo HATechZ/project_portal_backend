@@ -15,3 +15,7 @@ Member and Team requesters need not use their Team/Division Lead as intermediary
 `formalRevisionTrigger` for 10.1 is only the committed `CROSS_DIVISION_FORMAL` revision record/event. A Client `REQUEST_REVISION` is not itself formal. The Originating Division Lead may resolve it internally without increment; if it creates a `CROSS_DIVISION_FORMAL` revision to another Division, that committed revision increments once and returns to Originating Division.
 
 Historical revision records and corrected submissions are never edited/deleted. Concurrent request/resubmit commands use request-id uniqueness, current-context comparison, and serializable transactions so one paused context cannot be resumed twice.
+
+## Internal Division Workflow compatibility
+
+Revision is separate from the normal Internal Division Workflow projection. A revision may temporarily move responsibility according to its immutable source/requester/resume facts, but it must not rewrite, replace, or otherwise mutate the authoritative normal Team sequence from which the Division-cycle Internal Workflow is derived. This preserves every existing revision class and flow: `REQUEST_REVISION`, `RESUBMIT_REVISION`, Member revision, Team revision, Division revision, and Client-to-Origin-Start revision.

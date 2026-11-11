@@ -173,7 +173,9 @@ describe('RoleAssignmentRepository', () => {
         findFirstOrThrow: jest.fn().mockResolvedValue({ name: 'Replacement' }),
       },
       member: { findFirst: jest.fn().mockResolvedValue({ id: 'member-id' }) },
-      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'user-id' }) },
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'user-id' }),
+      },
       userRole: {
         findFirst: jest
           .fn()
@@ -181,7 +183,9 @@ describe('RoleAssignmentRepository', () => {
           .mockResolvedValueOnce(null),
         update: jest.fn().mockResolvedValue({ id: 'old-assignment' }),
         create: jest.fn().mockResolvedValue({ id: 'new-assignment' }),
-        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'new-assignment' }),
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ id: 'new-assignment' }),
       },
       actorProfile: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -211,7 +215,9 @@ describe('RoleAssignmentRepository', () => {
       expect.objectContaining({ data: { isDefault: false } }),
     );
     expect(db.actorProfile.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ isDefault: true }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ isDefault: true }),
+      }),
     );
   });
 });

@@ -101,56 +101,56 @@ describe('Work Request internal visibility', () => {
 
     expect((division as { OR: unknown[] }).OR).toEqual(
       expect.arrayContaining([
-          {
-            route: {
-              is: {
-                divisionCycles: {
-                  some: expect.objectContaining({
-                    completedAt: null,
-                    routeStep: {
-                      is: expect.objectContaining({
-                        divisionId: { in: ['division-a'] },
-                      }),
-                    },
-                  }),
-                },
+        {
+          route: {
+            is: {
+              divisionCycles: {
+                some: expect.objectContaining({
+                  completedAt: null,
+                  routeStep: {
+                    is: expect.objectContaining({
+                      divisionId: { in: ['division-a'] },
+                    }),
+                  },
+                }),
               },
             },
           },
+        },
       ]),
     );
     expect((team as { OR: unknown[] }).OR).toEqual(
       expect.arrayContaining([
-          {
-            route: {
-              is: {
-                teamSteps: {
-                  some: expect.objectContaining({
-                    activatedAt: { not: null },
-                    completedAt: null,
-                    team: { is: { isActive: true, leadMemberId: 'member-a' } },
-                  }),
-                },
+        {
+          route: {
+            is: {
+              teamSteps: {
+                some: expect.objectContaining({
+                  activatedAt: { not: null },
+                  completedAt: null,
+                  team: { is: { isActive: true, leadMemberId: 'member-a' } },
+                }),
               },
             },
           },
+        },
       ]),
     );
     expect((member as { OR: unknown[] }).OR).toEqual(
       expect.arrayContaining([
-          {
-            route: {
-              is: {
-                memberSteps: {
-                  some: expect.objectContaining({
-                    memberId: 'member-a',
-                    activatedAt: { not: null },
-                    submittedAt: null,
-                  }),
-                },
+        {
+          route: {
+            is: {
+              memberSteps: {
+                some: expect.objectContaining({
+                  memberId: 'member-a',
+                  activatedAt: { not: null },
+                  submittedAt: null,
+                }),
               },
             },
           },
+        },
       ]),
     );
   });

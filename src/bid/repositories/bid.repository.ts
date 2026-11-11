@@ -341,7 +341,10 @@ export class BidRepository extends BaseRepository {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.documentCodeOption.findMany({
-        where: applicableDocumentCodeWhere(tenantId, bidProjectDocumentGroups()),
+        where: applicableDocumentCodeWhere(
+          tenantId,
+          bidProjectDocumentGroups(),
+        ),
         select: { id: true, code: true, name: true, documentGroup: true },
         orderBy: [
           { documentGroup: 'asc' },

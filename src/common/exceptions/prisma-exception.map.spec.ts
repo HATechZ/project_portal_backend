@@ -5,20 +5,42 @@ import { mapPrismaException } from './prisma-exception.map';
 
 describe('mapPrismaException', () => {
   it('does not translate the retired Team-grant constraint to a 503', () => {
-    const error = new Prisma.PrismaClientKnownRequestError('database constraint', {
-      code: 'P2039', clientVersion: 'test', meta: { modelName: 'UserRole', driverAdapterError: { cause: {
-        originalCode: '23514', originalMessage: 'Team-scoped custom role grants require team_id',
-      } } },
-    });
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'database constraint',
+      {
+        code: 'P2039',
+        clientVersion: 'test',
+        meta: {
+          modelName: 'UserRole',
+          driverAdapterError: {
+            cause: {
+              originalCode: '23514',
+              originalMessage: 'Team-scoped custom role grants require team_id',
+            },
+          },
+        },
+      },
+    );
     expect(mapPrismaException(error)).toBeUndefined();
   });
 
   it('does not misclassify unrelated database check violations', () => {
-    const error = new Prisma.PrismaClientKnownRequestError('database constraint', {
-      code: 'P2039', clientVersion: 'test', meta: { modelName: 'UserRole', driverAdapterError: { cause: {
-        originalCode: '23514', originalMessage: 'another check failed',
-      } } },
-    });
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'database constraint',
+      {
+        code: 'P2039',
+        clientVersion: 'test',
+        meta: {
+          modelName: 'UserRole',
+          driverAdapterError: {
+            cause: {
+              originalCode: '23514',
+              originalMessage: 'another check failed',
+            },
+          },
+        },
+      },
+    );
     expect(mapPrismaException(error)).toBeUndefined();
   });
   it('maps a prepared normalized OptionValue index conflict to a safe generic conflict', () => {

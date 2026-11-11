@@ -115,7 +115,7 @@ export class DocumentUploadPipeline {
       return {
         documentId: randomUUID(),
         versionId: randomUUID(),
-        documentCodeId: (codeId ?? null) as unknown as string,
+        documentCodeId: codeId ?? null,
         documentCode: (code?.code ?? null) as unknown as string,
         documentName: (code?.name ?? null) as unknown as string,
         originalFileName: uploadedFileName,
@@ -148,7 +148,9 @@ export class DocumentUploadPipeline {
       }
       return stored;
     } catch (error) {
-      await Promise.allSettled(stored.map((storageKey) => storage.remove(storageKey)));
+      await Promise.allSettled(
+        stored.map((storageKey) => storage.remove(storageKey)),
+      );
       throw error;
     }
   }

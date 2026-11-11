@@ -11,10 +11,14 @@ import {
   SubmitWorkRequestMemberStepDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestExecutionRepository } from '../repositories/work-request-execution.repository';
+import { WorkRequestInternalWorkflowProvider } from './work-request-internal-workflow.provider';
 
 @Injectable()
 export class WorkRequestExecutionProvider {
-  constructor(private readonly execution: WorkRequestExecutionRepository) {}
+  constructor(
+    private readonly execution: WorkRequestExecutionRepository,
+    private readonly internalWorkflow: WorkRequestInternalWorkflowProvider,
+  ) {}
 
   async internalCycle(id: string, cycleId: string, actor: SessionActor) {
     const admin = hasTenantWideInternalAuthority(actor);
@@ -26,35 +30,90 @@ export class WorkRequestExecutionProvider {
     );
     return {
       ...cycle,
+      internalWorkflow: this.internalWorkflow.project(cycle),
       availableActions: cycle.availableActions.filter((action) =>
         hasPermission(actor, EXECUTION_PERMISSION[action]),
       ),
     };
   }
-  defineTeamSequence(id: string, cycleId: string, input: DefineWorkRequestTeamSequenceDto, actor: SessionActor) {
+  defineTeamSequence(
+    id: string,
+    cycleId: string,
+    input: DefineWorkRequestTeamSequenceDto,
+    actor: SessionActor,
+  ) {
     assertScope(actor, 'division');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.defineTeamSequence(id, cycleId, input.teamIds, actor.id, memberId(actor, admin), admin);
+    return this.execution.defineTeamSequence(
+      id,
+      cycleId,
+      input.teamIds,
+      actor.id,
+      memberId(actor, admin),
+      admin,
+    );
   }
-  defineMemberSequence(id: string, teamStepId: string, input: DefineWorkRequestMemberSequenceDto, actor: SessionActor) {
+  defineMemberSequence(
+    id: string,
+    teamStepId: string,
+    input: DefineWorkRequestMemberSequenceDto,
+    actor: SessionActor,
+  ) {
     assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.defineMemberSequence(id, teamStepId, input.memberIds, actor.id, memberId(actor, admin), admin);
+    return this.execution.defineMemberSequence(
+      id,
+      teamStepId,
+      input.memberIds,
+      actor.id,
+      memberId(actor, admin),
+      admin,
+    );
   }
-  appendMemberStep(id: string, teamStepId: string, input: AppendWorkRequestMemberStepDto, actor: SessionActor) {
+  appendMemberStep(
+    id: string,
+    teamStepId: string,
+    input: AppendWorkRequestMemberStepDto,
+    actor: SessionActor,
+  ) {
     assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.appendMemberStep(id, teamStepId, input.memberId, actor.id, memberId(actor, admin), admin);
+    return this.execution.appendMemberStep(
+      id,
+      teamStepId,
+      input.memberId,
+      actor.id,
+      memberId(actor, admin),
+      admin,
+    );
   }
-  submitMemberStep(id: string, memberStepId: string, input: SubmitWorkRequestMemberStepDto, actor: SessionActor) {
+  submitMemberStep(
+    id: string,
+    memberStepId: string,
+    input: SubmitWorkRequestMemberStepDto,
+    actor: SessionActor,
+  ) {
     assertScope(actor, 'member');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.submitMemberStep(id, memberStepId, actor.id, memberId(actor, admin), input, admin);
+    return this.execution.submitMemberStep(
+      id,
+      memberStepId,
+      actor.id,
+      memberId(actor, admin),
+      input,
+      admin,
+    );
   }
   completeTeamStep(id: string, teamStepId: string, actor: SessionActor) {
     assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.completeTeamStep(id, teamStepId, actor.id, memberId(actor, admin), admin);
+    return this.execution.completeTeamStep(
+      id,
+      teamStepId,
+      actor.id,
+      memberId(actor, admin),
+      admin,
+    );
   }
 }
 
@@ -68,7 +127,10 @@ function assertScope(
   actor: SessionActor,
   scope: 'division' | 'team' | 'member',
 ): void {
-  if (!hasTenantWideInternalAuthority(actor) && actor.role.customScope !== scope)
+  if (
+    !hasTenantWideInternalAuthority(actor) &&
+    actor.role.customScope !== scope
+  )
     throw forbidden();
 }
 
@@ -80,15 +142,21 @@ const EXECUTION_PERMISSION: Record<string, PermissionCode> = {
   COMPLETE_TEAM_STEP: PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
 };
 
-function hasPermission(actor: SessionActor, required: PermissionCode | undefined) {
-  return !!required && actor.role.rolePermissions.some(
-    ({ revokedAt, permission }) =>
-      revokedAt === null &&
-      permission.code === required &&
-      (actor.role.customScope === null ||
-        permission.scopeCompatibilities.some(
-          ({ scope }) => scope === actor.role.customScope,
-        )),
+function hasPermission(
+  actor: SessionActor,
+  required: PermissionCode | undefined,
+) {
+  return (
+    !!required &&
+    actor.role.rolePermissions.some(
+      ({ revokedAt, permission }) =>
+        revokedAt === null &&
+        permission.code === required &&
+        (actor.role.customScope === null ||
+          permission.scopeCompatibilities.some(
+            ({ scope }) => scope === actor.role.customScope,
+          )),
+    )
   );
 }
 

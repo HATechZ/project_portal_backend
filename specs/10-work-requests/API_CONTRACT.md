@@ -150,3 +150,34 @@ External create is permitted only to a ClientContact with an explicitly granted 
 No C3 endpoint changes this Work Request API. When creating a Bid-owned request, the server (not the client) records the parent Bid's current business-cycle membership; when creating a DirectProject-owned request it records no Bid cycle. No request may carry both parents or become Project-owned because its Bid later converts. C3 business-outcome readiness consumes this persisted membership and latest C1 client lifecycle records only; it does not alter routing, available actions, C1, or C2 contracts.
 
 Request Info recipient descriptors additionally expose nullable `memberId`, `email`, `divisionId`, `divisionName`, `designationId`, and `designationName`, plus aligned `teamIds` and `teamNames` arrays and current `relationshipContexts`. Teams include active memberships and active led Teams, deduplicated by ID. Internal designation and Division come from the current Member relations; Client Contacts have null internal fields and empty Team arrays. Existing recipient context fields and eligibility remain unchanged.
+
+## Additive Internal Division Workflow contract
+
+The Internal Division Workflow is a separate, derived Division-cycle projection; it neither replaces nor changes the Main Workflow route contract. Future implementation exposes it only as additive data on the authorized existing `GET /api/v1/work-requests/:id/internal-cycles/:cycleId` projection (or an equivalent additive, separately authorized read), never by removing, reshaping, or repurposing `GET /api/v1/work-requests/:id/route`.
+
+For an active or historical Division cycle whose authoritative Team sequence is `Team A -> Team B -> Team C`, the projection is `Division -> Team A -> Team B -> Team C -> Division`. The caller never creates these Division boundary nodes and no Internal Workflow create/update command, modal, or second Team sequence exists. Saving the existing ordered Team sequence derives the projection in the same background business flow; a later valid change to the authoritative Team sequence is reflected by the derived projection.
+
+Conceptual additive response data is:
+
+```ts
+internalWorkflow: {
+  divisionId: string;
+  divisionName: string;
+  divisionCycleId: string;
+  steps: Array<
+    | { kind: 'division-start'; state: 'completed' | 'current' | 'upcoming'; }
+    | {
+        kind: 'team'; teamStepId: string; teamId: string; teamName: string;
+        ordinal: number; state: 'completed' | 'current' | 'upcoming';
+      }
+    | { kind: 'division-end'; state: 'completed' | 'current' | 'upcoming'; }
+  >;
+  currentTeamStepId?: string | null;
+} | null
+```
+
+The projection contains top-level Team nodes only. Member steps remain nested execution of their Team and are not flattened into this Division-level sequence. Node state is derived from existing Division-cycle and Team-step responsibility facts, not stored or driven by a second execution engine: before Team work the start boundary is current; while Team A is active, start is completed and Team A is current; after Team A completes Team B becomes current; after the final Team completes, every Team is completed and the end boundary is current.
+
+Read authorization remains backend-enforced: explicit permission + tenant + compatible scope + Work Request relationship + assignment/responsibility + workflow state. A Division-level responsible actor may receive the unchanged Main Workflow route and its own Internal Division Workflow. A Team Lead or Member receives only the authorized Internal Division Workflow and must not receive Main Workflow route occurrences, cross-Division progress, or Client-stage data. An unrelated Division actor and every cross-tenant actor receive neither the Internal Workflow nor its inferred labels/counts/state. No hardcoded organizational role name authorizes this data; only `tenant_super_admin` remains system-defined.
+
+**Main Workflow backward compatibility (non-regression):** this feature must not require a change to existing Main Workflow endpoint/data, route occurrences, lifecycle, Division forward logic, route progression, Client stage, or the Division Lead Main Workflow presentation. The existing main-route response remains the source for the Main Workflow and is not appended with Internal Workflow execution semantics.

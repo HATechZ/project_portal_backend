@@ -44,7 +44,14 @@ describe('BidRepository lifecycle foundation', () => {
         }
       | undefined;
     let cycleInput:
-      | { data: { tenantId: string; bidId: string; cycleNumber: number; openedByActorId: string } }
+      | {
+          data: {
+            tenantId: string;
+            bidId: string;
+            cycleNumber: number;
+            openedByActorId: string;
+          };
+        }
       | undefined;
     const bidCreate = (input: { data: { tenantId: string } }) => {
       bidCreateInput = input;
@@ -109,7 +116,12 @@ describe('BidRepository lifecycle foundation', () => {
           bidStatusEvent: { create: statusEventCreate },
           bidBusinessCycle: {
             create: (input: {
-              data: { tenantId: string; bidId: string; cycleNumber: number; openedByActorId: string };
+              data: {
+                tenantId: string;
+                bidId: string;
+                cycleNumber: number;
+                openedByActorId: string;
+              };
             }) => {
               cycleInput = input;
               return Promise.resolve({});
@@ -154,7 +166,12 @@ describe('BidRepository lifecycle foundation', () => {
       },
     });
     expect(cycleInput).toMatchObject({
-      data: { tenantId, bidId: 'bid-a', cycleNumber: 1, openedByActorId: 'actor-a' },
+      data: {
+        tenantId,
+        bidId: 'bid-a',
+        cycleNumber: 1,
+        openedByActorId: 'actor-a',
+      },
     });
   });
 
@@ -222,19 +239,43 @@ describe('BidRepository lifecycle foundation', () => {
   });
 
   it('accepts a selected tenant-owned Bid document code when preparing an attachment', async () => {
-    const documentCodeFindMany = jest.fn().mockResolvedValue([
-      { id: 'code-a', code: 'GEN-001', name: 'General attachment' },
-    ]);
+    const documentCodeFindMany = jest
+      .fn()
+      .mockResolvedValue([
+        { id: 'code-a', code: 'GEN-001', name: 'General attachment' },
+      ]);
     const repository = new BidRepository({
       execute: (work: (db: unknown) => Promise<unknown>) =>
         work({
-          client: { findFirst: jest.fn().mockResolvedValue({ id: 'client-a' }) },
+          client: {
+            findFirst: jest.fn().mockResolvedValue({ id: 'client-a' }),
+          },
           optionValue: {
             findMany: jest.fn().mockResolvedValue([
-              { id: 'pol-a', name: 'Port A', code: null, optionType: { code: 'POL' } },
-              { id: 'pod-a', name: 'Port B', code: null, optionType: { code: 'POD' } },
-              { id: 'cargo-a', name: 'Cargo', code: 'CG', optionType: { code: 'CARGO_CODE' } },
-              { id: 'vessel-a', name: 'Vessel', code: 'VS', optionType: { code: 'VESSEL_CODE' } },
+              {
+                id: 'pol-a',
+                name: 'Port A',
+                code: null,
+                optionType: { code: 'POL' },
+              },
+              {
+                id: 'pod-a',
+                name: 'Port B',
+                code: null,
+                optionType: { code: 'POD' },
+              },
+              {
+                id: 'cargo-a',
+                name: 'Cargo',
+                code: 'CG',
+                optionType: { code: 'CARGO_CODE' },
+              },
+              {
+                id: 'vessel-a',
+                name: 'Vessel',
+                code: 'VS',
+                optionType: { code: 'VESSEL_CODE' },
+              },
             ]),
           },
           documentCodeOption: { findMany: documentCodeFindMany },

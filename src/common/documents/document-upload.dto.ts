@@ -1,5 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsDefined, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsDefined,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const array = ({ value }: { value: unknown }) =>

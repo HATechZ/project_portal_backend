@@ -2,81 +2,277 @@ import { RequestContext } from '../../common/context/request-context';
 import { WorkRequestCommunicationProvider } from './work-request-communication.provider';
 
 describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
-  const actor = { id: 'actor-a', member: { id: 'member-a', isActive: true } } as never;
-  const context = <T>(work: () => Promise<T>) => RequestContext.run({ tenantId: 'tenant-a', requestId: '11111111-1111-4111-8111-111111111111' }, work);
+  const actor = {
+    id: 'actor-a',
+    member: { id: 'member-a', isActive: true },
+  } as never;
+  const context = <T>(work: () => Promise<T>) =>
+    RequestContext.run(
+      {
+        tenantId: 'tenant-a',
+        requestId: '11111111-1111-4111-8111-111111111111',
+      },
+      work,
+    );
 
   it('fans one initial send into independent private recipient messages', async () => {
     const send = jest.fn().mockResolvedValue([
-      { id: 'message-b', conversationId: 'conversation-b', sequenceNumber: 1, senderActorId: 'actor-a', recipientActorId: 'actor-b', body: 'Need detail', sentAt: new Date(), attachments: [] },
-      { id: 'message-c', conversationId: 'conversation-c', sequenceNumber: 1, senderActorId: 'actor-a', recipientActorId: 'actor-c', body: 'Need detail', sentAt: new Date(), attachments: [] },
+      {
+        id: 'message-b',
+        conversationId: 'conversation-b',
+        sequenceNumber: 1,
+        senderActorId: 'actor-a',
+        recipientActorId: 'actor-b',
+        body: 'Need detail',
+        sentAt: new Date(),
+        attachments: [],
+      },
+      {
+        id: 'message-c',
+        conversationId: 'conversation-c',
+        sequenceNumber: 1,
+        senderActorId: 'actor-a',
+        recipientActorId: 'actor-c',
+        body: 'Need detail',
+        sentAt: new Date(),
+        attachments: [],
+      },
     ]);
-    const provider = new WorkRequestCommunicationProvider({ recipientActorIds: jest.fn().mockResolvedValue([{ id: 'actor-b' }, { id: 'actor-c' }]), hasDocumentVersions: jest.fn().mockResolvedValue(true), send } as never, {} as never);
-    const result = await context(() => provider.send('request-a', ['actor-b', 'actor-c'], 'Need detail', [], actor));
-    expect(send).toHaveBeenCalledWith('request-a', 'actor-a', ['actor-b', 'actor-c'], 'Need detail', [], expect.any(String), expect.any(String));
+    const provider = new WorkRequestCommunicationProvider(
+      {
+        recipientActorIds: jest
+          .fn()
+          .mockResolvedValue([{ id: 'actor-b' }, { id: 'actor-c' }]),
+        hasDocumentVersions: jest.fn().mockResolvedValue(true),
+        send,
+      } as never,
+      {} as never,
+    );
+    const result = await context(() =>
+      provider.send(
+        'request-a',
+        ['actor-b', 'actor-c'],
+        'Need detail',
+        [],
+        actor,
+      ),
+    );
+    expect(send).toHaveBeenCalledWith(
+      'request-a',
+      'actor-a',
+      ['actor-b', 'actor-c'],
+      'Need detail',
+      [],
+      expect.any(String),
+      expect.any(String),
+    );
     expect(result).toHaveLength(2);
-    expect(result.map((item) => item.conversationId)).toEqual(['conversation-b', 'conversation-c']);
+    expect(result.map((item) => item.conversationId)).toEqual([
+      'conversation-b',
+      'conversation-c',
+    ]);
   });
 
   it('gives a former or unrelated participant no send path while retaining repository-backed reads', async () => {
-    const repository = { recipientActorIds: jest.fn().mockResolvedValue([]), hasDocumentVersions: jest.fn(), send: jest.fn(), conversation: jest.fn().mockResolvedValue({ id: 'conversation-a', messages: [] }) };
-    const provider = new WorkRequestCommunicationProvider(repository as never, {} as never);
-    await expect(context(() => provider.send('request-a', ['actor-b'], 'No longer related', [], actor))).rejects.toMatchObject({ status: 403 });
-    await expect(context(() => provider.read('request-a', 'conversation-a', actor))).resolves.toEqual({ id: 'conversation-a', messages: [] });
+    const repository = {
+      recipientActorIds: jest.fn().mockResolvedValue([]),
+      hasDocumentVersions: jest.fn(),
+      send: jest.fn(),
+      conversation: jest
+        .fn()
+        .mockResolvedValue({ id: 'conversation-a', messages: [] }),
+    };
+    const provider = new WorkRequestCommunicationProvider(
+      repository as never,
+      {} as never,
+    );
+    await expect(
+      context(() =>
+        provider.send('request-a', ['actor-b'], 'No longer related', [], actor),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      context(() => provider.read('request-a', 'conversation-a', actor)),
+    ).resolves.toEqual({ id: 'conversation-a', messages: [] });
     expect(repository.send).not.toHaveBeenCalled();
   });
 
   it('does not disclose a conversation to a non-participant', async () => {
-    const provider = new WorkRequestCommunicationProvider({ conversation: jest.fn().mockResolvedValue(null) } as never, {} as never);
-    await expect(context(() => provider.read('request-a', 'conversation-a', actor))).rejects.toMatchObject({ status: 404 });
+    const provider = new WorkRequestCommunicationProvider(
+      { conversation: jest.fn().mockResolvedValue(null) } as never,
+      {} as never,
+    );
+    await expect(
+      context(() => provider.read('request-a', 'conversation-a', actor)),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it('does not disclose main or internal route projections to an unrelated actor', async () => {
-    const provider = new WorkRequestCommunicationProvider({ isRelatedActor: jest.fn().mockResolvedValue(false), history: jest.fn() } as never, {} as never);
-    await expect(context(() => provider.mainHistory('request-a', actor))).rejects.toMatchObject({ status: 403 });
-    await expect(context(() => provider.internalHistory('request-a', actor))).rejects.toMatchObject({ status: 403 });
+    const provider = new WorkRequestCommunicationProvider(
+      {
+        isRelatedActor: jest.fn().mockResolvedValue(false),
+        history: jest.fn(),
+      } as never,
+      {} as never,
+    );
+    await expect(
+      context(() => provider.mainHistory('request-a', actor)),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      context(() => provider.internalHistory('request-a', actor)),
+    ).rejects.toMatchObject({ status: 403 });
   });
 
   it('keeps main-history projection free of internal cycle and sequence identifiers', async () => {
-    const provider = new WorkRequestCommunicationProvider({ isRelatedActor: jest.fn().mockResolvedValue(true), history: jest.fn().mockResolvedValue({ projection: { routeStepId: 'route-step-a', routeVersionId: 'version-a' }, steps: [] }) } as never, {} as never);
-    await expect(context(() => provider.mainHistory('request-a', actor))).resolves.toEqual(expect.objectContaining({ projection: expect.not.objectContaining({ divisionCycleId: expect.anything(), teamStepId: expect.anything(), memberStepId: expect.anything() }) }));
+    const provider = new WorkRequestCommunicationProvider(
+      {
+        isRelatedActor: jest.fn().mockResolvedValue(true),
+        history: jest.fn().mockResolvedValue({
+          projection: {
+            routeStepId: 'route-step-a',
+            routeVersionId: 'version-a',
+          },
+          steps: [],
+        }),
+      } as never,
+      {} as never,
+    );
+    await expect(
+      context(() => provider.mainHistory('request-a', actor)),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        projection: expect.not.objectContaining({
+          divisionCycleId: expect.anything(),
+          teamStepId: expect.anything(),
+          memberStepId: expect.anything(),
+        }),
+      }),
+    );
   });
 
   it('uses Work Request visibility, rather than operational participation, for the route projection', async () => {
     const history = { projection: { routeStepId: 'route-step-a' }, steps: [] };
     const communications = { history: jest.fn().mockResolvedValue(history) };
     const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
-    const provider = new WorkRequestCommunicationProvider(communications as never, reads as never);
+    const provider = new WorkRequestCommunicationProvider(
+      communications as never,
+      reads as never,
+    );
 
-    await expect(context(() => provider.routeProjection('request-a', actor))).resolves.toBe(history);
+    await expect(
+      context(() => provider.routeProjection('request-a', actor)),
+    ).resolves.toBe(history);
     expect(reads.find).toHaveBeenCalledWith('request-a', actor);
-    expect(communications.history).toHaveBeenCalledWith('request-a', 'actor-a', false, true);
+    expect(communications.history).toHaveBeenCalledWith(
+      'request-a',
+      'actor-a',
+      false,
+      true,
+    );
   });
 
   it('does not disclose a route projection when the Work Request visibility predicate rejects it', async () => {
     const communications = { history: jest.fn() };
     const reads = { find: jest.fn().mockResolvedValue(null) };
-    const provider = new WorkRequestCommunicationProvider(communications as never, reads as never);
+    const provider = new WorkRequestCommunicationProvider(
+      communications as never,
+      reads as never,
+    );
 
-    await expect(context(() => provider.routeProjection('request-a', actor))).rejects.toMatchObject({ status: 404 });
+    await expect(
+      context(() => provider.routeProjection('request-a', actor)),
+    ).rejects.toMatchObject({ status: 404 });
     expect(communications.history).not.toHaveBeenCalled();
   });
 
   it('allows a visible system-scoped administrator to read internal history without granting workflow participation', async () => {
-    const admin = { id: 'admin', isActive: true, member: null, clientContact: null, role: { customScope: null, systemRole: { systemCode: 'tenant_super_admin' } } } as never;
-    const communications = { isRelatedActor: jest.fn(), history: jest.fn().mockResolvedValue({ events: [] }) };
+    const admin = {
+      id: 'admin',
+      isActive: true,
+      member: null,
+      clientContact: null,
+      role: {
+        customScope: null,
+        systemRole: { systemCode: 'tenant_super_admin' },
+      },
+    } as never;
+    const communications = {
+      isRelatedActor: jest.fn(),
+      history: jest.fn().mockResolvedValue({ events: [] }),
+    };
     const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
-    const provider = new WorkRequestCommunicationProvider(communications as never, reads as never);
-    await expect(context(() => provider.internalHistory('request-a', admin))).resolves.toEqual({ events: [] });
+    const provider = new WorkRequestCommunicationProvider(
+      communications as never,
+      reads as never,
+    );
+    await expect(
+      context(() => provider.internalHistory('request-a', admin)),
+    ).resolves.toEqual({ events: [] });
     expect(reads.find).toHaveBeenCalledWith('request-a', admin);
     expect(communications.isRelatedActor).not.toHaveBeenCalled();
   });
 
   it('returns Member submission message and safe existing document-version metadata in internal history', async () => {
-    const event = { id: 'event-a', memberStep: { submission: { submittedByActorId: 'actor-a', message: 'Completed', submittedAt: new Date(), documents: [{ documentVersion: { id: 'version-a', versionNumber: 2, revisionCode: 'B', originalFileName: 'report.pdf', uploadedFileName: null, generatedFileName: 'report-B.pdf', mimeType: 'application/pdf', document: { id: 'document-a', originalFileName: 'report.pdf', description: 'Calculation report', documentCodeSnapshot: 'CALC', documentNameSnapshot: 'Calculation' } } }] } } };
-    const communications = { isRelatedActor: jest.fn().mockResolvedValue(true), history: jest.fn().mockResolvedValue({ events: [event] }) };
-    const provider = new WorkRequestCommunicationProvider(communications as never, {} as never);
-    const result: any = await context(() => provider.internalHistory('request-a', actor));
-    expect(result.events[0]).toMatchObject({ id: 'event-a', submission: { submittedByActorId: 'actor-a', message: 'Completed', documents: [{ documentVersionId: 'version-a', documentId: 'document-a', documentCode: 'CALC', description: 'Calculation report', versionNumber: 2, downloadUrl: expect.stringContaining('version-a') }] } });
-    expect(result.events[0].submission.documents[0]).not.toHaveProperty('storageKey');
+    const event = {
+      id: 'event-a',
+      memberStep: {
+        submission: {
+          submittedByActorId: 'actor-a',
+          message: 'Completed',
+          submittedAt: new Date(),
+          documents: [
+            {
+              documentVersion: {
+                id: 'version-a',
+                versionNumber: 2,
+                revisionCode: 'B',
+                originalFileName: 'report.pdf',
+                uploadedFileName: null,
+                generatedFileName: 'report-B.pdf',
+                mimeType: 'application/pdf',
+                document: {
+                  id: 'document-a',
+                  originalFileName: 'report.pdf',
+                  description: 'Calculation report',
+                  documentCodeSnapshot: 'CALC',
+                  documentNameSnapshot: 'Calculation',
+                },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const communications = {
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+      history: jest.fn().mockResolvedValue({ events: [event] }),
+    };
+    const provider = new WorkRequestCommunicationProvider(
+      communications as never,
+      {} as never,
+    );
+    const result: any = await context(() =>
+      provider.internalHistory('request-a', actor),
+    );
+    expect(result.events[0]).toMatchObject({
+      id: 'event-a',
+      submission: {
+        submittedByActorId: 'actor-a',
+        message: 'Completed',
+        documents: [
+          {
+            documentVersionId: 'version-a',
+            documentId: 'document-a',
+            documentCode: 'CALC',
+            description: 'Calculation report',
+            versionNumber: 2,
+            downloadUrl: expect.stringContaining('version-a'),
+          },
+        ],
+      },
+    });
+    expect(result.events[0].submission.documents[0]).not.toHaveProperty(
+      'storageKey',
+    );
   });
 });

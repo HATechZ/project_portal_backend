@@ -71,10 +71,18 @@ export class WorkRequestController {
   constructor(private readonly service: WorkRequestService) {}
   @Get('creation/available-document-codes')
   @FinalPermissions(PermissionCode.CREATE_WORK_REQUEST)
-  @ApiOperation({ summary: 'Get applicable Document Codes for Work Request creation' })
-  @ApiStandardArrayResponse(AvailableDocumentCodeDto, 'Applicable Document Codes returned')
+  @ApiOperation({
+    summary: 'Get applicable Document Codes for Work Request creation',
+  })
+  @ApiStandardArrayResponse(
+    AvailableDocumentCodeDto,
+    'Applicable Document Codes returned',
+  )
   @ResponseMessage('Applicable Document Codes returned successfully')
-  creationDocumentCodes(@Query('originatingDivisionId', ParseUUIDPipe) originatingDivisionId: string) {
+  creationDocumentCodes(
+    @Query('originatingDivisionId', ParseUUIDPipe)
+    originatingDivisionId: string,
+  ) {
     return this.service.availableCreationDocumentCodes(originatingDivisionId);
   }
   @Post()
@@ -134,19 +142,30 @@ export class WorkRequestController {
   @Get(':id/route')
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Work Request Route' })
-  route(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  route(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.route(id, actor);
   }
   @Post(':id/route-steps/:stepId/forward')
   @FinalPermissions(PermissionCode.ROUTE_FOR_REVIEW)
   @ApiOperation({ summary: 'Forward Work Request Route Step' })
-  forward(@Param('id', ParseUUIDPipe) id: string, @Param('stepId', ParseUUIDPipe) stepId: string, @ActiveActor() actor: SessionActor) {
+  forward(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('stepId', ParseUUIDPipe) stepId: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.forwardRoute(id, stepId, actor);
   }
   @Post(':id/route-amendments')
   @FinalPermissions(PermissionCode.UPDATE_WORK_REQUEST)
   @ApiOperation({ summary: 'Amend Work Request Route' })
-  amend(@Param('id', ParseUUIDPipe) id: string, @Body() body: AmendWorkRequestRouteDto, @ActiveActor() actor: SessionActor) {
+  amend(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AmendWorkRequestRouteDto,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.amendRoute(id, body, actor);
   }
 }

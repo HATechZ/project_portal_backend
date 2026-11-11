@@ -40,9 +40,7 @@ describe('Work Request parent lifecycle eligibility', () => {
           state,
         },
         bidNaming: {},
-        codes: new Map([
-          ['code-a', { code: '000', name: 'Info' }],
-        ]),
+        codes: new Map([['code-a', { code: '000', name: 'Info' }]]),
       }),
       findCreateReplay: jest.fn().mockResolvedValue(null),
       create,
@@ -60,10 +58,12 @@ describe('Work Request parent lifecycle eligibility', () => {
       {} as never,
       {} as never,
       { execute: (work: () => Promise<unknown>) => work() } as never,
-      storageProvider as never,
+      storageProvider,
       {} as never,
       {} as never,
-      { generatedFileName: jest.fn().mockReturnValue('generated.pdf') } as never,
+      {
+        generatedFileName: jest.fn().mockReturnValue('generated.pdf'),
+      },
       {} as never,
       {} as never,
       {} as never,
@@ -213,9 +213,8 @@ describe('Work Request parent lifecycle eligibility', () => {
     };
 
     await expect(
-      RequestContext.run(
-        { requestId: 'request-a', tenantId },
-        () => service.create(input, [], actor),
+      RequestContext.run({ requestId: 'request-a', tenantId }, () =>
+        service.create(input, [], actor),
       ),
     ).rejects.toThrow(
       'An originating Division and at least one intermediate Division are required.',

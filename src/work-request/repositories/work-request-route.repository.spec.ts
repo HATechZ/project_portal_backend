@@ -2,7 +2,8 @@ import { RequestContext } from '../../common/context/request-context';
 import { WorkRequestRepository } from './work-request.repository';
 
 describe('WorkRequestRepository Phase 3 route guards', () => {
-  const context = <T>(work: () => Promise<T>) => RequestContext.run({ requestId: 'route-test', tenantId: 'tenant-a' }, work);
+  const context = <T>(work: () => Promise<T>) =>
+    RequestContext.run({ requestId: 'route-test', tenantId: 'tenant-a' }, work);
 
   it('persists the complete initial route atomically, retaining repeated intermediate occurrences', async () => {
     const routeCreate = jest.fn();
@@ -17,11 +18,17 @@ describe('WorkRequestRepository Phase 3 route guards', () => {
         findFirstOrThrow: jest.fn().mockResolvedValue({ id: 'request-a' }),
       },
       workRequestV1Event: { create: jest.fn() },
-      divisionLead: { findFirst: jest.fn().mockResolvedValue({ id: 'lead-a' }) },
+      divisionLead: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'lead-a' }),
+      },
       division: {
         findMany: jest
           .fn()
-          .mockResolvedValue([{ id: 'origin-a' }, { id: 'division-b' }, { id: 'division-c' }]),
+          .mockResolvedValue([
+            { id: 'origin-a' },
+            { id: 'division-b' },
+            { id: 'division-c' },
+          ]),
       },
       $queryRaw: jest.fn().mockResolvedValue([{ cutoverAt: new Date() }]),
       workRequestRoute: { create: routeCreate },
@@ -31,7 +38,9 @@ describe('WorkRequestRepository Phase 3 route guards', () => {
       workRequestRouteProjection: { create: projectionCreate },
       workRequestRouteEvent: { create: routeEventCreate },
     };
-    const repository = new WorkRequestRepository({ execute: (work: (executor: unknown) => Promise<unknown>) => work(db) } as never);
+    const repository = new WorkRequestRepository({
+      execute: (work: (executor: unknown) => Promise<unknown>) => work(db),
+    } as never);
 
     await context(() =>
       repository.create({
@@ -62,48 +71,156 @@ describe('WorkRequestRepository Phase 3 route guards', () => {
     expect(versionCreate).toHaveBeenCalledTimes(1);
     expect(stepsCreateMany).toHaveBeenCalledWith({
       data: expect.arrayContaining([
-        expect.objectContaining({ ordinal: 1, kind: 'ORIGIN_START', divisionId: 'origin-a' }),
-        expect.objectContaining({ ordinal: 2, kind: 'INTERMEDIATE', divisionId: 'division-b' }),
-        expect.objectContaining({ ordinal: 3, kind: 'INTERMEDIATE', divisionId: 'division-b' }),
-        expect.objectContaining({ ordinal: 4, kind: 'INTERMEDIATE', divisionId: 'division-c' }),
-        expect.objectContaining({ ordinal: 5, kind: 'ORIGIN_FINAL_REVIEW', divisionId: 'origin-a' }),
-        expect.objectContaining({ ordinal: 6, kind: 'CLIENT', divisionId: null }),
+        expect.objectContaining({
+          ordinal: 1,
+          kind: 'ORIGIN_START',
+          divisionId: 'origin-a',
+        }),
+        expect.objectContaining({
+          ordinal: 2,
+          kind: 'INTERMEDIATE',
+          divisionId: 'division-b',
+        }),
+        expect.objectContaining({
+          ordinal: 3,
+          kind: 'INTERMEDIATE',
+          divisionId: 'division-b',
+        }),
+        expect.objectContaining({
+          ordinal: 4,
+          kind: 'INTERMEDIATE',
+          divisionId: 'division-c',
+        }),
+        expect.objectContaining({
+          ordinal: 5,
+          kind: 'ORIGIN_FINAL_REVIEW',
+          divisionId: 'origin-a',
+        }),
+        expect.objectContaining({
+          ordinal: 6,
+          kind: 'CLIENT',
+          divisionId: null,
+        }),
       ]),
     });
     expect(cycleCreate).toHaveBeenCalledTimes(1);
     expect(projectionCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ routeStepId: expect.any(String) }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ routeStepId: expect.any(String) }),
+      }),
     );
     expect(routeEventCreate).toHaveBeenCalledTimes(2);
   });
 
   it('limits the main projection to the exact active responsible lead', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
-    const repository = new WorkRequestRepository({ execute: (work: (db: unknown) => Promise<unknown>) => work({ workRequestRoute: { findFirst } }) } as never);
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({ workRequestRoute: { findFirst } }),
+    } as never);
     await context(() => repository.routeProjection('request-a', 'member-a'));
-    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ responsibleOriginatingLead: { is: { memberId: 'member-a', revokedAt: null } } }) }));
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          responsibleOriginatingLead: {
+            is: { memberId: 'member-a', revokedAt: null },
+          },
+        }),
+      }),
+    );
   });
   it('rejects forward when the supplied step is not the projection current step', async () => {
-    const repository = new WorkRequestRepository({ execute: (work: (db: unknown) => Promise<unknown>) => work({ workRequestRoute: { findFirst: jest.fn().mockResolvedValue({ id: 'route-a', projection: { routeStepId: 'current-a', routeVersionId: 'version-a' } }) } }) } as never);
-    await expect(context(() => repository.forwardRoute('request-a', 'other-a', 'actor-a', 'member-a'))).rejects.toThrow('WR_ROUTE_POSITION');
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestRoute: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'route-a',
+              projection: {
+                routeStepId: 'current-a',
+                routeVersionId: 'version-a',
+              },
+            }),
+          },
+        }),
+    } as never);
+    await expect(
+      context(() =>
+        repository.forwardRoute('request-a', 'other-a', 'actor-a', 'member-a'),
+      ),
+    ).rejects.toThrow('WR_ROUTE_POSITION');
   });
   it('rejects stale route-version amendments before mutating route history', async () => {
     const create = jest.fn();
-    const repository = new WorkRequestRepository({ execute: (work: (db: unknown) => Promise<unknown>) => work({ workRequestRoute: { findFirst: jest.fn().mockResolvedValue({ id: 'route-a', projection: { routeStepId: 'current-a', routeVersionId: 'version-current' }, versions: [] }) }, workRequestRouteVersion: { create } }) } as never);
-    await expect(context(() => repository.amendRoute('request-a', { baseRouteVersionId: 'stale', intermediateDivisionIds: [] }, 'actor-a', 'member-a'))).rejects.toThrow('WR_ROUTE_STALE');
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestRoute: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'route-a',
+              projection: {
+                routeStepId: 'current-a',
+                routeVersionId: 'version-current',
+              },
+              versions: [],
+            }),
+          },
+          workRequestRouteVersion: { create },
+        }),
+    } as never);
+    await expect(
+      context(() =>
+        repository.amendRoute(
+          'request-a',
+          { baseRouteVersionId: 'stale', intermediateDivisionIds: [] },
+          'actor-a',
+          'member-a',
+        ),
+      ),
+    ).rejects.toThrow('WR_ROUTE_STALE');
     expect(create).not.toHaveBeenCalled();
   });
   it('does not let normal forward bypass the immutable C1 package gateway', async () => {
     const update = jest.fn();
-    const repository = new WorkRequestRepository({ execute: (work: (db: unknown) => Promise<unknown>) => work({
-      workRequestRoute: { findFirst: jest.fn().mockResolvedValue({ id: 'route-a', projection: { routeStepId: 'final-a', routeVersionId: 'version-a' } }) },
-      workRequestRouteStep: { findFirst: jest.fn()
-        .mockResolvedValueOnce({ id: 'final-a', routeId: 'route-a', ordinal: 4, routeVersionId: 'version-a', divisionId: 'origin-a', completedAt: null })
-        .mockResolvedValueOnce({ id: 'client-a', kind: 'CLIENT' }), update },
-      divisionLead: { findFirst: jest.fn().mockResolvedValue({ id: 'lead-a' }) },
-      workRequestDivisionCycle: { findFirst: jest.fn().mockResolvedValue({ completedAt: new Date() }) },
-    }) } as never);
-    await expect(context(() => repository.forwardRoute('request-a', 'final-a', 'actor-a', 'member-a'))).rejects.toThrow('WR_ROUTE_CLIENT_GATEWAY');
+    const repository = new WorkRequestRepository({
+      execute: (work: (db: unknown) => Promise<unknown>) =>
+        work({
+          workRequestRoute: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'route-a',
+              projection: {
+                routeStepId: 'final-a',
+                routeVersionId: 'version-a',
+              },
+            }),
+          },
+          workRequestRouteStep: {
+            findFirst: jest
+              .fn()
+              .mockResolvedValueOnce({
+                id: 'final-a',
+                routeId: 'route-a',
+                ordinal: 4,
+                routeVersionId: 'version-a',
+                divisionId: 'origin-a',
+                completedAt: null,
+              })
+              .mockResolvedValueOnce({ id: 'client-a', kind: 'CLIENT' }),
+            update,
+          },
+          divisionLead: {
+            findFirst: jest.fn().mockResolvedValue({ id: 'lead-a' }),
+          },
+          workRequestDivisionCycle: {
+            findFirst: jest.fn().mockResolvedValue({ completedAt: new Date() }),
+          },
+        }),
+    } as never);
+    await expect(
+      context(() =>
+        repository.forwardRoute('request-a', 'final-a', 'actor-a', 'member-a'),
+      ),
+    ).rejects.toThrow('WR_ROUTE_CLIENT_GATEWAY');
     expect(update).not.toHaveBeenCalled();
   });
 });

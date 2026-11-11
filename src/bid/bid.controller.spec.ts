@@ -23,9 +23,7 @@ describe('Bid creation document-code selector', () => {
 
   it('blocks a user without CREATE_BID before the selector can disclose codes', async () => {
     const guard = new FinalPermissionsGuard({
-      getAllAndOverride: jest
-        .fn()
-        .mockReturnValue([PermissionCode.CREATE_BID]),
+      getAllAndOverride: jest.fn().mockReturnValue([PermissionCode.CREATE_BID]),
     } as never);
     const context = {
       getHandler: () => BidController.prototype.creationDocumentCodes,

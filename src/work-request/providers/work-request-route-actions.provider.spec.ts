@@ -1,4 +1,9 @@
-import { ActorRoleCode, PermissionCode, WorkflowActionCode, WorkRequestRouteStepKind } from '../../generated/prisma/client';
+import {
+  ActorRoleCode,
+  PermissionCode,
+  WorkflowActionCode,
+  WorkRequestRouteStepKind,
+} from '../../generated/prisma/client';
 import { WorkRequestRouteActionsProvider } from './work-request-route-actions.provider';
 
 describe('WorkRequestRouteActionsProvider', () => {
@@ -6,11 +11,22 @@ describe('WorkRequestRouteActionsProvider', () => {
     permissions: PermissionCode[],
     memberId = 'lead-a',
     scope = 'division',
-  ) => ({
-    id: 'actor-a',
-    member: { id: memberId, isActive: true, divisionLeadsByMemberId: [{ divisionId: 'division-a' }] },
-    role: { customScope: scope, rolePermissions: permissions.map((code) => ({ revokedAt: null, permission: { code, scopeCompatibilities: [{ scope }] } })) },
-  }) as never;
+  ) =>
+    ({
+      id: 'actor-a',
+      member: {
+        id: memberId,
+        isActive: true,
+        divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
+      },
+      role: {
+        customScope: scope,
+        rolePermissions: permissions.map((code) => ({
+          revokedAt: null,
+          permission: { code, scopeCompatibilities: [{ scope }] },
+        })),
+      },
+    }) as never;
   const route = {
     responsibleOriginatingLead: {
       memberId: 'lead-a',
@@ -18,18 +34,47 @@ describe('WorkRequestRouteActionsProvider', () => {
       member: { isActive: true },
       division: { isActive: true },
     },
-    projection: { divisionCycleId: 'cycle-a', routeStepId: 'step-a', teamStepId: null, memberStepId: null },
+    projection: {
+      divisionCycleId: 'cycle-a',
+      routeStepId: 'step-a',
+      teamStepId: null,
+      memberStepId: null,
+    },
     steps: [{ id: 'step-a', kind: WorkRequestRouteStepKind.ORIGIN_START }],
-    divisionCycles: [{ id: 'cycle-a', completedAt: null, routeStep: { divisionId: 'division-a' }, teamSteps: [] }],
+    divisionCycles: [
+      {
+        id: 'cycle-a',
+        completedAt: null,
+        routeStep: { divisionId: 'division-a' },
+        teamSteps: [],
+      },
+    ],
   };
 
   it('derives lifecycle actions from exact active route responsibility, not a role label', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
-    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ code: 'DEFINE_TEAM_SEQUENCE' })]));
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+      recipientActorIds: jest.fn().mockResolvedValue([]),
+    } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]),
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'DEFINE_TEAM_SEQUENCE' }),
+      ]),
+    );
   });
 
   it('exposes route amendment to a company-scoped originating Lead with UPDATE_WORK_REQUEST', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+      recipientActorIds: jest.fn().mockResolvedValue([]),
+    } as never);
     await expect(
       provider.available(
         'request-a',
@@ -37,7 +82,11 @@ describe('WorkRequestRouteActionsProvider', () => {
       ),
     ).resolves.toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: 'AMEND_ROUTE', label: 'Modify future route', targetKind: 'route' }),
+        expect.objectContaining({
+          code: 'AMEND_ROUTE',
+          label: 'Modify future route',
+          targetKind: 'route',
+        }),
       ]),
     );
   });
@@ -47,7 +96,12 @@ describe('WorkRequestRouteActionsProvider', () => {
       route: jest.fn().mockResolvedValue({ ...route, divisionCycles: [] }),
       isRelatedActor: jest.fn().mockResolvedValue(true),
     } as never);
-    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual([]);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it('exposes submit only to the Member assigned to the active projected Member step', async () => {
@@ -98,27 +152,59 @@ describe('WorkRequestRouteActionsProvider', () => {
   it('exposes revision to the active downstream Member only when an earlier same-Team participant exists', async () => {
     const revisionRoute = {
       ...route,
-      projection: { ...route.projection, teamStepId: 'team-step-a', memberStepId: 'member-step-mashud' },
-      divisionCycles: [{
-        ...route.divisionCycles[0],
-        teamSteps: [{
-          id: 'team-step-a', activatedAt: new Date(), completedAt: null,
-          team: { leadMemberId: 'lead-a' },
-          memberSteps: [
-            { id: 'member-step-asif', memberId: 'member-asif', activatedAt: new Date(), submittedAt: new Date() },
-            { id: 'member-step-mashud', memberId: 'member-mashud', activatedAt: new Date(), submittedAt: null },
+      projection: {
+        ...route.projection,
+        teamStepId: 'team-step-a',
+        memberStepId: 'member-step-mashud',
+      },
+      divisionCycles: [
+        {
+          ...route.divisionCycles[0],
+          teamSteps: [
+            {
+              id: 'team-step-a',
+              activatedAt: new Date(),
+              completedAt: null,
+              team: { leadMemberId: 'lead-a' },
+              memberSteps: [
+                {
+                  id: 'member-step-asif',
+                  memberId: 'member-asif',
+                  activatedAt: new Date(),
+                  submittedAt: new Date(),
+                },
+                {
+                  id: 'member-step-mashud',
+                  memberId: 'member-mashud',
+                  activatedAt: new Date(),
+                  submittedAt: null,
+                },
+              ],
+            },
           ],
-        }],
-      }],
+        },
+      ],
     };
     const provider = new WorkRequestRouteActionsProvider({
       route: jest.fn().mockResolvedValue(revisionRoute),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
     } as never);
-    await expect(provider.available(
-      'request-a', actor([PermissionCode.REQUEST_WORK_REQUEST_REVISION], 'member-mashud', 'member'),
-    )).resolves.toContainEqual(expect.objectContaining({ code: 'REQUEST_REVISION', targetKind: 'revision' }));
+    await expect(
+      provider.available(
+        'request-a',
+        actor(
+          [PermissionCode.REQUEST_WORK_REQUEST_REVISION],
+          'member-mashud',
+          'member',
+        ),
+      ),
+    ).resolves.toContainEqual(
+      expect.objectContaining({
+        code: 'REQUEST_REVISION',
+        targetKind: 'revision',
+      }),
+    );
   });
 
   it('exposes division assignment and Request Information to the responsible origin Lead only through permissions', async () => {
@@ -175,7 +261,9 @@ describe('WorkRequestRouteActionsProvider', () => {
           actor([PermissionCode.REQUEST_INFO], 'member-a', 'member'),
         ),
       ).resolves.toContainEqual(
-        expect.objectContaining({ code: WorkflowActionCode.REQUEST_WORKFLOW_INFO }),
+        expect.objectContaining({
+          code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+        }),
       );
       expect(recipientActorIds).toHaveBeenCalledWith(
         'request-a',
@@ -198,7 +286,9 @@ describe('WorkRequestRouteActionsProvider', () => {
         actor([PermissionCode.REQUEST_INFO], 'member-a', 'member'),
       ),
     ).resolves.not.toContainEqual(
-      expect.objectContaining({ code: WorkflowActionCode.REQUEST_WORKFLOW_INFO }),
+      expect.objectContaining({
+        code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+      }),
     );
   });
 
@@ -220,33 +310,93 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('returns no route action for an unrelated same-tenant actor', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(false), recipientActorIds: jest.fn() } as never);
-    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual([]);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(false),
+      recipientActorIds: jest.fn(),
+    } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it('does not give another Division Lead the origin-stage action', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
-    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM], 'lead-other'))).resolves.toEqual([]);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+      recipientActorIds: jest.fn().mockResolvedValue([]),
+    } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM], 'lead-other'),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it.each([
-    ['revoked', { ...route, responsibleOriginatingLead: { ...route.responsibleOriginatingLead, revokedAt: new Date() } }],
-    ['inactive', { ...route, responsibleOriginatingLead: { ...route.responsibleOriginatingLead, member: { isActive: false } } }],
+    [
+      'revoked',
+      {
+        ...route,
+        responsibleOriginatingLead: {
+          ...route.responsibleOriginatingLead,
+          revokedAt: new Date(),
+        },
+      },
+    ],
+    [
+      'inactive',
+      {
+        ...route,
+        responsibleOriginatingLead: {
+          ...route.responsibleOriginatingLead,
+          member: { isActive: false },
+        },
+      },
+    ],
   ])('does not give a %s origin Lead an action', async (_, invalidRoute) => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(invalidRoute), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
-    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]))).resolves.toEqual([]);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(invalidRoute),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+      recipientActorIds: jest.fn().mockResolvedValue([]),
+    } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it('requires the exact explicit permission even for the responsible origin Lead', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
-    await expect(provider.available('request-a', actor([]))).resolves.toEqual([]);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+      recipientActorIds: jest.fn().mockResolvedValue([]),
+    } as never);
+    await expect(provider.available('request-a', actor([]))).resolves.toEqual(
+      [],
+    );
   });
 
   it.each(['company', 'team', 'member'])(
     'does not expose Origin Lead actions through a %s-scoped profile before its stage',
     async (scope) => {
-      const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(true), recipientActorIds: jest.fn().mockResolvedValue([]) } as never);
-      await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM], 'lead-a', scope))).resolves.toEqual([]);
+      const provider = new WorkRequestRouteActionsProvider({
+        route: jest.fn().mockResolvedValue(route),
+        isRelatedActor: jest.fn().mockResolvedValue(true),
+        recipientActorIds: jest.fn().mockResolvedValue([]),
+      } as never);
+      await expect(
+        provider.available(
+          'request-a',
+          actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM], 'lead-a', scope),
+        ),
+      ).resolves.toEqual([]);
     },
   );
 
@@ -287,19 +437,38 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('does not expose Origin Lead actions to an inactive ActorProfile Member', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn(), recipientActorIds: jest.fn() } as never);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn(),
+      recipientActorIds: jest.fn(),
+    } as never);
     const inactive = actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]);
     inactive.member.isActive = false;
-    await expect(provider.available('request-a', inactive)).resolves.toEqual([]);
+    await expect(provider.available('request-a', inactive)).resolves.toEqual(
+      [],
+    );
   });
 
   it('denies a cross-tenant/non-related actor before action resolution', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn().mockResolvedValue(false), recipientActorIds: jest.fn() } as never);
-    await expect(provider.available('request-a', actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM], 'lead-a'))).resolves.toEqual([]);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn().mockResolvedValue(false),
+      recipientActorIds: jest.fn(),
+    } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM], 'lead-a'),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it('exposes explicitly permitted internal route actions to tenant_super_admin without a Member', async () => {
-    const provider = new WorkRequestRouteActionsProvider({ route: jest.fn().mockResolvedValue(route), isRelatedActor: jest.fn(), recipientActorIds: jest.fn() } as never);
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(route),
+      isRelatedActor: jest.fn(),
+      recipientActorIds: jest.fn(),
+    } as never);
     const admin = {
       id: 'admin-a',
       clientContact: null,
@@ -307,11 +476,18 @@ describe('WorkRequestRouteActionsProvider', () => {
       role: {
         customScope: null,
         systemRole: { systemCode: ActorRoleCode.tenant_super_admin },
-        rolePermissions: [{ revokedAt: null, permission: { code: PermissionCode.ASSIGN_WORK_REQUEST_TEAM } }],
+        rolePermissions: [
+          {
+            revokedAt: null,
+            permission: { code: PermissionCode.ASSIGN_WORK_REQUEST_TEAM },
+          },
+        ],
       },
     } as never;
     await expect(provider.available('request-a', admin)).resolves.toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'DEFINE_TEAM_SEQUENCE' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'DEFINE_TEAM_SEQUENCE' }),
+      ]),
     );
   });
 });

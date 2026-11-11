@@ -21,3 +21,13 @@ Before an active Team begins Member work, its exact Team Lead defines ordered Me
 ## Derived position and events
 
 Persist append-only lifecycle events for creation, amendment, activation, sequence definition, Member append, submit, Team completion, Division completion, forward, and pause/resume. Derive main route position, active cycle, active Team step, active Member step, and permitted actions from the latest valid facts plus no-open-revision rule. Mutable performance projections are permitted only if transactionally derived from those facts.
+
+## Internal Division Workflow (derived projection)
+
+The ordered Team sequence is the sole source of truth for the independent Internal Division Workflow. On successful save of an active Division cycle's existing Team sequence, the system automatically derives a Division-level projection with automatic boundaries: `Division Start -> TeamStep 1 -> ... -> TeamStep N -> Division Return`. The Division Lead selects Teams only; neither Division boundary is selectable, persisted as caller input, or created through a separate workflow builder, modal, action, or second sequence.
+
+This is a Division-level visualization/execution projection of existing responsibility, not a Main Workflow route extension and not a second execution engine. It does not append to, replace, route through, or alter Main Workflow steps, Division forward behavior, route progression, Client stage, or Main Workflow state transitions. Main Workflow remains exactly its existing route occurrence lifecycle; each Division cycle independently derives its own Internal Workflow from its own Team sequence.
+
+The state of the projection is derived from existing Division-cycle/Team-step responsibility facts. With `Team A -> Team B -> Team C`, while Team A is active, Division Start is completed, Team A is current, later Teams and Division Return are upcoming. When Team A completes, Team B becomes current. Once the final Team completes, all Team nodes are completed and Division Return is current, representing responsibility returned to the Division. Member sequences remain nested inside their Team; they are never flattened into the Division-level projection.
+
+If a valid future business flow changes an authoritative Team sequence before its existing freeze rules prohibit that change, the projection reflects that sequence and nothing else. Revisions may temporarily move responsibility under their preserved requester/source/resume rules, but never mutate the normal Internal Workflow Team sequence or its derived normal projection.

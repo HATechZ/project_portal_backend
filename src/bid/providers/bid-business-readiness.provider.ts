@@ -25,7 +25,13 @@ export class BidBusinessReadinessProvider {
       select: { id: true },
     });
     if (!cycle)
-      return { ready: false, cycleId: null, total: 0, accepted: 0, blocking: ['NO_OPEN_CYCLE'] };
+      return {
+        ready: false,
+        cycleId: null,
+        total: 0,
+        accepted: 0,
+        blocking: ['NO_OPEN_CYCLE'],
+      };
     const requests = await db.workRequestV1.findMany({
       where: { tenantId, bidId, bidBusinessCycleId: cycle.id },
       select: {
@@ -38,12 +44,22 @@ export class BidBusinessReadinessProvider {
       },
     });
     const accepted = requests.filter(
-      (request) => request.events[0]?.resultingState === WorkRequestV1StateCode.ACCEPTED,
+      (request) =>
+        request.events[0]?.resultingState === WorkRequestV1StateCode.ACCEPTED,
     ).length;
     const blocking = requests
-      .filter((request) => request.events[0]?.resultingState !== WorkRequestV1StateCode.ACCEPTED)
+      .filter(
+        (request) =>
+          request.events[0]?.resultingState !== WorkRequestV1StateCode.ACCEPTED,
+      )
       .map((request) => request.id);
     if (!requests.length) blocking.push('ZERO_WORK_REQUESTS');
-    return { ready: requests.length > 0 && blocking.length === 0, cycleId: cycle.id, total: requests.length, accepted, blocking };
+    return {
+      ready: requests.length > 0 && blocking.length === 0,
+      cycleId: cycle.id,
+      total: requests.length,
+      accepted,
+      blocking,
+    };
   }
 }

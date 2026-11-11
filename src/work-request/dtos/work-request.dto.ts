@@ -99,7 +99,7 @@ export class CreateWorkRequestDto extends WorkRequestDocumentMetadataDto {
   @ApiPropertyOptional({
     format: 'uuid',
     description:
-      'Optional explicit active Lead of originatingDivisionId. Supply this when the authorized business creator is not that Division Lead; otherwise the creator\'s active Lead relationship is used.',
+      "Optional explicit active Lead of originatingDivisionId. Supply this when the authorized business creator is not that Division Lead; otherwise the creator's active Lead relationship is used.",
   })
   @IsOptional()
   @IsUUID()
@@ -172,7 +172,13 @@ export class SubmitWorkRequestMemberStepDto {
   @MaxLength(10000)
   message?: string;
 
-  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true, description: 'Existing Work Request document-version IDs. Duplicate IDs are stored once in first-supplied order.' })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    isArray: true,
+    description:
+      'Existing Work Request document-version IDs. Duplicate IDs are stored once in first-supplied order.',
+  })
   @IsOptional()
   @Transform(array)
   @IsArray()
@@ -218,7 +224,13 @@ export class ResubmitWorkRequestRouteRevisionDto {
   @MaxLength(10000)
   note?: string;
 
-  @ApiPropertyOptional({ type: String, format: 'uuid', isArray: true, description: 'Existing Work Request document-version IDs used for this correction. Duplicate IDs are stored once in first-supplied order.' })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    isArray: true,
+    description:
+      'Existing Work Request document-version IDs used for this correction. Duplicate IDs are stored once in first-supplied order.',
+  })
   @IsOptional()
   @Transform(array)
   @IsArray()
@@ -314,7 +326,11 @@ export class WorkRequestAssignmentResponseDto {
     description:
       'Current active Division Lead acting profile(s) responsible for a Division assignment.',
   })
-  responsibleRecipients!: { actorId: string; memberId: string; label: string }[];
+  responsibleRecipients!: {
+    actorId: string;
+    memberId: string;
+    label: string;
+  }[];
 }
 
 export class WorkRequestAssignmentHistoryResponseDto {
@@ -340,8 +356,17 @@ export class WorkRequestAssignmentHistoryResponseDto {
   })
   assignee!: { id: string; label: string } | null;
   @ApiProperty({ type: Object }) assignedBy!: { id: string; label: string };
-  @ApiProperty({ type: [Object], description: 'Current active Division Leads; empty for historical and non-Division assignments.' })
-  responsibleRecipients!: { actorId: string; memberId: string; label: string; displayName: string }[];
+  @ApiProperty({
+    type: [Object],
+    description:
+      'Current active Division Leads; empty for historical and non-Division assignments.',
+  })
+  responsibleRecipients!: {
+    actorId: string;
+    memberId: string;
+    label: string;
+    displayName: string;
+  }[];
 }
 
 export class WorkRequestEventResponseDto {
@@ -384,8 +409,19 @@ export class CreateWorkRequestInfoRequestDto {
   @IsUUID()
   targetActorId!: string;
 
-  @ApiPropertyOptional({ description: 'Clarification message; required when no documents are attached.' })
-  @ValidateIf((input, value) => !(Array.isArray(input.documentVersionIds) && input.documentVersionIds.length > 0 && (value === undefined || (typeof value === 'string' && value.trim() === ''))))
+  @ApiPropertyOptional({
+    description:
+      'Clarification message; required when no documents are attached.',
+  })
+  @ValidateIf(
+    (input, value) =>
+      !(
+        Array.isArray(input.documentVersionIds) &&
+        input.documentVersionIds.length > 0 &&
+        (value === undefined ||
+          (typeof value === 'string' && value.trim() === ''))
+      ),
+  )
   @Transform(trim)
   @IsString()
   @IsNotEmpty()
@@ -400,8 +436,19 @@ export class CreateWorkRequestInfoRequestDto {
 }
 
 export class RespondWorkRequestInfoRequestDto {
-  @ApiPropertyOptional({ description: 'Clarification response message; required when no documents are attached.' })
-  @ValidateIf((input, value) => !(Array.isArray(input.documentVersionIds) && input.documentVersionIds.length > 0 && (value === undefined || (typeof value === 'string' && value.trim() === ''))))
+  @ApiPropertyOptional({
+    description:
+      'Clarification response message; required when no documents are attached.',
+  })
+  @ValidateIf(
+    (input, value) =>
+      !(
+        Array.isArray(input.documentVersionIds) &&
+        input.documentVersionIds.length > 0 &&
+        (value === undefined ||
+          (typeof value === 'string' && value.trim() === ''))
+      ),
+  )
   @Transform(trim)
   @IsString()
   @IsNotEmpty()
@@ -429,19 +476,44 @@ export class WorkRequestInfoRecipientDto extends WorkRequestInfoParticipantDto {
   @ApiProperty({ nullable: true }) email!: string | null;
   @ApiProperty({ nullable: true, format: 'uuid' }) divisionId!: string | null;
   @ApiProperty({ nullable: true }) divisionName!: string | null;
-  @ApiProperty({ nullable: true, format: 'uuid' }) designationId!: string | null;
+  @ApiProperty({ nullable: true, format: 'uuid' }) designationId!:
+    string | null;
   @ApiProperty({ nullable: true }) designationName!: string | null;
   @ApiProperty({ type: [String] }) teamIds!: string[];
   @ApiProperty({ type: [String] }) teamNames!: string[];
-  @ApiProperty({ type: [Object], description: 'Current organization and client relationships.' })
-  relationshipContexts!: { kind: 'MEMBER' | 'DIVISION_LEAD' | 'TEAM_LEAD' | 'TEAM_MEMBER' | 'CLIENT_CONTACT'; id: string; name: string }[];
+  @ApiProperty({
+    type: [Object],
+    description: 'Current organization and client relationships.',
+  })
+  relationshipContexts!: {
+    kind:
+      | 'MEMBER'
+      | 'DIVISION_LEAD'
+      | 'TEAM_LEAD'
+      | 'TEAM_MEMBER'
+      | 'CLIENT_CONTACT';
+    id: string;
+    name: string;
+  }[];
   @ApiProperty() recipientType!: 'INTERNAL_MEMBER' | 'EXTERNAL_CLIENT_CONTACT';
   @ApiProperty() contextType!: 'DIVISION_LEAD' | 'CLIENT_CONTACT';
   @ApiProperty() canReceive!: boolean;
   @ApiPropertyOptional({ nullable: true }) unavailableReason!: string | null;
-  @ApiProperty({ description: 'Whether this profile has an active compatible permission to respond.' }) canRespond!: boolean;
-  @ApiProperty({ type: Object }) context!: { kind: 'DIVISION_LEAD' | 'CLIENT_CONTACT'; id?: string; name?: string };
-  @ApiProperty({ type: [Object] }) contexts!: { kind: 'DIVISION_LEAD' | 'CLIENT_CONTACT'; id: string; name: string }[];
+  @ApiProperty({
+    description:
+      'Whether this profile has an active compatible permission to respond.',
+  })
+  canRespond!: boolean;
+  @ApiProperty({ type: Object }) context!: {
+    kind: 'DIVISION_LEAD' | 'CLIENT_CONTACT';
+    id?: string;
+    name?: string;
+  };
+  @ApiProperty({ type: [Object] }) contexts!: {
+    kind: 'DIVISION_LEAD' | 'CLIENT_CONTACT';
+    id: string;
+    name: string;
+  }[];
 }
 
 export class WorkRequestInfoAttachmentDto {

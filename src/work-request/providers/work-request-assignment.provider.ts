@@ -75,9 +75,18 @@ export class WorkRequestAssignmentProvider {
           ? { id: assignment.member.id, label: assignment.member.name }
           : null,
         assignedBy: assignment.assignedByActor,
-        responsibleRecipients: assignment.unassignedAt || assignment.replacedAt ? [] :
-          (assignment.division?.divisionLeadsByDivisionId ?? []).flatMap(({ member }) =>
-            member.actorProfilesByMemberId.map((profile) => ({ actorId: profile.id, memberId: member.id, label: profile.label, displayName: member.name }))),
+        responsibleRecipients:
+          assignment.unassignedAt || assignment.replacedAt
+            ? []
+            : (assignment.division?.divisionLeadsByDivisionId ?? []).flatMap(
+                ({ member }) =>
+                  member.actorProfilesByMemberId.map((profile) => ({
+                    actorId: profile.id,
+                    memberId: member.id,
+                    label: profile.label,
+                    displayName: member.name,
+                  })),
+              ),
       }));
     });
   }

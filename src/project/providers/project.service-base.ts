@@ -607,7 +607,8 @@ function response(value: ProjectRecord): ProjectResponseDto {
         id: document.id,
         documentCodeId: document.documentCodeId!,
         originalFileName: document.originalFileName,
-        generatedFileName: version?.generatedFileName ?? document.generatedFileName,
+        generatedFileName:
+          version?.generatedFileName ?? document.generatedFileName,
         description: document.description,
         shipmentNumber: document.shipmentNumber,
         mimeType: version?.mimeType ?? document.mimeType,

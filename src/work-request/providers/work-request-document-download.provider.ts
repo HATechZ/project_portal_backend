@@ -30,7 +30,10 @@ export class WorkRequestDocumentDownloadProvider {
       workRequestId,
       selected.length ? selected : undefined,
     );
-    if (!versions.length || (selected.length && versions.length !== selected.length))
+    if (
+      !versions.length ||
+      (selected.length && versions.length !== selected.length)
+    )
       throw missing();
     const names = new Set<string>();
     try {

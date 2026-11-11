@@ -147,7 +147,10 @@ export class WorkRequestActionsProvider {
   }
 }
 
-function hasInfoResponsibility(memberId: string, assignments: WorkRequestRecord['assignments']) {
+function hasInfoResponsibility(
+  memberId: string,
+  assignments: WorkRequestRecord['assignments'],
+) {
   return assignments.some(
     (assignment) =>
       assignment.memberId === memberId ||

@@ -1,11 +1,19 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CreateWorkRequestDto, UpdateWorkRequestDto, CreateWorkRequestInfoRequestDto, RespondWorkRequestInfoRequestDto } from './work-request.dto';
+import {
+  CreateWorkRequestDto,
+  UpdateWorkRequestDto,
+  CreateWorkRequestInfoRequestDto,
+  RespondWorkRequestInfoRequestDto,
+} from './work-request.dto';
 
 const bidId = '11111111-1111-4111-8111-111111111111';
 const projectId = '22222222-2222-4222-8222-222222222222';
 
-describe.each([CreateWorkRequestInfoRequestDto, RespondWorkRequestInfoRequestDto])('%s message or attachment validation', (Dto) => {
+describe.each([
+  CreateWorkRequestInfoRequestDto,
+  RespondWorkRequestInfoRequestDto,
+])('%s message or attachment validation', (Dto) => {
   it.each([
     [{ message: ' text ' }, true],
     [{ documentVersionIds: [bidId] }, true],

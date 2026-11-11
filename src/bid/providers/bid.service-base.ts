@@ -300,7 +300,9 @@ export abstract class BidServiceBase {
       uploads,
       documentCodeIds: documents.map(({ documentCodeId }) => documentCodeId),
       descriptions: documents.map(({ description }) => description ?? ''),
-      shipmentNumbers: documents.map(({ shipmentNumber }) => shipmentNumber ?? ''),
+      shipmentNumbers: documents.map(
+        ({ shipmentNumber }) => shipmentNumber ?? '',
+      ),
       codes: reference.documentCodes,
       allowEmpty: true,
       revisionCode: 'A',
@@ -617,7 +619,8 @@ function response(bid: BidRecord): BidResponseDto {
         id: document.id,
         documentCodeId: document.documentCodeId,
         originalFileName: document.originalFileName,
-        generatedFileName: version?.generatedFileName ?? document.generatedFileName,
+        generatedFileName:
+          version?.generatedFileName ?? document.generatedFileName,
         description: document.description,
         shipmentNumber: document.shipmentNumber,
         mimeType: version?.mimeType ?? document.mimeType,

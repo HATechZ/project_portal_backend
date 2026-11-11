@@ -261,7 +261,11 @@ export class WorkRequestService extends WorkRequestServiceBase {
       throw mapRouteError(error);
     }
   }
-  async amendRoute(id: string, input: AmendWorkRequestRouteDto, actor: SessionActor) {
+  async amendRoute(
+    id: string,
+    input: AmendWorkRequestRouteDto,
+    actor: SessionActor,
+  ) {
     const admin = hasTenantWideInternalAuthority(actor);
     if (!actor.member?.id && !admin) throw routeForbidden();
     if (
@@ -288,7 +292,8 @@ function routeForbidden(): AppException {
   return new AppException({
     code: AppErrorCode.Forbidden,
     status: HttpStatus.FORBIDDEN,
-    message: 'An active related Member profile is required for this route action.',
+    message:
+      'An active related Member profile is required for this route action.',
   });
 }
 
@@ -296,20 +301,21 @@ function mapRouteError(error: unknown): AppException {
   if (error instanceof AppException) return error;
   const code = error instanceof Error ? error.message : '';
   if (code === 'WR_ROUTE_DIVISION_LEAD') return routeForbidden();
-  const message = (
-    {
-      WR_ROUTE_POSITION: 'Work Request route position is no longer active.',
-      WR_DIVISION_CYCLE_INCOMPLETE:
-        'The current Division cycle must finish before forwarding the route.',
-      WR_ROUTE_COMPLETE: 'Work Request route has no next step.',
-      WR_ROUTE_CLIENT_GATEWAY:
-        'The Client step can only be entered by submitting the final package.',
-      WR_ROUTE_STALE:
-        'Work Request route amendment is based on a stale route version.',
-      WR_ROUTE_DIVISION:
-        'A route amendment references an inactive or unavailable Division.',
-    } satisfies Record<string, string>
-  )[code] ?? 'Work Request route action could not be completed.';
+  const message =
+    (
+      {
+        WR_ROUTE_POSITION: 'Work Request route position is no longer active.',
+        WR_DIVISION_CYCLE_INCOMPLETE:
+          'The current Division cycle must finish before forwarding the route.',
+        WR_ROUTE_COMPLETE: 'Work Request route has no next step.',
+        WR_ROUTE_CLIENT_GATEWAY:
+          'The Client step can only be entered by submitting the final package.',
+        WR_ROUTE_STALE:
+          'Work Request route amendment is based on a stale route version.',
+        WR_ROUTE_DIVISION:
+          'A route amendment references an inactive or unavailable Division.',
+      } satisfies Record<string, string>
+    )[code] ?? 'Work Request route action could not be completed.';
   return new AppException({
     code: AppErrorCode.Conflict,
     status: HttpStatus.CONFLICT,

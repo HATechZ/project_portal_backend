@@ -71,7 +71,10 @@ export class WorkRequestInfoController {
   @FinalPermissions(PermissionCode.REQUEST_INFO)
   @ApiOperation({ summary: 'Get Client recipient availability counts' })
   @ResponseMessage('Information recipient status returned successfully')
-  recipientStatus(@Param('id', ParseUUIDPipe) id: string, @ActiveActor() actor: SessionActor) {
+  recipientStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.infoRecipientStatus(id, actor);
   }
 

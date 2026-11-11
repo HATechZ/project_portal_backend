@@ -46,9 +46,16 @@ export class WorkRequestInfoProvider {
           throw conflict('Work Request is no longer active.');
         // Administrative visibility does not create a communication identity.
         if (!actor.member?.id && !actor.clientContact?.id) throw forbidden();
-        const recipients = await this.repository.eligibleRecipients(id, actor.id);
-        if (!recipients?.some((recipient) => recipient.id === input.targetActorId))
-          throw forbidden('The selected information recipient is not eligible.');
+        const recipients = await this.repository.eligibleRecipients(
+          id,
+          actor.id,
+        );
+        if (
+          !recipients?.some((recipient) => recipient.id === input.targetActorId)
+        )
+          throw forbidden(
+            'The selected information recipient is not eligible.',
+          );
         if (input.parentInfoRequestId)
           await this.assertParent(id, input.parentInfoRequestId, actor.id);
         await this.assertAttachments(id, input.documentVersionIds);
@@ -154,9 +161,14 @@ export class WorkRequestInfoProvider {
       if (!actor.isActive) throw forbidden();
       const snapshot = await this.repository.prepare(id);
       if (!snapshot?.parent) throw notFound();
-      const participant = await this.repository.hasInfoRelationship(id, actor.id);
+      const participant = await this.repository.hasInfoRelationship(
+        id,
+        actor.id,
+      );
       if (participant)
-        return (await this.repository.history(id, actor.id)).map(requestResponse);
+        return (await this.repository.history(id, actor.id)).map(
+          requestResponse,
+        );
       if (await this.canReadAsAdministrator(id, actor, snapshot))
         return (await this.repository.history(id)).map(requestResponse);
 
@@ -184,47 +196,96 @@ export class WorkRequestInfoProvider {
       return recipients.map((recipient) => {
         const member = recipient.member;
         const teams = new Map<string, { id: string; name: string }>();
-        for (const { team } of member?.teamMembersByMemberId ?? []) teams.set(team.id, team);
-        for (const team of member?.teamsByLeadMemberId ?? []) teams.set(team.id, team);
-        const orderedTeams = [...teams.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        for (const { team } of member?.teamMembersByMemberId ?? [])
+          teams.set(team.id, team);
+        for (const team of member?.teamsByLeadMemberId ?? [])
+          teams.set(team.id, team);
+        const orderedTeams = [...teams.values()].sort(
+          (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+        );
         return {
-        actorId: recipient.id,
-        actorProfileId: recipient.id,
-        label: recipient.label,
-        displayName: recipient.member?.name ?? recipient.clientContact?.name ?? recipient.label,
-        memberId: recipient.memberId ?? null,
-        email: member?.email ?? recipient.clientContact?.email ?? null,
-        divisionId: member?.division?.id ?? null,
-        divisionName: member?.division?.name ?? null,
-        designationId: member?.designation?.id ?? null,
-        designationName: member?.designation?.name ?? null,
-        teamIds: orderedTeams.map((team) => team.id),
-        teamNames: orderedTeams.map((team) => team.name),
-        relationshipContexts: recipient.memberId
-          ? [
-              ...(member?.division ? [{ kind: 'MEMBER' as const, ...member.division }] : []),
-              ...(member?.divisionLeadsByMemberId ?? []).map(({ division }) => ({ kind: 'DIVISION_LEAD' as const, ...division })),
-              ...(member?.teamsByLeadMemberId ?? []).map((team) => ({ kind: 'TEAM_LEAD' as const, ...team })),
-              ...(member?.teamMembersByMemberId ?? []).map(({ team }) => ({ kind: 'TEAM_MEMBER' as const, ...team })),
-            ]
-          : recipient.clientContact ? [{ kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact.client }] : [],
-        recipientType: recipient.memberId ? 'INTERNAL_MEMBER' as const : 'EXTERNAL_CLIENT_CONTACT' as const,
-        contextType: recipient.memberId ? 'DIVISION_LEAD' as const : 'CLIENT_CONTACT' as const,
-        canReceive: true,
-        unavailableReason: null,
-        // Selection means the actor has a usable portal profile.  The exact
-        // addressed-request check, rather than a broad response grant, governs
-        // whether this person can reply.
-        canRespond: true,
-        context: recipient.memberId
-          ? { kind: 'DIVISION_LEAD' as const, ...recipient.member?.divisionLeadsByMemberId[0]?.division }
-          : { kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact?.client },
-        contexts: recipient.memberId
-          ? (recipient.member?.divisionLeadsByMemberId ?? []).map(({ division }) => ({ kind: 'DIVISION_LEAD' as const, ...division }))
-          : recipient.clientContact ? [{ kind: 'CLIENT_CONTACT' as const, ...recipient.clientContact.client }] : [],
-        type: recipient.memberId
-          ? ('INTERNAL_MEMBER' as const)
-          : ('EXTERNAL_CLIENT_CONTACT' as const),
+          actorId: recipient.id,
+          actorProfileId: recipient.id,
+          label: recipient.label,
+          displayName:
+            recipient.member?.name ??
+            recipient.clientContact?.name ??
+            recipient.label,
+          memberId: recipient.memberId ?? null,
+          email: member?.email ?? recipient.clientContact?.email ?? null,
+          divisionId: member?.division?.id ?? null,
+          divisionName: member?.division?.name ?? null,
+          designationId: member?.designation?.id ?? null,
+          designationName: member?.designation?.name ?? null,
+          teamIds: orderedTeams.map((team) => team.id),
+          teamNames: orderedTeams.map((team) => team.name),
+          relationshipContexts: recipient.memberId
+            ? [
+                ...(member?.division
+                  ? [{ kind: 'MEMBER' as const, ...member.division }]
+                  : []),
+                ...(member?.divisionLeadsByMemberId ?? []).map(
+                  ({ division }) => ({
+                    kind: 'DIVISION_LEAD' as const,
+                    ...division,
+                  }),
+                ),
+                ...(member?.teamsByLeadMemberId ?? []).map((team) => ({
+                  kind: 'TEAM_LEAD' as const,
+                  ...team,
+                })),
+                ...(member?.teamMembersByMemberId ?? []).map(({ team }) => ({
+                  kind: 'TEAM_MEMBER' as const,
+                  ...team,
+                })),
+              ]
+            : recipient.clientContact
+              ? [
+                  {
+                    kind: 'CLIENT_CONTACT' as const,
+                    ...recipient.clientContact.client,
+                  },
+                ]
+              : [],
+          recipientType: recipient.memberId
+            ? ('INTERNAL_MEMBER' as const)
+            : ('EXTERNAL_CLIENT_CONTACT' as const),
+          contextType: recipient.memberId
+            ? ('DIVISION_LEAD' as const)
+            : ('CLIENT_CONTACT' as const),
+          canReceive: true,
+          unavailableReason: null,
+          // Selection means the actor has a usable portal profile.  The exact
+          // addressed-request check, rather than a broad response grant, governs
+          // whether this person can reply.
+          canRespond: true,
+          context: recipient.memberId
+            ? {
+                kind: 'DIVISION_LEAD' as const,
+                ...recipient.member?.divisionLeadsByMemberId[0]?.division,
+              }
+            : {
+                kind: 'CLIENT_CONTACT' as const,
+                ...recipient.clientContact?.client,
+              },
+          contexts: recipient.memberId
+            ? (recipient.member?.divisionLeadsByMemberId ?? []).map(
+                ({ division }) => ({
+                  kind: 'DIVISION_LEAD' as const,
+                  ...division,
+                }),
+              )
+            : recipient.clientContact
+              ? [
+                  {
+                    kind: 'CLIENT_CONTACT' as const,
+                    ...recipient.clientContact.client,
+                  },
+                ]
+              : [],
+          type: recipient.memberId
+            ? ('INTERNAL_MEMBER' as const)
+            : ('EXTERNAL_CLIENT_CONTACT' as const),
         };
       });
     });
@@ -239,10 +300,36 @@ export class WorkRequestInfoProvider {
     });
   }
 
-  private async canReadAsAdministrator(id: string, actor: SessionActor, snapshot: any) {
-    if (!actor.isActive || !actor.role.isActive || !hasCompanyWorkRequestScope(actor)) return false;
-    if (!actor.role.rolePermissions.some(({ revokedAt, permission }) => revokedAt === null && permission.code === PermissionCode.VIEW_WORK_REQUEST && (actor.role.customScope === null || permission.scopeCompatibilities?.some(({ scope }) => scope === actor.role.customScope)))) return false;
-    if (actor.role.customScope === 'company' && (!actor.member?.isActive || !actor.member.company.isActive || actor.member.companyId !== snapshot.parent.client.companyId)) return false;
+  private async canReadAsAdministrator(
+    id: string,
+    actor: SessionActor,
+    snapshot: any,
+  ) {
+    if (
+      !actor.isActive ||
+      !actor.role.isActive ||
+      !hasCompanyWorkRequestScope(actor)
+    )
+      return false;
+    if (
+      !actor.role.rolePermissions.some(
+        ({ revokedAt, permission }) =>
+          revokedAt === null &&
+          permission.code === PermissionCode.VIEW_WORK_REQUEST &&
+          (actor.role.customScope === null ||
+            permission.scopeCompatibilities?.some(
+              ({ scope }) => scope === actor.role.customScope,
+            )),
+      )
+    )
+      return false;
+    if (
+      actor.role.customScope === 'company' &&
+      (!actor.member?.isActive ||
+        !actor.member.company.isActive ||
+        actor.member.companyId !== snapshot.parent.client.companyId)
+    )
+      return false;
     return this.repository.isVisible(id, actor);
   }
 
@@ -320,10 +407,15 @@ export class WorkRequestInfoProvider {
   }
 }
 
-function infoMessage(message: string | undefined, documentVersionIds?: string[]) {
+function infoMessage(
+  message: string | undefined,
+  documentVersionIds?: string[],
+) {
   const normalized = message?.trim() ?? '';
   if (!normalized && !documentVersionIds?.length)
-    throw new BadRequestException('A message or at least one attachment is required.');
+    throw new BadRequestException(
+      'A message or at least one attachment is required.',
+    );
   return normalized;
 }
 
@@ -374,7 +466,9 @@ function notFound(message = 'Work Request was not found.') {
     message,
   });
 }
-function forbidden(message = "You don't have permission to perform this action.") {
+function forbidden(
+  message = "You don't have permission to perform this action.",
+) {
   return new AppException({
     code: AppErrorCode.Forbidden,
     status: HttpStatus.FORBIDDEN,

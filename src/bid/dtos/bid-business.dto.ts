@@ -1,5 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum BidBusinessOutcomeInput {
@@ -46,7 +52,8 @@ export class RestoreBidDto {
 
 export class BidBusinessReadinessResponseDto {
   @ApiProperty() ready!: boolean;
-  @ApiProperty({ nullable: true, format: 'uuid' }) currentCycleId!: string | null;
+  @ApiProperty({ nullable: true, format: 'uuid' }) currentCycleId!:
+    string | null;
   @ApiProperty() totalWorkRequests!: number;
   @ApiProperty() acceptedWorkRequests!: number;
   @ApiProperty({ type: String, isArray: true }) blocking!: string[];
@@ -89,5 +96,6 @@ export class BidBusinessHistoryResponseDto {
   @ApiProperty({ format: 'uuid' }) bidId!: string;
   @ApiProperty({ type: Object, isArray: true }) cycles!: object[];
   @ApiProperty({ type: Object, isArray: true }) outcomes!: object[];
-  @ApiPropertyOptional({ type: Object, nullable: true }) conversion!: object | null;
+  @ApiPropertyOptional({ type: Object, nullable: true }) conversion!:
+    object | null;
 }

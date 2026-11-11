@@ -143,20 +143,84 @@ describe('WorkRequestInfoProvider', () => {
     const division = { id: 'division-a', name: 'Engineering' };
     const team = { id: 'team-a', name: 'Design' };
     const member = {
-      name: 'Alex', email: 'alex@example.test', division,
+      name: 'Alex',
+      email: 'alex@example.test',
+      division,
       designation: { id: 'designation-a', name: 'Engineer' },
       divisionLeadsByMemberId: [{ division }],
-      teamsByLeadMemberId: [team], teamMembersByMemberId: [{ team }],
+      teamsByLeadMemberId: [team],
+      teamMembersByMemberId: [{ team }],
     };
     repository.eligibleRecipients.mockResolvedValue([
-      { id: 'lead', label: 'Lead', memberId: 'member-lead', member, clientContactId: null },
-      { id: 'worker', label: 'Worker', memberId: 'member-worker', member: { ...member, divisionLeadsByMemberId: [], teamsByLeadMemberId: [] }, clientContactId: null },
-      { id: 'contact', label: 'Contact', memberId: null, clientContactId: 'contact-a', member: null, clientContact: { name: 'Client', email: 'client@example.test', client: { id: 'client-a', name: 'Client Co' } } },
+      {
+        id: 'lead',
+        label: 'Lead',
+        memberId: 'member-lead',
+        member,
+        clientContactId: null,
+      },
+      {
+        id: 'worker',
+        label: 'Worker',
+        memberId: 'member-worker',
+        member: {
+          ...member,
+          divisionLeadsByMemberId: [],
+          teamsByLeadMemberId: [],
+        },
+        clientContactId: null,
+      },
+      {
+        id: 'contact',
+        label: 'Contact',
+        memberId: null,
+        clientContactId: 'contact-a',
+        member: null,
+        clientContact: {
+          name: 'Client',
+          email: 'client@example.test',
+          client: { id: 'client-a', name: 'Client Co' },
+        },
+      },
     ] as never);
-    const result = await provider.eligibleRecipients('request-a', actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO));
-    expect(result[0]).toMatchObject({ memberId: 'member-lead', divisionId: 'division-a', divisionName: 'Engineering', designationId: 'designation-a', designationName: 'Engineer', email: 'alex@example.test', teamIds: ['team-a'], teamNames: ['Design'], relationshipContexts: expect.arrayContaining([{ kind: 'DIVISION_LEAD', ...division }, { kind: 'TEAM_LEAD', ...team }]) });
-    expect(result[1]).toMatchObject({ memberId: 'member-worker', divisionId: 'division-a', designationName: 'Engineer', teamIds: ['team-a'], relationshipContexts: expect.arrayContaining([{ kind: 'TEAM_MEMBER', ...team }]) });
-    expect(result[2]).toMatchObject({ memberId: null, email: 'client@example.test', divisionId: null, divisionName: null, designationId: null, designationName: null, teamIds: [], teamNames: [], recipientType: 'EXTERNAL_CLIENT_CONTACT' });
+    const result = await provider.eligibleRecipients(
+      'request-a',
+      actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+    );
+    expect(result[0]).toMatchObject({
+      memberId: 'member-lead',
+      divisionId: 'division-a',
+      divisionName: 'Engineering',
+      designationId: 'designation-a',
+      designationName: 'Engineer',
+      email: 'alex@example.test',
+      teamIds: ['team-a'],
+      teamNames: ['Design'],
+      relationshipContexts: expect.arrayContaining([
+        { kind: 'DIVISION_LEAD', ...division },
+        { kind: 'TEAM_LEAD', ...team },
+      ]),
+    });
+    expect(result[1]).toMatchObject({
+      memberId: 'member-worker',
+      divisionId: 'division-a',
+      designationName: 'Engineer',
+      teamIds: ['team-a'],
+      relationshipContexts: expect.arrayContaining([
+        { kind: 'TEAM_MEMBER', ...team },
+      ]),
+    });
+    expect(result[2]).toMatchObject({
+      memberId: null,
+      email: 'client@example.test',
+      divisionId: null,
+      divisionName: null,
+      designationId: null,
+      designationName: null,
+      teamIds: [],
+      teamNames: [],
+      recipientType: 'EXTERNAL_CLIENT_CONTACT',
+    });
   });
 
   it('allows the addressed active ClientContact to respond before Division assignment', async () => {
@@ -164,53 +228,133 @@ describe('WorkRequestInfoProvider', () => {
     snapshot.request.events = [{ resultingState: State.CREATED }];
     snapshot.request.assignments = [];
     const { provider } = subject(snapshot);
-    const contact = actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO, 'client_contact');
-    contact.role.rolePermissions[0].permission.scopeCompatibilities = [{ scope: 'client_contact' }];
-    contact.clientContact = { isActive: true, clientId: 'client-a', client: { isActive: true } };
-    await expect(provider.respond('request-a', 'info-a', { message: 'Details.' }, contact)).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
+    const contact = actor(
+      WorkflowActionCode.RESPOND_WORKFLOW_INFO,
+      'client_contact',
+    );
+    contact.role.rolePermissions[0].permission.scopeCompatibilities = [
+      { scope: 'client_contact' },
+    ];
+    contact.clientContact = {
+      isActive: true,
+      clientId: 'client-a',
+      client: { isActive: true },
+    };
+    await expect(
+      provider.respond('request-a', 'info-a', { message: 'Details.' }, contact),
+    ).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
   });
 
   it.each([
     ['text only', { message: ' text ' }, 'text'],
     ['attachment only', { documentVersionIds: ['version-a'] }, ''],
-    ['blank with attachment', { message: '   ', documentVersionIds: ['version-a'] }, ''],
-    ['text and attachment', { message: ' text ', documentVersionIds: ['version-a'] }, 'text'],
-  ])('creates a Request Info with %s', async (_label, input, expectedMessage) => {
-    const { provider, repository } = subject();
-    await provider.request('request-a', { targetActorId: 'target-a', ...input }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO));
-    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ message: expectedMessage, documentVersionIds: input.documentVersionIds }));
-  });
+    [
+      'blank with attachment',
+      { message: '   ', documentVersionIds: ['version-a'] },
+      '',
+    ],
+    [
+      'text and attachment',
+      { message: ' text ', documentVersionIds: ['version-a'] },
+      'text',
+    ],
+  ])(
+    'creates a Request Info with %s',
+    async (_label, input, expectedMessage) => {
+      const { provider, repository } = subject();
+      await provider.request(
+        'request-a',
+        { targetActorId: 'target-a', ...input },
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      );
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expectedMessage,
+          documentVersionIds: input.documentVersionIds,
+        }),
+      );
+    },
+  );
 
   it.each([
     ['text only', { message: ' text ' }, 'text'],
     ['attachment only', { documentVersionIds: ['version-a'] }, ''],
-    ['blank with attachment', { message: '   ', documentVersionIds: ['version-a'] }, ''],
-    ['text and attachment', { message: ' text ', documentVersionIds: ['version-a'] }, 'text'],
-  ])('responds to Request Info with %s', async (_label, input, expectedMessage) => {
-    const { provider, repository } = subject();
-    await provider.respond('request-a', 'info-a', input, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO));
-    expect(repository.respond.mock.calls[0].slice(0, 5)).toEqual(['request-a', 'info-a', 'actor-a', expectedMessage, input.documentVersionIds]);
-  });
+    [
+      'blank with attachment',
+      { message: '   ', documentVersionIds: ['version-a'] },
+      '',
+    ],
+    [
+      'text and attachment',
+      { message: ' text ', documentVersionIds: ['version-a'] },
+      'text',
+    ],
+  ])(
+    'responds to Request Info with %s',
+    async (_label, input, expectedMessage) => {
+      const { provider, repository } = subject();
+      await provider.respond(
+        'request-a',
+        'info-a',
+        input,
+        actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
+      );
+      expect(repository.respond.mock.calls[0].slice(0, 5)).toEqual([
+        'request-a',
+        'info-a',
+        'actor-a',
+        expectedMessage,
+        input.documentVersionIds,
+      ]);
+    },
+  );
 
-  it.each([{}, { message: '   ', documentVersionIds: [] }])('rejects empty create and reply %j', async (input) => {
-    const { provider, repository } = subject();
-    await expect(provider.request('request-a', { targetActorId: 'target-a', ...input }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO))).rejects.toMatchObject({ status: 400 });
-    await expect(provider.respond('request-a', 'info-a', input, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO))).rejects.toMatchObject({ status: 400 });
-    expect(repository.create).not.toHaveBeenCalled();
-    expect(repository.respond).not.toHaveBeenCalled();
-  });
+  it.each([{}, { message: '   ', documentVersionIds: [] }])(
+    'rejects empty create and reply %j',
+    async (input) => {
+      const { provider, repository } = subject();
+      await expect(
+        provider.request(
+          'request-a',
+          { targetActorId: 'target-a', ...input },
+          actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        provider.respond(
+          'request-a',
+          'info-a',
+          input,
+          actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(repository.create).not.toHaveBeenCalled();
+      expect(repository.respond).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not turn system administration into a communication identity', async () => {
     const { provider, repository } = subject();
     const admin = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
     admin.member = null;
     admin.role.isActive = true;
-    admin.role.rolePermissions.push({ revokedAt: null, permission: { code: 'VIEW_WORK_REQUEST' } });
+    admin.role.rolePermissions.push({
+      revokedAt: null,
+      permission: { code: 'VIEW_WORK_REQUEST' },
+    });
     repository.hasInfoRelationship.mockResolvedValue(null);
-    await expect(provider.eligibleRecipients('request-a', admin)).resolves.toEqual([]);
+    await expect(
+      provider.eligibleRecipients('request-a', admin),
+    ).resolves.toEqual([]);
     await expect(provider.history('request-a', admin)).resolves.toHaveLength(1);
     expect(repository.isVisible).toHaveBeenCalledWith('request-a', admin);
-    await expect(provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify' }, admin)).rejects.toMatchObject({ status: 403 });
+    await expect(
+      provider.request(
+        'request-a',
+        { targetActorId: 'target-a', message: 'Clarify' },
+        admin,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
     expect(repository.create).not.toHaveBeenCalled();
   });
 
@@ -220,7 +364,9 @@ describe('WorkRequestInfoProvider', () => {
     admin.member = null;
     admin.role.isActive = true;
     repository.isVisible.mockResolvedValue(false);
-    await expect(provider.eligibleRecipients('request-a', admin)).resolves.toEqual([]);
+    await expect(
+      provider.eligibleRecipients('request-a', admin),
+    ).resolves.toEqual([]);
   });
 
   it('does not allow administrator recipient reads without the explicit grant', async () => {
@@ -229,7 +375,9 @@ describe('WorkRequestInfoProvider', () => {
     admin.member = null;
     admin.role.isActive = true;
     admin.role.rolePermissions = [];
-    await expect(provider.eligibleRecipients('request-a', admin)).rejects.toMatchObject({ status: 403 });
+    await expect(
+      provider.eligibleRecipients('request-a', admin),
+    ).rejects.toMatchObject({ status: 403 });
     expect(repository.isVisible).not.toHaveBeenCalled();
   });
 
@@ -238,8 +386,18 @@ describe('WorkRequestInfoProvider', () => {
     snapshot.request.assignments = [];
     const { provider, repository } = subject(snapshot);
     repository.isActiveRouteLead.mockResolvedValue(true);
-    await expect(provider.respond('request-a', 'info-a', { message: 'Details.' }, actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO))).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
-    await provider.history('request-a', actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO));
+    await expect(
+      provider.respond(
+        'request-a',
+        'info-a',
+        { message: 'Details.' },
+        actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
+      ),
+    ).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
+    await provider.history(
+      'request-a',
+      actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO),
+    );
     expect(repository.history).toHaveBeenCalledWith('request-a', 'actor-a');
   });
 
@@ -249,7 +407,14 @@ describe('WorkRequestInfoProvider', () => {
     const { provider, repository } = subject(snapshot);
     const addressed = actor(WorkflowActionCode.RESPOND_WORKFLOW_INFO);
     addressed.role.rolePermissions = [];
-    await expect(provider.respond('request-a', 'info-a', { message: 'Details.' }, addressed)).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
+    await expect(
+      provider.respond(
+        'request-a',
+        'info-a',
+        { message: 'Details.' },
+        addressed,
+      ),
+    ).resolves.toEqual(expect.objectContaining({ message: 'Response.' }));
     expect(repository.respond).toHaveBeenCalled();
   });
 
@@ -261,8 +426,13 @@ describe('WorkRequestInfoProvider', () => {
       const { provider, repository } = subject(snapshot);
       const participant = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
       participant.role.rolePermissions = [];
-      await expect(provider.history('request-a', participant)).resolves.toHaveLength(1);
-      expect(repository.hasInfoRelationship).toHaveBeenCalledWith('request-a', 'actor-a');
+      await expect(
+        provider.history('request-a', participant),
+      ).resolves.toHaveLength(1);
+      expect(repository.hasInfoRelationship).toHaveBeenCalledWith(
+        'request-a',
+        'actor-a',
+      );
       expect(repository.history).toHaveBeenCalledWith('request-a', 'actor-a');
       expect(repository.isActiveRouteLead).not.toHaveBeenCalled();
     },
@@ -274,9 +444,15 @@ describe('WorkRequestInfoProvider', () => {
     repository.eligibleRecipients.mockResolvedValue([{ id: 'target-a' }]);
 
     await expect(
-      provider.history('request-a', actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO)),
+      provider.history(
+        'request-a',
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      ),
     ).resolves.toEqual([]);
-    expect(repository.eligibleRecipients).toHaveBeenCalledWith('request-a', 'actor-a');
+    expect(repository.eligibleRecipients).toHaveBeenCalledWith(
+      'request-a',
+      'actor-a',
+    );
     expect(repository.history).not.toHaveBeenCalled();
   });
 
@@ -284,7 +460,10 @@ describe('WorkRequestInfoProvider', () => {
     const { provider, repository } = subject();
 
     await expect(
-      provider.history('request-a', actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO)),
+      provider.history(
+        'request-a',
+        actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+      ),
     ).resolves.toHaveLength(1);
     expect(repository.history).toHaveBeenCalledWith('request-a', 'actor-a');
     expect(repository.eligibleRecipients).not.toHaveBeenCalled();
@@ -296,7 +475,9 @@ describe('WorkRequestInfoProvider', () => {
     const noPermission = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
     noPermission.role.rolePermissions = [];
 
-    await expect(provider.history('request-a', noPermission)).rejects.toMatchObject({ status: 403 });
+    await expect(
+      provider.history('request-a', noPermission),
+    ).rejects.toMatchObject({ status: 403 });
     expect(repository.eligibleRecipients).not.toHaveBeenCalled();
   });
 
@@ -305,10 +486,14 @@ describe('WorkRequestInfoProvider', () => {
     repository.hasInfoRelationship.mockResolvedValue(null);
     repository.eligibleRecipients.mockResolvedValue([]);
     const unrelated = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO, 'member');
-    await expect(provider.history('request-a', unrelated)).rejects.toMatchObject({ status: 403 });
+    await expect(
+      provider.history('request-a', unrelated),
+    ).rejects.toMatchObject({ status: 403 });
     const admin = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
     admin.role.isActive = true;
-    await expect(provider.history('request-a', admin)).rejects.toMatchObject({ status: 403 });
+    await expect(provider.history('request-a', admin)).rejects.toMatchObject({
+      status: 403,
+    });
     expect(repository.history).not.toHaveBeenCalled();
   });
 
@@ -316,7 +501,9 @@ describe('WorkRequestInfoProvider', () => {
     const { provider, repository } = subject();
     const inactive = actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO);
     inactive.isActive = false;
-    await expect(provider.history('request-a', inactive)).rejects.toMatchObject({ status: 403 });
+    await expect(provider.history('request-a', inactive)).rejects.toMatchObject(
+      { status: 403 },
+    );
     expect(repository.history).not.toHaveBeenCalled();
   });
 
@@ -359,10 +546,15 @@ describe('WorkRequestInfoProvider', () => {
     await expect(
       provider.request(
         'request-a',
-        { targetActorId: 'target-a', message: 'Please clarify the route handoff.' },
+        {
+          targetActorId: 'target-a',
+          message: 'Please clarify the route handoff.',
+        },
         actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
       ),
-    ).resolves.toEqual(expect.objectContaining({ id: 'info-a', status: 'OPEN' }));
+    ).resolves.toEqual(
+      expect.objectContaining({ id: 'info-a', status: 'OPEN' }),
+    );
     expect(repository.create).toHaveBeenCalledTimes(1);
   });
 
@@ -394,8 +586,15 @@ describe('WorkRequestInfoProvider', () => {
         canReceive: true,
         unavailableReason: null,
         displayName: 'Target Lead',
-        memberId: 'member-target', email: null, divisionId: null, divisionName: null,
-        designationId: null, designationName: null, teamIds: [], teamNames: [], relationshipContexts: [],
+        memberId: 'member-target',
+        email: null,
+        divisionId: null,
+        divisionName: null,
+        designationId: null,
+        designationName: null,
+        teamIds: [],
+        teamNames: [],
+        relationshipContexts: [],
         canRespond: true,
         context: { kind: 'DIVISION_LEAD' },
         contexts: [],
@@ -546,8 +745,15 @@ describe('WorkRequestInfoProvider', () => {
         canReceive: true,
         unavailableReason: null,
         displayName: 'Target Lead',
-        memberId: 'member-target', email: null, divisionId: null, divisionName: null,
-        designationId: null, designationName: null, teamIds: [], teamNames: [], relationshipContexts: [],
+        memberId: 'member-target',
+        email: null,
+        divisionId: null,
+        divisionName: null,
+        designationId: null,
+        designationName: null,
+        teamIds: [],
+        teamNames: [],
+        relationshipContexts: [],
         canRespond: true,
         context: { kind: 'DIVISION_LEAD' },
         contexts: [],
@@ -585,11 +791,20 @@ describe('WorkRequestInfoProvider', () => {
     'Member -> own Team Lead',
     'Member -> own Team Member',
     'persisted reciprocal counterpart',
-  ])('accepts a %s target only when the authoritative policy returns it', async () => {
-    const { provider, repository } = subject();
-    repository.eligibleRecipients.mockResolvedValue([{ id: 'target-a' }]);
-    await expect(provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify.' }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO))).resolves.toEqual(expect.objectContaining({ id: 'info-a' }));
-  });
+  ])(
+    'accepts a %s target only when the authoritative policy returns it',
+    async () => {
+      const { provider, repository } = subject();
+      repository.eligibleRecipients.mockResolvedValue([{ id: 'target-a' }]);
+      await expect(
+        provider.request(
+          'request-a',
+          { targetActorId: 'target-a', message: 'Clarify.' },
+          actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+        ),
+      ).resolves.toEqual(expect.objectContaining({ id: 'info-a' }));
+    },
+  );
 
   it.each([
     'Origin Lead -> Team Lead',
@@ -605,10 +820,19 @@ describe('WorkRequestInfoProvider', () => {
     'Member -> other Team Lead',
     'Member -> Member outside Team',
     'unrelated reciprocal recipient',
-  ])('rejects a prohibited %s target absent from the authoritative policy', async () => {
-    const { provider, repository } = subject();
-    repository.eligibleRecipients.mockResolvedValue([]);
-    await expect(provider.request('request-a', { targetActorId: 'target-a', message: 'Clarify.' }, actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO))).rejects.toMatchObject({ status: 403 });
-    expect(repository.create).not.toHaveBeenCalled();
-  });
+  ])(
+    'rejects a prohibited %s target absent from the authoritative policy',
+    async () => {
+      const { provider, repository } = subject();
+      repository.eligibleRecipients.mockResolvedValue([]);
+      await expect(
+        provider.request(
+          'request-a',
+          { targetActorId: 'target-a', message: 'Clarify.' },
+          actor(WorkflowActionCode.REQUEST_WORKFLOW_INFO),
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(repository.create).not.toHaveBeenCalled();
+    },
+  );
 });

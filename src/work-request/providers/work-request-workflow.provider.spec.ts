@@ -215,14 +215,16 @@ describe('WorkRequestWorkflowProvider', () => {
       State.CHECKING_REVIEW,
       WorkflowActionCode.WR_CHECKING_APPROVE,
     );
-    await RequestContext.run({ requestId: 'admin-request', tenantId: 'tenant-a' }, () =>
-      provider.action(
-        'request-a',
-        'action-a',
-        undefined,
-        'administrative approval',
-        admin(WorkflowActionCode.WR_CHECKING_APPROVE),
-      ),
+    await RequestContext.run(
+      { requestId: 'admin-request', tenantId: 'tenant-a' },
+      () =>
+        provider.action(
+          'request-a',
+          'action-a',
+          undefined,
+          'administrative approval',
+          admin(WorkflowActionCode.WR_CHECKING_APPROVE),
+        ),
     );
     expect(repository.append).toHaveBeenCalledWith(
       expect.objectContaining({ actorId: 'admin-actor' }),

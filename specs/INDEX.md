@@ -65,7 +65,6 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 
 | Date | Agent | Module | Gates | Note |
 |---|---|---|---|---|
-| 2026-10-22 | Codex + db-architect | 10 | 4 | Validation DB declared available but `DATABASE_URL_VALIDATION` was not injected; no DB connection attempted |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Local PostgreSQL 18 is reachable but lacks a non-interactive admin credential; no DB changed |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Docker validation DB healthy; clean chain blocks pre-C3 on tenant_super_admin bootstrap assertion |
 | 2026-10-22 | Codex + db-architect | 10 | 4 | Phase 2 complete: disposable chain/C3/RLS/cutover and self-review PASS |
@@ -75,3 +74,4 @@ Last 10 rows, one short line each ([Art. VII](rules/07-status.md)).
 | 2026-11-03 | Codex + verifier | 03 | 4 | Atomic scope edits: 70 role tests/build PASS; auth suite has dependency load failure |
 | 2026-11-03 | Codex + db-architect | 03 | 4 | Scope constraint ordering fixed; 71 tests/build and real PG regression PASS |
 | 2026-11-03 | Codex + verifier | 04.1.1,04.2,04.3 | 4 | Exact-Division candidates/lead guard; 62 tests, lint and build PASS |
+| 2026-11-11 | Codex | 10 | 4 | Additive Internal Workflow read projection; focused tests/build PASS |

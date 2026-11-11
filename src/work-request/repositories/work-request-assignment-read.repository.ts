@@ -26,13 +26,29 @@ export class WorkRequestAssignmentReadRepository extends BaseRepository {
           replacedAt: true,
           note: true,
           member: { select: { id: true, name: true } },
-          division: { select: { divisionLeadsByDivisionId: {
-            where: { revokedAt: null, member: { is: { isActive: true } } },
-            select: { member: { select: { id: true, name: true, actorProfilesByMemberId: {
-              where: { isActive: true, isDefault: true, user: { is: { isActive: true } } },
-              select: { id: true, label: true },
-            } } } },
-          } } },
+          division: {
+            select: {
+              divisionLeadsByDivisionId: {
+                where: { revokedAt: null, member: { is: { isActive: true } } },
+                select: {
+                  member: {
+                    select: {
+                      id: true,
+                      name: true,
+                      actorProfilesByMemberId: {
+                        where: {
+                          isActive: true,
+                          isDefault: true,
+                          user: { is: { isActive: true } },
+                        },
+                        select: { id: true, label: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           assignedByActor: { select: { id: true, label: true } },
         },
       }),

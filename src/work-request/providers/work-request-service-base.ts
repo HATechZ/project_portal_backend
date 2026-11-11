@@ -116,13 +116,15 @@ export abstract class WorkRequestServiceBase {
               uploadedFileName,
               revisionCode,
             })!
-          : context.naming ? formatDirectProjectDocumentFileName({
-              ...context.naming,
-              documentCode: code.code,
-              documentName: code.name,
-              uploadedFileName,
-              revisionCode,
-            }) : uploadedFileName,
+          : context.naming
+            ? formatDirectProjectDocumentFileName({
+                ...context.naming,
+                documentCode: code.code,
+                documentName: code.name,
+                uploadedFileName,
+                revisionCode,
+              })
+            : uploadedFileName,
     });
     let stored: string[] = [];
     try {
@@ -208,7 +210,8 @@ export abstract class WorkRequestServiceBase {
     const codes = await this.repository.availableCreationDocumentCodes(
       originatingDivisionId,
     );
-    if (!codes) throw notFound('Originating Division was not found or is inactive.');
+    if (!codes)
+      throw notFound('Originating Division was not found or is inactive.');
     return codes;
   }
 
@@ -766,6 +769,8 @@ function mapReferenceError(error: unknown): Error {
       'Document uploads require one unambiguous current execution Division.',
     );
   if (error.message === 'WR_NAMING_CONTEXT')
-    return conflict('Document naming details are incomplete for this Work Request.');
+    return conflict(
+      'Document naming details are incomplete for this Work Request.',
+    );
   return error;
 }

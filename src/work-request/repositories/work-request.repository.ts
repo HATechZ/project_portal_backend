@@ -44,7 +44,11 @@ export class WorkRequestRepository extends BaseRepository {
       );
       const rows = codeIds.length
         ? await db.documentCodeOption.findMany({
-            where: applicableDocumentCodeWhere(tenantId, allowedGroups, codeIds),
+            where: applicableDocumentCodeWhere(
+              tenantId,
+              allowedGroups,
+              codeIds,
+            ),
             select: { id: true, code: true, name: true },
           })
         : [];
@@ -121,7 +125,11 @@ export class WorkRequestRepository extends BaseRepository {
           workRequestDocumentGroups(groups.map((group) => group.documentGroup)),
         ),
         select: { id: true, code: true, name: true, documentGroup: true },
-        orderBy: [{ documentGroup: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
+        orderBy: [
+          { documentGroup: 'asc' },
+          { sortOrder: 'asc' },
+          { code: 'asc' },
+        ],
       });
     });
   }
@@ -414,10 +422,15 @@ export class WorkRequestRepository extends BaseRepository {
           },
         },
       });
-      return route ? {
-        ...route,
-        steps: route.steps.map((step) => ({ ...step, divisionName: step.division?.name ?? null })),
-      } : null;
+      return route
+        ? {
+            ...route,
+            steps: route.steps.map((step) => ({
+              ...step,
+              divisionName: step.division?.name ?? null,
+            })),
+          }
+        : null;
     });
   }
   forwardRoute(
@@ -694,21 +707,35 @@ export class WorkRequestRepository extends BaseRepository {
       const parent = request.bid ?? request.directProject;
       if (!parent) throw new Error('WR_PARENT');
       const needsCodedNaming = documentCodeIds.length > 0;
-      if (needsCodedNaming && (
-        !this.currentDocumentDivisionId(request) ||
-        !parent ||
-        !parent.projectCode ||
-        !parent.cargoCodeSnapshot ||
-        !parent.vesselCodeSnapshot ||
-        !parent.shipmentNumber
-      ))
+      if (
+        needsCodedNaming &&
+        (!this.currentDocumentDivisionId(request) ||
+          !parent ||
+          !parent.projectCode ||
+          !parent.cargoCodeSnapshot ||
+          !parent.vesselCodeSnapshot ||
+          !parent.shipmentNumber)
+      )
         throw new Error('WR_NAMING_CONTEXT');
       const divisionId = this.currentDocumentDivisionId(request);
-      const configuredGroups = needsCodedNaming ? await db.divisionDocumentGroup.findMany({ where: { tenantId, divisionId: divisionId! }, select: { documentGroup: true } }) : [];
-      const codes = needsCodedNaming ? await db.documentCodeOption.findMany({
-        where: applicableDocumentCodeWhere(tenantId, workRequestDocumentGroups(configuredGroups.map((row) => row.documentGroup)), documentCodeIds),
-        select: { id: true, code: true, name: true },
-      }) : [];
+      const configuredGroups = needsCodedNaming
+        ? await db.divisionDocumentGroup.findMany({
+            where: { tenantId, divisionId: divisionId! },
+            select: { documentGroup: true },
+          })
+        : [];
+      const codes = needsCodedNaming
+        ? await db.documentCodeOption.findMany({
+            where: applicableDocumentCodeWhere(
+              tenantId,
+              workRequestDocumentGroups(
+                configuredGroups.map((row) => row.documentGroup),
+              ),
+              documentCodeIds,
+            ),
+            select: { id: true, code: true, name: true },
+          })
+        : [];
       if (codes.length !== new Set(documentCodeIds).size)
         throw new Error('WR_DOCUMENT_CODE');
       return {
@@ -717,22 +744,25 @@ export class WorkRequestRepository extends BaseRepository {
           clientId: parent.clientId,
           companyId: parent.client.companyId,
         },
-        naming: needsCodedNaming && request.bid
-          ? {
-              kind: 'BID' as const,
-              biddingNumber: request.bid.biddingNumber,
-              projectCode: request.bid.projectCode,
-              cargoCode: request.bid.cargoCodeSnapshot,
-              vesselCode: request.bid.vesselCodeSnapshot,
-              shipmentNumber: request.bid.shipmentNumber,
-            }
-          : needsCodedNaming ? {
-              kind: 'PROJECT' as const,
-              projectCode: request.directProject!.projectCode!,
-              cargoCode: request.directProject!.cargoCodeSnapshot!,
-              vesselCode: request.directProject!.vesselCodeSnapshot!,
-              shipmentNumber: request.directProject!.shipmentNumber!,
-            } : null,
+        naming:
+          needsCodedNaming && request.bid
+            ? {
+                kind: 'BID' as const,
+                biddingNumber: request.bid.biddingNumber,
+                projectCode: request.bid.projectCode,
+                cargoCode: request.bid.cargoCodeSnapshot,
+                vesselCode: request.bid.vesselCodeSnapshot,
+                shipmentNumber: request.bid.shipmentNumber,
+              }
+            : needsCodedNaming
+              ? {
+                  kind: 'PROJECT' as const,
+                  projectCode: request.directProject!.projectCode!,
+                  cargoCode: request.directProject!.cargoCodeSnapshot!,
+                  vesselCode: request.directProject!.vesselCodeSnapshot!,
+                  shipmentNumber: request.directProject!.shipmentNumber!,
+                }
+              : null,
         codes: new Map(
           codes.map((code) => [code.id, { code: code.code, name: code.name }]),
         ),
@@ -784,7 +814,9 @@ export class WorkRequestRepository extends BaseRepository {
         codes: await db.documentCodeOption.findMany({
           where: applicableDocumentCodeWhere(
             tenantId,
-            workRequestDocumentGroups(groups.map((group) => group.documentGroup)),
+            workRequestDocumentGroups(
+              groups.map((group) => group.documentGroup),
+            ),
           ),
           select: { id: true, code: true, name: true, documentGroup: true },
           orderBy: [

@@ -12,12 +12,7 @@ const contextFor = (
     | 'member'
     | null = null,
   compatibleScopes: (
-    | 'client'
-    | 'client_contact'
-    | 'company'
-    | 'division'
-    | 'team'
-    | 'member'
+    'client' | 'client_contact' | 'company' | 'division' | 'team' | 'member'
   )[] = [],
   revoked = false,
 ) =>
@@ -169,15 +164,18 @@ describe('FinalPermissionsGuard', () => {
     PermissionCode.CREATE_WORK_REQUEST,
     PermissionCode.ASSIGN_WORK_REQUEST_DIVISION,
     PermissionCode.VIEW_DOCUMENT,
-  ])('allows explicit compatible company-scope %s without a role-name bypass', async (permission) => {
-    const guard = new FinalPermissionsGuard({
-      getAllAndOverride: jest.fn().mockReturnValue([permission]),
-    } as never);
-    await expect(
-      guard.canActivate(contextFor([permission], 'company', ['company'])),
-    ).resolves.toBe(true);
-    await expect(
-      guard.canActivate(contextFor([], 'company', ['company'])),
-    ).rejects.toThrow('Missing required explicit permission');
-  });
+  ])(
+    'allows explicit compatible company-scope %s without a role-name bypass',
+    async (permission) => {
+      const guard = new FinalPermissionsGuard({
+        getAllAndOverride: jest.fn().mockReturnValue([permission]),
+      } as never);
+      await expect(
+        guard.canActivate(contextFor([permission], 'company', ['company'])),
+      ).resolves.toBe(true);
+      await expect(
+        guard.canActivate(contextFor([], 'company', ['company'])),
+      ).rejects.toThrow('Missing required explicit permission');
+    },
+  );
 });
