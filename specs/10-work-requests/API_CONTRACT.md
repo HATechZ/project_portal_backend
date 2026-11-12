@@ -11,6 +11,7 @@
 | POST | `/api/v1/work-requests/:id/restore` | Restore the scoped archived Work Request to its preserved active execution state. |
 | GET | `/api/v1/work-requests/:id/route` | Main route/progress projection. |
 | POST | `/api/v1/work-requests/:id/route-amendments` | Exact Responsible Originating Division Lead appends a versioned amendment to remaining future route steps. |
+| GET | `/api/v1/work-requests/:id/internal-cycles` | Discover only the caller's authorized Internal Division Workflow cycles. |
 | GET | `/api/v1/work-requests/:id/internal-cycles/:cycleId` | Authorized Division/Team/Member execution projection. |
 | POST | `/api/v1/work-requests/:id/division-cycles/:cycleId/team-sequence` | Define the active Division cycle's fixed ordered Team sequence. |
 | POST | `/api/v1/work-requests/:id/team-steps/:teamStepId/member-sequence` | Define the active Team's ordered Member sequence. |
@@ -139,15 +140,16 @@ Every route returns 400 for invalid/forbidden fields, 401 for invalid session, 4
 
 ## Main and Internal Workflow presentation
 
-Main Workflow and Internal Division Workflow are independent reads. Frontend uses `GET /:id/route`'s `workflowVisibility.canViewMainWorkflow` to decide Main Workflow presentation. It uses `GET /:id/internal-cycles/:cycleId` availability and its existing Internal Workflow visibility independently. An expected 403 from an Internal Cycle because the caller is not related to that Division is not a Main Route authorization failure: omit the Internal Workflow without a broken/error card and do not hide an otherwise authorized Main Workflow.
+Main Workflow and Internal Division Workflow are independent reads. Frontend uses `GET /:id/route`'s `workflowVisibility.canViewMainWorkflow` to decide Main Workflow presentation. It uses `GET /:id/internal-cycles` to discover actor-authorized Internal Workflow cycle IDs, then reads a selected discovered `GET /:id/internal-cycles/:cycleId` independently. The Main Route projection's current `divisionCycleId` is not Internal Workflow discovery. An expected 403 from a non-discovered Internal Cycle because the caller is not related to that Division is not a Main Route authorization failure: omit that Internal Workflow without a broken/error card and do not hide an otherwise authorized Main Workflow.
 
-| Actor context | Main Route | Main Workflow | Current Internal Cycle | Internal Workflow |
+| Actor context | Main Route | Main Workflow | Authorized Internal Cycle discovery | Internal Workflow |
 |---|---:|---:|---:|---:|
-| Originating Division responsible actor | allowed | YES | may be denied | NO if denied |
-| Current Division-level responsible actor | allowed | YES | allowed | YES |
-| Team-level internal actor | may be readable | NO | allowed | YES |
-| Participating Member | may be readable | NO | allowed | YES |
-| `tenant_super_admin` | allowed | YES | authorized cycles only | YES when authorized |
+| Originating Division responsible actor | allowed | YES | own Division cycle(s) | own Division |
+| Current Division-level responsible actor | allowed | YES | own Division cycle(s) | own Division |
+| Other authorized participating Division actor | allowed | YES | own Division cycle(s) | own Division |
+| Team-level internal actor | may be readable | NO | own authorized cycle(s) | own Division |
+| Participating Member | may be readable | NO | own authorized cycle(s) | own Division |
+| `tenant_super_admin` | allowed | YES | authorized cycle(s) only | authorized Division workflow(s) |
 | Unrelated actor | denied/no relationship | NO | denied | NO |
 | Cross-tenant actor | denied | NO | denied | NO |
 
@@ -179,7 +181,20 @@ Request Info recipient descriptors additionally expose nullable `memberId`, `ema
 
 ## Additive Internal Division Workflow contract
 
-The Internal Division Workflow is a separate, derived Division-cycle projection; it neither replaces nor changes the Main Workflow route contract. Future implementation exposes it only as additive data on the authorized existing `GET /api/v1/work-requests/:id/internal-cycles/:cycleId` projection (or an equivalent additive, separately authorized read), never by removing, reshaping, or repurposing `GET /api/v1/work-requests/:id/route`.
+The Internal Division Workflow is a separate, derived Division-cycle projection; it neither replaces nor changes the Main Workflow route contract. Future implementation exposes it through the additive, separately authorized `GET /api/v1/work-requests/:id/internal-cycles` discovery read and the existing `GET /api/v1/work-requests/:id/internal-cycles/:cycleId` detail read, never by removing, reshaping, or repurposing `GET /api/v1/work-requests/:id/route`.
+
+`GET /:id/internal-cycles` is the authoritative actor-specific discovery contract. It returns only Division cycles that the caller may read under the existing authorization equation: explicit compatible permission, same Tenant, compatible scope, Work Request relationship, Division responsibility/assignment, and workflow context. It is not an enumeration of all route cycles and must not expose another Division's ID, label, count, state, Team sequence, or historical progress merely because the caller can read the Main Route. The response uses the standard envelope and conceptually contains:
+
+```ts
+authorizedInternalWorkflows: Array<{
+  divisionId: string;
+  divisionName: string;
+  divisionCycleId: string;
+  internalWorkflow: InternalWorkflowProjection | null;
+}>
+```
+
+For an authorized participating Division-level actor, this list includes that actor's own Division cycle or cycles when those cycles exist and are authorized, whether current or completed historical cycles. It is not limited to the Main Route projection's current `divisionCycleId`. A Team-level actor or Member receives only the Internal Workflow cycles independently authorized through that actor's own Division/Team/Member context. A same-tenant, resource-authorized `tenant_super_admin` may receive multiple separately authorized cycles. The existing `GET /:id/internal-cycles/:cycleId` remains the authoritative detail projection for a selected discovered cycle and continues to deny a cycle outside the caller's authorized Division context.
 
 For an active or historical Division cycle whose authoritative Team sequence is `Team A -> Team B -> Team C`, the projection is `Division -> Team A -> Team B -> Team C -> Division`. The caller never creates these Division boundary nodes and no Internal Workflow create/update command, modal, or second Team sequence exists. Saving the existing ordered Team sequence derives the projection in the same background business flow; a later valid change to the authoritative Team sequence is reflected by the derived projection.
 
@@ -204,7 +219,7 @@ internalWorkflow: {
 
 The projection contains top-level Team nodes only. Member steps remain nested execution of their Team and are not flattened into this Division-level sequence. Node state is derived from existing Division-cycle and Team-step responsibility facts, not stored or driven by a second execution engine: before Team work the start boundary is current; while Team A is active, start is completed and Team A is current; after Team A completes Team B becomes current; after the final Team completes, every Team is completed and the end boundary is current.
 
-Read authorization remains backend-enforced: explicit permission + tenant + compatible scope + Work Request relationship + assignment/responsibility + workflow state. A Division-level responsible actor may receive the unchanged Main Workflow route and its own Internal Division Workflow. A Team Lead or Member receives only the authorized Internal Division Workflow and must not receive Main Workflow route occurrences, cross-Division progress, or Client-stage data. An unrelated Division actor and every cross-tenant actor receive neither the Internal Workflow nor its inferred labels/counts/state. No hardcoded organizational role name authorizes this data; only `tenant_super_admin` remains system-defined.
+Read authorization remains backend-enforced: explicit permission + tenant + compatible scope + Work Request relationship + assignment/responsibility + workflow state. An authorized participating Division-level actor receives the unchanged Main Workflow route plus only that actor's own Division Internal Workflow cycle or cycles; this includes an originating, current, or other participating Division context and does not depend on which Division is currently executing. A completed own-Division cycle remains readable as faithful historical state and grants no execution permission. A Team Lead or Member receives only the authorized Internal Division Workflow and must not receive Main Workflow route occurrences, cross-Division progress, or Client-stage data. An unrelated Division actor and every cross-tenant actor receive neither the Internal Workflow nor its inferred labels/counts/state. No hardcoded organizational role name authorizes this data; only `tenant_super_admin` remains system-defined.
 
 The additive internal-cycle response also exposes backend-derived presentation metadata:
 
@@ -224,3 +239,25 @@ each available projection; the contract must not artificially restrict `tenant_s
 unrelated fixed Division, and must not change the Main Workflow contract.
 
 **Main Workflow backward compatibility (non-regression):** this feature must not require a change to existing Main Workflow endpoint/data, route occurrences, lifecycle, Division forward logic, route progression, Client stage, or the Division Lead Main Workflow presentation. The existing main-route response remains the source for the Main Workflow and is not appended with Internal Workflow execution semantics.
+
+### Team completion action and responsibility
+
+`COMPLETE_TEAM_STEP` is the canonical Team Lead submit/complete action, using the existing `POST /api/v1/work-requests/:id/team-steps/:teamStepId/complete` endpoint. A frontend may label it **Submit Team**; do not introduce a duplicate `SUBMIT_TEAM_STEP` action. This action is separate from Member submit and Division `FORWARD`.
+
+Available actions are actor-specific and require permission + tenant + compatible scope + resource/business relationship + assignment/responsibility + workflow state; custom role names confer no authority. The currently responsible Member receives only Member-appropriate execution actions. After the last Member submits, the current Team Lead receives `COMPLETE_TEAM_STEP` when all MemberSteps have submitted; the Team remains current. An active Team with no Member sequence likewise permits its responsible Team Lead to complete it directly, without a fake Member. An appended legitimate end Member must submit first. Once the Team is complete, its Lead receives no further execution action on that completed Team. After the last Team completes, the responsible Division-level actor receives Division `FORWARD` when the other existing forward prerequisites hold. A Team Lead cannot perform Division Forward merely by completing the Team.
+
+These are the finalized required action semantics, including the empty-Member case; implementation must enforce them under existing permissions and workflow rules. Normal action suppression during archive or an applicable revision remains in force.
+
+### Participating Member reads after execution handoff
+
+An actor with a legitimate MemberStep on this Work Request remains a participating Member after submitting it. Subject to existing read permission, same Tenant, compatible scope, and actual resource relationship, `GET /api/v1/work-requests` and the relevant dashboard retain the Work Request and `GET /api/v1/work-requests/:id` remains readable. The Member may discover and read the separately authorized own-Division Internal Workflow cycle even after the step, Team, or Division is no longer current. Member Main Workflow visibility stays false. No unrelated or cross-tenant Member is authorized by this rule.
+
+The completed step no longer grants `SUBMIT_MEMBER_STEP`, Team completion, or Division Forward. Existing Request Info recipient and reciprocal-pair rules are unchanged: eligible completed Members may use `REQUEST_WORKFLOW_INFO`, access their permitted Request Info records and respond when addressed on an open request, including when a later Member makes an eligible request. Readable documents, exact document versions and history remain subject to their existing independent permissions and scope. Archive preserves authorized reads subject to its existing list filter, while its existing read-only restrictions continue to block Request Info mutations. Revision provides no new execution entitlement merely from historical participation.
+
+### Historical Team and Division responsibility
+
+A Team Lead with a persisted legitimate responsibility relationship to a Work Request remains an authorized participant after completing that TeamStep, subject to read permission, same Tenant, compatible scope, and resource relationship. The Work Request remains in the authorized list/dashboard and detail reads; the separately authorized own-Division Internal Workflow remains readable as Team and Division execution progresses. Completing Team A activates Team B under the existing execution rules and removes Team A's `COMPLETE_TEAM_STEP` action for the former current Lead; it does not remove that Lead's supported historical read relationship. A Division-level responsible actor's legitimate Work Request-specific participation likewise supports authorized read and history access after Division Forward. Member participation retention remains in force.
+
+Execution actions require current responsibility and existing permission/state checks. Historical participation is not an execution grant or permission-only wildcard. Do not infer a historical actor-to-Work-Request responsibility solely from a person's current Team/Division role or the existence of a TeamStep/DivisionCycle; the actor's relationship must be supported by persisted Work Request-specific facts. Request Info history, receiving, and responses remain available when the existing recipient, pair, authorization, and lifecycle rules allow; this does not change the recipient matrix. Main/Internal Workflow presentation, cross-Division boundaries, and archive restrictions remain unchanged.
+
+The additive responsibility-history proposal in `DATA_CONTRACT.md` is a future persistence and authorization dependency for reliable retained Team/Division access. Existing `GET` response shapes and Request Info recipient/reciprocity rules remain unchanged. Exact actor-specific history may establish the Work Request relationship for otherwise authorized reads; it does not establish an execution action, a recipient, or a cross-Division Internal Workflow entitlement.

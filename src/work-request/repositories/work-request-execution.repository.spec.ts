@@ -15,6 +15,194 @@ describe('WorkRequestExecutionRepository Phase 4 execution guards', () => {
     } as never);
   }
 
+  it("discovers a Division Lead's completed own cycle without querying another Division cycle", async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'cycle-marketing',
+        completedAt: new Date(),
+        routeStep: {
+          divisionId: 'division-marketing',
+          division: { id: 'division-marketing', name: 'Marketing' },
+        },
+        teamSteps: [],
+      },
+    ]);
+
+    await expect(
+      context(() =>
+        repository({
+          workRequestDivisionCycle: { findMany },
+        }).internalCycles('request-a', 'marketing-member'),
+      ),
+    ).resolves.toHaveLength(1);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-a',
+          route: { is: { workRequestId: 'request-a' } },
+          OR: expect.arrayContaining([
+            {
+              routeStep: {
+                is: {
+                  division: {
+                    is: {
+                      divisionLeadsByDivisionId: {
+                        some: {
+                          tenantId: 'tenant-a',
+                          memberId: 'marketing-member',
+                          revokedAt: null,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ]),
+        }),
+        orderBy: [{ routeStep: { ordinal: 'asc' } }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it("discovers a current Division Lead's own current cycle", async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'cycle-pm',
+        completedAt: null,
+        routeStep: {
+          divisionId: 'division-pm',
+          division: { id: 'division-pm', name: 'Project Management' },
+        },
+        teamSteps: [],
+      },
+    ]);
+
+    await expect(
+      context(() =>
+        repository({
+          workRequestDivisionCycle: { findMany },
+        }).internalCycles('request-a', 'pm-member'),
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 'cycle-pm',
+        routeStep: expect.objectContaining({ divisionId: 'division-pm' }),
+      }),
+    ]);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              routeStep: expect.objectContaining({
+                is: expect.objectContaining({
+                  division: expect.objectContaining({
+                    is: expect.objectContaining({
+                      divisionLeadsByDivisionId: expect.objectContaining({
+                        some: expect.objectContaining({
+                          memberId: 'pm-member',
+                        }),
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ['Team Lead', 'team-lead'],
+    ['participating Member', 'member-a'],
+  ])(
+    'discovers only own-Division cycles for a %s',
+    async (_label, memberId) => {
+      const findMany = jest.fn().mockResolvedValue([]);
+
+      await expect(
+        context(() =>
+          repository({ workRequestDivisionCycle: { findMany } }).internalCycles(
+            'request-a',
+            memberId,
+          ),
+        ),
+      ).resolves.toEqual([]);
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-a',
+            OR: expect.arrayContaining([
+              {
+                teamSteps: {
+                  some: { team: { is: { leadMemberId: memberId } } },
+                },
+              },
+              {
+                teamSteps: {
+                  some: {
+                    memberSteps: {
+                      some: { memberId, cancelledAt: null },
+                    },
+                  },
+                },
+              },
+            ]),
+          }),
+        }),
+      );
+    },
+  );
+
+  it('returns all same-tenant cycles in stable route order only for authorized tenant administration', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+
+    await expect(
+      context(() =>
+        repository({ workRequestDivisionCycle: { findMany } }).internalCycles(
+          'request-a',
+          null,
+          true,
+        ),
+      ),
+    ).resolves.toEqual([]);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId: 'tenant-a',
+          route: { is: { workRequestId: 'request-a' } },
+        },
+        orderBy: [{ routeStep: { ordinal: 'asc' } }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it('does not discover a cross-tenant cycle because collection lookup is tenant-scoped', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+
+    await expect(
+      context(() =>
+        repository({ workRequestDivisionCycle: { findMany } }).internalCycles(
+          'foreign-request',
+          null,
+          true,
+        ),
+      ),
+    ).resolves.toEqual([]);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant-a' }),
+      }),
+    );
+  });
+
   it.each([
     ['a Team Lead', 'team-lead'],
     ['a participating Member', 'member-a'],

@@ -64,6 +64,12 @@ describe('API response Swagger contracts', () => {
     expect(
       source('src/work-request/dtos/work-request-route-response.dto.ts'),
     ).toContain('canViewMainWorkflow!: boolean;');
+    expect(
+      source('src/work-request/work-request-execution.controller.ts'),
+    ).toContain("@Get('internal-cycles')");
+    expect(
+      source('src/work-request/dtos/internal-cycle-response.dto.ts'),
+    ).toContain('authorizedInternalWorkflows');
   });
 
   it('documents the accepted auth and root API success responses', () => {

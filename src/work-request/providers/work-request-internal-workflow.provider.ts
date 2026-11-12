@@ -18,6 +18,22 @@ type DivisionCycle = {
   routeStep: {
     divisionId: string | null;
     division: { id: string; name: string } | null;
+    kind?: string;
+    activatedAt?: Date | null;
+    completedAt?: Date | null;
+  };
+  route?: {
+    projection: {
+      routeStepId: string | null;
+      routeVersion: {
+        steps: Array<{
+          id: string;
+          divisionId: string | null;
+          activatedAt: Date | null;
+          completedAt: Date | null;
+        }>;
+      } | null;
+    } | null;
   };
   teamSteps: TeamStep[];
 };
@@ -64,12 +80,44 @@ export class WorkRequestInternalWorkflowProvider {
     const current = teamSteps.find(
       (step) => !!step.activatedAt && !step.completedAt,
     );
+    const routeStep = cycle.routeStep;
+    const finalReview =
+      routeStep.kind === 'ORIGIN_START'
+        ? cycle.route?.projection?.routeVersion?.steps.find(
+            (step) => step.divisionId === division.id,
+          )
+        : undefined;
+    const startedTeams = teamSteps.some(
+      (step) => step.activatedAt || step.completedAt,
+    );
+    const forwarded = !!routeStep.completedAt;
     const startState: WorkflowState =
-      current || teamSteps.length ? 'completed' : 'current';
-    const endState: WorkflowState =
-      cycle.completedAt && teamSteps.every((step) => !!step.completedAt)
-        ? 'current'
-        : 'upcoming';
+      routeStep.kind === 'ORIGIN_FINAL_REVIEW' || forwarded || startedTeams
+        ? 'completed'
+        : routeStep.activatedAt === null
+          ? 'upcoming'
+          : 'current';
+    let endState: WorkflowState = 'upcoming';
+    if (finalReview) {
+      if (finalReview.completedAt) endState = 'completed';
+      else if (
+        cycle.route?.projection?.routeStepId === finalReview.id &&
+        finalReview.activatedAt
+      )
+        endState = 'current';
+    } else if (forwarded) {
+      endState = 'completed';
+    } else if (
+      routeStep.kind === 'ORIGIN_FINAL_REVIEW' &&
+      routeStep.activatedAt
+    ) {
+      endState = 'current';
+    } else if (
+      teamSteps.length > 0 &&
+      teamSteps.every((step) => !!step.completedAt)
+    ) {
+      endState = 'current';
+    }
 
     return {
       divisionId: division.id,

@@ -11,12 +11,13 @@ describe('WorkRequestRouteActionsProvider', () => {
     permissions: PermissionCode[],
     memberId = 'lead-a',
     scope = 'division',
+    isActive = true,
   ) =>
     ({
       id: 'actor-a',
       member: {
         id: memberId,
-        isActive: true,
+        isActive,
         divisionLeadsByMemberId: [{ divisionId: 'division-a' }],
       },
       role: {
@@ -91,6 +92,51 @@ describe('WorkRequestRouteActionsProvider', () => {
     );
   });
 
+  it('offers completion of an empty current Team only to its responsible permitted Lead', async () => {
+    const active = {
+      ...route,
+      projection: { ...route.projection, teamStepId: 'team-a' },
+      divisionCycles: [
+        {
+          ...route.divisionCycles[0],
+          teamSteps: [
+            {
+              id: 'team-a',
+              activatedAt: new Date(),
+              completedAt: null,
+              team: { leadMemberId: 'lead-a' },
+              memberSteps: [],
+            },
+          ],
+        },
+      ],
+    };
+    const provider = new WorkRequestRouteActionsProvider({
+      route: jest.fn().mockResolvedValue(active),
+      isRelatedActor: jest.fn().mockResolvedValue(true),
+    } as never);
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.APPROVE_WORK_REQUEST_REVIEW], 'lead-a', 'team'),
+      ),
+    ).resolves.toContainEqual(
+      expect.objectContaining({ code: 'COMPLETE_TEAM_STEP' }),
+    );
+    await expect(
+      provider.available(
+        'request-a',
+        actor([PermissionCode.APPROVE_WORK_REQUEST_REVIEW], 'lead-b', 'team'),
+      ),
+    ).resolves.not.toContainEqual(
+      expect.objectContaining({ code: 'COMPLETE_TEAM_STEP' }),
+    );
+    await expect(
+      provider.available('request-a', actor([], 'lead-a', 'team')),
+    ).resolves.not.toContainEqual(
+      expect.objectContaining({ code: 'COMPLETE_TEAM_STEP' }),
+    );
+  });
   it('does not dereference a missing Division cycle', async () => {
     const provider = new WorkRequestRouteActionsProvider({
       route: jest.fn().mockResolvedValue({ ...route, divisionCycles: [] }),
@@ -442,8 +488,12 @@ describe('WorkRequestRouteActionsProvider', () => {
       isRelatedActor: jest.fn(),
       recipientActorIds: jest.fn(),
     } as never);
-    const inactive = actor([PermissionCode.ASSIGN_WORK_REQUEST_TEAM]);
-    inactive.member.isActive = false;
+    const inactive = actor(
+      [PermissionCode.ASSIGN_WORK_REQUEST_TEAM],
+      'lead-a',
+      'division',
+      false,
+    );
     await expect(provider.available('request-a', inactive)).resolves.toEqual(
       [],
     );

@@ -5,7 +5,7 @@ class WorkflowVisibilityDto {
   @ApiProperty() canViewInternalWorkflow!: boolean;
 }
 
-class InternalWorkflowDto {
+export class InternalWorkflowDto {
   @ApiProperty({ format: 'uuid' }) divisionId!: string;
   @ApiProperty() divisionName!: string;
   @ApiProperty({ format: 'uuid' }) divisionCycleId!: string;
@@ -21,4 +21,18 @@ export class InternalCycleResponseDto {
 
   @ApiProperty({ type: WorkflowVisibilityDto })
   workflowVisibility!: WorkflowVisibilityDto;
+}
+
+class AuthorizedInternalWorkflowDto {
+  @ApiProperty({ format: 'uuid' }) divisionId!: string;
+  @ApiProperty() divisionName!: string;
+  @ApiProperty({ format: 'uuid' }) divisionCycleId!: string;
+  @ApiProperty({ type: InternalWorkflowDto, nullable: true })
+  internalWorkflow!: InternalWorkflowDto | null;
+}
+
+/** Actor-scoped discovery of reusable existing Internal Cycle projections. */
+export class InternalCyclesResponseDto {
+  @ApiProperty({ type: [AuthorizedInternalWorkflowDto] })
+  authorizedInternalWorkflows!: AuthorizedInternalWorkflowDto[];
 }

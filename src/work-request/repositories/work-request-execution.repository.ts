@@ -5,7 +5,9 @@ import { RequestContext } from '../../common/context/request-context';
 import { AppConfiguration } from '../../config/configuration';
 import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
+import { Prisma } from '../../generated/prisma/client';
 import { BaseRepository } from '../../infra/prisma/base.repository';
+import type { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 
 @Injectable()
@@ -29,25 +31,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
     return this.transaction(async (db) => {
       const cycle = await db.workRequestDivisionCycle.findFirst({
         where: { id: cycleId, tenantId, route: { is: { workRequestId } } },
-        include: {
-          routeStep: {
-            select: {
-              divisionId: true,
-              division: { select: { id: true, name: true } },
-            },
-          },
-          teamSteps: {
-            orderBy: { ordinal: 'asc' },
-            include: {
-              team: { select: { id: true, name: true, leadMemberId: true } },
-              memberSteps: {
-                where: { cancelledAt: null },
-                orderBy: { ordinal: 'asc' },
-                include: { member: { select: { id: true, name: true } } },
-              },
-            },
-          },
-        },
+        include: internalCycleInclude,
       });
       if (!cycle) throw notFound();
       const hasDivisionLeadResponsibility =
@@ -88,6 +72,21 @@ export class WorkRequestExecutionRepository extends BaseRepository {
         ),
       };
     });
+  }
+
+  internalCycles(
+    workRequestId: string,
+    memberId: string | null,
+    isAdmin = false,
+  ) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction((db) =>
+      db.workRequestDivisionCycle.findMany({
+        where: internalCyclesWhere(tenantId, workRequestId, memberId, isAdmin),
+        orderBy: [{ routeStep: { ordinal: 'asc' } }, { id: 'asc' }],
+        include: internalCycleInclude,
+      }),
+    );
   }
 
   defineTeamSequence(
@@ -255,6 +254,10 @@ export class WorkRequestExecutionRepository extends BaseRepository {
         );
         if (!isAdmin && teamStep.team.leadMemberId !== memberId)
           throw forbidden();
+        if (teamStep.route.projection?.openRevisionId)
+          throw conflict(
+            'Resolve the open revision before appending a Member.',
+          );
         await requireTeamMembers(db, tenantId, teamStep.teamId, [
           targetMemberId,
         ]);
@@ -266,6 +269,17 @@ export class WorkRequestExecutionRepository extends BaseRepository {
         if (!last)
           throw conflict('Define the Member sequence before appending.');
         const id = randomUUID();
+        const resumeMember =
+          !teamStep.route.projection?.memberStepId &&
+          !(await db.workRequestMemberStep.count({
+            where: {
+              tenantId,
+              teamStepId,
+              cancelledAt: null,
+              submittedAt: null,
+            },
+          }));
+        const now = new Date();
         await db.workRequestMemberStep.create({
           data: {
             id,
@@ -274,8 +288,16 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             teamStepId,
             ordinal: last.ordinal + 1,
             memberId: targetMemberId,
+            activatedAt: resumeMember ? now : null,
           },
         });
+        if (resumeMember)
+          await db.workRequestRouteProjection.update({
+            where: {
+              routeId_tenantId: { routeId: teamStep.routeId, tenantId },
+            },
+            data: { memberStepId: id, updatedAt: now },
+          });
         await event(
           db,
           tenantId,
@@ -484,8 +506,10 @@ export class WorkRequestExecutionRepository extends BaseRepository {
           workRequestId,
           teamStepId,
         );
-        if (!isAdmin && teamStep.team.leadMemberId !== memberId)
+        if (!memberId || teamStep.team.leadMemberId !== memberId)
           throw forbidden();
+        if (teamStep.route.projection?.openRevisionId)
+          throw conflict('Resolve the open revision before Team completion.');
         const pending = await db.workRequestMemberStep.count({
           where: { tenantId, teamStepId, cancelledAt: null, submittedAt: null },
         });
@@ -505,6 +529,8 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             ordinal: teamStep.ordinal + 1,
           },
         });
+        if (next && (next.activatedAt || next.completedAt))
+          throw conflict('The next Team step is already active or complete.');
         if (next)
           await db.workRequestTeamStep.update({
             where: { id: next.id },
@@ -546,8 +572,96 @@ export class WorkRequestExecutionRepository extends BaseRepository {
   }
 }
 
+const internalCycleInclude = {
+  routeStep: {
+    select: {
+      divisionId: true,
+      division: { select: { id: true, name: true } },
+      kind: true,
+      activatedAt: true,
+      completedAt: true,
+    },
+  },
+  route: {
+    select: {
+      projection: {
+        select: {
+          routeStepId: true,
+          teamStepId: true,
+          openRevisionId: true,
+          routeVersion: {
+            select: {
+              steps: {
+                where: { kind: 'ORIGIN_FINAL_REVIEW' },
+                select: {
+                  id: true,
+                  divisionId: true,
+                  activatedAt: true,
+                  completedAt: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  teamSteps: {
+    orderBy: { ordinal: 'asc' },
+    include: {
+      team: { select: { id: true, name: true, leadMemberId: true } },
+      memberSteps: {
+        where: { cancelledAt: null },
+        orderBy: { ordinal: 'asc' },
+        include: { member: { select: { id: true, name: true } } },
+      },
+    },
+  },
+} satisfies Prisma.WorkRequestDivisionCycleInclude;
+
+function internalCyclesWhere(
+  tenantId: string,
+  workRequestId: string,
+  memberId: string | null,
+  isAdmin: boolean,
+): Prisma.WorkRequestDivisionCycleWhereInput {
+  const base = { tenantId, route: { is: { workRequestId } } };
+  if (isAdmin) return base;
+  if (!memberId) return { ...base, id: { in: [] } };
+  return {
+    ...base,
+    OR: [
+      {
+        routeStep: {
+          is: {
+            division: {
+              is: {
+                divisionLeadsByDivisionId: {
+                  some: { tenantId, memberId, revokedAt: null },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        teamSteps: {
+          some: { team: { is: { leadMemberId: memberId } } },
+        },
+      },
+      {
+        teamSteps: {
+          some: {
+            memberSteps: { some: { memberId, cancelledAt: null } },
+          },
+        },
+      },
+    ],
+  };
+}
+
 async function activeCycle(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   workRequestId: string,
   cycleId: string,
@@ -569,7 +683,7 @@ async function activeCycle(
   return cycle;
 }
 async function activeTeamStep(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   workRequestId: string,
   teamStepId: string,
@@ -597,7 +711,7 @@ async function activeTeamStep(
   return step;
 }
 async function requireDivisionLead(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   divisionId: string | null,
   memberId: string,
@@ -612,7 +726,7 @@ async function requireDivisionLead(
     throw forbidden();
 }
 async function requireTeamMembers(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   teamId: string,
   memberIds: string[],
@@ -633,7 +747,7 @@ async function requireTeamMembers(
     throw bad('Every Member must be active in the current Team.');
 }
 async function event(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   routeId: string,
   performedByActorId: string,
@@ -652,17 +766,27 @@ async function event(
   });
 }
 function executionActions(
-  cycle: any,
+  cycle: Prisma.WorkRequestDivisionCycleGetPayload<{
+    include: typeof internalCycleInclude;
+  }>,
   memberId: string | null,
   isDivisionLead: boolean,
   isAdmin: boolean,
 ) {
   const activeTeam = cycle.teamSteps.find(
-    (step: any) => step.activatedAt && !step.completedAt,
+    (step) => step.activatedAt && !step.completedAt,
   );
   const activeMember = activeTeam?.memberSteps.find(
-    (step: any) => step.activatedAt && !step.submittedAt,
+    (step) => step.activatedAt && !step.submittedAt,
   );
+  const canCompleteTeam =
+    !!memberId &&
+    !!activeTeam &&
+    !cycle.completedAt &&
+    cycle.route?.projection?.teamStepId === activeTeam.id &&
+    !cycle.route?.projection?.openRevisionId &&
+    activeTeam.team.leadMemberId === memberId &&
+    activeTeam.memberSteps.every((step) => step.submittedAt);
   return [
     ...((isAdmin || isDivisionLead) &&
     !cycle.completedAt &&
@@ -675,13 +799,9 @@ function executionActions(
       : []),
     ...((isAdmin || activeTeam?.team.leadMemberId === memberId) &&
     activeTeam?.memberSteps.length
-      ? [
-          'APPEND_MEMBER_STEP',
-          ...(activeTeam.memberSteps.every((step: any) => step.submittedAt)
-            ? ['COMPLETE_TEAM_STEP']
-            : []),
-        ]
+      ? ['APPEND_MEMBER_STEP']
       : []),
+    ...(canCompleteTeam ? ['COMPLETE_TEAM_STEP'] : []),
     ...(isAdmin || activeMember?.memberId === memberId
       ? ['SUBMIT_MEMBER_STEP']
       : []),

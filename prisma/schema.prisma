@@ -627,6 +627,7 @@ model Tenant {
   workRequestV1ClientSubmissions             WorkRequestV1ClientSubmission[]
   workRequestV1ClientSubmissionItems         WorkRequestV1ClientSubmissionItem[]
   workRequestV1ClientDecisions               WorkRequestV1ClientDecision[]
+  workRequestResponsibilityHistory           WorkRequestResponsibilityHistory[]
   workRequestRoutes                          WorkRequestRoute[]
   workRequestRouteResponsibilityChanges      WorkRequestRouteResponsibilityChange[]
   workRequestRouteVersions                   WorkRequestRouteVersion[]
@@ -710,7 +711,9 @@ model User {
   passwordResetTokensByUserId PasswordResetToken[] @relation("PasswordResetTokensUserIdUsers")
   membersByUserId             Member[]             @relation("MembersUserIdUsers")
   clientContactsByUserId      ClientContact[]      @relation("ClientContactsUserIdUsers")
+  responsibilityHistorySources WorkRequestResponsibilityHistory[] @relation("ResponsibilityHistorySourceUser")
 
+  @@unique([id, tenantId], map: "wr_resp_user_tenant_key")
   @@index([tenantId])
   @@map("users")
 }
@@ -733,6 +736,7 @@ model Role {
   actorProfilesByRoleId                   ActorProfile[]                 @relation("ActorProfilesRoleIdRoles")
   workflowActionRolePermissionsByRoleId   WorkflowActionRolePermission[] @relation("WorkflowActionRolePermissionsRoleIdRoles")
   rolePermissions                         RolePermission[]               @relation("RolePermissionsRoleIdRoles")
+  responsibilityHistorySources WorkRequestResponsibilityHistory[] @relation("ResponsibilityHistorySourceRole")
   workflowInfoRequestsByRequestedByRoleId WorkflowInfoRequest[]          @relation("WorkflowInfoRequestsRequestedByRoleIdRoles")
 
   @@unique([tenantId, customCode])
@@ -879,6 +883,7 @@ model ActorProfile {
   workRequestV1ClientDecisions                                WorkRequestV1ClientDecision[]              @relation("WorkRequestV1ClientDecisionsDecidedByActorIdActorProfiles")
   workRequestRouteResponsibilityChanges                       WorkRequestRouteResponsibilityChange[]     @relation("WorkRequestRouteResponsibilityChangesChangedByActorIdActorProfiles")
   workRequestRouteVersions                                    WorkRequestRouteVersion[]                  @relation("WorkRequestRouteVersionsCreatedByActorIdActorProfiles")
+  workRequestResponsibilityHistory                          WorkRequestResponsibilityHistory[]
   workRequestRouteEvents                                      WorkRequestRouteEvent[]                    @relation("WorkRequestRouteEventsPerformedByActorIdActorProfiles")
   workRequestRouteRevisionsRequested                          WorkRequestRouteRevision[]                 @relation("WorkRequestRouteRevisionsRequesterActorIdActorProfiles")
   workRequestRouteRevisionsSource                             WorkRequestRouteRevision[]                 @relation("WorkRequestRouteRevisionsSourceActorIdActorProfiles")
@@ -1123,6 +1128,7 @@ model Member {
   workflowInfoRequestsByTargetMemberId             WorkflowInfoRequest[]        @relation("WorkflowInfoRequestsTargetMemberIdMembers")
   workRequestRevisionRequestsByRequestedToMemberId WorkRequestRevisionRequest[] @relation("WorkRequestRevisionRequestsRequestedToMemberIdMembers")
   workRequestMemberSteps                         WorkRequestMemberStep[]      @relation("WorkRequestMemberStepsMemberIdMembers")
+  responsibilityHistorySources                   WorkRequestResponsibilityHistory[] @relation("ResponsibilityHistorySourceMember")
 
   @@unique([id, tenantId])
   @@unique([tenantId, email])
@@ -1161,6 +1167,7 @@ model DivisionLead {
   responsibleForWorkRequestRoutes WorkRequestRoute[] @relation("WorkRequestRoutesResponsibleOriginatingDivisionLeadIdDivisionLeads")
   predecessorResponsibilityChanges WorkRequestRouteResponsibilityChange[] @relation("WorkRequestRouteResponsibilityChangesPredecessorDivisionLeadIdDivisionLeads")
   successorResponsibilityChanges   WorkRequestRouteResponsibilityChange[] @relation("WorkRequestRouteResponsibilityChangesSuccessorDivisionLeadIdDivisionLeads")
+  responsibilityHistorySources WorkRequestResponsibilityHistory[] @relation("ResponsibilityHistorySourceDivisionLead")
 
   @@unique([id, tenantId])
   @@index([tenantId])
@@ -1955,6 +1962,7 @@ model WorkRequestV1 {
   infoRequests   WorkRequestV1InfoRequest[] @relation("WorkRequestV1InfoRequestsWorkRequestIdWorkRequestsV1")
   clientSubmissions WorkRequestV1ClientSubmission[] @relation("WorkRequestV1ClientSubmissionsWorkRequestIdWorkRequestsV1")
   clientDecisions   WorkRequestV1ClientDecision[]   @relation("WorkRequestV1ClientDecisionsWorkRequestIdWorkRequestsV1")
+  responsibilityHistory WorkRequestResponsibilityHistory[]
   route             WorkRequestRoute?               @relation("WorkRequestRoutesWorkRequestIdWorkRequestsV1")
 
   @@unique([id, tenantId])
@@ -3193,6 +3201,7 @@ model WorkRequestRoute {
   bidBusinessCycle           BidBusinessCycle? @relation("WorkRequestRoutesBidBusinessCycle", fields: [bidBusinessCycleId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
   originatingDivision        Division         @relation("WorkRequestRoutesOriginatingDivisionIdDivisions", fields: [originatingDivisionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   responsibleOriginatingLead DivisionLead     @relation("WorkRequestRoutesResponsibleOriginatingDivisionLeadIdDivisionLeads", fields: [responsibleOriginatingDivisionLeadId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  responsibilityHistory      WorkRequestResponsibilityHistory[]
   responsibilityChanges      WorkRequestRouteResponsibilityChange[]
   versions                   WorkRequestRouteVersion[]
   steps                      WorkRequestRouteStep[]
@@ -3315,6 +3324,7 @@ model WorkRequestDivisionCycle {
   tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   route       WorkRequestRoute      @relation(fields: [routeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   routeStep   WorkRequestRouteStep  @relation(fields: [routeStepId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
+  responsibilityHistory WorkRequestResponsibilityHistory[]
   teamSteps   WorkRequestTeamStep[]
   revisionsAsRequester WorkRequestRouteRevision[] @relation("WorkRequestRouteRevisionRequesterDivisionCycle")
   revisionsAsSource    WorkRequestRouteRevision[] @relation("WorkRequestRouteRevisionSourceDivisionCycle")
@@ -3345,6 +3355,7 @@ model WorkRequestTeamStep {
   route         WorkRequestRoute         @relation(fields: [routeId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   divisionCycle WorkRequestDivisionCycle @relation(fields: [divisionCycleId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
   team          Team                     @relation("WorkRequestTeamStepsTeamIdTeams", fields: [teamId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  responsibilityHistory WorkRequestResponsibilityHistory[]
   memberSteps   WorkRequestMemberStep[]
   revisionsAsRequester WorkRequestRouteRevision[] @relation("WorkRequestRouteRevisionRequesterTeamStep")
   revisionsAsSource    WorkRequestRouteRevision[] @relation("WorkRequestRouteRevisionSourceTeamStep")
@@ -3354,6 +3365,7 @@ model WorkRequestTeamStep {
 
   @@unique([id, tenantId])
   @@unique([id, tenantId, routeId])
+  @@unique([id, tenantId, routeId, divisionCycleId], map: "wr_team_step_history_context_key")
   @@unique([tenantId, divisionCycleId, ordinal])
   @@index([tenantId, routeId, completedAt])
   @@map("work_request_team_steps")
@@ -3434,6 +3446,48 @@ model WorkRequestMemberStepSubmissionDocument {
   @@map("work_request_member_step_submission_documents")
 }
 
+/// Actor-specific Team/Division responsibility history; SQL supplies shape and immutable-history constraints.
+model WorkRequestResponsibilityHistory {
+  id                 String    @id @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  workRequestId      String    @map("work_request_id") @db.Uuid
+  routeId            String    @map("route_id") @db.Uuid
+  actorProfileId     String    @map("actor_profile_id") @db.Uuid
+  responsibilityType String    @map("responsibility_type") @db.VarChar(16)
+  divisionCycleId    String    @map("division_cycle_id") @db.Uuid
+  teamStepId         String?   @map("team_step_id") @db.Uuid
+  startedAt          DateTime? @map("started_at") @db.Timestamp(6)
+  endedAt            DateTime? @map("ended_at") @db.Timestamp(6)
+  evidenceKind       String    @map("evidence_kind") @db.VarChar(16)
+  evidenceEventId    String?   @map("evidence_event_id") @db.Uuid
+  evidenceAt         DateTime? @map("evidence_at") @db.Timestamp(6)
+  assignmentKey      String?   @map("assignment_key") @db.VarChar(200)
+  sourceMemberId     String    @map("source_member_id") @db.Uuid
+  sourceUserId       String    @map("source_user_id") @db.Uuid
+  sourceRoleId       String    @map("source_role_id") @db.Uuid
+  selectionPolicy    String    @map("selection_policy") @db.VarChar(32)
+  sourceDivisionLeadId String? @map("source_division_lead_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  workRequest   WorkRequestV1           @relation(fields: [workRequestId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  route         WorkRequestRoute         @relation(fields: [routeId, tenantId, workRequestId], references: [id, tenantId, workRequestId], onDelete: Restrict, onUpdate: Cascade)
+  actorProfile  ActorProfile             @relation(fields: [actorProfileId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  sourceMember  Member                   @relation("ResponsibilityHistorySourceMember", fields: [sourceMemberId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  sourceUser    User                     @relation("ResponsibilityHistorySourceUser", fields: [sourceUserId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  sourceRole    Role                     @relation("ResponsibilityHistorySourceRole", fields: [sourceRoleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceDivisionLead DivisionLead?        @relation("ResponsibilityHistorySourceDivisionLead", fields: [sourceDivisionLeadId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  divisionCycle WorkRequestDivisionCycle @relation(fields: [divisionCycleId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
+  teamStep      WorkRequestTeamStep?     @relation(fields: [teamStepId, tenantId, routeId, divisionCycleId], references: [id, tenantId, routeId, divisionCycleId], onDelete: Restrict, onUpdate: Cascade)
+  evidenceEvent WorkRequestRouteEvent?   @relation(fields: [evidenceEventId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, assignmentKey], map: "wr_resp_assignment_key")
+  @@index([tenantId, actorProfileId, workRequestId], map: "wr_resp_actor_request_idx")
+  @@index([tenantId, divisionCycleId, actorProfileId], map: "wr_resp_cycle_actor_idx")
+  @@index([tenantId, teamStepId, actorProfileId], map: "wr_resp_team_actor_idx")
+  @@map("work_request_responsibility_history")
+}
 /// Append-only lifecycle/audit record. Action remains open so a future
 /// configured workflow does not require a database enum migration.
 model WorkRequestRouteEvent {
@@ -3459,9 +3513,11 @@ model WorkRequestRouteEvent {
   teamStep         WorkRequestTeamStep?      @relation(fields: [teamStepId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
   memberStep       WorkRequestMemberStep?    @relation(fields: [memberStepId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
   revision         WorkRequestRouteRevision? @relation(fields: [revisionId, tenantId, routeId], references: [id, tenantId, routeId], onDelete: Restrict, onUpdate: Cascade)
+  responsibilityEvidence WorkRequestResponsibilityHistory[]
   performedByActor ActorProfile               @relation("WorkRequestRouteEventsPerformedByActorIdActorProfiles", fields: [performedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([id, tenantId])
+  @@unique([id, tenantId, routeId], map: "wr_route_event_history_context_key")
   @@unique([tenantId, routeId, idempotencyKey])
   @@index([routeId, occurredAt(sort: Desc), id(sort: Desc)])
   @@map("work_request_route_events")

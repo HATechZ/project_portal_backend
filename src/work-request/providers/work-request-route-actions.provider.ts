@@ -19,7 +19,7 @@ export class WorkRequestRouteActionsProvider {
   async available(workRequestId: string, actor: SessionActor) {
     const admin = hasTenantWideInternalAuthority(actor);
     if (!admin && (!actor.member?.id || !actor.member.isActive)) return [];
-    const route: any = await this.communications.route(workRequestId);
+    const route = await this.communications.route(workRequestId);
     if (!route) return null;
     const memberId = actor.member?.id;
     if (
@@ -46,10 +46,10 @@ export class WorkRequestRouteActionsProvider {
     }
     const actions: { code: string; label: string; targetKind: string }[] = [];
     const cycle = route.divisionCycles.find(
-      (item: any) => item.id === route.projection?.divisionCycleId,
+      (item) => item.id === route.projection?.divisionCycleId,
     );
     const current = route.steps.find(
-      (item: any) => item.id === route.projection?.routeStepId,
+      (item) => item.id === route.projection?.routeStepId,
     );
     const isDivisionScoped = actor.role.customScope === 'division';
     const isOriginatingLeadScoped =
@@ -73,13 +73,13 @@ export class WorkRequestRouteActionsProvider {
         ? responsibleOriginLead && isDivisionScoped
         : activeDivisionLead);
     const team = cycle?.teamSteps.find(
-      (item: any) =>
+      (item) =>
         item.id === route.projection?.teamStepId &&
         item.activatedAt &&
         !item.completedAt,
     );
     const member = team?.memberSteps.find(
-      (item: any) =>
+      (item) =>
         item.id === route.projection?.memberStepId &&
         item.activatedAt &&
         !item.submittedAt,
@@ -89,16 +89,16 @@ export class WorkRequestRouteActionsProvider {
     const memberOwner =
       actor.role.customScope === 'member' && member?.memberId === memberId;
     const memberSource = team?.memberSteps.some(
-      (step: any) => step.activatedAt && step.memberId !== memberId,
+      (step) => step.activatedAt && step.memberId !== memberId,
     );
     const teamSource = cycle?.teamSteps.some(
-      (step: any) =>
+      (step) =>
         step.activatedAt &&
         step.team.leadMemberId &&
         (divisionLead || step.id !== team?.id),
     );
     const divisionSource = route.divisionCycles.some(
-      (item: any) =>
+      (item) =>
         item.id !== cycle?.id &&
         item.routeStep?.divisionId !== cycle?.routeStep?.divisionId,
     );
@@ -165,11 +165,10 @@ export class WorkRequestRouteActionsProvider {
         action('SUBMIT_MEMBER_STEP', 'Submit Member step', 'member-step'),
       );
     if (
-      (admin ||
-        (actor.role.customScope === 'team' &&
-          team?.team.leadMemberId === memberId)) &&
-      team?.memberSteps.length &&
-      team.memberSteps.every((item: any) => item.submittedAt) &&
+      teamOwner &&
+      team &&
+      !cycle?.completedAt &&
+      team.memberSteps.every((item) => item.submittedAt) &&
       hasPermission(actor, PermissionCode.APPROVE_WORK_REQUEST_REVIEW)
     )
       actions.push(

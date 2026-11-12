@@ -28,7 +28,10 @@ import {
   SubmitWorkRequestMemberStepDto,
 } from './dtos/work-request.dto';
 import { WorkRequestExecutionProvider } from './providers/work-request-execution.provider';
-import { InternalCycleResponseDto } from './dtos/internal-cycle-response.dto';
+import {
+  InternalCycleResponseDto,
+  InternalCyclesResponseDto,
+} from './dtos/internal-cycle-response.dto';
 import { wrapEnvelope } from '../common/swagger/wrap-envelope';
 
 @ApiTags('work requests')
@@ -43,6 +46,16 @@ import { wrapEnvelope } from '../common/swagger/wrap-envelope';
 export class WorkRequestExecutionController {
   constructor(private readonly execution: WorkRequestExecutionProvider) {}
 
+  @Get('internal-cycles')
+  @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
+  @ApiOperation({ summary: 'Discover authorized Work Request Internal Cycles' })
+  @ApiOkResponse({ type: wrapEnvelope(InternalCyclesResponseDto) })
+  internalCycles(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.execution.internalCycles(id, actor);
+  }
   @Get('internal-cycles/:cycleId')
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Work Request Internal Cycle' })

@@ -57,7 +57,7 @@ export function workRequestVisibilityWhere(
         OR: [
           responsibility,
           originatingResponsibility,
-          activeRouteMemberStep(member.id),
+          participatingRouteMemberStep(member.id),
         ],
       };
     default:
@@ -227,7 +227,7 @@ function activeRouteTeamStep(memberId: string): Prisma.WorkRequestV1WhereInput {
   };
 }
 
-function activeRouteMemberStep(
+function participatingRouteMemberStep(
   memberId: string,
 ): Prisma.WorkRequestV1WhereInput {
   return {
@@ -236,15 +236,7 @@ function activeRouteMemberStep(
         memberSteps: {
           some: {
             memberId,
-            activatedAt: { not: null },
-            submittedAt: null,
-            teamStep: {
-              is: {
-                activatedAt: { not: null },
-                completedAt: null,
-                divisionCycle: { is: { completedAt: null } },
-              },
-            },
+            cancelledAt: null,
           },
         },
       },

@@ -11,6 +11,7 @@ import {
   SubmitWorkRequestMemberStepDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestExecutionRepository } from '../repositories/work-request-execution.repository';
+import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
 import { WorkRequestInternalWorkflowProvider } from './work-request-internal-workflow.provider';
 import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
@@ -19,6 +20,7 @@ export class WorkRequestExecutionProvider {
   constructor(
     private readonly execution: WorkRequestExecutionRepository,
     private readonly internalWorkflow: WorkRequestInternalWorkflowProvider,
+    private readonly reads: WorkRequestReadRepository,
     private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
 
@@ -30,14 +32,37 @@ export class WorkRequestExecutionProvider {
       memberId(actor, admin),
       admin,
     );
+    const { route, routeStep, ...publicCycle } = cycle;
+    void route;
     return {
-      ...cycle,
+      ...publicCycle,
+      routeStep: {
+        divisionId: routeStep.divisionId,
+        division: routeStep.division,
+      },
       internalWorkflow: this.internalWorkflow.project(cycle),
       availableActions: (await this.lifecycle?.isArchived(id))
         ? []
         : cycle.availableActions.filter((action) =>
             hasPermission(actor, EXECUTION_PERMISSION[action]),
           ),
+    };
+  }
+  async internalCycles(id: string, actor: SessionActor) {
+    if (!(await this.reads.find(id, actor))) throw notFound();
+    const admin = hasTenantWideInternalAuthority(actor);
+    const cycles = await this.execution.internalCycles(
+      id,
+      memberId(actor, admin),
+      admin,
+    );
+    return {
+      authorizedInternalWorkflows: cycles.map((cycle) => ({
+        divisionId: cycle.routeStep.divisionId!,
+        divisionName: cycle.routeStep.division!.name,
+        divisionCycleId: cycle.id,
+        internalWorkflow: this.internalWorkflow.project(cycle),
+      })),
     };
   }
   defineTeamSequence(
@@ -185,5 +210,13 @@ function forbidden(): AppException {
     code: AppErrorCode.Forbidden,
     status: 403,
     message: "You don't have permission to perform this action.",
+  });
+}
+
+function notFound(): AppException {
+  return new AppException({
+    code: AppErrorCode.NotFound,
+    status: 404,
+    message: 'Work Request was not found.',
   });
 }

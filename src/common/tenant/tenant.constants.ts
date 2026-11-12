@@ -89,6 +89,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'WorkRequestDivisionCycle',
   'WorkRequestTeamStep',
   'WorkRequestMemberStep',
+  'WorkRequestResponsibilityHistory',
   'WorkRequestRouteEvent',
   'WorkRequestRouteRevision',
   'WorkRequestRouteRevisionSubmission',

@@ -6,15 +6,18 @@ import { WorkRequestInternalWorkflowProvider } from './work-request-internal-wor
 describe('WorkRequestExecutionProvider scope boundary', () => {
   const execution = {
     internalCycle: jest.fn(),
+    internalCycles: jest.fn(),
     defineTeamSequence: jest.fn(),
     defineMemberSequence: jest.fn(),
     appendMemberStep: jest.fn(),
     submitMemberStep: jest.fn(),
     completeTeamStep: jest.fn(),
   };
+  const reads = { find: jest.fn() };
   const provider = new WorkRequestExecutionProvider(
     execution as never,
     new WorkRequestInternalWorkflowProvider(),
+    reads as never,
   );
 
   const actor = (scope: 'division' | 'team' | 'member') =>
@@ -99,6 +102,65 @@ describe('WorkRequestExecutionProvider scope boundary', () => {
     expect(execution.submitMemberStep).not.toHaveBeenCalled();
   });
 
+  it('projects the same originating lifecycle in collection and detail without exposing route context', async () => {
+    const at = new Date('2026-01-01T00:00:00Z');
+    const cycle = {
+      id: 'cycle-origin',
+      completedAt: at,
+      routeStep: {
+        divisionId: 'division-a',
+        division: { id: 'division-a', name: 'Marketing' },
+        kind: 'ORIGIN_START',
+        activatedAt: at,
+        completedAt: at,
+      },
+      route: {
+        projection: {
+          routeStepId: 'pm',
+          routeVersion: {
+            steps: [
+              {
+                id: 'final',
+                divisionId: 'division-a',
+                activatedAt: null,
+                completedAt: null,
+              },
+            ],
+          },
+        },
+      },
+      teamSteps: [],
+      availableActions: [],
+      workflowVisibility: {
+        canViewMainWorkflow: true,
+        canViewInternalWorkflow: true,
+      },
+    };
+    reads.find.mockResolvedValue({ id: 'request-a' });
+    execution.internalCycle.mockResolvedValue(cycle);
+    execution.internalCycles.mockResolvedValue([cycle]);
+    const detail = await provider.internalCycle(
+      'request-a',
+      cycle.id,
+      actor('division'),
+    );
+    const collection = await provider.internalCycles(
+      'request-a',
+      actor('division'),
+    );
+    expect(detail.internalWorkflow?.steps.map((step) => step.state)).toEqual([
+      'completed',
+      'upcoming',
+    ]);
+    expect(collection.authorizedInternalWorkflows[0].internalWorkflow).toEqual(
+      detail.internalWorkflow,
+    );
+    expect(detail).not.toHaveProperty('route');
+    expect(detail.routeStep).toEqual({
+      divisionId: 'division-a',
+      division: cycle.routeStep.division,
+    });
+  });
   it('adds the Internal Workflow only to the already-authorized internal-cycle read', async () => {
     execution.internalCycle.mockResolvedValue({
       id: 'cycle-a',
@@ -150,6 +212,101 @@ describe('WorkRequestExecutionProvider scope boundary', () => {
     });
   });
 
+  it('projects pre-authorized completed and current Division cycles in repository order', async () => {
+    const completedMarketing = {
+      id: 'cycle-marketing',
+      completedAt: new Date(),
+      routeStep: {
+        divisionId: 'division-marketing',
+        division: { id: 'division-marketing', name: 'Marketing' },
+      },
+      teamSteps: [
+        {
+          id: 'team-step-marketing',
+          ordinal: 1,
+          activatedAt: new Date(),
+          completedAt: new Date(),
+          team: { id: 'team-marketing', name: 'Marketing Team' },
+        },
+      ],
+    };
+    const currentPm = {
+      id: 'cycle-pm',
+      completedAt: null,
+      routeStep: {
+        divisionId: 'division-pm',
+        division: { id: 'division-pm', name: 'Project Management' },
+      },
+      teamSteps: [],
+    };
+    const admin = {
+      id: 'admin-a',
+      member: null,
+      clientContact: null,
+      role: {
+        customScope: null,
+        systemRole: { systemCode: 'tenant_super_admin' },
+      },
+    } as never;
+    reads.find.mockResolvedValue({ id: 'request-a' });
+    execution.internalCycles.mockResolvedValue([completedMarketing, currentPm]);
+
+    const result = await provider.internalCycles('request-a', admin);
+
+    expect(reads.find).toHaveBeenCalledWith('request-a', admin);
+    expect(execution.internalCycles).toHaveBeenCalledWith(
+      'request-a',
+      null,
+      true,
+    );
+    expect(result).toEqual({
+      authorizedInternalWorkflows: [
+        expect.objectContaining({
+          divisionId: 'division-marketing',
+          divisionCycleId: 'cycle-marketing',
+          internalWorkflow: expect.objectContaining({
+            divisionName: 'Marketing',
+            steps: expect.arrayContaining([
+              expect.objectContaining({
+                kind: 'division-end',
+                state: 'current',
+              }),
+            ]),
+          }),
+        }),
+        expect.objectContaining({
+          divisionId: 'division-pm',
+          divisionCycleId: 'cycle-pm',
+        }),
+      ],
+    });
+    expect(
+      new Set(
+        result.authorizedInternalWorkflows.map(
+          ({ divisionCycleId }) => divisionCycleId,
+        ),
+      ).size,
+    ).toBe(result.authorizedInternalWorkflows.length);
+  });
+
+  it('returns an empty authorized Internal Workflow collection without exposing another Division', async () => {
+    reads.find.mockResolvedValue({ id: 'request-a' });
+    execution.internalCycles.mockResolvedValue([]);
+
+    await expect(
+      provider.internalCycles('request-a', actor('division')),
+    ).resolves.toEqual({ authorizedInternalWorkflows: [] });
+  });
+
+  it('does not discover cycles for an unrelated or cross-tenant Work Request read', async () => {
+    reads.find.mockResolvedValue(null);
+
+    await expect(
+      provider.internalCycles('foreign-request', actor('division')),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(execution.internalCycles).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['defineTeamSequence', 'division'],
     ['defineMemberSequence', 'team'],
@@ -169,6 +326,7 @@ describe('WorkRequestExecutionProvider scope boundary', () => {
       const archivedProvider = new WorkRequestExecutionProvider(
         execution as never,
         new WorkRequestInternalWorkflowProvider(),
+        reads as never,
         lifecycle as never,
       );
       const request = 'request-archived';
