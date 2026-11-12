@@ -6,6 +6,10 @@ At creation, an authenticated active internal ActorProfile with explicit compati
 
 Each route occurrence has stable identity, route version, ordinal, Division reference where applicable, kind (`ORIGIN_START`, `INTERMEDIATE`, `ORIGIN_FINAL_REVIEW`, `CLIENT`), and immutable activation/completion history. Normal forward is derived exclusively from the active route occurrence and its next occurrence in the approved route version. It cannot select an arbitrary Division.
 
+## Independent presentation visibility
+
+Main Route and Internal Division Workflow are independent presentation/authorization concerns. Main Route returns its own actor-specific `workflowVisibility.canViewMainWorkflow`, derived from route-level Work Request authorization, and remains the authority for Main Workflow presentation. An originating responsible actor who still satisfies Main Route access retains Main visibility after another Division becomes current; Team-level and participating Member contexts remain Main false. Internal Cycle access is derived separately from the caller's authorized Division/Team/Member context. A 403 for another Division's Internal Cycle neither changes nor signals Main Route visibility, and must not be used to hide Main Workflow. This metadata-only contract does not modify route steps, route occurrences, route ordering, current responsibility, Division forward, Client stage, or any execution lifecycle fact.
+
 ## Amendments
 
 An amendment is available only to the exact bound Responsible Originating Division Lead and is an append-only route version linked to its predecessor and actor/event metadata. It carries a new ordered plan for only unstarted future intermediate occurrences, then derives its own origin-final/client tail. Completed occurrences and the active occurrence are copied as immutable historical context, never changed or deleted. Optimistic base-version comparison plus serializable write prevents competing amendments. A responsibility transfer is a separate auditable fact and never an amendment side effect.

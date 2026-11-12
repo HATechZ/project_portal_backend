@@ -42,6 +42,8 @@ Create body: `{ bidId XOR projectId, title, priority, notes?, originatingDivisio
 
 Route steps expose `divisionId` and `divisionName` from the Division relation (both null for the Client step). The route projection exposes the persisted `divisionCycleId`, `teamStepId`, and `memberStepId`, each nullable when no corresponding execution step is active.
 
+`GET /api/v1/work-requests/:id/route` additionally returns actor-specific presentation metadata: `workflowVisibility: { canViewMainWorkflow: boolean }`. This Main Route field is the authoritative signal for Main Workflow presentation and is derived from the route/read authorization equation: explicit compatible permission, same Tenant, compatible scope, Work Request relationship/responsibility, and valid workflow context. It does not require, imply, or grant access to the current Division's Internal Cycle. An authorized originating responsible actor retains `canViewMainWorkflow: true` after execution advances to another Division; a current authorized Division-level actor and same-tenant resource-authorized `tenant_super_admin` also receive true. Internal-only Team and participating Member contexts receive false and must not be presented Main Workflow route progress or Client-stage data. The response remains otherwise unchanged and does not alter route execution, projection, occurrence ordering, or Client lifecycle.
+
 Sequence bodies contain only ordered target UUIDs and optional note. Amendment contains a base route version plus a complete replacement of **remaining future intermediate occurrences**; the service derives immutable tail steps and rejects completed/current modifications. Revision contains classification, exact valid source target, reason/note, and no caller-controlled requester/resume/formal-round field. Initial communication contains `recipientActorIds: UUID[1..]`, nonblank message, and exact owned document-version IDs; reply contains message/attachment IDs only.
 
 Responses are safe projections: IDs, occurrence/cycle/sequence positions, derived progress, permitted actions, safe person labels, exact immutable document-version IDs, timestamps, and immutable event references. They never expose tenant internals, storage keys, authorization internals, or private conversations of another pair. Standard errors: 400 malformed/server-owned fields; 403 permission/scope/exact-responsibility failure; 404 inaccessible resource/target; 409 stale route version, invalid current position, frozen Team sequence, duplicate/idempotent command, concurrent append, invalid revision resume, or exhausted reconsideration. Each route reuses a semantically correct existing generic permission where possible; only a catalogue audit may authorize the smallest required new generic permission, never by a speculative route-specific name.
@@ -134,6 +136,20 @@ Phase C1 uses explicit bodies: client submission `{ documentVersionIds: UUID[], 
 Every route returns 400 for invalid/forbidden fields, 401 for invalid session, 403 for missing grant or object scope, 404 for absent/foreign scoped resources, and 409 for XOR, stale state, invalid transition, inactive/dependent organization record, duplicate/idempotency conflict, or concurrency conflict. Routes use the approved fixed-role baseline and no direct role-name comparisons; every grant remains subject to tenant, ActorProfile, state, scope, organizational relationship, and assignment checks.
 
 ## Available actions
+
+## Main and Internal Workflow presentation
+
+Main Workflow and Internal Division Workflow are independent reads. Frontend uses `GET /:id/route`'s `workflowVisibility.canViewMainWorkflow` to decide Main Workflow presentation. It uses `GET /:id/internal-cycles/:cycleId` availability and its existing Internal Workflow visibility independently. An expected 403 from an Internal Cycle because the caller is not related to that Division is not a Main Route authorization failure: omit the Internal Workflow without a broken/error card and do not hide an otherwise authorized Main Workflow.
+
+| Actor context | Main Route | Main Workflow | Current Internal Cycle | Internal Workflow |
+|---|---:|---:|---:|---:|
+| Originating Division responsible actor | allowed | YES | may be denied | NO if denied |
+| Current Division-level responsible actor | allowed | YES | allowed | YES |
+| Team-level internal actor | may be readable | NO | allowed | YES |
+| Participating Member | may be readable | NO | allowed | YES |
+| `tenant_super_admin` | allowed | YES | authorized cycles only | YES when authorized |
+| Unrelated actor | denied/no relationship | NO | denied | NO |
+| Cross-tenant actor | denied | NO | denied | NO |
 
 ## Document history reads
 

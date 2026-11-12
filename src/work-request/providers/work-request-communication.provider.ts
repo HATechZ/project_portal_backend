@@ -3,7 +3,10 @@ import { AppErrorCode } from '../../common/exceptions/app-error-code';
 import { AppException } from '../../common/exceptions/app-exception';
 import { RequestContext } from '../../common/context/request-context';
 import type { SessionActor } from '../../common/security/session.types';
-import { hasCompanyWorkRequestScope } from '../../common/security/work-request-visibility';
+import {
+  canViewWorkRequestMainWorkflow,
+  hasCompanyWorkRequestScope,
+} from '../../common/security/work-request-visibility';
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
 import { WorkRequestCommunicationRepository } from '../repositories/work-request-communication.repository';
 import { WorkRequestReadRepository } from '../repositories/work-request-read.repository';
@@ -123,7 +126,12 @@ export class WorkRequestCommunicationProvider {
       true,
     );
     if (!history) throw notFound();
-    return history;
+    return {
+      ...history,
+      workflowVisibility: {
+        canViewMainWorkflow: canViewWorkRequestMainWorkflow(actor),
+      },
+    };
   }
   async internalHistory(id: string, actor: SessionActor) {
     if (actor.role && hasCompanyWorkRequestScope(actor)) {

@@ -1,6 +1,7 @@
 import { WorkRequestV1AssignmentLevelCode as Level } from '../../generated/prisma/client';
 import {
   canAccessWorkRequest,
+  canViewWorkRequestMainWorkflow,
   relatedWorkRequestVisibilityWhere,
   workRequestVisibilityWhere,
 } from './work-request-visibility';
@@ -64,6 +65,26 @@ describe('Work Request internal visibility', () => {
     expect(workRequestVisibilityWhere(actor('company'))).toEqual({});
     expect(relatedWorkRequestVisibilityWhere(actor('company'))).toBeUndefined();
     expect(canAccessWorkRequest(actor('company'), [])).toBe(true);
+  });
+
+  it.each([
+    ['company', true],
+    ['division', true],
+    ['team', false],
+    ['member', false],
+  ])(
+    'returns Main Workflow presentation visibility for %s scope',
+    (scope, expected) => {
+      expect(canViewWorkRequestMainWorkflow(actor(scope))).toBe(expected);
+    },
+  );
+
+  it('returns Main Workflow presentation visibility for the same-tenant system administrator', () => {
+    const admin = actor(null);
+    admin.role.systemRole = { systemCode: 'tenant_super_admin' };
+    admin.clientContact = null;
+
+    expect(canViewWorkRequestMainWorkflow(admin)).toBe(true);
   });
 
   it('builds the lower-scope related-request predicate reused by parent reads', () => {

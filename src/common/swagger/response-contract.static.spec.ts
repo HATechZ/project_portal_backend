@@ -58,6 +58,12 @@ describe('API response Swagger contracts', () => {
     expect(source('src/work-request/work-request.controller.ts')).toContain(
       "@ApiStandardOkResponse(WorkRequestResponseDto, 'Work Request updated')",
     );
+    expect(source('src/work-request/work-request.controller.ts')).toContain(
+      'WorkRequestRouteResponseDto',
+    );
+    expect(
+      source('src/work-request/dtos/work-request-route-response.dto.ts'),
+    ).toContain('canViewMainWorkflow!: boolean;');
   });
 
   it('documents the accepted auth and root API success responses', () => {

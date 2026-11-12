@@ -115,6 +115,16 @@ export function hasCompanyWorkRequestScope(actor: SessionActor): boolean {
   );
 }
 
+/**
+ * Main Workflow is a high-level presentation surface. Resource access remains
+ * enforced by workRequestVisibilityWhere before this metadata is returned.
+ */
+export function canViewWorkRequestMainWorkflow(actor: SessionActor): boolean {
+  return (
+    hasCompanyWorkRequestScope(actor) || actor.role.customScope === 'division'
+  );
+}
+
 /** Bid/Project visibility inherits the same related Work Request predicate. */
 export function relatedWorkRequestVisibilityWhere(
   actor: SessionActor,

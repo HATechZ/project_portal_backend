@@ -1,6 +1,6 @@
 # Workflow Projections & Visibility
 
-The main projection displays route occurrences and handoffs only: Originating Division, intermediate occurrences, Originating final review, and Client. It never exposes Team-by-Team or Member-by-Member detail.
+The main projection displays route occurrences and handoffs only: Originating Division, intermediate occurrences, Originating final review, and Client. It never exposes Team-by-Team or Member-by-Member detail. Its actor-specific presentation signal is `GET /work-requests/:id/route` → `workflowVisibility.canViewMainWorkflow`; Main Workflow visibility must never depend on successful access to an Internal Cycle.
 
 The internal projection displays only to authorized related actors: Division cycle, Team and Member sequences, submission/completion facts, revisions, authorized communication entry points, and audit history. It must not leak hidden Team/member steps through labels, counts, route progress, search, or available actions.
 
@@ -14,9 +14,9 @@ Archive does not widen, reduce, or otherwise replace this read-visibility policy
 
 Internal Division Workflow is a separate Division-level projection derived from the existing ordered Team sequence: automatic Division Start, the ordered Team steps, and automatic Division Return. It is not merged with the Main Workflow and does not share Main Workflow business or execution logic. Reusing a visual component is presentation reuse only.
 
-An authorized Division-level responsible actor continues to see the existing Main Workflow in the same location, with identical data, design, and behavior. That actor may additionally see the authorized Internal Division Workflow in a separate section of the same Work Request page.
+An authorized originating responsible actor retains Main Workflow presentation after route responsibility moves to another Division, when Main Route authorization remains valid. A current authorized Division-level responsible actor also sees Main Workflow and may additionally see its authorized Internal Division Workflow in a separate section. Neither actor needs another Division's Internal Cycle access to establish Main Workflow visibility.
 
-`tenant_super_admin` is the sole predefined/system role. When it is same-tenant and the requested Work Request/Internal Division Workflow is otherwise available under backend resource checks, it receives the same high-level presentation visibility: existing Main Workflow plus Internal Division Workflow. The additive metadata is `{ canViewMainWorkflow: true, canViewInternalWorkflow: true }`. This does not create a global business-relationship bypass: tenant, Work Request, compatible resource, and existing data-availability checks remain mandatory. If multiple Internal Division Workflow projections are legitimately available for that Work Request/tenant, the backend may expose those available projections additively; the frontend may offer them without changing Main Workflow behavior.
+`tenant_super_admin` is the sole predefined/system role. When it is same-tenant and the Work Request is otherwise route-readable, Main Route returns `{ workflowVisibility: { canViewMainWorkflow: true } }`. An Internal Cycle remains separately authorized; when available its existing metadata may report `{ canViewMainWorkflow: true, canViewInternalWorkflow: true }`. This does not create a global business-relationship bypass: tenant, Work Request, compatible resource, and existing data-availability checks remain mandatory. If multiple Internal Division Workflow projections are legitimately available for that Work Request/tenant, the backend may expose those available projections additively; the frontend may offer them without changing Main Workflow behavior.
 
 A valid Team-level responsible actor and a valid Member within the authorized Division must not see the Main Workflow. In the workflow location where that actor previously saw it, the frontend displays only the authorized Internal Division Workflow; it may reuse the Main Workflow visual style while using Internal Workflow data. It must not receive or infer cross-Division route information, Main Workflow occurrences/progress, or Client-stage information.
 
@@ -33,7 +33,4 @@ The backend, not frontend hiding, enforces these reads. Authorization is explici
 | Unrelated actor | NO | NO |
 | Cross-tenant actor | NO | NO |
 
-Frontend renders the high-level Division view whenever backend `workflowVisibility` returns both
-flags true, including for an eligible `tenant_super_admin`; it must not infer this from a role
-name. A Team-level actor or Member remains internal-only when the backend returns Main false and
-Internal true.
+Frontend renders Main Workflow only from the authoritative Main Route `workflowVisibility.canViewMainWorkflow`; it must not infer this from a role name or from an Internal Cycle response. It renders Internal Workflow only from independently authorized Internal Cycle availability. If that endpoint returns 403 because the actor is unrelated to the current Division, the frontend omits Internal Workflow without an error card and leaves any authorized Main Workflow visible. A Team-level actor or Member remains internal-only when Main Route returns false and an authorized Internal Cycle returns Internal true.

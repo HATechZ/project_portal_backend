@@ -41,3 +41,13 @@ Required implementation proof includes:
 - A same-tenant, resource-authorized `tenant_super_admin` receives `workflowVisibility: { canViewMainWorkflow: true, canViewInternalWorkflow: true }`, sees the existing Main Workflow unchanged, and can read an available Internal Division Workflow.
 - If multiple Internal Division Workflows are legitimately available within that Work Request/tenant context, the contract does not artificially restrict `tenant_super_admin` to one unrelated fixed Division; another tenant's workflows remain unavailable.
 - `tenant_super_admin` visibility metadata grants no new resource access or global business-relationship bypass. Team Lead and Member remain Main false/Internal true; Division-level responsible actor remains Main true/Internal true.
+
+## Main Route and Internal Cycle presentation-contract future matrix
+
+- An originating responsible actor whose `GET /:id/route` read is authorized receives `workflowVisibility.canViewMainWorkflow = true`, even after the active route occurrence moves to another Division.
+- That originating actor may receive 403 from that other Division's `GET /:id/internal-cycles/:cycleId`; the denial does not imply Main false, does not hide Main Workflow conceptually, and does not broaden Internal Cycle access.
+- A current Division-level responsible actor receives Main Route `canViewMainWorkflow = true` and an authorized Internal Cycle with Internal Workflow available.
+- A Team-level internal actor and a participating Member receive Main Route `canViewMainWorkflow = false` while retaining an authorized Internal Workflow only through their valid Internal Cycle context.
+- A same-tenant, resource-authorized `tenant_super_admin` receives Main Route `canViewMainWorkflow = true`; Internal Workflow remains available only through separately authorized cycle reads. No cross-tenant actor receives either projection.
+- The Main Route visibility signal is authoritative for Main Workflow presentation; Internal Cycle availability/403 is authoritative only for Internal Workflow presentation. Frontend omits an expected unauthorized Internal Workflow without rendering an error card or hiding Main Workflow.
+- Main Workflow execution/route occurrence/projection regression remains unchanged, and Internal Workflow authorization remains unchanged.

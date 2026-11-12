@@ -5,6 +5,7 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
   const actor = {
     id: 'actor-a',
     member: { id: 'member-a', isActive: true },
+    role: { customScope: 'division', systemRole: null },
   } as never;
   const context = <T>(work: () => Promise<T>) =>
     RequestContext.run(
@@ -150,7 +151,7 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
     );
   });
 
-  it('uses Work Request visibility, rather than operational participation, for the route projection', async () => {
+  it('returns Main Workflow visibility for an originating responsible Division actor without changing route data', async () => {
     const history = { projection: { routeStepId: 'route-step-a' }, steps: [] };
     const communications = { history: jest.fn().mockResolvedValue(history) };
     const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
@@ -161,7 +162,10 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
 
     await expect(
       context(() => provider.routeProjection('request-a', actor)),
-    ).resolves.toBe(history);
+    ).resolves.toEqual({
+      ...history,
+      workflowVisibility: { canViewMainWorkflow: true },
+    });
     expect(reads.find).toHaveBeenCalledWith('request-a', actor);
     expect(communications.history).toHaveBeenCalledWith(
       'request-a',
@@ -171,19 +175,78 @@ describe('WorkRequestCommunicationProvider Phase 6 privacy', () => {
     );
   });
 
-  it('does not disclose a route projection when the Work Request visibility predicate rejects it', async () => {
-    const communications = { history: jest.fn() };
-    const reads = { find: jest.fn().mockResolvedValue(null) };
+  it.each([
+    ['current Division actor', 'division', true],
+    ['Team-level actor', 'team', false],
+    ['participating Member', 'member', false],
+  ])(
+    'returns Main Workflow presentation visibility %s independently of Internal Cycle access',
+    async (_label, scope, expected) => {
+      const scopedActor = {
+        ...actor,
+        role: { customScope: scope, systemRole: null },
+      } as never;
+      const communications = {
+        history: jest.fn().mockResolvedValue({ projection: null, steps: [] }),
+      };
+      const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
+      const provider = new WorkRequestCommunicationProvider(
+        communications as never,
+        reads as never,
+      );
+
+      await expect(
+        context(() => provider.routeProjection('request-a', scopedActor)),
+      ).resolves.toMatchObject({
+        workflowVisibility: { canViewMainWorkflow: expected },
+      });
+      expect(reads.find).toHaveBeenCalledWith('request-a', scopedActor);
+    },
+  );
+
+  it('returns Main Workflow presentation visibility for a visible same-tenant system administrator', async () => {
+    const admin = {
+      id: 'admin',
+      isActive: true,
+      member: null,
+      clientContact: null,
+      role: {
+        customScope: null,
+        systemRole: { systemCode: 'tenant_super_admin' },
+      },
+    } as never;
+    const communications = {
+      history: jest.fn().mockResolvedValue({ projection: null, steps: [] }),
+    };
+    const reads = { find: jest.fn().mockResolvedValue({ id: 'request-a' }) };
     const provider = new WorkRequestCommunicationProvider(
       communications as never,
       reads as never,
     );
 
     await expect(
-      context(() => provider.routeProjection('request-a', actor)),
-    ).rejects.toMatchObject({ status: 404 });
-    expect(communications.history).not.toHaveBeenCalled();
+      context(() => provider.routeProjection('request-a', admin)),
+    ).resolves.toMatchObject({
+      workflowVisibility: { canViewMainWorkflow: true },
+    });
   });
+
+  it.each(['unrelated actor', 'cross-tenant actor'])(
+    'does not disclose a route projection to a %s rejected by the existing Work Request visibility predicate',
+    async () => {
+      const communications = { history: jest.fn() };
+      const reads = { find: jest.fn().mockResolvedValue(null) };
+      const provider = new WorkRequestCommunicationProvider(
+        communications as never,
+        reads as never,
+      );
+
+      await expect(
+        context(() => provider.routeProjection('request-a', actor)),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(communications.history).not.toHaveBeenCalled();
+    },
+  );
 
   it('allows a visible system-scoped administrator to read internal history without granting workflow participation', async () => {
     const admin = {

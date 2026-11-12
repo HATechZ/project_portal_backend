@@ -48,6 +48,7 @@ import {
   UpdateWorkRequestDto,
   WorkRequestResponseDto,
 } from './dtos/work-request.dto';
+import { WorkRequestRouteResponseDto } from './dtos/work-request-route-response.dto';
 import {
   ArchiveWorkRequestDto,
   WorkRequestLifecycleResponseDto,
@@ -179,6 +180,10 @@ export class WorkRequestController {
   @Get(':id/route')
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)
   @ApiOperation({ summary: 'Get Work Request Route' })
+  @ApiStandardOkResponse(
+    WorkRequestRouteResponseDto,
+    'Work Request route returned',
+  )
   route(
     @Param('id', ParseUUIDPipe) id: string,
     @ActiveActor() actor: SessionActor,
