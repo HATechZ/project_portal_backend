@@ -7,6 +7,8 @@
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/v1/work-requests` | Create a route-based request with ordered intermediate Division IDs; server derives origin-final and Client tail. |
+| POST | `/api/v1/work-requests/:id/archive` | Archive the scoped Work Request without deleting or changing its workflow/history. |
+| POST | `/api/v1/work-requests/:id/restore` | Restore the scoped archived Work Request to its preserved active execution state. |
 | GET | `/api/v1/work-requests/:id/route` | Main route/progress projection. |
 | POST | `/api/v1/work-requests/:id/route-amendments` | Exact Responsible Originating Division Lead appends a versioned amendment to remaining future route steps. |
 | GET | `/api/v1/work-requests/:id/internal-cycles/:cycleId` | Authorized Division/Team/Member execution projection. |
@@ -94,7 +96,7 @@ Reject both/neither parent, category/categoryId, type, attachment category, sour
 
 ## Reads, filters, and updates
 
-List extends current `PaginationQueryDto`; supported filters are one parent (`bidId` or `projectId`), exact priority (`Low`, `Medium`, or `High`), derived workflow state, current assigned Division/Team/Member, and current responsibility. No category filters. Detail includes derived state, parent/priority, current and historic assignments, safe file summary, and `availableActions` or its dedicated resource.
+List extends current `PaginationQueryDto`; supported filters are one parent (`bidId` or `projectId`), exact priority (`Low`, `Medium`, or `High`), derived workflow state, current assigned Division/Team/Member, current responsibility, and additive `lifecycle=active|archived|all`. The default is `active`, preserving normal operational-list behavior for existing callers; `archived` and `all` remain subject to the existing scoped visibility predicate. This filter does not change the existing list response shape. No category filters. Detail includes derived state, parent/priority, current and historic assignments, safe file summary, and `availableActions` or its dedicated resource.
 
 `GET /api/v1/work-requests/:id/assignments` preserves every assignment-history field and its
 chronological order. For `MEMBER`, `CHECKING`, `APPROVAL`, and `FINAL_REVIEW` rows, it additionally
@@ -103,6 +105,14 @@ Division and Team rows return `assignee: null`. This display projection neither 
 authorization and never exposes Member email, User data, designation, organization, or access state.
 
 PATCH permits only explicitly approved mutable metadata (title and notes); it never changes parent, priority, assignment, state, actor, tenant, files, or audit history. Changes subject to current workflow state are rejected with 409.
+
+## Archive and restore
+
+`POST /api/v1/work-requests/:id/archive` accepts JSON `{ reason?: string }`; a supplied reason is trimmed and bounded by the current note/comment policy. `POST /api/v1/work-requests/:id/restore` has an empty body. Both use the existing standard response envelope and return a small lifecycle confirmation only: `{ id, lifecycle: { status: 'active' | 'archived', archivedAt: string | null, archivedByActorId: string | null, reason: string | null } }`. They do not return or reshape the normal route, Internal Workflow, document, or list payloads. `DELETE /api/v1/work-requests/:id` is not supported.
+
+Archive requires `ARCHIVE_WORK_REQUEST`; restore requires `RESTORE_WORK_REQUEST`. Both additionally require active ActorProfile/role, same-tenant compatible scope, existing Work Request resource visibility/relationship, and lifecycle validity; no hardcoded custom role name authorizes either command. A repeated archive of an archived request and a restore of an active request return 409. Missing/inaccessible/cross-tenant resources remain 404; missing permission or scope is 403. Archive is permitted for an in-progress request but atomically freezes execution without changing its derived workflow state, route position, current responsibility, or any stored workflow fact. Restore atomically unfreezes that same preserved state.
+
+While archived, all ordinary mutating Work Request commands return 409 before changing data: metadata update; route amendment/forward; Team or Member sequence definition; Member append/submit; Team completion; revision request/resubmit; Request Info creation/reply; communication send/reply; document upload/versioning; client submission, decision, reconsideration, and other workflow mutations. Existing authorized read-only detail, list when explicitly requested, route/history, Internal Workflow projection, documents/versions/preview/download, revision history, Request Info history, conversations, and audit reads remain available without widening visibility. `available-actions` is unchanged in shape and returns no normal execution actions while archived.
 
 ## Workflow commands
 

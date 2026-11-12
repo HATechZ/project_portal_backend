@@ -6,6 +6,8 @@ The internal projection displays only to authorized related actors: Division cyc
 
 Read/write checks apply the module authorization equation and exact context: bound Responsible Originating Division Lead where originating authority applies, active route occurrence/cycle, active Team step, active Member step, active revision requester/source, or established conversation participant. Historical pair conversation visibility is the narrow exception: an ended participant may read their own stored pair conversation only, never use it to infer current route/internal access or send a message.
 
+Archive does not widen, reduce, or otherwise replace this read-visibility policy. An authorized actor may read an archived Work Request's existing Main Workflow route/history and authorized Internal Division Workflow projection, but receives no normal execution action while the archive overlay is active. The projections remain a faithful read-only view of the exact preserved route/cycle/TeamStep/MemberStep facts; archive/restore creates no nodes, alters no ordering, and exposes nothing to unrelated or cross-tenant actors.
+
 `GET available-actions` is backend-derived. Conceptual actions include define Team/member sequence, append Member, submit Member, complete Team, forward, each revision class, communicate, Originating final review, C1 package submit, Client decisions, and reconsideration. It reuses existing generic permissions when semantically correct; a catalogue audit may add only the smallest necessary generic permission. It returns no action merely because a caller shares a Tenant, name, role, or status label.
 
 ## Internal Division Workflow visibility

@@ -49,6 +49,11 @@ import {
   WorkRequestResponseDto,
 } from './dtos/work-request.dto';
 import {
+  ArchiveWorkRequestDto,
+  WorkRequestLifecycleResponseDto,
+} from './dtos/work-request-lifecycle.dto';
+import { WorkRequestListQueryDto } from './dtos/work-request-list-query.dto';
+import {
   WorkRequestService,
   type WorkRequestUploadedFile,
 } from './work-request.service';
@@ -111,8 +116,40 @@ export class WorkRequestController {
   @ResponseMessage('Work Requests returned successfully')
   @ApiOperation({ summary: 'Get Scoped Work Requests' })
   @ApiPaginatedResponse(WorkRequestResponseDto)
-  list(@Query() query: PaginationQueryDto, @ActiveActor() actor: SessionActor) {
+  list(
+    @Query() query: WorkRequestListQueryDto,
+    @ActiveActor() actor: SessionActor,
+  ) {
     return this.service.list(query, actor);
+  }
+  @Post(':id/archive')
+  @FinalPermissions(PermissionCode.ARCHIVE_WORK_REQUEST)
+  @ApiOperation({ summary: 'Archive Work Request' })
+  @ApiStandardOkResponse(
+    WorkRequestLifecycleResponseDto,
+    'Work Request archived',
+  )
+  @ResponseMessage('Work Request archived successfully')
+  archive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ArchiveWorkRequestDto,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.archive(id, body.reason, actor);
+  }
+  @Post(':id/restore')
+  @FinalPermissions(PermissionCode.RESTORE_WORK_REQUEST)
+  @ApiOperation({ summary: 'Restore Work Request' })
+  @ApiStandardOkResponse(
+    WorkRequestLifecycleResponseDto,
+    'Work Request restored',
+  )
+  @ResponseMessage('Work Request restored successfully')
+  restore(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActiveActor() actor: SessionActor,
+  ) {
+    return this.service.restore(id, actor);
   }
   @Get(':id')
   @FinalPermissions(PermissionCode.VIEW_WORK_REQUEST)

@@ -99,6 +99,8 @@ enum PermissionCode {
   CREATE_WORK_REQUEST
   VIEW_WORK_REQUEST
   UPDATE_WORK_REQUEST
+  ARCHIVE_WORK_REQUEST
+  RESTORE_WORK_REQUEST
   CREATE_WORK_REQUEST_NOTE
   ASSIGN_WORK_REQUEST_DIVISION
   ASSIGN_WORK_REQUEST_TEAM
@@ -863,6 +865,7 @@ model ActorProfile {
   directProjectDocumentVersionsByUploadedByActorId            DirectProjectDocumentVersion[]             @relation("DirectProjectDocumentVersionsUploadedByActorIdActorProfiles")
   directProjectDocumentClassificationEventsByChangedByActorId DirectProjectDocumentClassificationEvent[] @relation("DirectProjectDocumentClassificationEventsChangedByActorIdActorProfiles")
   workRequestsV1ByCreatedByActorId                            WorkRequestV1[]                            @relation("WorkRequestV1CreatedByActorIdActorProfiles")
+  workRequestsV1ByArchivedByActorId                           WorkRequestV1[]                            @relation("WorkRequestV1ArchivedByActorIdActorProfiles")
   workRequestV1AssignmentsByAssignedByActorId                 WorkRequestV1Assignment[]                  @relation("WorkRequestV1AssignmentsAssignedByActorIdActorProfiles")
   workRequestV1EventsByPerformedByActorId                     WorkRequestV1Event[]                       @relation("WorkRequestV1EventsPerformedByActorIdActorProfiles")
   workRequestV1DocumentsByUploadedByActorId                   WorkRequestV1Document[]                    @relation("WorkRequestV1DocumentsUploadedByActorIdActorProfiles")
@@ -1934,6 +1937,9 @@ model WorkRequestV1 {
   priority         WorkRequestV1PriorityCode @map("priority")
   notes            String?                   @map("notes") @db.Text
   createdByActorId String                    @map("created_by_actor_id") @db.Uuid
+  archivedAt       DateTime?                 @map("archived_at") @db.Timestamp(6)
+  archivedByActorId String?                  @map("archived_by_actor_id") @db.Uuid
+  archiveReason    String?                   @map("archive_reason") @db.Text
   createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime                  @default(now()) @map("updated_at") @db.Timestamp(6)
 
@@ -1942,6 +1948,7 @@ model WorkRequestV1 {
   directProject  DirectProject?             @relation("WorkRequestV1DirectProjectIdDirectProjects", fields: [directProjectId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   bidBusinessCycle BidBusinessCycle?        @relation("WorkRequestV1BidBusinessCycle", fields: [bidBusinessCycleId, tenantId, bidId], references: [id, tenantId, bidId], onDelete: Restrict, onUpdate: Cascade)
   createdByActor ActorProfile               @relation("WorkRequestV1CreatedByActorIdActorProfiles", fields: [createdByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
+  archivedByActor ActorProfile?             @relation("WorkRequestV1ArchivedByActorIdActorProfiles", fields: [archivedByActorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Cascade)
   assignments    WorkRequestV1Assignment[]  @relation("WorkRequestV1AssignmentsWorkRequestIdWorkRequestsV1")
   events         WorkRequestV1Event[]       @relation("WorkRequestV1EventsWorkRequestIdWorkRequestsV1")
   documents      WorkRequestV1Document[]    @relation("WorkRequestV1DocumentsWorkRequestIdWorkRequestsV1")
@@ -1954,6 +1961,7 @@ model WorkRequestV1 {
   @@index([tenantId, bidId])
   @@index([tenantId, directProjectId])
   @@index([tenantId, bidBusinessCycleId, bidId])
+  @@index([tenantId, archivedAt])
   @@index([createdAt])
   @@map("work_requests_v1")
 }

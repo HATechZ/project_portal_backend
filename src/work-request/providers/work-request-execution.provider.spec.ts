@@ -149,4 +149,69 @@ describe('WorkRequestExecutionProvider scope boundary', () => {
       canViewInternalWorkflow: true,
     });
   });
+
+  it.each([
+    ['defineTeamSequence', 'division'],
+    ['defineMemberSequence', 'team'],
+    ['appendMemberStep', 'team'],
+    ['submitMemberStep', 'member'],
+    ['completeTeamStep', 'team'],
+  ] as const)(
+    'blocks archived Work Request %s mutations before execution',
+    async (method, scope) => {
+      const lifecycle = {
+        assertActive: jest
+          .fn()
+          .mockRejectedValue(
+            new Error('Work Request is archived and read-only.'),
+          ),
+      };
+      const archivedProvider = new WorkRequestExecutionProvider(
+        execution as never,
+        new WorkRequestInternalWorkflowProvider(),
+        lifecycle as never,
+      );
+      const request = 'request-archived';
+      const currentActor = actor(scope);
+      const invoke = {
+        defineTeamSequence: () =>
+          archivedProvider.defineTeamSequence(
+            request,
+            'cycle-a',
+            { teamIds: ['team-a'] },
+            currentActor,
+          ),
+        defineMemberSequence: () =>
+          archivedProvider.defineMemberSequence(
+            request,
+            'team-step-a',
+            { memberIds: ['member-a'] },
+            currentActor,
+          ),
+        appendMemberStep: () =>
+          archivedProvider.appendMemberStep(
+            request,
+            'team-step-a',
+            { memberId: 'member-a' },
+            currentActor,
+          ),
+        submitMemberStep: () =>
+          archivedProvider.submitMemberStep(
+            request,
+            'member-step-a',
+            {},
+            currentActor,
+          ),
+        completeTeamStep: () =>
+          archivedProvider.completeTeamStep(
+            request,
+            'team-step-a',
+            currentActor,
+          ),
+      }[method];
+
+      await expect(invoke()).rejects.toThrow('archived and read-only');
+      expect(lifecycle.assertActive).toHaveBeenCalledWith(request);
+    },
+  );
 });

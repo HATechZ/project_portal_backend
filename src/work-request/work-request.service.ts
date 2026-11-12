@@ -46,6 +46,8 @@ import { ObjectScopeProvider } from '../common/security/object-scope.provider';
 import { WorkRequestDocumentDownloadProvider } from './providers/work-request-document-download.provider';
 import { AppErrorCode } from '../common/exceptions/app-error-code';
 import { AppException } from '../common/exceptions/app-exception';
+import { WorkRequestLifecycleProvider } from './providers/work-request-lifecycle.provider';
+import type { WorkRequestListQueryDto } from './dtos/work-request-list-query.dto';
 
 export type WorkRequestUploadedFile = {
   originalname: string;
@@ -78,6 +80,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     private readonly communications?: WorkRequestCommunicationProvider,
     outbox?: OutboxService,
     objectScope?: ObjectScopeProvider,
+    private readonly lifecycleProvider?: WorkRequestLifecycleProvider,
   ) {
     super(
       repository,
@@ -92,16 +95,20 @@ export class WorkRequestService extends WorkRequestServiceBase {
       receipts,
       outbox,
       objectScope,
+      lifecycleProvider,
     );
   }
 
   override async availableActions(id: string, actor: SessionActor) {
+    if (await this.lifecycleProvider?.isArchived(id)) return [];
     const routeActions = await this.routeActions.available(id, actor);
     return routeActions ?? super.availableActions(id, actor);
   }
 
   override async find(id: string, actor: SessionActor) {
     const response = await super.find(id, actor);
+    if (await this.lifecycleProvider?.isArchived(id))
+      return { ...response, availableActions: [] };
     const routeActions = await this.routeActions.available(id, actor);
     return routeActions === null
       ? response
@@ -114,6 +121,18 @@ export class WorkRequestService extends WorkRequestServiceBase {
     actor: SessionActor,
   ) {
     return this.documentDownloads.download(id, versionIds, actor);
+  }
+
+  archive(id: string, reason: string | undefined, actor: SessionActor) {
+    if (!this.lifecycleProvider)
+      throw new Error('Work Request lifecycle is unavailable.');
+    return this.lifecycleProvider.archive(id, reason, actor);
+  }
+
+  restore(id: string, actor: SessionActor) {
+    if (!this.lifecycleProvider)
+      throw new Error('Work Request lifecycle is unavailable.');
+    return this.lifecycleProvider.restore(id, actor);
   }
 
   assignDivision(id: string, input: AssignDivisionDto, actor: SessionActor) {
@@ -246,6 +265,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     return this.repository.routeProjection(id, actor.member.id);
   }
   async forwardRoute(id: string, stepId: string, actor: SessionActor) {
+    await this.lifecycleProvider?.assertActive(id);
     const admin = hasTenantWideInternalAuthority(actor);
     if (!actor.member?.id && !admin) throw routeForbidden();
     if (!admin && actor.role.customScope !== 'division') throw routeForbidden();
@@ -266,6 +286,7 @@ export class WorkRequestService extends WorkRequestServiceBase {
     input: AmendWorkRequestRouteDto,
     actor: SessionActor,
   ) {
+    await this.lifecycleProvider?.assertActive(id);
     const admin = hasTenantWideInternalAuthority(actor);
     if (!actor.member?.id && !admin) throw routeForbidden();
     if (

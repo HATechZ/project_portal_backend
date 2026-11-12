@@ -11,12 +11,14 @@ import {
   documentDownloadUrl,
   documentPreviewUrl,
 } from '../../common/documents/document-access';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestCommunicationProvider {
   constructor(
     private readonly communications: WorkRequestCommunicationRepository,
     private readonly reads: WorkRequestReadRepository,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
   async recipients(id: string, actor: SessionActor) {
     const targets = await this.communications.recipientActorIds(
@@ -34,6 +36,7 @@ export class WorkRequestCommunicationProvider {
     documents: string[] | undefined,
     actor: SessionActor,
   ) {
+    await this.lifecycle?.assertActive(id);
     if (
       recipients.length !== new Set(recipients).size ||
       recipients.includes(actor.id)

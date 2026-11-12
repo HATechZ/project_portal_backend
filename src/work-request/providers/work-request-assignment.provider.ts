@@ -26,6 +26,7 @@ import {
   workRequestTransitionRequestMetadata,
 } from './work-request-transition.definitions';
 import { hasTenantSuperAdminRoutingAuthority } from './work-request-routing-authority';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestAssignmentProvider {
@@ -35,6 +36,7 @@ export class WorkRequestAssignmentProvider {
     private readonly reads: WorkRequestReadRepository,
     private readonly historyReads: WorkRequestAssignmentReadRepository,
     private readonly outbox: OutboxService,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
 
   division(id: string, input: AssignDivisionDto, actor: SessionActor) {
@@ -100,6 +102,7 @@ export class WorkRequestAssignmentProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(workRequestId);
         const metadata = workRequestTransitionRequestMetadata();
         if (!(await this.reads.find(workRequestId, actor)))
           throw notFound('Work Request was not found.');

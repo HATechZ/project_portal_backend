@@ -22,6 +22,12 @@ Before an active Team begins Member work, its exact Team Lead defines ordered Me
 
 Persist append-only lifecycle events for creation, amendment, activation, sequence definition, Member append, submit, Team completion, Division completion, forward, and pause/resume. Derive main route position, active cycle, active Team step, active Member step, and permitted actions from the latest valid facts plus no-open-revision rule. Mutable performance projections are permitted only if transactionally derived from those facts.
 
+## Archive and restore execution freeze
+
+Archive is a separate, restorable aggregate lifecycle overlay. It may freeze an active/in-progress Work Request without changing Main Workflow or Internal Division Workflow facts: route steps and ordering, active occurrence/cycle/TeamStep/MemberStep, current responsibility, Client stage, Team sequence/order, Member sequence/order, and derived normal projection remain exactly as persisted. `WORK_REQUEST_ARCHIVED` records the actor, time, optional reason, and pre-existing workflow-state snapshot; `WORK_REQUEST_RESTORED` records the corresponding restoration. Neither event rewrites historical events nor advances, completes, cancels, or resets any workflow state.
+
+An archived request is read-only. The service must reject every normal execution mutation before a write: Team/Member sequence definition, Member append/submit, Team completion, Division forward, route amendment, revision request/resubmit, Request Info create/respond, communication send/reply, client submission/decision/reconsideration, and all other workflow mutations. Read projections remain authorized by their existing tenant/scope/relationship rules. Restore removes only the archive overlay, so permitted execution resumes at the exact pre-archive position; it never creates a fresh route, Division cycle, TeamStep, MemberStep, document, version, revision, or assignment.
+
 ## Internal Division Workflow (derived projection)
 
 The ordered Team sequence is the sole source of truth for the independent Internal Division Workflow. On successful save of an active Division cycle's existing Team sequence, the system automatically derives a Division-level projection with automatic boundaries: `Division Start -> TeamStep 1 -> ... -> TeamStep N -> Division Return`. The Division Lead selects Teams only; neither Division boundary is selectable, persisted as caller input, or created through a separate workflow builder, modal, action, or second sequence.

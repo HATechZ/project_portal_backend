@@ -21,6 +21,7 @@ import {
 } from './work-request-transition.definitions';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestWorkflowProvider {
@@ -28,6 +29,7 @@ export class WorkRequestWorkflowProvider {
     private readonly repository: WorkRequestWorkflowRepository,
     private readonly uow: UnitOfWorkService,
     private readonly outbox: OutboxService,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
 
   submit(id: string, input: WorkRequestWorkflowNoteDto, actor: SessionActor) {
@@ -43,6 +45,7 @@ export class WorkRequestWorkflowProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const resolved = actionCode
           ? { code: actionCode }
           : actionId

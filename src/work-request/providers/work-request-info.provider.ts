@@ -19,6 +19,7 @@ import {
 import { WorkRequestInfoRepository } from '../repositories/work-request-info.repository';
 import { getFinalPermissionForWorkRequestAction } from './work-request-final-permission.mapper';
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestInfoProvider {
@@ -26,6 +27,7 @@ export class WorkRequestInfoProvider {
     private readonly repository: WorkRequestInfoRepository,
     private readonly uow: UnitOfWorkService,
     private readonly outbox: OutboxService,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
 
   request(
@@ -35,6 +37,7 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         this.assertPermission(actor, WorkflowActionCode.REQUEST_WORKFLOW_INFO);
         const message = infoMessage(input.message, input.documentVersionIds);
         const snapshot = await this.repository.prepare(id, input.targetActorId);
@@ -107,6 +110,7 @@ export class WorkRequestInfoProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const message = infoMessage(input.message, input.documentVersionIds);
         const snapshot = await this.repository.prepare(
           id,

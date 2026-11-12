@@ -38,6 +38,16 @@ The current legacy `WorkRequest` is Project-only and requires category, attachme
 
 Target Work Request has UUID `id`, `tenantId`, nullable `bidId`, nullable Project relation ID, `title`, fixed priority domain value, nullable `notes`, `createdByActorId`, `createdAt`, `updatedAt`, and an optional archive lifecycle only when separately approved. Physical Project relation naming follows Module 09’s direct Project redesign (for example, `directProjectId`); API terminology remains `projectId`.
 
+## Archive lifecycle proposal (specification only)
+
+The current route aggregate is `WorkRequestV1`; it has no archive lifecycle fields. The legacy `WorkRequest.deletedAt` belongs to the historical/pre-route aggregate and is technical soft-delete semantics, so it must not be reused for this business archive lifecycle and no second overlapping `deletedAt` flag is introduced.
+
+Future approved persistence is additive on `work_requests_v1` / `WorkRequestV1`: nullable `archivedAt`, nullable `archivedByActorId` (tenant-qualified ActorProfile relation), and nullable `archiveReason`. `archivedAt IS NULL` means active and non-null means archived. A tenant/listing index beginning with `tenant_id, archived_at` is required for the default active filter and explicit lifecycle filter. This proposal requires a future schema/migration/RLS/grant review; this specification creates none.
+
+`WorkRequestV1Event` remains the append-only audit source. Archive writes one `WORK_REQUEST_ARCHIVED` event and restore writes one `WORK_REQUEST_RESTORED` event in the same transaction as the lifecycle-field change. Each carries the Work Request ID through its relation, performer ActorProfile, timestamp, optional archive reason in `note`, correlation/idempotency metadata, and archive-state transition metadata. To preserve the derived workflow state, both events retain the current derived workflow state as their state snapshot; they do not synthesize an archive workflow state or rewrite prior events. No route, assignment, cycle, TeamStep, MemberStep, revision, information, conversation, document, document-version, or audit row is changed by either command.
+
+Future permission-catalogue persistence must add the dedicated global reusable `ARCHIVE_WORK_REQUEST` and `RESTORE_WORK_REQUEST` capabilities, with compatibility determined by the existing Work Request scope-catalogue process. They are not workflow-action aliases and must never be granted by organization-specific names.
+
 `bidId` and `projectId` have tenant-qualified FKs to independent Bid and Direct Project records. A database CHECK requires exactly one non-null parent; service validation mirrors it. Index `(tenant_id, bid_id)` and `(tenant_id, project_id)` support parent detail/list reads. No parent type discriminator, workspace relation, category, legacy code, origin Division, or mutable current-assignment/status column is permitted.
 
 Before creation, a repository validates same tenant, active/readable parent scope, and configured eligible parent state. Parent status is read from its latest parent event; it is not copied into Work Request.

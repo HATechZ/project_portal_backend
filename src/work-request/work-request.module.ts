@@ -41,6 +41,8 @@ import { WorkRequestRouteClientRepository } from './repositories/work-request-ro
 import { WorkRequestRouteClientProvider } from './providers/work-request-route-client.provider';
 import { WorkRequestDocumentDownloadProvider } from './providers/work-request-document-download.provider';
 import { WorkRequestInternalWorkflowProvider } from './providers/work-request-internal-workflow.provider';
+import { WorkRequestLifecycleRepository } from './repositories/work-request-lifecycle.repository';
+import { WorkRequestLifecycleProvider } from './providers/work-request-lifecycle.provider';
 @Module({
   controllers: [
     WorkRequestController,
@@ -87,6 +89,8 @@ import { WorkRequestInternalWorkflowProvider } from './providers/work-request-in
     WorkRequestRouteClientProvider,
     WorkRequestDocumentDownloadProvider,
     WorkRequestInternalWorkflowProvider,
+    WorkRequestLifecycleRepository,
+    WorkRequestLifecycleProvider,
   ],
 })
 export class WorkRequestModule {}

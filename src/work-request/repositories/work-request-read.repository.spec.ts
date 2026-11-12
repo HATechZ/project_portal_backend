@@ -24,7 +24,7 @@ describe('WorkRequestReadRepository', () => {
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { tenantId },
+        where: { tenantId, archivedAt: null },
         skip: 0,
         take: 20,
       }),
@@ -48,7 +48,10 @@ describe('WorkRequestReadRepository', () => {
       repository.list(0, 20, companyActor),
     );
 
-    expect(receivedArgs?.where).toEqual({ tenantId: 'tenant-a' });
+    expect(receivedArgs?.where).toEqual({
+      tenantId: 'tenant-a',
+      archivedAt: null,
+    });
   });
 
   it('keeps tenant isolation for an explicitly scoped actor', async () => {
@@ -68,6 +71,39 @@ describe('WorkRequestReadRepository', () => {
       repository.list(0, 20, companyActor),
     );
 
-    expect(receivedArgs?.where).toEqual({ tenantId: 'tenant-a' });
+    expect(receivedArgs?.where).toEqual({
+      tenantId: 'tenant-a',
+      archivedAt: null,
+    });
   });
+
+  it.each([
+    ['active', { archivedAt: null }],
+    ['archived', { archivedAt: { not: null } }],
+    ['all', {}],
+  ] as const)(
+    'applies the %s lifecycle filter without weakening scope',
+    async (lifecycle, expected) => {
+      let receivedArgs: Prisma.WorkRequestV1FindManyArgs | undefined;
+      const findMany = jest
+        .fn<Promise<unknown[]>, [Prisma.WorkRequestV1FindManyArgs]>()
+        .mockImplementation((args) => {
+          receivedArgs = args;
+          return Promise.resolve([]);
+        });
+      const repository = new WorkRequestReadRepository({
+        execute: (work: (db: unknown) => Promise<unknown>) =>
+          work({ workRequestV1: { findMany } }),
+      } as never);
+
+      await RequestContext.run({ tenantId: 'tenant-a' } as never, () =>
+        repository.list(0, 20, companyActor, lifecycle),
+      );
+
+      expect(receivedArgs?.where).toEqual({
+        tenantId: 'tenant-a',
+        ...expected,
+      });
+    },
+  );
 });

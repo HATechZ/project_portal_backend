@@ -11,10 +11,14 @@ import type { SessionActor } from '../../common/security/session.types';
 import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
 import { WorkRequestRouteClientRepository } from '../repositories/work-request-route-client.repository';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestRouteClientProvider {
-  constructor(private readonly repository: WorkRequestRouteClientRepository) {}
+  constructor(
+    private readonly repository: WorkRequestRouteClientRepository,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
+  ) {}
   async isRoute(id: string) {
     return !!(await this.repository.isRoute(id));
   }
@@ -23,6 +27,7 @@ export class WorkRequestRouteClientProvider {
     input: { documentVersionIds: string[]; note?: string },
     actor: SessionActor,
   ) {
+    await this.lifecycle?.assertActive(id);
     const context: any = await this.requiredGateway(
       id,
       actor,
@@ -74,6 +79,7 @@ export class WorkRequestRouteClientProvider {
     },
     actor: SessionActor,
   ) {
+    await this.lifecycle?.assertActive(id);
     const context: any = await this.repository.context(id);
     if (!context) throw notFound();
     client(actor, context, decisionPermission(input.decision));
@@ -110,6 +116,7 @@ export class WorkRequestRouteClientProvider {
     reason: string | undefined,
     actor: SessionActor,
   ) {
+    await this.lifecycle?.assertActive(id);
     await this.requiredGateway(
       id,
       actor,
@@ -158,6 +165,7 @@ export class WorkRequestRouteClientProvider {
     note: string | undefined,
     actor: SessionActor,
   ) {
+    await this.lifecycle?.assertActive(id);
     const context: any = await this.repository.context(id);
     if (!context) throw notFound();
     client(

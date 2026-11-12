@@ -46,6 +46,8 @@ import {
 } from '../../generated/prisma/client';
 import { assertWorkRequestExternalClientAccess } from './work-request-external-client-access';
 import type { AvailableDocumentCodeDto } from '../../common/documents/available-document-code.dto';
+import type { WorkRequestListQueryDto } from '../dtos/work-request-list-query.dto';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 export abstract class WorkRequestServiceBase {
   protected constructor(
@@ -65,6 +67,7 @@ export abstract class WorkRequestServiceBase {
     private readonly receipts?: DocumentUploadRequestRepository,
     private readonly outbox?: OutboxService,
     private readonly objectScope = new ObjectScopeProvider(),
+    protected readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
   async createStandaloneDocuments(
     id: string,
@@ -74,6 +77,7 @@ export abstract class WorkRequestServiceBase {
     shipmentNumbers: string[] | undefined,
     actor: SessionActor,
   ): Promise<DocumentSummaryDto[]> {
+    await this.lifecycle?.assertActive(id);
     let context: Awaited<
       ReturnType<WorkRequestRepository['prepareStandaloneDocuments']>
     >;
@@ -240,6 +244,7 @@ export abstract class WorkRequestServiceBase {
     upload: WorkRequestUploadedFile,
     actor: SessionActor,
   ): Promise<DocumentVersionResponseDto> {
+    await this.lifecycle?.assertActive(id);
     const context = await this.repository.prepareDocumentVersion(
       id,
       documentId,
@@ -534,21 +539,23 @@ export abstract class WorkRequestServiceBase {
       throw error;
     }
   }
-  async list(query: PaginationQueryDto, actor: SessionActor) {
+  async list(query: WorkRequestListQueryDto, actor: SessionActor) {
     return paginate(
       query,
       async ({ skip, take }) =>
-        (await this.reads.list(skip, take, actor)).map((r) =>
+        (await this.reads.list(skip, take, actor, query.lifecycle)).map((r) =>
           toWorkRequestResponse(
             r,
-            this.actions.available(
-              actor,
-              r.events[0]?.resultingState ?? null,
-              r,
-            ),
+            r.archivedAt
+              ? []
+              : this.actions.available(
+                  actor,
+                  r.events[0]?.resultingState ?? null,
+                  r,
+                ),
           ),
         ),
-      () => this.reads.count(actor),
+      () => this.reads.count(actor, query.lifecycle),
     );
   }
   async find(id: string, actor: SessionActor) {
@@ -568,6 +575,7 @@ export abstract class WorkRequestServiceBase {
       throw bad('Supply metadata to update.');
     const current = await this.reads.find(id, actor);
     if (!current) throw notFound();
+    await this.lifecycle?.assertActive(id);
     const record = await this.uow.execute(() =>
       this.repository.update(id, input),
     );
@@ -585,6 +593,7 @@ export abstract class WorkRequestServiceBase {
     void actor;
     const record = await this.reads.find(id, actor);
     if (!record) throw notFound();
+    if (record.archivedAt) return [];
     return paginate(
       query,
       async ({ skip, take }): Promise<WorkRequestEventResponseDto[]> =>

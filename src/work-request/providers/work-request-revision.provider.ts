@@ -17,6 +17,7 @@ import {
   ResubmitWorkRequestRouteRevisionDto,
 } from '../dtos/work-request.dto';
 import { WorkRequestRevisionRepository } from '../repositories/work-request-revision.repository';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestRevisionProvider {
@@ -24,6 +25,7 @@ export class WorkRequestRevisionProvider {
     private readonly revisions: WorkRequestRevisionRepository,
     private readonly uow: UnitOfWorkService,
     private readonly outbox: OutboxService,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
 
   request(
@@ -33,6 +35,7 @@ export class WorkRequestRevisionProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const admin = hasTenantWideInternalAuthority(actor);
         if (
           !admin &&
@@ -62,6 +65,7 @@ export class WorkRequestRevisionProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const admin = hasTenantWideInternalAuthority(actor);
         const result = await this.revisions.resubmit(
           id,

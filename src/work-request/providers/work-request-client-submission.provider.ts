@@ -15,6 +15,7 @@ import { WorkRequestTransitioned } from '../../contracts/events/work-request-eve
 import { workRequestTransitionRequestMetadata } from './work-request-transition.definitions';
 import { WorkRequestClientSubmissionRepository } from '../repositories/work-request-client-submission.repository';
 import { requiredCapabilities } from './work-request-assignment.provider';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestClientSubmissionProvider {
@@ -22,6 +23,7 @@ export class WorkRequestClientSubmissionProvider {
     private readonly repository: WorkRequestClientSubmissionRepository,
     private readonly uow: UnitOfWorkService,
     private readonly outbox: OutboxService,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
   submit(
     id: string,
@@ -30,6 +32,7 @@ export class WorkRequestClientSubmissionProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const meta = workRequestTransitionRequestMetadata();
         if (
           meta.idempotencyKey &&
@@ -86,6 +89,7 @@ export class WorkRequestClientSubmissionProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const meta = workRequestTransitionRequestMetadata();
         if (
           meta.idempotencyKey &&
@@ -144,6 +148,7 @@ export class WorkRequestClientSubmissionProvider {
   ) {
     return this.uow.execute(
       async () => {
+        await this.lifecycle?.assertActive(id);
         const meta = workRequestTransitionRequestMetadata();
         if (
           meta.idempotencyKey &&

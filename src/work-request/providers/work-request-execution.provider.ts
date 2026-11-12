@@ -12,12 +12,14 @@ import {
 } from '../dtos/work-request.dto';
 import { WorkRequestExecutionRepository } from '../repositories/work-request-execution.repository';
 import { WorkRequestInternalWorkflowProvider } from './work-request-internal-workflow.provider';
+import { WorkRequestLifecycleProvider } from './work-request-lifecycle.provider';
 
 @Injectable()
 export class WorkRequestExecutionProvider {
   constructor(
     private readonly execution: WorkRequestExecutionRepository,
     private readonly internalWorkflow: WorkRequestInternalWorkflowProvider,
+    private readonly lifecycle?: WorkRequestLifecycleProvider,
   ) {}
 
   async internalCycle(id: string, cycleId: string, actor: SessionActor) {
@@ -31,9 +33,11 @@ export class WorkRequestExecutionProvider {
     return {
       ...cycle,
       internalWorkflow: this.internalWorkflow.project(cycle),
-      availableActions: cycle.availableActions.filter((action) =>
-        hasPermission(actor, EXECUTION_PERMISSION[action]),
-      ),
+      availableActions: (await this.lifecycle?.isArchived(id))
+        ? []
+        : cycle.availableActions.filter((action) =>
+            hasPermission(actor, EXECUTION_PERMISSION[action]),
+          ),
     };
   }
   defineTeamSequence(
@@ -44,13 +48,15 @@ export class WorkRequestExecutionProvider {
   ) {
     assertScope(actor, 'division');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.defineTeamSequence(
-      id,
-      cycleId,
-      input.teamIds,
-      actor.id,
-      memberId(actor, admin),
-      admin,
+    return this.runWhenActive(id, () =>
+      this.execution.defineTeamSequence(
+        id,
+        cycleId,
+        input.teamIds,
+        actor.id,
+        memberId(actor, admin),
+        admin,
+      ),
     );
   }
   defineMemberSequence(
@@ -61,13 +67,15 @@ export class WorkRequestExecutionProvider {
   ) {
     assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.defineMemberSequence(
-      id,
-      teamStepId,
-      input.memberIds,
-      actor.id,
-      memberId(actor, admin),
-      admin,
+    return this.runWhenActive(id, () =>
+      this.execution.defineMemberSequence(
+        id,
+        teamStepId,
+        input.memberIds,
+        actor.id,
+        memberId(actor, admin),
+        admin,
+      ),
     );
   }
   appendMemberStep(
@@ -78,13 +86,15 @@ export class WorkRequestExecutionProvider {
   ) {
     assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.appendMemberStep(
-      id,
-      teamStepId,
-      input.memberId,
-      actor.id,
-      memberId(actor, admin),
-      admin,
+    return this.runWhenActive(id, () =>
+      this.execution.appendMemberStep(
+        id,
+        teamStepId,
+        input.memberId,
+        actor.id,
+        memberId(actor, admin),
+        admin,
+      ),
     );
   }
   submitMemberStep(
@@ -95,25 +105,35 @@ export class WorkRequestExecutionProvider {
   ) {
     assertScope(actor, 'member');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.submitMemberStep(
-      id,
-      memberStepId,
-      actor.id,
-      memberId(actor, admin),
-      input,
-      admin,
+    return this.runWhenActive(id, () =>
+      this.execution.submitMemberStep(
+        id,
+        memberStepId,
+        actor.id,
+        memberId(actor, admin),
+        input,
+        admin,
+      ),
     );
   }
   completeTeamStep(id: string, teamStepId: string, actor: SessionActor) {
     assertScope(actor, 'team');
     const admin = hasTenantWideInternalAuthority(actor);
-    return this.execution.completeTeamStep(
-      id,
-      teamStepId,
-      actor.id,
-      memberId(actor, admin),
-      admin,
+    return this.runWhenActive(id, () =>
+      this.execution.completeTeamStep(
+        id,
+        teamStepId,
+        actor.id,
+        memberId(actor, admin),
+        admin,
+      ),
     );
+  }
+
+  private runWhenActive<T>(id: string, operation: () => T): T | Promise<T> {
+    return this.lifecycle
+      ? this.lifecycle.assertActive(id).then(operation)
+      : operation();
   }
 }
 
