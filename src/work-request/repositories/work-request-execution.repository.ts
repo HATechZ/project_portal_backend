@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RequestContext } from '../../common/context/request-context';
 import { AppConfiguration } from '../../config/configuration';
@@ -9,6 +9,18 @@ import { Prisma } from '../../generated/prisma/client';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import type { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import {
+  RESPONSIBILITY_HISTORY,
+  type ResponsibilityHistoryPort,
+} from '../../contracts/work-request-responsibility-history.port';
+import {
+  RESPONSIBILITY_PROFILE_RESOLVER,
+  type ResponsibilityProfileResolverPort,
+} from '../../contracts/responsibility-profile-resolver.port';
+import {
+  endTeamResponsibilities,
+  recordTeamResponsibility,
+} from '../../infra/prisma/responsibility-history.writer';
 
 @Injectable()
 export class WorkRequestExecutionRepository extends BaseRepository {
@@ -17,6 +29,10 @@ export class WorkRequestExecutionRepository extends BaseRepository {
   constructor(
     uow: UnitOfWorkService,
     private readonly config?: ConfigService<AppConfiguration, true>,
+    @Inject(RESPONSIBILITY_HISTORY)
+    private readonly responsibilityHistory?: ResponsibilityHistoryPort,
+    @Inject(RESPONSIBILITY_PROFILE_RESOLVER)
+    private readonly responsibilityProfiles?: ResponsibilityProfileResolverPort,
   ) {
     super(uow);
   }
@@ -26,6 +42,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
     cycleId: string,
     memberId: string | null,
     isAdmin = false,
+    actorProfileId?: string,
   ) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction(async (db) => {
@@ -47,9 +64,16 @@ export class WorkRequestExecutionRepository extends BaseRepository {
           select: { id: true },
         }));
       const isDivisionLead = isAdmin || hasDivisionLeadResponsibility;
+      const hasHistoricalResponsibility =
+        !!actorProfileId &&
+        !!(await db.workRequestResponsibilityHistory.findFirst({
+          where: { tenantId, divisionCycleId: cycle.id, actorProfileId },
+          select: { id: true },
+        }));
       const related =
         isAdmin ||
         isDivisionLead ||
+        hasHistoricalResponsibility ||
         cycle.teamSteps.some(
           (teamStep) =>
             teamStep.team.leadMemberId === memberId ||
@@ -78,11 +102,18 @@ export class WorkRequestExecutionRepository extends BaseRepository {
     workRequestId: string,
     memberId: string | null,
     isAdmin = false,
+    actorProfileId?: string,
   ) {
     const tenantId = RequestContext.requireTenantId();
     return this.transaction((db) =>
       db.workRequestDivisionCycle.findMany({
-        where: internalCyclesWhere(tenantId, workRequestId, memberId, isAdmin),
+        where: internalCyclesWhere(
+          tenantId,
+          workRequestId,
+          memberId,
+          isAdmin,
+          actorProfileId,
+        ),
         orderBy: [{ routeStep: { ordinal: 'asc' } }, { id: 'asc' }],
         include: internalCycleInclude,
       }),
@@ -122,7 +153,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             divisionId: cycle.routeStep.divisionId!,
             isActive: true,
           },
-          select: { id: true },
+          select: { id: true, leadMemberId: true },
         });
         if (teams.length !== distinctIds.length)
           throw bad(
@@ -141,6 +172,27 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             activatedAt: index === 0 ? now : null,
           })),
         });
+        const firstLeadMemberId = teams.find(
+          (team) => team.id === teamIds[0],
+        )?.leadMemberId;
+        if (this.responsibilityHistory && this.responsibilityProfiles) {
+          if (!firstLeadMemberId)
+            throw conflict(
+              'The responsible actor cannot be uniquely resolved for this Work Request.',
+            );
+          await recordTeamResponsibility({
+            db,
+            history: this.responsibilityHistory,
+            profiles: this.responsibilityProfiles,
+            tenantId,
+            workRequestId,
+            routeId: cycle.routeId,
+            divisionCycleId: cycle.id,
+            teamStepId: ids[0],
+            teamLeadMemberId: firstLeadMemberId,
+            startedAt: now,
+          });
+        }
         await db.workRequestRouteProjection.update({
           where: { routeId_tenantId: { routeId: cycle.routeId, tenantId } },
           data: {
@@ -518,6 +570,14 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             'Every Member step must be submitted before Team completion.',
           );
         const now = new Date();
+        if (this.responsibilityHistory)
+          await endTeamResponsibilities(
+            db,
+            this.responsibilityHistory,
+            tenantId,
+            teamStep.id,
+            now,
+          );
         await db.workRequestTeamStep.update({
           where: { id: teamStep.id },
           data: { completedAt: now },
@@ -528,6 +588,7 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             divisionCycleId: teamStep.divisionCycleId,
             ordinal: teamStep.ordinal + 1,
           },
+          include: { team: { select: { leadMemberId: true } } },
         });
         if (next && (next.activatedAt || next.completedAt))
           throw conflict('The next Team step is already active or complete.');
@@ -541,6 +602,24 @@ export class WorkRequestExecutionRepository extends BaseRepository {
             where: { id: teamStep.divisionCycleId },
             data: { completedAt: now },
           });
+        if (next && this.responsibilityHistory && this.responsibilityProfiles) {
+          if (!next.team?.leadMemberId)
+            throw conflict(
+              'The responsible actor cannot be uniquely resolved for this Work Request.',
+            );
+          await recordTeamResponsibility({
+            db,
+            history: this.responsibilityHistory,
+            profiles: this.responsibilityProfiles,
+            tenantId,
+            workRequestId,
+            routeId: teamStep.routeId,
+            divisionCycleId: teamStep.divisionCycleId,
+            teamStepId: next.id,
+            teamLeadMemberId: next.team.leadMemberId,
+            startedAt: now,
+          });
+        }
         await db.workRequestRouteProjection.update({
           where: { routeId_tenantId: { routeId: teamStep.routeId, tenantId } },
           data: {
@@ -624,6 +703,7 @@ function internalCyclesWhere(
   workRequestId: string,
   memberId: string | null,
   isAdmin: boolean,
+  actorProfileId?: string,
 ): Prisma.WorkRequestDivisionCycleWhereInput {
   const base = { tenantId, route: { is: { workRequestId } } };
   if (isAdmin) return base;
@@ -656,6 +736,15 @@ function internalCyclesWhere(
           },
         },
       },
+      ...(actorProfileId
+        ? [
+            {
+              responsibilityHistory: {
+                some: { tenantId, actorProfileId },
+              },
+            },
+          ]
+        : []),
     ],
   };
 }

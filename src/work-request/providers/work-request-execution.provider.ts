@@ -31,6 +31,7 @@ export class WorkRequestExecutionProvider {
       cycleId,
       memberId(actor, admin),
       admin,
+      actor.id,
     );
     const { route, routeStep, ...publicCycle } = cycle;
     void route;
@@ -55,6 +56,7 @@ export class WorkRequestExecutionProvider {
       id,
       memberId(actor, admin),
       admin,
+      actor.id,
     );
     return {
       authorizedInternalWorkflows: cycles.map((cycle) => ({

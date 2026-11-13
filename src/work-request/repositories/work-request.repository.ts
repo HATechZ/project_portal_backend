@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
-  DocumentGroupCode,
   Prisma,
   WorkRequestRouteStepKind,
   WorkRequestV1PriorityCode,
@@ -17,10 +16,28 @@ import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import { workRequestSelect } from './work-request.records';
 import type { NewDocumentDraft } from '../../common/documents/document-upload.pipeline';
 import type { NewDocumentVersionDraft } from '../../common/documents/document-upload.pipeline';
+import {
+  RESPONSIBILITY_HISTORY,
+  type ResponsibilityHistoryPort,
+} from '../../contracts/work-request-responsibility-history.port';
+import {
+  RESPONSIBILITY_PROFILE_RESOLVER,
+  type ResponsibilityProfileResolverPort,
+} from '../../contracts/responsibility-profile-resolver.port';
+import {
+  endDivisionResponsibilities,
+  recordDivisionResponsibilities,
+} from '../../infra/prisma/responsibility-history.writer';
 
 @Injectable()
 export class WorkRequestRepository extends BaseRepository {
-  constructor(uow: UnitOfWorkService) {
+  constructor(
+    uow: UnitOfWorkService,
+    @Inject(RESPONSIBILITY_HISTORY)
+    private readonly responsibilityHistory?: ResponsibilityHistoryPort,
+    @Inject(RESPONSIBILITY_PROFILE_RESOLVER)
+    private readonly responsibilityProfiles?: ResponsibilityProfileResolverPort,
+  ) {
     super(uow);
   }
   async prepareCreate(
@@ -219,7 +236,7 @@ export class WorkRequestRepository extends BaseRepository {
               },
             },
           },
-          select: { id: true },
+          select: { id: true, memberId: true },
         });
         if (!lead) throw new Error('WR_ROUTE_ORIGIN_LEAD');
         const divisionIds = [
@@ -303,6 +320,19 @@ export class WorkRequestRepository extends BaseRepository {
             routeStepId: steps[0].id,
           },
         });
+        if (this.responsibilityHistory && this.responsibilityProfiles)
+          await recordDivisionResponsibilities({
+            db,
+            history: this.responsibilityHistory,
+            profiles: this.responsibilityProfiles,
+            tenantId,
+            workRequestId: input.id,
+            routeId,
+            divisionCycleId: originCycleId,
+            divisionId: input.originatingDivisionId,
+            divisionLeadIds: [lead.id],
+            startedAt: new Date(),
+          });
         await db.workRequestRouteProjection.create({
           data: {
             id: randomUUID(),
@@ -457,6 +487,12 @@ export class WorkRequestRepository extends BaseRepository {
         });
         if (!current || current.completedAt)
           throw new Error('WR_ROUTE_POSITION');
+        const currentCycle = current.divisionId
+          ? await db.workRequestDivisionCycle.findFirst({
+              where: { tenantId, routeId: route.id, routeStepId: current.id },
+              select: { id: true, completedAt: true },
+            })
+          : null;
         if (current.divisionId && !isAdmin) {
           const lead = await db.divisionLead.findFirst({
             where: {
@@ -468,10 +504,7 @@ export class WorkRequestRepository extends BaseRepository {
             select: { id: true },
           });
           if (!lead) throw new Error('WR_ROUTE_DIVISION_LEAD');
-          const cycle = await db.workRequestDivisionCycle.findFirst({
-            where: { tenantId, routeId: route.id, routeStepId: current.id },
-          });
-          if (!cycle?.completedAt)
+          if (!currentCycle?.completedAt)
             throw new Error('WR_DIVISION_CYCLE_INCOMPLETE');
         }
         const next = await db.workRequestRouteStep.findFirst({
@@ -490,6 +523,14 @@ export class WorkRequestRepository extends BaseRepository {
         if (next.kind === WorkRequestRouteStepKind.CLIENT)
           throw new Error('WR_ROUTE_CLIENT_GATEWAY');
         const now = new Date();
+        if (currentCycle && this.responsibilityHistory)
+          await endDivisionResponsibilities(
+            db,
+            this.responsibilityHistory,
+            tenantId,
+            currentCycle.id,
+            now,
+          );
         await db.workRequestRouteStep.update({
           where: { id: current.id },
           data: { completedAt: now },
@@ -508,6 +549,23 @@ export class WorkRequestRepository extends BaseRepository {
               routeStepId: next.id,
               activatedAt: now,
             },
+          });
+        if (
+          nextCycleId &&
+          next.divisionId &&
+          this.responsibilityHistory &&
+          this.responsibilityProfiles
+        )
+          await recordDivisionResponsibilities({
+            db,
+            history: this.responsibilityHistory,
+            profiles: this.responsibilityProfiles,
+            tenantId,
+            workRequestId,
+            routeId: route.id,
+            divisionCycleId: nextCycleId,
+            divisionId: next.divisionId,
+            startedAt: now,
           });
         await db.workRequestRouteProjection.update({
           where: { routeId_tenantId: { routeId: route.id, tenantId } },

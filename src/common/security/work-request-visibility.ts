@@ -22,6 +22,7 @@ export function workRequestVisibilityWhere(
   if (!member?.isActive || !member.company.isActive) return never();
   const responsibility = activeAssignmentMember(member.id);
   const originatingResponsibility = activeOriginatingResponsibility(member.id);
+  const historicalResponsibility = historicalRouteResponsibility(actor.id);
 
   switch (actor.role.customScope) {
     case 'division': {
@@ -33,19 +34,27 @@ export function workRequestVisibilityWhere(
             OR: [
               responsibility,
               originatingResponsibility,
+              historicalResponsibility,
               activeAssignment(Level.DIVISION, {
                 divisionId: { in: divisionIds },
               }),
               activeRouteDivisionCycle(divisionIds),
             ],
           }
-        : { OR: [responsibility, originatingResponsibility] };
+        : {
+            OR: [
+              responsibility,
+              originatingResponsibility,
+              historicalResponsibility,
+            ],
+          };
     }
     case 'team':
       return {
         OR: [
           responsibility,
           originatingResponsibility,
+          historicalResponsibility,
           activeAssignment(Level.TEAM, {
             team: { is: { isActive: true, leadMemberId: member.id } },
           }),
@@ -57,6 +66,7 @@ export function workRequestVisibilityWhere(
         OR: [
           responsibility,
           originatingResponsibility,
+          historicalResponsibility,
           participatingRouteMemberStep(member.id),
         ],
       };
@@ -240,6 +250,16 @@ function participatingRouteMemberStep(
           },
         },
       },
+    },
+  };
+}
+
+function historicalRouteResponsibility(
+  actorProfileId: string,
+): Prisma.WorkRequestV1WhereInput {
+  return {
+    responsibilityHistory: {
+      some: { actorProfileId },
     },
   };
 }

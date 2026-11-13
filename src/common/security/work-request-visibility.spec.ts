@@ -19,6 +19,7 @@ describe('Work Request internal visibility', () => {
     admin = false,
   ) =>
     ({
+      id: `actor-${memberId}`,
       role: {
         customScope: scope,
         systemRole:
@@ -214,5 +215,17 @@ describe('Work Request internal visibility', () => {
     expect(canViewWorkRequestMainWorkflow(actor('member', 'member-a'))).toBe(
       false,
     );
+  });
+
+  it('retains a Team or Division actor only through that exact persisted profile history', () => {
+    const predicate = workRequestVisibilityWhere(actor('team', 'member-a'));
+    expect(predicate.OR).toContainEqual({
+      responsibilityHistory: { some: { actorProfileId: 'actor-member-a' } },
+    });
+    expect(
+      workRequestVisibilityWhere(actor('team', 'member-b')).OR,
+    ).not.toContainEqual({
+      responsibilityHistory: { some: { actorProfileId: 'actor-member-a' } },
+    });
   });
 });

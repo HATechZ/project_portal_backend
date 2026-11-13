@@ -53,7 +53,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   };
 
   it('derives lifecycle actions from exact active route responsibility, not a role label', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -71,7 +71,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('exposes route amendment to a company-scoped originating Lead with UPDATE_WORK_REQUEST', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -111,7 +111,7 @@ describe('WorkRequestRouteActionsProvider', () => {
         },
       ],
     };
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(active),
       isRelatedActor: jest.fn().mockResolvedValue(true),
     } as never);
@@ -138,7 +138,7 @@ describe('WorkRequestRouteActionsProvider', () => {
     );
   });
   it('does not dereference a missing Division cycle', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue({ ...route, divisionCycles: [] }),
       isRelatedActor: jest.fn().mockResolvedValue(true),
     } as never);
@@ -180,7 +180,7 @@ describe('WorkRequestRouteActionsProvider', () => {
         },
       ],
     };
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(activeMemberRoute),
       isRelatedActor: jest.fn().mockResolvedValue(true),
     } as never);
@@ -231,7 +231,7 @@ describe('WorkRequestRouteActionsProvider', () => {
         },
       ],
     };
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(revisionRoute),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -254,7 +254,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('exposes division assignment and Request Information to the responsible origin Lead only through permissions', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([{ id: 'recipient-a' }]),
@@ -295,7 +295,7 @@ describe('WorkRequestRouteActionsProvider', () => {
     'exposes Request Information to a Team Member with a valid %s recipient',
     async (_relationship, recipients) => {
       const recipientActorIds = jest.fn().mockResolvedValue(recipients);
-      const provider = new WorkRequestRouteActionsProvider({
+      const provider = makeProvider({
         route: jest.fn().mockResolvedValue(route),
         isRelatedActor: jest.fn().mockResolvedValue(true),
         recipientActorIds,
@@ -311,16 +311,12 @@ describe('WorkRequestRouteActionsProvider', () => {
           code: WorkflowActionCode.REQUEST_WORKFLOW_INFO,
         }),
       );
-      expect(recipientActorIds).toHaveBeenCalledWith(
-        'request-a',
-        'actor-a',
-        'member-a',
-      );
+      expect(recipientActorIds).toHaveBeenCalledWith('request-a', 'actor-a');
     },
   );
 
   it('does not expose Request Information to a Team Member with no valid recipient relationship', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -340,7 +336,7 @@ describe('WorkRequestRouteActionsProvider', () => {
 
   it('does not expose Request Information to an unrelated Team Member', async () => {
     const recipientActorIds = jest.fn();
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(false),
       recipientActorIds,
@@ -356,7 +352,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('returns no route action for an unrelated same-tenant actor', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(false),
       recipientActorIds: jest.fn(),
@@ -370,7 +366,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('does not give another Division Lead the origin-stage action', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -405,7 +401,7 @@ describe('WorkRequestRouteActionsProvider', () => {
       },
     ],
   ])('does not give a %s origin Lead an action', async (_, invalidRoute) => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(invalidRoute),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -419,7 +415,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('requires the exact explicit permission even for the responsible origin Lead', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -432,7 +428,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   it.each(['company', 'team', 'member'])(
     'does not expose Origin Lead actions through a %s-scoped profile before its stage',
     async (scope) => {
-      const provider = new WorkRequestRouteActionsProvider({
+      const provider = makeProvider({
         route: jest.fn().mockResolvedValue(route),
         isRelatedActor: jest.fn().mockResolvedValue(true),
         recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -468,7 +464,7 @@ describe('WorkRequestRouteActionsProvider', () => {
         },
       ],
     };
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(activeTeamRoute),
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([]),
@@ -483,7 +479,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('does not expose Origin Lead actions to an inactive ActorProfile Member', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn(),
       recipientActorIds: jest.fn(),
@@ -500,7 +496,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('denies a cross-tenant/non-related actor before action resolution', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn().mockResolvedValue(false),
       recipientActorIds: jest.fn(),
@@ -514,7 +510,7 @@ describe('WorkRequestRouteActionsProvider', () => {
   });
 
   it('exposes explicitly permitted internal route actions to tenant_super_admin without a Member', async () => {
-    const provider = new WorkRequestRouteActionsProvider({
+    const provider = makeProvider({
       route: jest.fn().mockResolvedValue(route),
       isRelatedActor: jest.fn(),
       recipientActorIds: jest.fn(),
@@ -541,3 +537,19 @@ describe('WorkRequestRouteActionsProvider', () => {
     );
   });
 });
+
+function makeProvider(communications: {
+  recipientActorIds?: jest.Mock;
+  hasHistoricalResponsibility?: jest.Mock;
+}) {
+  communications.hasHistoricalResponsibility ??= jest
+    .fn()
+    .mockResolvedValue(false);
+  return new WorkRequestRouteActionsProvider(
+    communications as never,
+    {
+      eligibleRecipients: communications.recipientActorIds,
+      isVisible: jest.fn().mockResolvedValue(true),
+    } as never,
+  );
+}

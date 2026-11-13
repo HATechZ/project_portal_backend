@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import {
   InfoRequestStatusCode,
+  Prisma,
   WorkRequestV1StateCode,
 } from '../../generated/prisma/client';
 import { RequestContext } from '../../common/context/request-context';
@@ -9,6 +10,7 @@ import { BaseRepository } from '../../infra/prisma/base.repository';
 import { workRequestVisibilityWhere } from '../../common/security/work-request-visibility';
 import type { SessionActor } from '../../common/security/session.types';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import type { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import {
   type WorkRequestInfoSnapshot,
   workRequestInfoHistorySelect,
@@ -93,6 +95,20 @@ export class WorkRequestInfoRepository extends BaseRepository {
           directProject: {
             select: { clientId: true, client: { select: { companyId: true } } },
           },
+          responsibilityHistory: {
+            select: {
+              actorProfileId: true,
+              sourceMemberId: true,
+              sourceUserId: true,
+              sourceRoleId: true,
+              responsibilityType: true,
+              divisionCycleId: true,
+              teamStepId: true,
+              actorProfile: {
+                select: { memberId: true, userId: true, roleId: true },
+              },
+            },
+          },
           route: {
             select: {
               originatingDivisionId: true,
@@ -104,15 +120,35 @@ export class WorkRequestInfoRepository extends BaseRepository {
                   division: { select: { isActive: true } },
                 },
               },
-              projection: { select: { divisionCycleId: true } },
-              divisionCycles: {
-                where: { completedAt: null },
+              projection: {
+                select: {
+                  divisionCycleId: true,
+                  routeVersionId: true,
+                  routeStepId: true,
+                },
+              },
+              steps: {
                 select: {
                   id: true,
+                  divisionId: true,
+                  routeVersionId: true,
+                  activatedAt: true,
+                },
+              },
+              divisionCycles: {
+                select: {
+                  id: true,
+                  completedAt: true,
                   routeStep: { select: { divisionId: true } },
                   teamSteps: {
                     select: {
+                      id: true,
                       teamId: true,
+                      completedAt: true,
+                      memberSteps: {
+                        where: { cancelledAt: null },
+                        select: { memberId: true },
+                      },
                       team: {
                         select: {
                           divisionId: true,
@@ -138,46 +174,30 @@ export class WorkRequestInfoRepository extends BaseRepository {
           isActive: true,
           user: { is: { isActive: true } },
         },
-        select: { id: true, memberId: true, clientContactId: true },
+        select: {
+          id: true,
+          memberId: true,
+          clientContactId: true,
+          role: { select: { customScope: true } },
+        },
       });
       if (!requester) return [];
 
-      const route: any = request.route;
-      const activeCycle = route?.divisionCycles.find(
-        (cycle: any) => cycle.id === route.projection?.divisionCycleId,
+      const route = request.route;
+      const cycles = route?.divisionCycles ?? [];
+      const teams = cycles.flatMap((cycle) =>
+        cycle.teamSteps
+          .filter((step) => step.team.divisionId === cycle.routeStep.divisionId)
+          .map((step) => ({
+            ...step,
+            divisionId: cycle.routeStep.divisionId,
+            cycleCompletedAt: cycle.completedAt,
+          })),
+      );
+      const activeCycle = cycles.find(
+        (cycle) => cycle.id === route?.projection?.divisionCycleId,
       );
       const activeDivisionId = activeCycle?.routeStep.divisionId;
-      const activeTeamSteps =
-        activeCycle?.teamSteps.filter((step: any) => step.team.isActive) ?? [];
-      const teamIds = activeTeamSteps.map((step: any) => step.teamId);
-      const ledTeamSteps = requester.memberId
-        ? activeTeamSteps.filter(
-            (step: any) => step.team.leadMemberId === requester.memberId,
-          )
-        : [];
-      const assignedMemberTeamIds =
-        requester.memberId && teamIds.length
-          ? (
-              await db.workRequestMemberStep.findMany({
-                where: {
-                  tenantId,
-                  route: { is: { workRequestId } },
-                  memberId: requester.memberId,
-                  teamStep: { divisionCycleId: activeCycle?.id },
-                },
-                select: { teamStep: { select: { teamId: true } } },
-              })
-            ).map((step: any) => step.teamStep.teamId)
-          : [];
-      const memberTeamIds =
-        requester.memberId && assignedMemberTeamIds.length
-          ? await activeTeamMembershipIds(
-              db,
-              tenantId,
-              requester.memberId,
-              assignedMemberTeamIds,
-            )
-          : [];
       const origin = !!(
         requester.memberId &&
         route?.responsibleOriginatingLead &&
@@ -201,59 +221,193 @@ export class WorkRequestInfoRepository extends BaseRepository {
           select: { id: true },
         }))
       );
-
+      // Actor snapshots prevent a later profile rebind from inheriting history.
+      const history = (request.responsibilityHistory ?? []).filter(
+        (item) =>
+          item.actorProfile.memberId === item.sourceMemberId &&
+          item.actorProfile.userId === item.sourceUserId &&
+          item.actorProfile.roleId === item.sourceRoleId,
+      );
+      const ownDivisionIds = new Set<string>();
+      const scope = requester.role.customScope;
+      if (
+        origin &&
+        (scope === 'division' || scope === 'company') &&
+        route?.originatingDivisionId
+      )
+        ownDivisionIds.add(route.originatingDivisionId);
+      if (scope === 'division' && isActiveDivisionLead && activeDivisionId)
+        ownDivisionIds.add(activeDivisionId);
+      for (const item of history) {
+        if (
+          scope !== 'division' ||
+          item.actorProfileId !== requesterActorId ||
+          item.responsibilityType !== 'DIVISION'
+        )
+          continue;
+        const cycle = cycles.find((entry) => entry.id === item.divisionCycleId);
+        if (cycle?.routeStep.divisionId)
+          ownDivisionIds.add(cycle.routeStep.divisionId);
+      }
+      const ownLeadTeamIds = new Set<string>();
+      for (const step of teams) {
+        if (
+          requester.memberId &&
+          !step.completedAt &&
+          !step.cycleCompletedAt &&
+          step.team.isActive &&
+          step.team.leadMemberId === requester.memberId
+        )
+          ownLeadTeamIds.add(step.teamId);
+        if (
+          history.some(
+            (item) =>
+              item.actorProfileId === requesterActorId &&
+              item.responsibilityType === 'TEAM' &&
+              item.teamStepId === step.id,
+          )
+        )
+          ownLeadTeamIds.add(step.teamId);
+      }
+      const assignedMemberTeamIds = requester.memberId
+        ? (
+            await db.workRequestMemberStep.findMany({
+              where: {
+                tenantId,
+                route: { is: { workRequestId } },
+                memberId: requester.memberId,
+                cancelledAt: null,
+              },
+              select: { teamStep: { select: { teamId: true } } },
+            })
+          ).map((step) => step.teamStep.teamId)
+        : [];
+      const memberTeamIds = assignedMemberTeamIds;
       const memberIds = new Set<string>();
-      let includeClientContacts = false;
-      if (origin) {
-        includeClientContacts = true;
-        (
-          await activeDivisionLeadMembers(db, tenantId, parent.client.companyId)
-        ).forEach((id: string) => memberIds.add(id));
-      } else if (isActiveDivisionLead) {
-        for (const step of activeTeamSteps)
+      const historicalActorIds = new Set<string>();
+      const includeClientContacts =
+        origin && (scope === 'division' || scope === 'company');
+      const addTeamLeads = (
+        divisionIds: Set<string>,
+        teamIds?: Set<string>,
+      ) => {
+        for (const step of teams) {
           if (
-            step.team.divisionId === activeDivisionId &&
-            step.team.leadMemberId
+            !step.divisionId ||
+            !divisionIds.has(step.divisionId) ||
+            (teamIds && !teamIds.has(step.teamId))
           )
+            continue;
+          if (step.team.isActive && step.team.leadMemberId)
             memberIds.add(step.team.leadMemberId);
-        (
-          await activeDivisionLeadMembers(db, tenantId, parent.client.companyId)
-        ).forEach((id: string) => memberIds.add(id));
-      } else if (ledTeamSteps.length) {
-        const divisionIds = [
-          ...new Set<string>(
-            ledTeamSteps.map((step: any) => step.team.divisionId),
-          ),
-        ];
-        for (const divisionId of divisionIds)
-          (
-            await activeDivisionLeadMembers(
-              db,
-              tenantId,
-              parent.client.companyId,
-              [divisionId],
+          for (const item of history)
+            if (
+              item.responsibilityType === 'TEAM' &&
+              item.sourceMemberId !== requester.memberId &&
+              item.teamStepId === step.id
             )
-          ).forEach((id: string) => memberIds.add(id));
-        for (const step of activeTeamSteps)
+              historicalActorIds.add(item.actorProfileId);
+        }
+      };
+      const addDivisionHistory = (divisionIds: Set<string>) => {
+        for (const item of history) {
           if (
-            divisionIds.includes(step.team.divisionId) &&
-            step.team.leadMemberId
+            item.responsibilityType !== 'DIVISION' ||
+            item.sourceMemberId === requester.memberId
           )
-            memberIds.add(step.team.leadMemberId);
+            continue;
+          const cycle = cycles.find(
+            (entry) => entry.id === item.divisionCycleId,
+          );
+          if (
+            cycle?.routeStep.divisionId &&
+            divisionIds.has(cycle.routeStep.divisionId)
+          )
+            historicalActorIds.add(item.actorProfileId);
+        }
+      };
+      const addParticipatingMembers = (teamIds: Set<string>) => {
+        for (const step of teams)
+          if (teamIds.has(step.teamId))
+            for (const member of step.memberSteps ?? [])
+              memberIds.add(member.memberId);
+      };
+      if (ownDivisionIds.size) {
+        const divisionIds = new Set<string>();
+        if (route?.originatingDivisionId)
+          divisionIds.add(route.originatingDivisionId);
+        for (const cycle of cycles)
+          if (cycle.routeStep.divisionId)
+            divisionIds.add(cycle.routeStep.divisionId);
+        for (const step of route?.steps ?? []) {
+          if (!step.divisionId) continue;
+          if (
+            step.activatedAt ||
+            step.routeVersionId === route?.projection?.routeVersionId ||
+            step.id === route?.projection?.routeStepId
+          ) {
+            divisionIds.add(step.divisionId);
+          }
+        }
+        if (
+          route?.responsibleOriginatingLead.revokedAt === null &&
+          route.responsibleOriginatingLead.member.isActive &&
+          route.responsibleOriginatingLead.division.isActive
+        )
+          memberIds.add(route.responsibleOriginatingLead.memberId);
         (
-          await activeTeamMemberIds(
+          await activeDivisionLeadMembers(
             db,
             tenantId,
-            ledTeamSteps.map((step: any) => step.teamId),
+            parent.client.companyId,
+            [...divisionIds],
           )
-        ).forEach((id: string) => memberIds.add(id));
-      } else if (memberTeamIds.length) {
-        const ownTeamIds = [...new Set(memberTeamIds)];
-        for (const step of activeTeamSteps)
-          if (ownTeamIds.includes(step.teamId) && step.team.leadMemberId)
-            memberIds.add(step.team.leadMemberId);
-        (await activeTeamMemberIds(db, tenantId, ownTeamIds)).forEach(
-          (id: string) => memberIds.add(id),
+        ).forEach((id) => memberIds.add(id));
+        addDivisionHistory(divisionIds);
+        addTeamLeads(ownDivisionIds);
+      } else if (scope === 'team' && ownLeadTeamIds.size) {
+        const divisionIds = new Set(
+          teams
+            .filter(
+              (step) => ownLeadTeamIds.has(step.teamId) && step.divisionId,
+            )
+            .map((step) => step.divisionId)
+            .filter((id): id is string => !!id),
+        );
+        addDivisionHistory(divisionIds);
+        if (
+          route?.originatingDivisionId &&
+          divisionIds.has(route.originatingDivisionId) &&
+          route.responsibleOriginatingLead.revokedAt === null &&
+          route.responsibleOriginatingLead.member.isActive &&
+          route.responsibleOriginatingLead.division.isActive
+        )
+          memberIds.add(route.responsibleOriginatingLead.memberId);
+        (
+          await activeDivisionLeadMembers(
+            db,
+            tenantId,
+            parent.client.companyId,
+            [...divisionIds],
+          )
+        ).forEach((id) => memberIds.add(id));
+        addTeamLeads(divisionIds);
+        addParticipatingMembers(ownLeadTeamIds);
+        (await activeTeamMemberIds(db, tenantId, [...ownLeadTeamIds])).forEach(
+          (id) => memberIds.add(id),
+        );
+      } else if (scope === 'member' && memberTeamIds.length) {
+        const teamIds = new Set(memberTeamIds);
+        const divisionIds = new Set(
+          teams
+            .filter((step) => teamIds.has(step.teamId) && step.divisionId)
+            .map((step) => step.divisionId)
+            .filter((id): id is string => !!id),
+        );
+        addTeamLeads(divisionIds, teamIds);
+        addParticipatingMembers(teamIds);
+        (await activeTeamMemberIds(db, tenantId, memberTeamIds)).forEach((id) =>
+          memberIds.add(id),
         );
       }
 
@@ -271,13 +425,14 @@ export class WorkRequestInfoRepository extends BaseRepository {
         },
         select: { requestedByActorId: true, targetActorId: true },
       });
-      const reciprocalActorIds = reciprocal.map((item: any) =>
+      const reciprocalActorIds = reciprocal.map((item) =>
         item.requestedByActorId === requesterActorId
           ? item.targetActorId
           : item.requestedByActorId,
       );
 
       if (requester.memberId) memberIds.delete(requester.memberId);
+      historicalActorIds.delete(requesterActorId);
 
       const internal = memberIds.size
         ? await recipientProfiles(
@@ -296,12 +451,13 @@ export class WorkRequestInfoRepository extends BaseRepository {
             requesterActorId,
           )
         : [];
-      const reciprocalProfiles = reciprocalActorIds.length
+      const recipientActorIds = [...historicalActorIds, ...reciprocalActorIds];
+      const reciprocalProfiles = recipientActorIds.length
         ? await activeProfiles(
             db,
             tenantId,
             parent.client.companyId,
-            reciprocalActorIds,
+            recipientActorIds,
             requesterActorId,
           )
         : [];
@@ -342,10 +498,7 @@ export class WorkRequestInfoRepository extends BaseRepository {
     });
   }
 
-  private async routeDivisions(
-    db: import('../../infra/prisma/prisma-executor.type').PrismaExecutor,
-    workRequestId: string,
-  ) {
+  private async routeDivisions(db: PrismaExecutor, workRequestId: string) {
     const tenantId = RequestContext.requireTenantId();
     const route = await db.workRequestRoute.findFirst({
       where: { tenantId, workRequestId },
@@ -685,10 +838,14 @@ const recipientProfileSelect = {
       client: { select: { id: true, name: true } },
     },
   },
-};
+} satisfies Prisma.ActorProfileSelect;
+
+type RecipientProfile = Prisma.ActorProfileGetPayload<{
+  select: typeof recipientProfileSelect;
+}>;
 
 async function activeDivisionLeadMembers(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   companyId: string,
   divisionIds?: string[],
@@ -707,7 +864,7 @@ async function activeDivisionLeadMembers(
 }
 
 async function activeTeamMemberIds(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   teamIds: string[],
 ) {
@@ -724,28 +881,8 @@ async function activeTeamMemberIds(
   return members.map((member: { memberId: string }) => member.memberId);
 }
 
-async function activeTeamMembershipIds(
-  db: any,
-  tenantId: string,
-  memberId: string,
-  teamIds: string[],
-): Promise<string[]> {
-  const memberships: { teamId: string }[] = await db.teamMember.findMany({
-    where: {
-      tenantId,
-      memberId,
-      teamId: { in: [...new Set(teamIds)] },
-      leftAt: null,
-      team: { is: { isActive: true } },
-      member: { is: { isActive: true } },
-    },
-    select: { teamId: true },
-  });
-  return memberships.map((membership: { teamId: string }) => membership.teamId);
-}
-
 function activeProfiles(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   companyId: string,
   actorIds: string[],
@@ -780,7 +917,7 @@ function activeProfiles(
 }
 
 function recipientProfiles(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   companyId: string,
   memberIds: string[],
@@ -808,7 +945,7 @@ function recipientProfiles(
 }
 
 function clientRecipientProfiles(
-  db: any,
+  db: PrismaExecutor,
   tenantId: string,
   clientId: string,
   excludeActorId: string,
@@ -829,11 +966,11 @@ function clientRecipientProfiles(
   });
 }
 
-function dedupeProfiles(profiles: any[]) {
+function dedupeProfiles(profiles: RecipientProfile[]) {
   return [
     ...new Map(profiles.map((profile) => [profile.id, profile])).values(),
   ].sort(
-    (left: any, right: any) =>
+    (left, right) =>
       left.label.localeCompare(right.label) || left.id.localeCompare(right.id),
   );
 }

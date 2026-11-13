@@ -6,6 +6,7 @@ import {
 import type { SessionActor } from '../../common/security/session.types';
 import { hasTenantWideInternalAuthority } from '../../common/security/tenant-internal-operations';
 import { WorkRequestCommunicationRepository } from '../repositories/work-request-communication.repository';
+import { WorkRequestInfoRepository } from '../repositories/work-request-info.repository';
 import { WorkRequestRouteStepKind as StepKind } from '../../generated/prisma/client';
 
 /** Route actions are derived from current responsibility, never a role label.
@@ -15,6 +16,7 @@ import { WorkRequestRouteStepKind as StepKind } from '../../generated/prisma/cli
 export class WorkRequestRouteActionsProvider {
   constructor(
     private readonly communications: WorkRequestCommunicationRepository,
+    private readonly info: WorkRequestInfoRepository,
   ) {}
   async available(workRequestId: string, actor: SessionActor) {
     const admin = hasTenantWideInternalAuthority(actor);
@@ -22,11 +24,30 @@ export class WorkRequestRouteActionsProvider {
     const route = await this.communications.route(workRequestId);
     if (!route) return null;
     const memberId = actor.member?.id;
-    if (
-      !admin &&
-      !(await this.communications.isRelatedActor(workRequestId, memberId!))
-    )
+    const related =
+      admin ||
+      (await this.communications.isRelatedActor(workRequestId, memberId!));
+    if (!related) {
+      if (
+        memberId &&
+        hasPermission(actor, PermissionCode.REQUEST_INFO) &&
+        (await this.communications.hasHistoricalResponsibility(
+          workRequestId,
+          actor.id,
+        )) &&
+        (await this.info.isVisible(workRequestId, actor)) &&
+        (await this.info.eligibleRecipients(workRequestId, actor.id))?.length &&
+        !route.projection?.openRevisionId
+      )
+        return [
+          action(
+            WorkflowActionCode.REQUEST_WORKFLOW_INFO,
+            'Request Information',
+            'info-request',
+          ),
+        ];
       return [];
+    }
     const revision = route.projection?.openRevision;
     if (route.projection?.openRevisionId) {
       const scope = actor.role.customScope;
@@ -202,10 +223,9 @@ export class WorkRequestRouteActionsProvider {
       memberId &&
       hasPermission(actor, PermissionCode.REQUEST_INFO)
     ) {
-      const recipients = await this.communications.recipientActorIds(
+      const recipients = await this.info.eligibleRecipients(
         workRequestId,
         actor.id,
-        memberId,
       );
       hasRequestInfoRecipient = !!recipients?.length;
     }

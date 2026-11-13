@@ -86,6 +86,17 @@ export class WorkRequestCommunicationRepository extends BaseRepository {
     return false;
   }
 
+  hasHistoricalResponsibility(workRequestId: string, actorProfileId: string) {
+    const tenantId = RequestContext.requireTenantId();
+    return this.transaction(
+      async (db) =>
+        !!(await db.workRequestResponsibilityHistory.findFirst({
+          where: { tenantId, workRequestId, actorProfileId },
+          select: { id: true },
+        })),
+    );
+  }
+
   async recipientActorIds(
     workRequestId: string,
     actorId: string,

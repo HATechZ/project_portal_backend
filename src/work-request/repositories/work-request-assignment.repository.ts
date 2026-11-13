@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   WorkRequestV1AssignmentLevelCode,
   WorkRequestV1StateCode,
@@ -12,10 +12,28 @@ import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
 import type { PrismaExecutor } from '../../infra/prisma/prisma-executor.type';
 import type { WorkRequestAssignmentSnapshot } from './work-request-assignment.records';
+import {
+  RESPONSIBILITY_HISTORY,
+  type ResponsibilityHistoryPort,
+} from '../../contracts/work-request-responsibility-history.port';
+import {
+  RESPONSIBILITY_PROFILE_RESOLVER,
+  type ResponsibilityProfileResolverPort,
+} from '../../contracts/responsibility-profile-resolver.port';
+import {
+  endDivisionResponsibilities,
+  recordDivisionResponsibilities,
+} from '../../infra/prisma/responsibility-history.writer';
 
 @Injectable()
 export class WorkRequestAssignmentRepository extends BaseRepository {
-  constructor(uow: UnitOfWorkService) {
+  constructor(
+    uow: UnitOfWorkService,
+    @Inject(RESPONSIBILITY_HISTORY)
+    private readonly responsibilityHistory?: ResponsibilityHistoryPort,
+    @Inject(RESPONSIBILITY_PROFILE_RESOLVER)
+    private readonly responsibilityProfiles?: ResponsibilityProfileResolverPort,
+  ) {
     super(uow);
   }
 
@@ -278,6 +296,14 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         'The Work Request origin execution has already started and cannot be assigned as an initial Division hand-off.',
       );
     const nextCycleId = randomUUID();
+    if (this.responsibilityHistory)
+      await endDivisionResponsibilities(
+        db,
+        this.responsibilityHistory,
+        tenantId,
+        cycle.id,
+        at,
+      );
     await db.workRequestRouteStep.update({
       where: { id: current.id },
       data: { completedAt: at },
@@ -299,6 +325,18 @@ export class WorkRequestAssignmentRepository extends BaseRepository {
         activatedAt: at,
       },
     });
+    if (this.responsibilityHistory && this.responsibilityProfiles)
+      await recordDivisionResponsibilities({
+        db,
+        history: this.responsibilityHistory,
+        profiles: this.responsibilityProfiles,
+        tenantId,
+        workRequestId: input.workRequestId,
+        routeId: route.id,
+        divisionCycleId: nextCycleId,
+        divisionId: input.targetId,
+        startedAt: at,
+      });
     await db.workRequestRouteProjection.update({
       where: { routeId_tenantId: { routeId: route.id, tenantId } },
       data: {

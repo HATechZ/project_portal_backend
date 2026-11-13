@@ -75,9 +75,10 @@ describe('completed Member actions', () => {
       isRelatedActor: jest.fn().mockResolvedValue(true),
       recipientActorIds: jest.fn().mockResolvedValue([{ id: 'actor-b' }]),
     };
-    const result = await new WorkRequestRouteActionsProvider(
-      communications as never,
-    ).available('request-a', actor);
+    const result = await makeProvider(communications).available(
+      'request-a',
+      actor,
+    );
     const codes = result?.map((action) => action.code);
     expect(codes).toContain('REQUEST_WORKFLOW_INFO');
     expect(codes).not.toContain('SUBMIT_MEMBER_STEP');
@@ -85,3 +86,72 @@ describe('completed Member actions', () => {
     expect(codes).not.toContain('FORWARD_ROUTE');
   });
 });
+
+describe('historical responsibility actions', () => {
+  it.each(['team', 'division'])(
+    'allows an eligible prior %s actor without execution actions',
+    async (scope) => {
+      const actor = {
+        id: 'prior-actor',
+        member: { id: 'prior-member', isActive: true },
+        role: {
+          customScope: scope,
+          rolePermissions: [
+            PermissionCode.REQUEST_INFO,
+            PermissionCode.ROUTE_FOR_REVIEW,
+            PermissionCode.APPROVE_WORK_REQUEST_REVIEW,
+          ].map((code) => ({
+            revokedAt: null,
+            permission: { code, scopeCompatibilities: [{ scope }] },
+          })),
+        },
+      } as never;
+      const communications = {
+        route: jest
+          .fn()
+          .mockResolvedValue({ projection: { openRevisionId: null } }),
+        isRelatedActor: jest.fn().mockResolvedValue(false),
+        hasHistoricalResponsibility: jest.fn().mockResolvedValue(true),
+      };
+      const info = {
+        isVisible: jest.fn().mockResolvedValue(true),
+        eligibleRecipients: jest.fn().mockResolvedValue([{ id: 'eligible' }]),
+      };
+      const provider = new WorkRequestRouteActionsProvider(
+        communications as never,
+        info as never,
+      );
+      expect(await provider.available('request', actor)).toEqual([
+        {
+          code: 'REQUEST_WORKFLOW_INFO',
+          label: 'Request Information',
+          targetKind: 'info-request',
+        },
+      ]);
+      expect(communications.hasHistoricalResponsibility).toHaveBeenCalledWith(
+        'request',
+        'prior-actor',
+      );
+      info.eligibleRecipients.mockResolvedValue([]);
+      expect(await provider.available('request', actor)).toEqual([]);
+      info.isVisible.mockResolvedValue(false);
+      expect(await provider.available('request', actor)).toEqual([]);
+    },
+  );
+});
+
+function makeProvider(communications: {
+  recipientActorIds?: jest.Mock;
+  hasHistoricalResponsibility?: jest.Mock;
+}) {
+  communications.hasHistoricalResponsibility ??= jest
+    .fn()
+    .mockResolvedValue(false);
+  return new WorkRequestRouteActionsProvider(
+    communications as never,
+    {
+      eligibleRecipients: communications.recipientActorIds,
+      isVisible: jest.fn().mockResolvedValue(true),
+    } as never,
+  );
+}

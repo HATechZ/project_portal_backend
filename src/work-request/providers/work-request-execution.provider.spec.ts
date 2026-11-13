@@ -205,6 +205,7 @@ describe('WorkRequestExecutionProvider scope boundary', () => {
       'cycle-a',
       'member-a',
       false,
+      'actor-a',
     );
     expect(result.workflowVisibility).toEqual({
       canViewMainWorkflow: false,
@@ -258,6 +259,7 @@ describe('WorkRequestExecutionProvider scope boundary', () => {
       'request-a',
       null,
       true,
+      'admin-a',
     );
     expect(result).toEqual({
       authorizedInternalWorkflows: [

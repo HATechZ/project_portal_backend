@@ -1,9 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context';
 import { PaginationArgs } from '../../common/pagination/paginate';
 import { BaseRepository } from '../../infra/prisma/base.repository';
 import { UnitOfWorkService } from '../../infra/prisma/unit-of-work.service';
+import {
+  RESPONSIBILITY_HISTORY,
+  type ResponsibilityHistoryPort,
+} from '../../contracts/work-request-responsibility-history.port';
+import {
+  RESPONSIBILITY_PROFILE_RESOLVER,
+  type ResponsibilityProfileResolverPort,
+} from '../../contracts/responsibility-profile-resolver.port';
+import { replaceTeamLeadResponsibilities } from '../../infra/prisma/responsibility-history.writer';
 import type { SessionActor } from '../../common/security/session.types';
 import {
   ScopedCompanyRecord,
@@ -16,7 +25,13 @@ import {
 
 @Injectable()
 export class TeamRepository extends BaseRepository {
-  constructor(unitOfWork: UnitOfWorkService) {
+  constructor(
+    unitOfWork: UnitOfWorkService,
+    @Inject(RESPONSIBILITY_HISTORY)
+    private readonly responsibilityHistory?: ResponsibilityHistoryPort,
+    @Inject(RESPONSIBILITY_PROFILE_RESOLVER)
+    private readonly responsibilityProfiles?: ResponsibilityProfileResolverPort,
+  ) {
     super(unitOfWork);
   }
 
@@ -205,24 +220,56 @@ export class TeamRepository extends BaseRepository {
     leadMemberId: string,
   ): Promise<TeamRecord> {
     void companyId;
-    return this.transaction((db) =>
-      db.team.update({
+    return this.transaction(async (db) => {
+      const prior = await db.team.findUnique({
+        where: { id },
+        select: { leadMemberId: true },
+      });
+      const updated = await db.team.update({
         where: { id },
         data: { leadMemberId, updatedAt: new Date() },
         select: teamSelect,
-      }),
-    );
+      });
+      if (prior?.leadMemberId === leadMemberId) return updated;
+      if (this.responsibilityHistory && this.responsibilityProfiles)
+        await replaceTeamLeadResponsibilities({
+          db,
+          history: this.responsibilityHistory,
+          profiles: this.responsibilityProfiles,
+          tenantId: RequestContext.requireTenantId(),
+          teamId: id,
+          teamLeadMemberId: leadMemberId,
+          changedAt: updated.updatedAt,
+        });
+      return updated;
+    });
   }
 
   clearLead(id: string, companyId: string): Promise<TeamRecord> {
     void companyId;
-    return this.transaction((db) =>
-      db.team.update({
+    return this.transaction(async (db) => {
+      const prior = await db.team.findUnique({
+        where: { id },
+        select: { leadMemberId: true },
+      });
+      const updated = await db.team.update({
         where: { id },
         data: { leadMemberId: null, updatedAt: new Date() },
         select: teamSelect,
-      }),
-    );
+      });
+      if (prior?.leadMemberId === null) return updated;
+      if (this.responsibilityHistory && this.responsibilityProfiles)
+        await replaceTeamLeadResponsibilities({
+          db,
+          history: this.responsibilityHistory,
+          profiles: this.responsibilityProfiles,
+          tenantId: RequestContext.requireTenantId(),
+          teamId: id,
+          teamLeadMemberId: null,
+          changedAt: updated.updatedAt,
+        });
+      return updated;
+    });
   }
 
   async hasAnyMembership(teamId: string): Promise<boolean> {

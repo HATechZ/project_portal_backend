@@ -12,6 +12,47 @@ Required implementation proof includes:
 - C3 still requires all current-cycle Bid Work Requests `ACCEPTED`; Bid/Project ownership and C3 conversion remain unchanged.
 - Tenant/RLS, cross-resource scope, request-id replay, serializable races, uniqueness/ordering, append-only protections, and historical cutover compatibility are proven.
 
+## Final Request Information recipient matrix — future acceptance tests
+
+These tests apply the [final matrix](REQUEST_INFO_COMMUNICATION.md#final-request-information-recipient-matrix) to the full participating Work Request structure. They are future implementation proof, not a claim that the current resolver passes. All positive cases assume the existing tenant, permission, scope, usable actor, persisted relationship, recipient, thread and lifecycle requirements. A valid exact reciprocal pair is tested separately and must not be mistaken for an ordinary matrix recipient.
+
+### Division-level responsible actor
+
+1. A participating Division actor sees eligible responsible actors of previous participating Divisions.
+2. The actor sees eligible responsible actors of the current participating Division, excluding self.
+3. The actor sees eligible responsible actors of future participating Divisions, without requiring activation or a Division cycle.
+4. The actor sees every eligible Team Lead in its own Work Request-related Division, including upcoming, current and completed Teams.
+5. Eligible own-Division Team Leads remain visible after their Teams complete, using valid persisted responsibility/assignment evidence.
+6. With unchanged participation and eligibility, the recipient set remains the same at Division End as before it; repeat after Division completion.
+7. The Division matrix excludes ordinary Members, except where a separate valid reciprocal pair applies.
+8. The Division matrix excludes other-Division Team Leads, except where a separate valid reciprocal pair applies.
+
+### Team Lead
+
+9. A participating Team Lead sees the eligible own-Division responsible actor.
+10. The Team Lead sees eligible Leads of all other Work Request-related Teams in the same Division, independent of Team position or completion.
+11. The Team Lead sees all eligible Members of its own Team.
+12. Members of other Teams are excluded from the Team Lead matrix.
+13. Other-Division actors are excluded from the Team Lead matrix.
+
+### Member
+
+14. A participating Member sees the eligible own-Team Lead.
+15. The Member sees all eligible Members of the same Team.
+16. Other-Team and Division-level actors are excluded from the Member matrix.
+
+### Historical participation, isolation and actions
+
+17. A completed Member retains the same eligible Member matrix with persisted Work Request-specific MemberStep evidence.
+18. A completed/prior Team Lead retains the same eligible Team Lead matrix with exact persisted responsibility evidence.
+19. A completed/prior Division actor retains the same eligible Division matrix with exact persisted responsibility or originating binding evidence.
+20. An unrelated actor, Division or Team and a permission-only actor are denied; a current title alone does not prove historical responsibility.
+21. Cross-tenant callers and recipients are denied, including matching IDs or role names in another Tenant.
+22. Duplicate route occurrences, assignments, history and reciprocal-pair evidence do not duplicate a recipient ActorProfile; self is excluded.
+23. `REQUEST_WORKFLOW_INFO` remains available to an authorized historical participant when at least one eligible recipient exists and lifecycle rules permit it; completion restores no execution action.
+
+Also verify that the exact responsible originating actor retains the separate linked ClientContact rule; ClientContact eligibility, existing valid reciprocal pairs, pair privacy, thread access, addressed replies, attachment-only messages and Request Info lifecycle are unchanged. Archived mutation restrictions and all Main/Internal Workflow execution remain unchanged.
+
 ## Archive and restore future implementation matrix
 
 - An actor with the dedicated compatible archive permission and existing tenant/scope/resource authorization can archive an eligible active or in-progress Work Request; an unrelated, cross-tenant, or permissionless actor cannot archive it.
